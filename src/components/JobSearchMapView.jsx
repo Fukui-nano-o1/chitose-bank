@@ -30,7 +30,7 @@ import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobP
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
   fetchMyApplicationForJob, fetchMyPendingForJob, applyToJob, createPendingApplication, cancelApplication,
-  fetchAccountHolderId, fetchMyWorkerNickname, insertJobReport, fetchSurveyAnswered, insertSurvey,
+  fetchAccountHolderId, insertJobReport, fetchSurveyAnswered, insertSurvey,
   fetchConsignorConsent, fetchSignupOpen } from "../features/jobs/search/jobSearchApi";
 
 // ── JobSearchMapView ────────────────────────────────────────
@@ -680,23 +680,9 @@ export function JobSearchMapView({ onRegister, me }) {
       if (data && data.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
       if (data && data.ok) {
         try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
-        // 応募祝祭のビジュアル素材（2026-08-07）：自分のアイコン＋応募した求人のカード。
-        // 表示専用の受け渡し（sessionStorage・着地側で1回消費）
-        try {
-          let wm = snapGet("wMini");
-          // ★スナップショットが無い端末（プロフィール入口を開いたことがない・キャッシュ消去後）は
-          //   アイコンが「？」に倒れていた（2026-08-16たきと報告）→ 本物をDBから1行取り足す。
-          //   本人行のRLS・単一行ので一瞬。失敗しても祝祭は従来のフォールバックで出る（止めない）
-          if (!wm?.avatar_url && !wm?.nickname) {
-            const res = await fetchMyWorkerNickname(me.id);
-            if (!res.error && res.data) wm = res.data;
-          }
-          sessionStorage.setItem("cb_applyVisual", JSON.stringify({
-            avatar: wm?.avatar_url || "", name: wm?.nickname || "",
-            photo: photoThumb(selectedJob.photos?.[0]) || "",
-            crop: selectedJob.crop || "", task: selectedJob.task || "", city: selectedJob.city || "",
-          }));
-        } catch {}
+        // 応募祝祭のビジュアル素材（アイコン＋求人カード）の受け渡しは廃止した（2026-08-19
+        // たきと指示「アニメーションにアイコンや絵は使うな」）。祝祭は題字だけで出る＝
+        // 素材を作る必要がなくなり、ここでの1往復（fetchMyWorkerNickname）も不要になった
         window.location.hash = "/apply/done";
       }
       else if (data && data.reason === "not_logged_in") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); }

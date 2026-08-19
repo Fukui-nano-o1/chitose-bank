@@ -344,7 +344,7 @@ export function TodayPage({ me, defaultRole }) {
       if (error || !data?.ok) { fbError(); alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
       removeTodo(e.application_id, e.stage);
       fbSuccess();
-      if (m.rpc === "confirm_insurance") setCelebrate({ emoji:"🛡", title:"報告しました" });
+      if (m.rpc === "confirm_insurance") setCelebrate({ title:"報告しました" });
     }
   };
   // count＝バッジの数の上書き（一覧を持たない箱＝プロフィールの未入力数。省略時は対象件数）

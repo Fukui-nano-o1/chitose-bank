@@ -7,41 +7,39 @@
 //   （洗い出しは grep "<Celebration" と grep "setCelebrate({"）。
 // 読み取り専用＝supabaseをimportしない。試し打ちの入力はその場の再生にだけ使い、どこにも保存しない。
 import { useState } from "react";
-import { Celebration, ApplyCelebrationVisual } from "../Celebration";
+import { Celebration } from "../Celebration";
 import { PublishChoiceCard } from "../PublishChoiceCard";
 import { AdminNav } from "./AdminNav";
 
-// 本番で祝祭（Celebration）thaが出る全場面（2026-08-07時点・11場面）。
+// 本番で祝祭（Celebration）が出る全場面（2026-08-19時点・10場面）。
 // where＝どの画面のどの操作で出るか／src＝呼び出し元ファイル
+// ★2026-08-19たきと指示「アニメーションにアイコンや絵は使うな」＝祝祭から絵文字とビジュアル
+//   （働き手アイコン→求人カード）を廃止した。出るのは題字だけso、このリストも題字だけを持つ。
+//   ここに絵の欄を復活させないこと。
+// ※「作業が始まりました（🌅・開始の確認）」は本番から消えていたので一覧から外した（2026-08-19確認）。
 const CELEBRATIONS = [
-  // 応募できました＝絵文字でなく「求職者アイコン→求人カード」の押印（2026-08-07たきと指示）。
-  // 本番は応募した本人のアイコンと応募先の実カード。ここでは架空の見本（部品は本物）
-  { emoji:"", title:"応募できました",             where:"応募を送った直後（求職者アイコン→求人カードの押印）", src:"App.jsx",
-    visual:{ avatar:"", name:"はなこ", photo:"", crop:"ブロッコリー", task:"収穫", city:"吉野川市" } },
-  { emoji:"📩", title:"2件を届けました",          where:"仮応募の昇格（プロフィール完成で届いた時。件数は実数）", src:"App.jsx", note:"件数は promotedCount の実数。ここでは2件で再生" },
-  { emoji:"✅", title:"仮応募をお預かりしました", where:"プロフィール未完成のまま応募した直後", src:"App.jsx" },
+  { title:"応募できました",             where:"応募を送った直後", src:"App.jsx" },
+  { title:"2件を届けました",            where:"仮応募の昇格（プロフィール完成で届いた時）", src:"App.jsx", note:"件数は promotedCount の実数。ここでは2件で再生" },
+  { title:"仮応募をお預かりしました",   where:"プロフィール未完成のまま応募した直後", src:"App.jsx" },
   // 掲載の2種は、終了後に60秒静止の選択カード（実物のPublishChoiceCard）まで再現する
-  { emoji:"🎉", title:"公開しました！",           where:"求人の掲載（即公開）。終了後に選択カード（求人を見る／一覧に戻る）", src:"App.jsx", after:{ jobNumber:1026 } },
-  { emoji:"🌱", title:"求人ができました！",       where:"求人の掲載（公開間近）。終了後に選択カード（一覧に戻るのみ）", src:"App.jsx", after:{ jobNumber:null } },
-  { emoji:"✅", title:"承認しました",             where:"応募者ページで応募を承認", src:"FarmerDashboard.jsx" },
-  { emoji:"🌾", title:"おつかれさまでした",       where:"完了して評価（農家）", src:"FarmerDashboard.jsx" },
-  { emoji:"⭐", title:"ありがとうございました",   where:"働き手の評価送信", src:"WorkerApplications.jsx" },
-  { emoji:"🛡", title:"報告しました",             where:"保険の準備の報告", src:"TodayPage.jsx" },
-  { emoji:"🌅", title:"作業が始まりました",       where:"作業の開始を確認（農家）", src:"TodayPage.jsx" },
-  { emoji:"✅", title:"ありがとうございます",     where:"働き手フロー完了（構想段階の導線）", src:"App.jsx" },
+  { title:"公開しました！",             where:"求人の掲載（即公開）。終了後に選択カード（求人を見る／一覧に戻る）", src:"App.jsx", after:{ jobNumber:1026 } },
+  { title:"求人ができました！",         where:"求人の掲載（公開間近）。終了後に選択カード（一覧に戻るのみ）", src:"App.jsx", after:{ jobNumber:null } },
+  { title:"承認しました",               where:"応募者ページで応募を承認", src:"FarmerDashboard.jsx" },
+  { title:"おつかれさまでした",         where:"完了して評価（農家）", src:"FarmerDashboard.jsx" },
+  { title:"ありがとうございました",     where:"働き手の評価送信", src:"WorkerApplications.jsx" },
+  { title:"報告しました",               where:"保険の準備の報告", src:"TodayPage.jsx" },
+  { title:"ありがとうございます",       where:"働き手フロー完了（構想段階の導線）", src:"App.jsx" },
 ];
-
 // 部品の中に埋まっていて切り出せないアニメーション＝本物のいる場所へ飛んで確認する
 // （コピーを作ると本物と乖離するので、リンクだけ置く）
 const EMBEDDED = [
-  { l:"採用の押印（🤝・輪・紙吹雪）", hash:"/calendar/todo/hire",  where:"採用するページ。採用を実行した時" },
+  { l:"採用の押印（文字の印・広がる輪・光の粒）", hash:"/calendar/todo/hire",  where:"採用するページ。採用を実行した時" },
   { l:"委託ページの入場演出（幕・草・太陽・花火）", hash:"/admin/consignment", where:"委託 準備室を開いた時" },
 ];
 
 export function AdminAnimationsRoom() {
-  const [playing, setPlaying] = useState(null); // {emoji,title,visual,after} 再生中の祝祭
+  const [playing, setPlaying] = useState(null); // {title,after} 再生中の祝祭（絵は持たない・2026-08-19）
   const [afterCard, setAfterCard] = useState(null); // 祝祭後の選択カード（掲載2種のみ・previewモード＝遷移しない）
-  const [tryEmoji, setTryEmoji] = useState("🎉");
   const [tryTitle, setTryTitle] = useState("おめでとうございます");
   return (
     /* cb-admin-page＝サイトフッターを隠す目印。下余白＝下部バー＋☰ぶん（2026-08-07規約） */
@@ -53,9 +51,8 @@ export function AdminAnimationsRoom() {
       </div>
 
       {CELEBRATIONS.map((c, i) => (
-        <button key={i} onClick={()=>{ setAfterCard(null); setPlaying({ emoji:c.emoji, title:c.title, visual:c.visual || null, after:c.after || null }); }} className="f-sans"
+        <button key={i} onClick={()=>{ setAfterCard(null); setPlaying({ title:c.title, after:c.after || null }); }} className="f-sans"
           style={{ width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", marginBottom:10, cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
-          <span style={{ fontSize:26, lineHeight:1, flexShrink:0, minWidth:30, textAlign:"center" }} aria-hidden="true">{c.emoji || "→"}</span>
           <span style={{ minWidth:0, flex:1 }}>
             <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{c.title}</span>
             <span className="f-sans" style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}>{c.where}（{c.src}）{c.note ? `・${c.note}` : ""}</span>
@@ -67,12 +64,11 @@ export function AdminAnimationsRoom() {
       {/* 試し打ち（編集の下書き）：絵文字と文言を変えて実機で確かめる。保存はしない＝本番を変えるのはコード側 */}
       <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"14px", margin:"18px 0 10px" }}>
         <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 4px" }}>試し打ち</p>
-        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 10px" }}>絵文字と文言を変えて再生できます（この場だけ・どこにも保存されません）。決まったら文言を伝えてください＝本番に反映します</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 10px" }}>文言を変えて再生できます（この場だけ・どこにも保存されません）。決まったら文言を伝えてください＝本番に反映します</p>
         <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-          <input value={tryEmoji} onChange={e=>setTryEmoji(e.target.value)} className="field f-sans" style={{ width:72, marginBottom:0, fontSize:20, textAlign:"center" }} aria-label="絵文字" />
           <input value={tryTitle} onChange={e=>setTryTitle(e.target.value)} className="field f-sans" style={{ flex:1, marginBottom:0, fontSize:14 }} aria-label="文言" placeholder="表示する文言" />
         </div>
-        <button onClick={()=>setPlaying({ emoji: tryEmoji.trim() || "🎉", title: tryTitle.trim() })} className="f-sans"
+        <button onClick={()=>setPlaying({ title: tryTitle.trim() || "おめでとうございます" })} className="f-sans"
           style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>この内容で再生</button>
       </div>
 
@@ -90,7 +86,7 @@ export function AdminAnimationsRoom() {
       ))}
 
       {/* 再生（本物のCelebration・pointer-events:none・約3秒で自動終了） */}
-      {playing && <Celebration emoji={playing.emoji || "🎉"} custom={playing.visual ? <ApplyCelebrationVisual {...playing.visual} /> : null} title={playing.title}
+      {playing && <Celebration title={playing.title}
         onDone={()=>{ if (playing.after) setAfterCard(playing.after); setPlaying(null); }} />}
       {/* 掲載の祝祭後＝実物の選択カード（60秒静止で自動的に消える）。preview＝ボタンは遷移せず閉じるだけ */}
       {afterCard && <PublishChoiceCard preview jobNumber={afterCard.jobNumber} onClose={()=>setAfterCard(null)} />}

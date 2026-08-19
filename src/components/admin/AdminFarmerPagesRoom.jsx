@@ -135,7 +135,7 @@ const SAMPLE_TRUST = { joined_at:"2026-05-01T00:00:00Z", verified_at:"2026-05-02
 
 /* ── 農家が通る画面（順序どおり）───────────────────────────────────────────
    ch=章 / name=画面名 / url=本番のURL（実コードで実在を確認済み） / act=その画面で農家がする動作 /
-   body(api)=見本の中身。api.play(emoji,title)＝本物の祝祭アニメを再生 */
+   body(api)=見本の中身。api.play(title)＝本物の祝祭アニメを再生（絵は渡さない・2026-08-19） */
 const STEPS = [
   /* ═══ 準備（アカウント）═══ */
   /* 玄関は素通りになった（2026-08-17・同意画面の撤去）。QRの着地点として章には残すが、
@@ -411,7 +411,7 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.9, margin:"0 0 14px" }}>
           本番と同じ演出（components/Celebration）をそのまま再生します。暗幕 → 打ち上げの尾 → 閃光 → 菊の光条 → 特大の押印と画面の揺れ → 追い花火 → 幕引き。約3秒で自動的に終わります（音と振動も本番と同じ）。
         </p>
-        <PlayBtn onClick={() => api.play("🎉", "公開しました！")}>▶ 掲載の祝祭を再生する</PlayBtn>
+        <PlayBtn onClick={() => api.play("公開しました！")}>▶ 掲載の祝祭を再生する</PlayBtn>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>
           即公開（運営本人の自己募集）は「🎉 公開しました！」、一般農家は「🌱 求人ができました！」になります。
         </p>
@@ -524,7 +524,7 @@ const STEPS = [
           <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}>9月10日〜12日 ・ 日給9,000円<br />契約が成立すると、お互いの本名が表示されます（雇用の法定手続きのため）。</p>
           <div style={{ display:"flex" }}><Btn kind="green">OK・採用する</Btn></div>
         </Card>
-        <PlayBtn onClick={() => api.play("🤝", "採用しました")}>▶ 採用の祝祭を再生する</PlayBtn>
+        <PlayBtn onClick={() => api.play("採用しました")}>▶ 採用の祝祭を再生する</PlayBtn>
       </div>
     ) },
 
@@ -715,7 +715,7 @@ export function AdminFarmerPagesRoom() {
   const onPrev = () => { if (first) window.location.hash = "/admin"; else go(step - 1); };
   const onNext = () => { if (last) window.location.hash = "/admin"; else go(step + 1); };
   const s = STEPS[step - 1];
-  const api = { play: (emoji, title) => setCelebration({ emoji, title }) };
+  const api = { play: (title) => setCelebration({ title }) };
 
   return (
     /* cb-admin-page＝サイトフッターを隠す目印／cb-farmer-walk-page＝下部バーと浮遊☰を
@@ -751,7 +751,7 @@ export function AdminFarmerPagesRoom() {
 
       {/* 本物の祝祭アニメ（components/Celebration）。全画面・約3秒で自動的に終わる */}
       {celebration && (
-        <Celebration emoji={celebration.emoji} title={celebration.title} onDone={() => setCelebration(null)} />
+        <Celebration title={celebration.title} onDone={() => setCelebration(null)} />
       )}
 
       {/* 下部バーの差し替え（戻る／次へ）。この画面では本来の下部バー・浮遊☰は出ない */}

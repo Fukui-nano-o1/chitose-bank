@@ -62,7 +62,7 @@ export function WorkerApplications({ filter, me }) {
       if (revErr) { fbError(); alert('評価の保存に失敗しました：' + revErr.message); setReviewSubmitting(false); return; }
       setReviewedIds(prev => new Set(prev).add(reviewModalApp.id));
       setReviewModalApp(null);
-      fbSuccess(); setCelebrate({ emoji:"⭐", title:"ありがとうございました" });
+      fbSuccess(); setCelebrate({ title:"ありがとうございました" });
     } catch { alert('処理に失敗しました。'); }
     setReviewSubmitting(false);
   };

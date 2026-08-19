@@ -152,13 +152,18 @@ export function NewApplicantsPanel({ items, onTap }) {
     <div style={{ position:"relative", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"18px 14px" }}>
       {petals && (
         <div aria-hidden style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none", borderRadius:12 }}>
-          {Array.from({ length: 14 }).map((_, i) => (
-            <span key={i} style={{ position:"absolute", top:-24, left: ((i * 29 + 7) % 96) + "%", fontSize: 13 + (i % 3) * 4, opacity:0, animation: `cbPetalFall ${1.9 + (i % 5) * 0.25}s ease-in ${(i % 7) * 0.13}s forwards` }}>🌸</span>
-          ))}
+          {/* 降ってくるのは光の粒（2026-08-19：🌸の花びらから差し替え＝アニメーションに絵を使わない）。
+              大きさを3段に散らし、役割色（緑）の濃淡で降らせる */}
+          {Array.from({ length: 14 }).map((_, i) => {
+            const d = 5 + (i % 3) * 3;
+            return (
+              <span key={i} style={{ position:"absolute", top:-24, left: ((i * 29 + 7) % 96) + "%", width:d, height:d, borderRadius:"50%", background:"#00A86B", opacity:0, animation: `cbPetalFall ${1.9 + (i % 5) * 0.25}s ease-in ${(i % 7) * 0.13}s forwards` }} />
+            );
+          })}
         </div>
       )}
       <style>{`@keyframes cbPetalFall{0%{transform:translateY(0) rotate(0deg);opacity:0}12%{opacity:1}100%{transform:translateY(360px) rotate(230deg);opacity:0}}`}</style>
-      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>🎉 おめでとうございます！</p>
+      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>おめでとうございます！</p>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 16px" }}>あなたの求人に新しい応募が届きました。タップして確認しましょう。</p>
       <div style={{ display:"grid", gap:10 }}>
         {items.map(t => (
@@ -511,7 +516,7 @@ export function HireStagePanel({ items, meId, onHired }) {
       })()}
 
       {/* ═══ 採用アニメーション（2026-08-06たきと指示） ═══
-          🤝が押印のように現れ、輪が広がり、粒が弾ける。人生の節目（契約成立）を祝う一拍。
+          「採用」の判子が押印のように現れ、輪が広がり、光の粒が弾ける。人生の節目（契約成立）を祝う一拍。
           人数に達して他の応募が見送りになった時だけ、読み落とさないよう閉じるまで残す */}
       {done && (() => {
         const auto = !done.extra;
@@ -522,13 +527,19 @@ export function HireStagePanel({ items, meId, onHired }) {
               {[0, 1, 2].map(i => (
                 <span key={i} aria-hidden style={{ position:"absolute", width:110, height:110, borderRadius:"50%", border:"3px solid #00A86B", animation:`cbHireRing 1.5s ease-out ${0.15 + i * 0.28}s both` }} />
               ))}
+              {/* 飛び散る光の粒（2026-08-19：🌾✨🌸の絵文字から差し替え）＝絵ではなく光。
+                  大小を交互にして、単調な点の輪に見えないようにする */}
               {Array.from({ length: 12 }).map((_, i) => {
                 const a = (i / 12) * Math.PI * 2;
+                const d = i % 2 === 0 ? 9 : 6;
                 return (
-                  <span key={"b" + i} aria-hidden style={{ position:"absolute", fontSize:16, ["--dx"]: Math.cos(a) * 92 + "px", ["--dy"]: Math.sin(a) * 92 + "px", animation:`cbHireBurst 1.1s ease-out ${0.2 + (i % 4) * 0.06}s both` }}>{i % 3 === 0 ? "🌾" : i % 3 === 1 ? "✨" : "🌸"}</span>
+                  <span key={"b" + i} aria-hidden style={{ position:"absolute", width:d, height:d, borderRadius:"50%", background:"#00A86B", ["--dx"]: Math.cos(a) * 92 + "px", ["--dy"]: Math.sin(a) * 92 + "px", animation:`cbHireBurst 1.1s ease-out ${0.2 + (i % 4) * 0.06}s both` }} />
                 );
               })}
-              <span style={{ fontSize:78, lineHeight:1, animation:"cbHireSeal .7s cubic-bezier(.2,1.3,.4,1) both" }}>🤝</span>
+              {/* 印そのものも文字にする（2026-08-19：🤝から差し替え）＝丸い枠に「採用」を彫った判子 */}
+              <span className="f-sans" aria-hidden style={{ width:118, height:118, borderRadius:"50%", border:"5px solid #00A86B", color:"#00A86B",
+                display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, fontWeight:900, letterSpacing:".08em",
+                animation:"cbHireSeal .7s cubic-bezier(.2,1.3,.4,1) both" }}>採用</span>
             </div>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"8px 0 0", animation:"cbHireText .5s ease .45s both" }}>採用しました</p>
             <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, textAlign:"center", margin:"8px 0 0", animation:"cbHireText .5s ease .6s both" }}>

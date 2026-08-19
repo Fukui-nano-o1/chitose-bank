@@ -414,7 +414,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         setFavDone({ workerId: completeModalApp.worker_id, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
-      fbSuccess(); setCelebrate({ emoji:"🌾", title:"おつかれさまでした" });
+      fbSuccess(); setCelebrate({ title:"おつかれさまでした" });
       // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
       let jobLabel = "";
       const cached = dbActive.find(d => d.job_number === completeModalApp.job_number) || dbDrafts.find(d => d.job_number === completeModalApp.job_number);
@@ -912,7 +912,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         const { data, error } = await approveApplication(a.id);
                         if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                         setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
-                        fbSuccess(); setCelebrate({ emoji:"✅", title:"承認しました" });
+                        fbSuccess(); setCelebrate({ title:"承認しました" });
                       }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
                     </div>
                     {/* 記録が済んだら両方とも出さない（2026-08-16たきと指示「OKで保留と対応済みは非表示」） */}

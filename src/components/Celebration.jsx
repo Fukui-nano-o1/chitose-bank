@@ -1,8 +1,15 @@
-// 完了の祝祭 v2（2026-08-06たきと指示「もっと過激で印象に残るように。参考元は委託ページ遷移」）
+// 完了の祝祭 v3（2026-08-06たきと指示「もっと過激で印象に残るように。参考元は委託ページ遷移」＋
+//   2026-08-19たきと指示「アニメーションにアイコンや絵は使うな」）
 // 委託ページ入場演出（ConsignmentRoom）の視覚言語をそのまま借りる：
 //   一瞬の暗幕 → 打ち上げの尾が昇る → 閃光 → 菊の光条の炸裂（本体・特大）→
-//   絵文字が押印で叩き込まれ画面が揺れる → 追い花火4〜6発が続けざまに開く → 幕が引く
+//   題字が押印で叩き込まれ画面が揺れる → 追い花火4〜6発が続けざまに開く → 幕が引く
 // 白い画面の上では白い花火は見えないので、委託の「黒幕」を敷いてから開く＝これが過激さの土台。
+//
+// 【★絵を使わない（2026-08-19・絶対）】絵文字・アイコン・アバター・写真・具象のイラストは
+//   この演出に一切置かない。使ってよいのは【光・動き・色・文字】だけ。
+//   ・v2の絵文字の押印（🎉🌱✅🌾⭐🛡📩）と ApplyCelebrationVisual（働き手アイコン→求人カード）は削除した
+//   ・押印の主役は題字（title）。文字がそのまま叩き込まれる
+//   ・花火は光条＝光の表現なので残す（具象の絵ではない）。ここに絵柄を足さないこと
 //
 // 【法的リスク回避・絶対（v1から不変）】
 // ・pointer-events:none＝操作を一切奪わない。自動で消える＝記録・ゲート・フローには触れない
@@ -10,7 +17,6 @@
 // ・keyframesは使用箇所に同居（委託入場・HireStagePanelと同じ作法）
 import { useEffect, useRef, useState } from "react";
 import { fbCelebrate } from "../lib/feedback";
-import { Avatar } from "./ui";
 
 // 追い花火の抽選（委託入場の makeConsignGrass と同じ思想＝毎回違う夜空）。
 // 1発＝閃光＋菊の光条（長短交互の光条＋先端の粒＝委託の炸裂SVGと同じ構造）
@@ -50,35 +56,8 @@ function BurstSVG({ rays, spin, color, stroke = 1 }) {
   );
 }
 
-// 応募の祝祭ビジュアル（2026-08-07たきと指示「応募できましたはアイコン削除。求職者アイコン→求人カードにする」）。
-// 絵文字の代わりに Celebration の custom に渡して押印させる。★Celebrationの中でだけ使う
-// （矢印の脈動 cbFb2Arrow のkeyframesは Celebration の<style>にある）。
-// avatar/name＝応募した働き手、photo/crop/task/city＝応募先の求人カード（写真なしは🌾の下地）
-export function ApplyCelebrationVisual({ avatar, name, photo, crop, task, city }) {
-  return (
-    <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-      <div style={{ borderRadius:"50%", flexShrink:0, boxShadow:"0 0 0 3px #fff, 0 10px 30px rgba(0,0,0,.5)" }}>
-        {/* 名前もアイコンも無い時の下地は🌱（「？」は欠落に見える・2026-08-16たきと報告）。
-            通常は応募側がDBから取り足すのでここまで落ちない */}
-        <Avatar url={avatar || null} name={name || "🌱"} size={72} />
-      </div>
-      <span aria-hidden="true" style={{ fontSize:34, fontWeight:900, color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,.6)",
-        animation:"cbFb2Arrow 0.9s ease-in-out .95s infinite" }}>→</span>
-      <div style={{ width:150, flexShrink:0, background:"#fff", borderRadius:14, overflow:"hidden", boxShadow:"0 10px 30px rgba(0,0,0,.5)" }}>
-        {photo
-          ? <img src={photo} alt="" style={{ width:"100%", height:88, objectFit:"cover", display:"block" }} />
-          : <div style={{ width:"100%", height:88, background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }} aria-hidden="true">🌾</div>}
-        <div style={{ padding:"8px 10px 10px" }}>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[crop, task].filter(Boolean).join(" ") || "求人"}</p>
-          {city && <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{city}</p>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// custom＝押印スロットに絵文字の代わりに差し込むJSX（応募のアイコン→求人カード等）。無指定なら従来どおり絵文字
-export function Celebration({ emoji = "🎉", title = "", duration = 3000, custom = null, onDone }) {
+// 押印されるのは題字（title）だけ。絵を差し込むスロット（旧custom）は持たない＝絵を足せない形にしておく
+export function Celebration({ title = "", duration = 3000, onDone }) {
   const onDoneRef = useRef(onDone); onDoneRef.current = onDone;
   const [shells] = useState(makeShells); // マウント時に1回だけ抽選（再レンダーで夜空が変わらない）
   useEffect(() => {
@@ -113,12 +92,9 @@ export function Celebration({ emoji = "🎉", title = "", duration = 3000, custo
         @keyframes cbFb2Shake { 0%,100% { transform:translate(0,0); } 15% { transform:translate(-7px,4px); }
                                 30% { transform:translate(6px,-5px); } 45% { transform:translate(-4px,-3px); }
                                 60% { transform:translate(4px,3px); } 75% { transform:translate(-2px,2px); } }
-        @keyframes cbFb2Title { 0% { transform:translateY(18px) scale(.7); opacity:0; }
-                                60% { transform:translateY(0) scale(1.06); opacity:1; }
-                                100% { transform:translateY(0) scale(1); opacity:1; } }
-        /* 応募ビジュアルの矢印：働き手→求人カードへ流れる脈動（ApplyCelebrationVisualが使う） */
-        @keyframes cbFb2Arrow { 0%,100% { transform:translateX(-5px); opacity:.55; }
-                                50% { transform:translateX(5px); opacity:1; } }
+        /* 題字の下の光の線：中央から左右へ引かれる */
+        @keyframes cbFb2Rule  { 0% { width:0; opacity:0; } 30% { opacity:1; }
+                                100% { width:min(72vw, 320px); opacity:.9; } }
       `}</style>
       {/* 暗幕（0.18sで落ちる→終わりで引く）。花火が見えるのはこの闇があるから */}
       <div style={{ position:"absolute", inset:0, background:"rgba(8,10,8,.82)",
@@ -149,20 +125,21 @@ export function Celebration({ emoji = "🎉", title = "", duration = 3000, custo
             </div>
           </div>
         ))}
-        {/* 押印の絵文字＋題字（炸裂と同時に叩き込む・overlay内だけ揺れる） */}
+        {/* 押印＝題字そのもの（炸裂と同時に叩き込む・overlay内だけ揺れる）。
+            絵は置かない（2026-08-19）＝文字を特大で叩き込み、下の光の線が遅れて引かれる。
+            日本語は好きな位置で折り返すので、幅を絞って中央で2行に落ちるようにする */}
         <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
           animation:"cbFb2Shake .5s ease-out .45s both" }}>
-          {custom ? (
-            <div style={{ animation:"cbFb2Stamp .55s cubic-bezier(.2,1.5,.4,1) .45s both" }}>{custom}</div>
-          ) : (
-            <span style={{ fontSize:"min(38vw, 170px)", lineHeight:1, animation:"cbFb2Stamp .55s cubic-bezier(.2,1.5,.4,1) .45s both",
-              filter:"drop-shadow(0 10px 30px rgba(0,0,0,.5))" }}>{emoji}</span>
-          )}
           {title && (
-            <p className="f-sans" style={{ margin:"18px 0 0", fontSize:"min(7vw, 30px)", fontWeight:900, color:"#fff",
-              letterSpacing:".04em", textShadow:"0 2px 18px rgba(0,0,0,.6)",
-              animation:"cbFb2Title .5s cubic-bezier(.2,1.4,.4,1) .75s both" }}>{title}</p>
+            <p className="f-sans" style={{ margin:0, maxWidth:"86vw", textAlign:"center",
+              fontSize:"min(12vw, 56px)", lineHeight:1.25, fontWeight:900, color:"#fff", letterSpacing:".02em",
+              textShadow:"0 2px 24px rgba(0,0,0,.65)",
+              animation:"cbFb2Stamp .55s cubic-bezier(.2,1.5,.4,1) .45s both" }}>{title}</p>
           )}
+          {/* 題字の下に引かれる光の線（絵ではなく光）＝押印の後に遅れて伸びる */}
+          <span aria-hidden="true" style={{ display:"block", height:3, borderRadius:2, marginTop:22,
+            background:"linear-gradient(to right, rgba(255,255,255,0), #fff, rgba(255,255,255,0))",
+            animation:"cbFb2Rule .55s cubic-bezier(.2,.9,.3,1) .8s both" }} />
         </div>
       </div>
     </div>
