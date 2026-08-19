@@ -6022,3 +6022,25 @@ SavedJobsViewのinline・審査プレビュー=AdminJobPreview）は不変。
 ④中身thatスクロールできるシート（応募のボックス・今日ページ）は、途中までスクロールした状態からの
 下スワイプthatスクロールになり、最上部からの下スワイプだけthatシートを掴むか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-19 仕事の評価ページをさがすの求人一覧と同じ構造に（4cd0b59）━━━
+【たきと指示】「仕事の評価ページは探すページの求人一覧と同じ構造に。タップで、終了の確認・評価
+ボックス展開」。
+【実装】features/today/components/StagePanels.jsx に ReviewStagePanel を新設し、
+今日ページの #/calendar/todo/w_review をこれで描く（従来は行リストのTodoStagePanel）。
+・カードは【さがす一覧と同じ部品】JobCard variant="list"＝似せて描かない。さがすの見た目を直せば
+  この面も自動で追従する。hideEndLabel で終了帯は出さない（段階は別の場所that語る既定の作法）。
+・材料は jobs_public から job_number でまとめて引く（fetchPublicJobsByNumbers を todayApi に新設）。
+  my_todo_items は写真も報酬も返さないため。取得に失敗しても手元の値を上書きしない（フェイルオープン規則）。
+  引けなかった求人は作物×作業と#No.だけの最小カードで出す＝一覧から落とさない。
+・タップでその場に「終了の確認・評価」を展開＝ページを移らない。送信で祝祭＋その行that一覧から消える。
+【★入力と保存を1箇所に集約】components/WorkerReviewSheet.jsx を新設し、応募状況ページ
+（WorkerApplications）のモーダルもこれに差し替えた。同じ評価の入力that2箇所で枝分かれしないため
+＝項目・文言を変える時はこの部品だけを直す。保存は reviews の1行のみ（打刻の署名は撃たない）。
+DBの壁（当事者と向きの一致・worker_to_farmer は working 以上）that最後の担保。
+【★踏まなかった地雷】mapJobPublicRow の dateStart/dateEnd は Date オブジェクトso、
+viewCache（JSON）に入れると復元時に文字列になり読む側that落ちる（2026-08-03の実害と同じ型）。
+この面はキャッシュせず、開いた時に1往復するだけにした。
+【検証】build成功・lint 0 error（react/jsx-no-undef that import漏れを1件検出→修正）。
+実機：①仕事の評価ページのカードthatさがすと同じ見た目か ②タップで終了の確認・評価that開くか
+③送信で祝祭→一覧から消えるか ④応募状況ページの評価モーダルthat従来どおり動くか（共有化の回帰）
