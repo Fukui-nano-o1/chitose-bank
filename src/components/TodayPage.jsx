@@ -29,7 +29,7 @@ export function TodayPage({ me, defaultRole }) {
   const [todos, setTodos] = useState(() => getCache("today:todos") ?? []);     // やることフィード（my_todo_items・状態カードの単一ソース）
   // jobCount（自分が出した求人の数）のstateは廃止（2026-08-03）：カレンダー箱のタップ可否判定が
   // 唯一の読み手だったが、タップ不能を全廃したため不要になった。求人の有無は下の f（農家か）の算出で今も使う
-  // プロフィールの未入力数（役割ごと）。未入力がある間だけ「プロフィールの未入力」ボックスが現れる（2026-08-03たきと指示）
+  // プロフィールの未入力数（役割ごと）＝「👤プロフィール入力」ボックスのバッジの数（2026-08-19に常設化）
   const [profileUnset, setProfileUnset] = useState(() => getCache("today:unset") ?? null);
   const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
   // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
@@ -70,8 +70,8 @@ export function TodayPage({ me, defaultRole }) {
         const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
         setHasWorker(w); setHasFarmer(f);
         setCache("today:roles", { w, f });
-        // プロフィールの未入力数（2026-08-03たきと指示）。埋まれば0＝ボックスが消え、
-        // 後で空にすればまた1以上になって現れる＝状態を持たず毎回いまの行から数える
+        // プロフィールの未入力数（バッジ用）。状態を持たず毎回いまの行から数える＝
+        // 埋めれば0（バッジが消えて薄表示）、後で空にすればまた1以上に戻る
         // 緊急連絡先（別テーブル）は働き手側の応募条件でもあるので両役割に渡す（2026-08-17）
         const unset = { w: workerUnsetCount(wp, { hasEmergency: !!emg }).total, f: employerUnsetCount(ep, { hasEmergency: !!emg }).total };
         setProfileUnset(unset); setCache("today:unset", unset);
@@ -224,12 +224,12 @@ export function TodayPage({ me, defaultRole }) {
   // ── やること（採配台）：状態カード。①②⑧=遷移／③〜⑦=直接実行（保険・開始確認はインライン、日程決定・完了/評価は既存モーダルへ橋渡し） ──
   const removeTodo = (id, st) => setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
   const TODO_META = {
-    // プロフィールの未入力（2026-08-03たきと指示）：未入力がある間だけ、やることの先頭に現れる。
-    // 埋まれば消える／後で空にすればまた現れる（状態を持たず、毎回いまのプロフィール行から数える）。
+    // プロフィール入力（2026-08-03新設・2026-08-19に常設化＋改称）：やることの先頭に常に置く入口。
+    // バッジ＝未入力の項目数（0なら出さない）。タップで未入力の欄が開き、保存で次の欄へ進む。
     // 行き先は編集ページ＝専用ページを挟まない（用件の一覧ではなく自分の入力そのものが行き先ので・boxNav）。
     // バッジ＝未入力の項目数＝プロフィール入口の名刺バッジと同じ数（数え方はlib/utilsが唯一のソース）
-    profile:     { icon:"👤", title:"プロフィールの未入力", btn:"入力する →",
-                   desc:"農家はあなたのプロフィールを見て、応募を承認するか決めます。埋まっているほど選ばれやすくなります。",
+    profile:     { icon:"👤", title:"プロフィール入力", btn:"入力する →",
+                   desc:"タップすると、まだ入力していない欄が開きます。保存すると次の欄へ進みます。相手はプロフィールを見て応募・承認を決めるので、埋まっているほど選ばれやすくなります。",
                    // 合図（cb_fillProfile）＝着地した編集ページが最初の未入力ボックスをその場で開く。
                    // 以後は保存のたびに次の未入力へ進む（編集ページ側の既存の連鎖・2026-07-16）
                    boxNav: () => {
@@ -513,11 +513,14 @@ export function TodayPage({ me, defaultRole }) {
           // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当がある用件。
           // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」が一目で分かる。同日たきと指示）
           const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0) || null;
-          // プロフィールの未入力（2026-08-03たきと指示）：未入力がある間だけ格子の先頭に差し込む。
-          // カタログには入れない＝埋まれば箱ごと消える（薄表示で残さない）。読み込み前(null)は出さない。
-          // 「いま これだけ」はcatalogから選ぶのでprofileは昇格しない＝格子の先頭に置く（二重表示にならない）
+          // プロフィール入力（2026-08-19たきと指示）：両役割とも常に格子の先頭に置く常設の入口。
+          // ★2026-08-03の「埋まれば非表示・空になればまた表示」は撤回：あの箱は「未入力」という
+          //   お知らせだったが、名前が「プロフィール入力」＝いつでも入力しに行ける入口に変わったため、
+          //   埋まっていても消さない（働き手側が全部埋まっていて箱が無かった＝入口が消えていた）。
+          // バッジは未入力の数（0なら出さない＝薄表示になり「いま用事が無い」を示す）。
+          // カタログには入れない＝「いま これだけ」はcatalogから選ぶのでprofileは昇格しない（二重表示にならない）
           const unsetN = profileUnset ? (role === "farmer" ? profileUnset.f : profileUnset.w) : 0;
-          if (unsetN > 0) stageOrder.unshift("profile");
+          stageOrder.unshift("profile");
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
