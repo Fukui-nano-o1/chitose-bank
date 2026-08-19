@@ -61,6 +61,35 @@ export function ChatView({ applicationId, onBack }) {
   const tmplSheetRef = useRef(null), tmplScrollRef = useRef(null);
   useSheetDragClose(tmplSheetRef, tmplScrollRef, ()=>setTmplOpen(false), tmplOpen);
   const [dateSel, setDateSel] = useState([]); // ＋シート「日程案を送る」で選択中の日（農家→働き手・2026-07-24）
+  // 日程案の承認（2026-08-19たきと指示「提案した日程案はタブ化。働き手はタップしたタブを承認する形。
+  // タップするたびにメッセージ入力に入力されていく。送信ボタンタップで最終確認」）：
+  // 農家が送った【日程案】のメッセージを、本文の下にタブ（日付のチップ）として描き直す。
+  // 働き手がタップすると、その日が入力欄の返事の文に積まれていく（もう一度タップで外れる）。
+  // ★記録は増やさない＝ここで作るのは返事の文章だけ。働く日の確定は従来どおり
+  //   農家の「働く日を決める」（set_agreed_dates）が唯一の記録（表示は記録から導出の原則）
+  const [planSel, setPlanSel] = useState(null); // { msgId, labels:[...] } タップ中の日
+  const planBaseRef = useRef("");               // 選び始めた時点の入力＝打ちかけの文を壊さない
+  const [planConfirm, setPlanConfirm] = useState(null); // 送信前の最終確認 { body }
+  // 【日程案】の本文から日付のラベルだけを取り出す（送った時と同じ「・」区切り）
+  const parsePlanLabels = (body) => {
+    if (!body || !body.startsWith("【日程案】")) return null;
+    const head = body.slice("【日程案】".length).split(" に来ていただきたいです")[0];
+    const labels = head.split("・").map(x => x.trim()).filter(Boolean);
+    return labels.length ? labels : null;
+  };
+  const planReplyText = (labels) =>
+    labels.length ? "【日程の承認】" + labels.join("・") + " に伺います。よろしくお願いします。" : "";
+  // タブのタップ：選び直すたびに、打ちかけの文の後ろの返事だけを作り替える
+  const togglePlanDay = (msgId, label) => {
+    setPlanSel(prev => {
+      const cur = (prev && prev.msgId === msgId) ? prev.labels : [];
+      if (!prev || prev.msgId !== msgId) planBaseRef.current = text.replace(/\s*$/, "");
+      const next = cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label];
+      const base = planBaseRef.current;
+      setText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
+      return next.length ? { msgId, labels: next } : null;
+    });
+  };
   // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
   const [partnerReadAt, setPartnerReadAt] = useState(null);
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
@@ -431,9 +460,16 @@ export function ChatView({ applicationId, onBack }) {
       const { data:{ session } } = await supabase.auth.getSession();
       if (!session) { setSending(false); return; }
       const { error } = await supabase.from("messages").insert({ application_id: activeAppId, sender_id: session.user.id, body: text.trim() });
-      if (!error) { setText(""); await load(); }
+      if (!error) { setText(""); setPlanSel(null); setPlanConfirm(null); planBaseRef.current = ""; await load(); }
     } catch {}
     setSending(false);
+  };
+  // 送信ボタン：日程の承認を積んでいる時だけ最終確認を挟む（2026-08-19たきと指示）。
+  // ふつうのメッセージは従来どおり1タップで送る＝毎回の確認で会話を鈍らせない
+  const onSendTap = () => {
+    if (!text.trim() || sending) return;
+    if (planSel && planSel.labels.length) { setPlanConfirm({ body: text.trim(), labels: planSel.labels }); return; }
+    send();
   };
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
   // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
@@ -616,6 +652,34 @@ export function ChatView({ applicationId, onBack }) {
           <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
             style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }} className="f-sans">{m.body}</div>
+          {/* 日程案のタブ（2026-08-19たきと指示）：本文の下に日付を並べ直す。
+              働き手はタップして承認＝入力欄に返事が積まれる／農家（自分が送った側）は押せないタグ */}
+          {(() => {
+            const labels = parsePlanLabels(m.body);
+            if (!labels) return null;
+            const mine = m.sender_id === myId;
+            const sel = (planSel && planSel.msgId === m.id) ? planSel.labels : [];
+            return (
+              <div style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth:"75%", display:"flex", flexWrap:"wrap", gap:6, marginTop:-2 }}>
+                {labels.map(l => {
+                  if (mine || reportMode) return (
+                    <span key={l} className="f-sans" style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, background:"#F2F2F2", color:"#717171", border:"1px solid #E5E5E5", cursor:"default" }}>{l}</span>
+                  );
+                  const on = sel.includes(l);
+                  return (
+                    <button key={l} onClick={()=>togglePlanDay(m.id, l)} className="f-sans"
+                      style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, cursor:"pointer",
+                        background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{l}</button>
+                  );
+                })}
+                {!mine && !reportMode && (
+                  <span className="f-sans" style={{ width:"100%", fontSize:11, color:"#999", marginTop:2 }}>
+                    {sel.length ? "選んだ日が入力欄に入りました。送信ボタンで最終確認します。" : "来られる日をタップすると、返事が入力欄に入ります。"}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           {/* 既読（2026-07-22・第8弾）：相手が読んだ自分の最新メッセージにだけ小さく表示 */}
           {m.id === readMarkMsgId && (
             <span className="f-sans" style={{ alignSelf:"flex-end", fontSize:10, color:"#B0B0B0", marginTop:-4 }}>既読</span>
@@ -739,8 +803,33 @@ export function ChatView({ applicationId, onBack }) {
         <textarea ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
           placeholder="メッセージを入力" className="field f-sans"
           style={{ flex:1, fontSize:14, resize:"none", lineHeight:1.6, maxHeight:132, overflowY:"auto" }} />
-        <button onClick={send} disabled={sending} className="f-sans" style={{ flexShrink:0, padding:"14px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", lineHeight:1.4 }}>{sending?"...":"送信"}</button>
+        <button onClick={onSendTap} disabled={sending} className="f-sans" style={{ flexShrink:0, padding:"14px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", lineHeight:1.4 }}>{sending?"...":"送信"}</button>
       </div>
+      )}
+
+      {/* 日程の承認の最終確認（2026-08-19たきと指示「送信ボタンタップで最終確認」）：
+          後戻りしにくい返事ので、送る前に日付と本文をそのまま見せる。ボックス外タップで閉じる */}
+      {planConfirm && (
+        <div className="cb-box-overlay cb-lock-scroll" onClick={()=>{ if (!sending) setPlanConfirm(null); }}
+          style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ width:"100%", maxWidth:420, maxHeight:"86vh", overflowY:"auto", background:"#fff", borderRadius:18, padding:"20px 18px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
+            <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>最終確認</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 14px" }}>この日程で返事を送ります</p>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", marginBottom:12 }}>
+              {planConfirm.labels.map(l => (
+                <span key={l} className="f-sans" style={{ padding:"8px 12px", fontSize:13, fontWeight:700, borderRadius:20, background:"#E6F7EF", color:"#0B6B4F", border:"1px solid #BFE7D5" }}>{l}</span>
+              ))}
+            </div>
+            <p className="f-sans" style={{ fontSize:13, color:"#555", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", lineHeight:1.8, margin:"0 0 16px", whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{planConfirm.body}</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 14px" }}>作業日の確定は農家が行います。この返事は、その相談のためのものです。</p>
+            <div style={{ display:"grid", gap:8 }}>
+              <button onClick={send} disabled={sending} className="f-sans"
+                style={{ padding:"13px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: sending ? 0.5 : 1 }}>{sending ? <>送信しています<Dots /></> : "送信する"}</button>
+              <button onClick={()=>{ if (!sending) setPlanConfirm(null); }} disabled={sending} className="f-sans"
+                style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ＋シート（2026-07-22 第8弾→2026-08-19 定型文を削除→2026-08-17 質問集を削除）：
