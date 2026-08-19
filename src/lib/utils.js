@@ -901,24 +901,26 @@ export function splitTextsForReview(desired, approved) {
 //   ②今日ページの「プロフィールの未入力」ボックス（未入力がある間だけ現れ、埋まると消える）
 // 数え方が枝分かれすると「今日ページには出るのに名刺は0件」のような食い違いが起きるため、
 // 項目を足す時は必ずここだけを直すこと（編集ページのボックス構成と対応させる）。
-// 返り値 { req: 核（応募に必要な4項目）の未設定数, total: 全体の未設定数 }。
+// 返り値 { req: 核（応募に必要な3項目）の未設定数, total: 全体の未設定数 }。
 // 行そのものが無い（プロフィール未作成）＝全項目が未設定として数える。
-// ★req＝応募に必要な4項目（ニックネーム・緊急連絡先・居住地・自己紹介／2026-08-17たきと指示）に揃えた。
-//   DBの is_worker_profile_ready（migration 20260817100444）・lib/workerReady.js と同じ物差し＝
+// ★req＝応募に必要な3項目（ニックネーム・居住地・自己紹介）に揃えた。
+//   DBの is_worker_profile_ready・lib/workerReady.js と同じ物差し＝
 //   「名刺の赤いバッジが消えたのに応募が届かない」を起こさない。アイコンは義務化解除済み（2026-07-25）so任意へ。
+// ★緊急連絡先は2026-08-19に必須から外した（たきと指示）＝任意の側で数える。新規登録の氏名・電話が
+//   DBトリガー seed_emergency_contact で初期値として入るので、通常は最初から設定済みになる。
 // opts.hasEmergency＝emergency_contacts（別テーブル・self-only RLS）の登録有無。呼び出し側が引いて渡す
 //   （雇い手側の employerUnsetCount と同じ作法）。渡されない画面では緊急連絡先を数えない
 //   ＝古い呼び出しが「未設定1」を永久に出し続ける事故を避ける。
 export function workerUnsetCount(w, opts) {
-  if (!w) return { req: 4, total: 11 };     // 編集ページのボックス基準（4項目＋任意7）
+  if (!w) return { req: 3, total: 11 };     // 編集ページのボックス基準（3項目＋任意8）
   const req = [
     !!(w.nickname || "").trim(),
     !!(w.residence_city || "").trim(),
     !!((w.pr_pending ?? w.pr) || "").trim(),
-    // 緊急連絡先は別テーブルso呼び出し側が引いて渡す。渡されない画面では条件に数えない
-    opts && "hasEmergency" in opts ? !!opts.hasEmergency : true,
   ].filter(x => !x).length;
   const opt = [
+    // 緊急連絡先は別テーブルso呼び出し側が引いて渡す。渡されない画面では数えない（2026-08-19に任意へ）
+    opts && "hasEmergency" in opts ? !!opts.hasEmergency : true,
     !!w.avatar_url,
     !!w.transport,
     !!w.farm_experience,

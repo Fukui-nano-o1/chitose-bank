@@ -146,7 +146,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
-  const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・応募に必要な4項目の1つ）
+  const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・2026-08-19に任意へ）
   const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
   const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
   const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
@@ -166,7 +166,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
           // status='open' を明示する（2026-08-05・さがすに終了求人を並べた際の連動）
           supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).eq("status", "open").then(r => r, () => ({ count: 0 })),
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
-          // 緊急連絡先（別テーブル・self-only）＝応募に必要な4項目の1つso名刺バッジの数え方にも要る（2026-08-17）
+          // 緊急連絡先（別テーブル・self-only）＝名刺バッジの数え方に要る（任意項目として数える）
           supabase.from("emergency_contacts").select("name,phone").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
           // 評価済みかは自分が書いた評価の行で見る（打刻の終了確認は廃止・2026-08-18）
           supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
@@ -211,8 +211,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
     return () => { cancelled = true; };
   }, [wTab]);
   // 働き手プロフィールの未設定項目数（編集ページのボックスに対応。トップボックス右上のバッジ＋赤影に使用）
-  // 核＝応募に必要な4項目（ニックネーム・緊急連絡先・居住地・自己紹介）が未設定→赤影＋浮遊アニメ／
-  // 任意のみ未設定→赤影のみ（2026-07-16・核の中身は2026-08-17に4項目へ揃えた）
+  // 核＝応募に必要な3項目（ニックネーム・居住地・自己紹介）が未設定→赤影＋浮遊アニメ／
+  // 任意のみ未設定→赤影のみ（2026-07-16・核の中身は2026-08-19に3項目へ揃えた）
   // 数え方はlib/utilsのworkerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）
   const { req: wUnsetReq, total: wUnsetCount } = workerUnsetCount(wMini, { hasEmergency: hasEmg });
   // 自己紹介の審査帯（2026-07-19）は削除した（2026-08-17）。承認プロセスの削除（2026-08-14）で

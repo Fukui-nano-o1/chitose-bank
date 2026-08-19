@@ -705,7 +705,7 @@ export function JobSearchMapView({ onRegister, me }) {
       // アカウント停止中（2026-08-17）：仮応募も昇格も止まる（DB側の壁）ので、理由をそのまま伝える。
       // 従来は「応募できませんでした。」に落ちて、なぜ通らないのか本人に分からなかった
       else if (data && data.reason === "account_suspended") { alert("アカウントが停止中のため、応募できません。運営（t5fki6643qty@gmail.com）までご連絡ください。"); }
-      // プロフィールの4項目that足りない＝止めずに仮応募として預かる（2026-08-17たきと指示「他は仮応募」）。
+      // プロフィールの3項目が足りない＝止めずに仮応募として預かる（2026-08-17たきと指示「他は仮応募」）。
       // 通常は応募ボタンthat先に is_worker_profile_ready を見て仮応募へ回すので、ここに来るのは
       // 画面を開いている間に項目が空になった等の競合だけ。同じ結末（仮応募）に合流させる
       else if (data && data.reason === "profile_incomplete") { await goPending(); }
@@ -740,7 +740,7 @@ export function JobSearchMapView({ onRegister, me }) {
       }
       // 仮応募（第15弾・2026-07-30たきと指示）：必須項目がそろっていない人は、応募の意思だけ先に預かる。
       // 判定の基準は is_worker_profile_ready（DB）1本＝画面ごとに別の必須セットを作らない。
-      // 条件は4項目＝ニックネーム・緊急連絡先・居住地・自己紹介（2026-08-17たきと指示）。
+      // 条件は3項目＝ニックネーム・居住地・自己紹介（緊急連絡先は2026-08-19に任意へ）。
       // 昇格の引き金は本人のプロフィール完成だけ（運営の自由記述審査は間に立たない）
       const ready = await fetchWorkerReady();
       if (!ready.ready) {

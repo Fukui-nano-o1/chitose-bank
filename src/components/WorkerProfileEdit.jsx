@@ -270,10 +270,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
-  // ★並びは【応募に必要な4項目が先】（ニックネーム→緊急連絡先→居住地→自己紹介／2026-08-17たきと指示）。
+  // ★並びは【応募に必要な3項目が先】（ニックネーム→居住地→自己紹介）。
   //   保存の連鎖と「最初の未入力を開く」導線が、まず応募できる状態まで連れて行く順になる。
   //   emergency は別テーブル（emergency_contacts）soこの並びに入れて hasEmg で充足を見る。
-  const BOX_ORDER = ["nickname","emergency","residence","pr","avatar","transport","exp","intensity","interests","languages","declared","qa"]; // declaredはボックスへ復帰（2026-08-02たきと指示・保険申告と同じトグル構造のモーダル）
+  //   2026-08-19：必須ではなくなった（新規登録の内容が初期値で入る）ので、3項目の後ろへ移した。
+  const BOX_ORDER = ["nickname","residence","pr","emergency","avatar","transport","exp","intensity","interests","languages","declared","qa"]; // declaredはボックスへ復帰（2026-08-02たきと指示・保険申告と同じトグル構造のモーダル）
   const boxFilled = (k) => (
     k === "pr" ? !!pr.trim() : k === "nickname" ? !!nickname.trim() : k === "residence" ? !!residenceCity.trim()
     : k === "emergency" ? hasEmg
@@ -424,23 +425,22 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
       </button>
 
-      {/* はじめのガイド：空の時だけ上部に。★ここに並べる項目は【応募に必要な4項目】＝
-          DBの is_worker_profile_ready（migration 20260817100444）と lib/workerReady.js の写し。
+      {/* はじめのガイド：空の時だけ上部に。★ここに並べる項目は【応募に必要な3項目】＝
+          DBの is_worker_profile_ready と lib/workerReady.js の写し。
           3つが食い違うと「埋めたのに応募が届かない」が起きるので、条件を変える時は必ず3つとも直す
-          （2026-08-17たきと指示「プロフィール設定条件は必要最低限。①ニックネーム②緊急連絡先③居住地④自己紹介のみ」）。
-          緊急連絡先は emgSummary（別テーブル emergency_contacts の読み込み結果）で判定する */}
+          （2026-08-19たきと指示「緊急連絡先必須を解除」＝緊急連絡先はここから外した。
+           緊急連絡先は新規登録の氏名・電話が初期値として自動で入り、任意で変更できる） */}
       {(() => {
         const steps = [
           { k:"nickname",  l:"①ニックネーム", done: !!nickname.trim() },
-          { k:"emergency", l:"②緊急連絡先",   done: hasEmg },
-          { k:"residence", l:"③居住地",       done: !!residenceCity.trim() },
-          { k:"pr",        l:"④自己紹介",     done: !!pr.trim() },
+          { k:"residence", l:"②居住地",       done: !!residenceCity.trim() },
+          { k:"pr",        l:"③自己紹介",     done: !!pr.trim() },
         ];
         if (steps.every(s => s.done)) return null;
         return (
           <div className="f-sans" style={{ background:"#F0F7F4", border:"1px solid #00A86B33", borderRadius:16, padding:"16px", marginBottom:20 }}>
-            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>この4つで応募できます</p>
-            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この4つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
+            <p style={{ fontSize:14, fontWeight:800, color:"#00A86B", margin:"0 0 4px" }}>この3つで応募できます</p>
+            <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この3つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
             <div style={{ display:"grid", gap:8 }}>
               {steps.map(s => (
                 <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?"#00A86B":"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
@@ -657,11 +657,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {editBox==="emergency" && (<>
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
           （emergency_contacts テーブル・self-only）ので、下の共通「保存する」は押さなくてよい */}
-      {/* 緊急連絡先は応募に必要な4項目の1つ（2026-08-17たきと裁定②「義務にする」）＝required で明示する。
-          ★別テーブルsoこの部品の中で保存が完結する＝共通の save() を通らない。4項目の最後の1つが
-          緊急連絡先だった場合に仮応募が昇格しないままになるため、保存の直後にここで昇格を試す
-          （判定はDB側 promote_my_pending_applications が持つ・そろっていなければ何も起きない） */}
-      <EmergencyContactBox accent="#00A86B" required onSaved={async ({ name, relation, phone }) => {
+      {/* 緊急連絡先は必須ではない（2026-08-19たきと指示「必須を解除」）＝新規登録の氏名・電話が
+          初期値として自動で入っており、変えたい人だけ変える。
+          ★別テーブルsoこの部品の中で保存が完結する＝共通の save() を通らない。保存の直後に
+          仮応募の昇格を試すのは従来どおり残す（3項目がそろっていなければ何も起きない） */}
+      <EmergencyContactBox accent="#00A86B" onSaved={async ({ name, relation, phone }) => {
         setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"));
         setHasEmg(!!((name || "").trim() || (phone || "").trim()));
         const promoted = await promotePendingApplications();
