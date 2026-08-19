@@ -549,7 +549,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               ))}
             </div>
             <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>何がダメか・どう直すか（任意）</p>
-            <textarea value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder="例：時給が最低賃金を下回っています。980円以上にしてください。" rows={3} className="field f-sans" style={{ fontSize:13, marginBottom:14, resize:"vertical" }} />
+            <textarea value={editNote} onChange={e=>setEditNote(e.target.value)} placeholder="例：日給が最低賃金を下回っています。実働の時間で割った金額が、その地域の最低賃金以上になるようにしてください。" rows={3} className="field f-sans" style={{ fontSize:13, marginBottom:14, resize:"vertical" }} />
             <div style={{ display:"flex", gap:8 }}>
               {findingFor(editTarget) && (
                 <button onClick={()=>removeFinding(editTarget)} className="f-sans" style={{ padding:"12px 14px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>指摘を取消</button>
