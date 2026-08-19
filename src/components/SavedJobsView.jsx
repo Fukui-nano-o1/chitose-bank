@@ -16,6 +16,11 @@ import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
 
+// 隠せる段階（2026-08-19たきと指示「チャットページの絞り込みをステータスページにコピー」）：
+// 見送り／失効／取り消しの3つ。チャット一覧の CHAT_HIDABLE・応募者ページの APP_HIDABLE と対
+// （段階の物差しは appPhaseKey で共通）。既定は3つとも非表示＝終わった取引が日常の一覧を埋めない
+const SAVED_HIDABLE = ["rejected", "expired", "canceled"];
+
 // ── SavedJobsView（ステータス一覧・#/saved） ──
 export function SavedJobsView({ me }) {
   // 前回の内容が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）。
@@ -189,6 +194,17 @@ export function SavedJobsView({ me }) {
     return () => { dead = true; };
   }, [boxJob]); // eslint-disable-line react-hooks/exhaustive-deps -- boxFullは取得済み判定のみ（依存に入れると再取得ループ）
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
+  // 非表示の選択（2026-08-19たきと指示・チャット一覧からのコピー）：ピルは【隠すもの】3つだけ。
+  // 選ぶとその段階の求人が一覧から消える（複数選択）。隠すのは表示だけ＝記録・並び・取得は不変
+  // （行動記録の憲法：記録は消さない）。既定は3つとも選んだ状態
+  const [savedHidden, setSavedHidden] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("cb_savedHidden_v1");
+      if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => SAVED_HIDABLE.includes(k)); }
+    } catch {}
+    return [...SAVED_HIDABLE];
+  });
+  useEffect(() => { try { sessionStorage.setItem("cb_savedHidden_v1", JSON.stringify(savedHidden)); } catch {} }, [savedHidden]);
   // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
   // ★2026-08-19たきと指示「カレンダーは展開がデフォルトで、非表示できないようにして」＝常時展開。
   //   開閉（横スワイプ・案内行のタップ・畳むアニメ・今日ページからの合図 cb_openCalendar）は全部撤去した。
@@ -326,6 +342,25 @@ export function SavedJobsView({ me }) {
     </div>
   ) : <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>}</div>;
 
+  // ★絞り込みは「本当の段階」で見る（phaseOf はアイコン用に終端を応募中へ寄せる変換ので使わない）
+  const truePhaseOf = (r) => { const a = r.application_id ? {
+    status: r.application_status,
+    terms_confirmed_worker_at: r.terms_confirmed_worker_at,
+    terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
+  } : null; return a ? appPhaseKey(a) : null; };
+  const shownRows = rows.filter(r => { const k = truePhaseOf(r); return !k || !savedHidden.includes(k); });
+  // ピルの見た目・作法はチャット一覧／応募者ページと同一（同じCSSクラスを共用＝
+  // モバイルは下部の浮遊バー・PCは本文中の並び。格納・オーバーレイ中の非表示も同じ）
+  const filterButtons = SAVED_HIDABLE.map(k => ({
+    k, label: APP_PHASE_LABEL[k], on: savedHidden.includes(k),
+    onTap: () => setSavedHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
+  })).map(b => (
+    <button key={b.k} onClick={b.onTap} aria-pressed={b.on} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: b.on ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: b.on?800:600, color: b.on?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
+      <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />
+      <span style={{ textDecoration: b.on ? "line-through" : "none" }}>{b.label}</span>
+    </button>
+  ));
+
   const photoOf = (r) => photoThumb(r.photos?.[0]);
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
   // 応募行の形（appPhaseKeyは status＋terms_confirmed_* から段階を導く。帯の唯一のソース）
@@ -357,14 +392,29 @@ export function SavedJobsView({ me }) {
         </div>
       )}
       {calendarTop}
+      {rows.length > 0 && (
+        <>
+          <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:10, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
+          <div className="cb-applicant-filter-bar">{filterButtons}</div>
+        </>
+      )}
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ fontSize:40, marginBottom:16, color:"#E24B4A" }}>♡</div>
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
+      ) : shownRows.length === 0 ? (
+        /* 非表示で0件（求人自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
+        <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
+          <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>
+            表示できる求人はありません。<br />
+            {savedHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。
+          </p>
+          <button onClick={()=>setSavedHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
+        </div>
       ) : (
         <div ref={skelRef} style={{ display:"grid", gap:10 }}>
-          {rows.map(r => {
+          {shownRows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
             // 終わった応募・求人は暗幕＋中央ラベル＋タップ無反応（応募者ページと同設計）。
