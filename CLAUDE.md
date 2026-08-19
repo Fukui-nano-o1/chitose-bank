@@ -5994,3 +5994,31 @@ build成功・eslint 0 error・MyCalendar単体は警告ゼロ。
 【メモ】終了の時刻＝work_completed_at。農家が記録しなくても最終作業日の終了時刻に
 auto_complete_work_at_last_day_end（20260818125854）that自動で completed にするので、24時間の窓は
 その時点から始まる。
+━━━ 2026-08-19 下から出るシートを下スワイプで閉じる（指に連動・8件へ横展開）━━━
+【たきと指示】「画面下から出ている状態のボックスは下にスワイプで閉じろ。指に連動させる。
+応募者ページのアイコンタップで展開するボックスと同じ」
+【部品化】lib/sheetDrag.js の useSheetDragClose(sheetRef, scrollRef, onClose, open) を新設。
+中身は components/DragSheet.jsx（応募者ページの展開ボックス）の【縦方向の処理】の写し。
+★DragSheet は横スワイプの面送り（詳細⇄メイン）と同じジェスチャ判定に同居しているso実装を
+分けられず、縦だけを取り出した二重実装になっている。動きを変えるときは必ず両方を揃えること
+（両ファイルの冒頭に相互参照のコメントを入れた）。
+【規則（出どころと同一）】①中身that最上部（scrollTop<=0）のときの下向きドラッグだけ掴む
+（上向き・スクロール余地あり＝通常スクロールに譲る／横の動きも譲る）②掴んだら指に1:1で連動
+（rAFで1フレーム1回・will-change・掴んだ瞬間の位置を基点に置き直す）③離した時、シートの上端that
+画面の縦中央より下なら閉じる／上なら定位置へ戻す（指の座標では判定しない）。
+【配線した8件】ログイン（App）／チャットの質問集・候補日（ChatView・スクショの箱）／
+質問を送る（FarmerDashboard）／自分の求人メニュー（JobSearchMapView）／応募のボックス
+（WorkerApplications）／段階の説明（ui.jsx PhaseInfoSheet）／今日ページの緊急連絡・採用する
+（StagePanels×2）。既にドラッグthatあるもの（応募者ページ=DragSheet・ステータスページ=
+SavedJobsViewのinline・審査プレビュー=AdminJobPreview）は不変。
+【実装の注意（今回踏んだ）】
+・フックは早期returnより前に置く（ui.jsx PhaseInfoSheet は `if (!pk) return null` thatあるso
+  open引数で制御）。②state宣言の行末にコメントthatある所へ機械挿入すると、コメントthatフック行の
+  末尾へ移ってしまい `no-use-before-define` を踏む（FarmerDashboard の sendingQ）。挿入後は
+  「行末コメントthat分断されていないか」を必ず確認する。③useRef を import していないファイルthatある
+  （WorkerApplications）。
+【検証】build成功・eslint 0 error（警告26=既存のみ）。実機目視の残り：各シートを開いて
+①下スワイプで指に付いてくるか ②半分より下まで引いて離すと閉じるか ③浅く引いて離すと戻るか
+④中身thatスクロールできるシート（応募のボックス・今日ページ）は、途中までスクロールした状態からの
+下スワイプthatスクロールになり、最上部からの下スワイプだけthatシートを掴むか
+━━━ ここまで ━━━
