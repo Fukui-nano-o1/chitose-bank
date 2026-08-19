@@ -8,6 +8,7 @@ import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
 import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar } from "../../../../components/ui";
 import { JobCard } from "../../../../components/JobCard";
+import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { EMPTY_MARK, disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate } from "../../../../lib/utils";
 // 求人の主要情報（日程・勤務時間・休憩・人数・最寄り駅・報酬・支払条件・時間外）
 export function JobKeyFacts({ job }) {
@@ -146,6 +147,13 @@ export function JobLocationSection({ job, me }) {
       <div className="calendar-below-map" style={{ marginBottom:5 }}>
         <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
       </div>
+    )}
+
+    {/* 保険カード（カレンダーの下・2026-08-19たきと指示で保険タブから移植）。
+        見るのは掲載時に凍結された insuranceSnapshot だけ（2026-08-02・プロフィール現在値への
+        フォールバック禁止）。snapshotが無いレガシー求人は区画ごと出ない */}
+    {job.insuranceSnapshot && (
+      <JobInsuranceSection employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
     )}
   </>);
 }

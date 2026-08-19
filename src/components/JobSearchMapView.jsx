@@ -16,7 +16,6 @@ import { JobCard } from "./JobCard";
 import { CropIcon } from "./CropIcon";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
-import { InsurancePanel } from "./InsurancePanel";
 import { FarmerTrustCard } from "./TrustCards";
 import { SearchLaneTabs } from "./SearchLaneTabs";
 import { ConsignmentSearchList } from "./ConsignmentSearchList";
@@ -1038,17 +1037,13 @@ export function JobSearchMapView({ onRegister, me }) {
 
           <JobPhotoGallery job={selectedJob} employer={empEmployer} photosLooped={photosLooped} activeSlide={activeSlide} scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} />
 
-          {/* 仕事の内容 / 保険 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
-          {/* 保険は掲載時凍結のinsuranceSnapshotのみを見る（2026-08-02・プロフィール現在値へのフォールバック禁止）。
-              snapshotが無いレガシー求人はタブ非表示＋直リンク時は「保険情報を確認できません」 */}
-          <ContentQSwipeArea value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(selectedJob.insuranceSnapshot?.items) && selectedJob.insuranceSnapshot.items.length > 0}>
-          <ContentQTabs value={detailTab} onChange={setDetailTab} showInsurance={Array.isArray(selectedJob.insuranceSnapshot?.items) && selectedJob.insuranceSnapshot.items.length > 0} />
+          {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
+          {/* 保険タブは廃止（2026-08-19たきと指示）＝保険カードは地図・カレンダーの下（JobLocationSection）へ移植。
+              古い #/work/job/{No}/insurance のリンクは、どの枝にも当たらず「仕事の内容」に落ちる＝保険も同じ面にある */}
+          <ContentQSwipeArea value={detailTab} onChange={setDetailTab}>
+          <ContentQTabs value={detailTab} onChange={setDetailTab} />
           {detailTab === "questions" ? (
             <JobQuestions jobNumber={selectedJob.id} me={me} />
-          ) : (detailTab === "insurance" && !selectedJob.insuranceSnapshot) ? (
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", padding:"24px 4px" }}>保険情報を確認できません</p>
-          ) : (detailTab === "insurance" && Array.isArray(selectedJob.insuranceSnapshot?.items) && selectedJob.insuranceSnapshot.items.length > 0) ? (
-            <InsurancePanel employer={{ insurance_items: selectedJob.insuranceSnapshot.items, insurance_notes: selectedJob.insuranceSnapshot.notes }} />
           ) : (<>
           {/* ヘッダー */}
           <div style={{ marginBottom:20 }}>

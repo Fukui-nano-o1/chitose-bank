@@ -7,7 +7,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { Dots } from "./ui";
 import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginReturn";
 
-// タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄保険⇄質問を左右スワイプで移動。
+// タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄質問を左右スワイプで移動。
 // 指に連動（2026-08-03たきと指示）：今日ページの役割スワイプと同一の機構に揃えた＝
 //   ①追従はsetStateせずDOMのtransformを直接書く（毎フレーム再レンダーを排除）
 //   ②ジェスチャ開始8pxで縦/横を1回だけ判定する方向ロック（縦スクロールと誤認識しない）
@@ -21,13 +21,13 @@ import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginRet
 // onEdgeSwipe（任意・2026-08-08）：端でさらにスワイプされた時の合図（"prev"/"next"）。
 //   ボックスの詳細面では "prev"（最初のタブでさらに右スワイプ）＝面を戻る、に使う
 //   ＝タブ切替と「戻る」が同じ横スワイプで両立する。
-export function ContentQSwipeArea({ value, onChange, showInsurance, children, onEdgeSwipe }) {
+export function ContentQSwipeArea({ value, onChange, children, onEdgeSwipe }) {
   const rootRef = useRef(null);
   const contentRef = useRef(null);
   const gestureRef = useRef(null); // { x, y, lock:'h'|'v'|null }
   const [slideDir, setSlideDir] = useState(0); // 1=右から・-1=左から
   const [slideKey, setSlideKey] = useState(0); // key更新でアニメを再生
-  const keys = showInsurance ? ["content", "insurance", "questions"] : ["content", "questions"];
+  const keys = ["content", "questions"]; // ★ContentQTabs の tabs と同じ並びに保つ（保険タブは2026-08-19に廃止）
   // リスナーはマウント時に1度だけ張るので、最新の値は ref 経由で読む（張り直しを避ける）
   const keysRef = useRef(keys); keysRef.current = keys;
   const valueRef = useRef(value); valueRef.current = value;
@@ -121,11 +121,10 @@ export function ContentQSwipeArea({ value, onChange, showInsurance, children, on
 }
 
 // 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
-export function ContentQTabs({ value, onChange, showInsurance }) {
-  // 保険タブは農家が保険を自己申告している求人でだけ出す（未申告なら従来の2タブのまま）
-  const tabs = showInsurance
-    ? [["content", "仕事の内容"], ["insurance", "保険"], ["questions", "質問"]]
-    : [["content", "仕事の内容"], ["questions", "質問"]];
+export function ContentQTabs({ value, onChange }) {
+  // 保険タブは廃止（2026-08-19たきと指示）＝保険カードはカレンダーの下（JobInsuranceSection）へ移植。
+  // タブを足す時はここと ContentQSwipeArea の keys を必ず同じ並びで直す（横スワイプの行き先がずれる）
+  const tabs = [["content", "仕事の内容"], ["questions", "質問"]];
   return (
     <div style={{ display:"flex", gap:4, borderBottom:"1px solid #EEE", marginBottom:20 }}>
       {tabs.map(([k, l]) => (

@@ -18,7 +18,7 @@ import { payLabel, disp, stationLabel, payTermsLine, overtimeLine, EMPTY_MARK } 
 import { Avatar, Carousel, DangerItem, LinkifiedText, MaskedAddress } from "./ui";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
-import { InsurancePanel } from "./InsurancePanel";
+import { JobInsuranceSection } from "./InsurancePanel";
 import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
 
 export function JobDetailBody({ job, me, onBack }) {
@@ -134,18 +134,15 @@ export function JobDetailBody({ job, me, onBack }) {
       })()}
       <div style={{ marginBottom:12 }} />
 
-      {/* 仕事の内容／保険／質問（2026-08-08たきと指示）＝求人詳細ページと同じタブ＋横スワイプ。
-          最初のタブでさらに右スワイプ＝面を戻る（onBack）＝1つの指の動きで両立させる */}
-      <ContentQSwipeArea value={tab} onChange={setTab} showInsurance={hasInsurance}
+      {/* 仕事の内容／質問（2026-08-08たきと指示）＝求人詳細ページと同じタブ＋横スワイプ。
+          最初のタブでさらに右スワイプ＝面を戻る（onBack）＝1つの指の動きで両立させる。
+          保険タブは廃止（2026-08-19）＝求人詳細ページと同じくカレンダーの下へ移植 */}
+      <ContentQSwipeArea value={tab} onChange={setTab}
         onEdgeSwipe={(d)=>{ if (d === "prev" && onBack) onBack(); }}>
-      <ContentQTabs value={tab} onChange={setTab} showInsurance={hasInsurance} />
+      <ContentQTabs value={tab} onChange={setTab} />
       {tab === "questions" ? (
         /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側が従来どおり） */
         <JobQuestions jobNumber={job.id} me={me} />
-      ) : tab === "insurance" ? (
-        /* 保険（求人ページの保険タブと同じ規則・2026-08-02）：掲載時に凍結された insuranceSnapshot だけを見る。
-           プロフィール現在値へのフォールバック禁止。snapshotが無い＝レガシー求人はタブごと出さない */
-        <InsurancePanel employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
       ) : (<>
 
       {/* ヘッダー。番地の開示はDB側が正（jobs_publicのanonマスク）＝ログインしていれば届いた値が出る。
@@ -295,6 +292,14 @@ export function JobDetailBody({ job, me, onBack }) {
         <div style={{ marginBottom:20 }}>
           <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
         </div>
+      )}
+
+      {/* 保険カード（カレンダーの下・2026-08-19たきと指示で保険タブから移植）。
+          見るのは掲載時に凍結された insuranceSnapshot だけ（2026-08-02・プロフィール現在値への
+          フォールバック禁止）。余白はこの画面の地図・カレンダーに合わせて20 */}
+      {hasInsurance && (
+        <JobInsuranceSection style={{ marginBottom:20 }}
+          employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
       )}
 
       {/* 農家プロフィールのカード（FarmerTrustCard＝氏名・住所・連絡先・受け入れ実績）は削除

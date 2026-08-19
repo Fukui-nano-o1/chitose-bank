@@ -11,7 +11,7 @@ import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWi
 import { CalendarView } from "../../../components/CalendarView";
 import { JobLocationMap } from "../../../components/JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "../../../components/JobQuestions";
-import { InsurancePanel } from "../../../components/InsurancePanel";
+import { JobInsuranceSection } from "../../../components/InsurancePanel";
 import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
@@ -1693,15 +1693,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 );
               })()}
 
-              {/* 仕事の内容 / 保険 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
-              <ContentQSwipeArea value={confTab} onChange={setConfTab} showInsurance={Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0}>
-              <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} showInsurance={Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0} /></div>
+              {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27）。
+                  保険タブは廃止（2026-08-19たきと指示）＝保険カードはカレンダーの下へ移植（求人詳細ページと同じ） */}
+              <ContentQSwipeArea value={confTab} onChange={setConfTab}>
+              <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} /></div>
               {confTab === "questions" ? (
                 /* LandingFlow内に me は存在しない（未定義参照＝ReferenceErrorで画面真っ白の原因だった・2026-07-24修正）。
                    meはisAdmin判定（運営の非表示スイッチ）専用ので未指定でよい。農家本人の回答UIはJobQuestions内のsession判定(isOwner)が担う */
                 <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} /></div>
-              ) : (confTab === "insurance" && Array.isArray(confEmployer?.insurance_items) && confEmployer.insurance_items.length > 0) ? (
-                <div style={{ maxWidth:870, margin:"0 auto" }}><InsurancePanel employer={confEmployer} /></div>
               ) : (<>
               {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
               <div style={{ marginBottom:20 }}>
@@ -1989,6 +1988,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} holidays={jobHolidays} />
                 </div>
               )}
+
+              {/* 保険カード（カレンダーの下・2026-08-19たきと指示で保険タブから移植・詳細ページと同じ）。
+                  確認ページはプレビューので、掲載時に凍結される前のプロフィール現在値（confEmployer）を出す
+                  （2026-08-02の仕様どおり。凍結値を見るのは掲載後の求人詳細側） */}
+              <JobInsuranceSection employer={confEmployer} style={{ maxWidth:870, margin:"0 auto 5px" }} />
               </>)}
               </ContentQSwipeArea>
 
