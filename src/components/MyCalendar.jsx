@@ -303,7 +303,9 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
               斜線＝まだ確定していない（採用で確定）
             </span>
           </div>
-          {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（下書き・公開間近・終了）は薄く */}
+          {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（公開間近・一時非公開・終了）は薄く。
+              ★下書き（一度も掲載していない求人）はカレンダーに出さない（2026-08-19たきと指示・
+                get_my_calendar_jobs 側で除外）ので、薄い色に下書きは含まれない */}
           <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"4px 0 0" }}>濃い色＝公開中／薄い色＝それ以外　❤️＝いいね</p>
           <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"2px 0 0" }}>名前は採用が決まった方のみ表示されます（面接中は出ません）</p>
           {flashNoPlan && (
