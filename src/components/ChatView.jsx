@@ -1,5 +1,5 @@
 // チャット（分割・大物②＝最終ピース・2026-07-24）：LINE式スレッド。求人コンテキストカード・確認カード・
-// 質問集/候補日シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
+// 日程案シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
@@ -21,7 +21,7 @@ export function ChatView({ applicationId, onBack }) {
   const [sending, setSending] = useState(false);
   // 入力欄の自動伸縮（改行対応・2026-08-16たきと指示）：中身の行数に合わせて高さを変える。
   // 上限132px（≒6行）を超えたら内側スクロール＝入力欄が画面を埋め尽くさない。
-  // 候補日の挿入・送信後のクリアでもtextが変わるので、この1箇所で高さが追従する
+  // 日程案の挿入・送信後のクリアでもtextが変わるので、この1箇所で高さが追従する
   const inputRef = useRef(null);
   const CHAT_INPUT_MAX_H = 132;
   useEffect(() => {
@@ -55,12 +55,12 @@ export function ChatView({ applicationId, onBack }) {
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
   // ＋シート（2026-07-22・第8弾）：入力欄横の＋で開く。定型文は削除（2026-08-19たきと指示）ので
-  // 中身は【質問集】と【📅候補日】の2枚＝どちらも農家の機能。働き手側には＋を出さない
+  // 中身は【📅日程案】の1枚＝農家の機能。働き手側には＋を出さない
   const [tmplOpen, setTmplOpen] = useState(false);
   // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
   const tmplSheetRef = useRef(null), tmplScrollRef = useRef(null);
   useSheetDragClose(tmplSheetRef, tmplScrollRef, ()=>setTmplOpen(false), tmplOpen);
-  const [dateSel, setDateSel] = useState([]); // ＋シート「候補日を送る」で選択中の候補日（農家→働き手・2026-07-24）
+  const [dateSel, setDateSel] = useState([]); // ＋シート「日程案を送る」で選択中の日（農家→働き手・2026-07-24）
   // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
   const [partnerReadAt, setPartnerReadAt] = useState(null);
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
@@ -254,7 +254,7 @@ export function ChatView({ applicationId, onBack }) {
           setAppIds(ids);
           setThreadApps(relRows || []);
           if (relRows) setAppJobMap(Object.fromEntries(relRows.map(r => [r.id, r.job_number])));
-          // 帯の段階チップ・候補日タブ用の日程（待たない＝本文・状態の表示を遅らせない）
+          // 帯の段階チップ・日程案用の日程（待たない＝本文・状態の表示を遅らせない）
           const schedNums = [...new Set((relRows || []).map(r => r.job_number).filter(Boolean))];
           if (schedNums.length) {
             (async () => {
@@ -731,10 +731,10 @@ export function ChatView({ applicationId, onBack }) {
          高さは中身に合わせて伸ばす＝1行から最大6行（それ以上は内側スクロール）。
          alignItemsをflex-endにして、伸びた時に＋と送信が下端に揃う */
       <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"flex-end" }}>
-        {/* ＋シート（2026-07-22・第8弾）：質問集／候補日。どちらも農家の機能ので働き手側には出さない
-            （定型文の削除・2026-08-19たきと指示で、働き手にとって中身が無くなったため） */}
+        {/* ＋シート（2026-07-22・第8弾）：📅日程案。農家の機能ので働き手側には出さない
+            （定型文・質問集の削除で、働き手にとって中身が無くなったため） */}
         {!isWorkerSide && (
-        <button onClick={()=>setTmplOpen(true)} aria-label="候補日" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
+        <button onClick={()=>setTmplOpen(true)} aria-label="日程案" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
         )}
         <textarea ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
           placeholder="メッセージを入力" className="field f-sans"
@@ -744,9 +744,11 @@ export function ChatView({ applicationId, onBack }) {
       )}
 
       {/* ＋シート（2026-07-22 第8弾→2026-08-19 定型文を削除→2026-08-17 質問集を削除）：
-          いまは📅候補日の1枚＝選ぶと入力欄に文章が入る。農家の機能so、このシートは農家側にしか出ない */}
+          いまは📅日程案の1枚＝来てほしい日を選ぶと入力欄に文章が入る。農家の機能ので、このシートは農家側にしか出ない */}
       {tmplOpen && !isWorkerSide && (() => {
-        // 候補日を送る（引っ越し(5)）：期間求人で、来られる日の候補を働き手に提案する。選んで入力欄に入れて送信
+        // 日程案を送る（2026-08-19たきと指示「候補日ではなく、日程案に差し替え。農家が来てほしい日を
+        // 提案する形」）：期間求人で、農家が来てほしい日を選んで働き手に提案する。選ぶと入力欄に文章が入る。
+        // ★ここで作るのは提案の文章だけ＝決めるのは当事者どうし（記録は働く日を決めた時に agreed_dates へ残る）
         const datesPanel = (() => {
           // 日程の出どころは2つ：求人ページの全項目（confirmJob）と、帯の段階チップ用に取った
           // 軽い日程（jobSchedMap・work_time/date_start/date_end/holidays）。前者が未着・
@@ -757,10 +759,11 @@ export function ChatView({ applicationId, onBack }) {
           const period = daysBetweenYmd(startRaw, endRaw);
           if (!startRaw) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"24px 8px" }}>この求人の日程が取得できませんでした。</p>;
           // 1日だけの募集（2026-08-19たきと指示「1日だけの場合はその日付のタグを設置。タップ不可」）：
-          // 選ぶものが無いので、その日付を選べないタグとして出す（buttonにしない＝押せる見た目にしない）
+          // 提案する日が1つしかない＝選ぶものが無いので、その日付を選べないタグとして出す
+          // （buttonにしない＝押せる見た目にしない）
           if (period.length <= 1) return (
             <>
-              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>この求人は1日だけの募集です。選ぶ候補日はありません。</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>この求人は1日だけの募集です。この日に来ていただく形になります。</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                 <span className="f-sans" style={{ padding:"9px 12px", fontSize:13, fontWeight:700, borderRadius:20, background:"#F2F2F2", color:"#717171", border:"1px solid #E5E5E5", cursor:"default" }}>{calFmtDate(startRaw)}</span>
               </div>
@@ -768,7 +771,7 @@ export function ChatView({ applicationId, onBack }) {
           );
           return (
             <>
-              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>来られる日の候補を選ぶと、入力欄に文章が入ります。送信前に編集できます。</p>
+              <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 12px" }}>来てほしい日を選ぶと、日程案の文章が入力欄に入ります。送信前に編集できます。</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:14 }}>
                 {period.map(d => {
                   const on = dateSel.includes(d);
@@ -776,18 +779,18 @@ export function ChatView({ applicationId, onBack }) {
                 })}
               </div>
               <button disabled={dateSel.length===0} onClick={()=>{
-                const msg = "【候補日】" + [...dateSel].sort().map(calFmtDate).join("・") + " のいずれかで来られますか？ご都合を教えてください。";
+                const msg = "【日程案】" + [...dateSel].sort().map(calFmtDate).join("・") + " に来ていただきたいです。ご都合はいかがでしょうか。";
                 setText(prev => prev.trim() ? (prev.replace(/\s*$/, "") + " " + msg) : msg);
                 setDateSel([]); setTmplOpen(false);
-              }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background: dateSel.length===0 ? "#EBEBEB" : "#00A86B", color: dateSel.length===0 ? "#999" : "#fff", border:"none", borderRadius:10, cursor: dateSel.length===0 ? "not-allowed" : "pointer" }}>候補日を入力欄に入れる{dateSel.length>0 ? `（${dateSel.length}日）` : ""}</button>
+              }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background: dateSel.length===0 ? "#EBEBEB" : "#00A86B", color: dateSel.length===0 ? "#999" : "#fff", border:"none", borderRadius:10, cursor: dateSel.length===0 ? "not-allowed" : "pointer" }}>日程案を入力欄に入れる{dateSel.length>0 ? `（${dateSel.length}日）` : ""}</button>
             </>
           );
         })();
         return (
         <div className="cb-lock-scroll" onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div ref={tmplSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            {/* 質問集タブは廃止（2026-08-17たきと指示）＝このシートは📅候補日の1枚so、タブとスワイプは置かない */}
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}>📅 候補日</p>
+            {/* 質問集タブは廃止（2026-08-17たきと指示）＝このシートは📅日程案の1枚ので、タブとスワイプは置かない */}
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}>📅 日程案</p>
             {datesPanel}
           </div>
         </div>

@@ -728,7 +728,7 @@ export const appPhaseColorNow = (a, entry) => phaseColorNow(appPhaseKey(a), entr
 //   チャット一覧・応募者ページとも【隠すもの】3つ（見送り／失効／取り消し）の複数選択に統一し、
 //   キーは各画面が APP_HIDABLE / CHAT_HIDABLE として持つ（段階の物差しは appPhaseKey で共通）
 // 定型文（CHAT_TEMPLATES_FARMER / CHAT_TEMPLATES_WORKER）は削除（2026-08-19たきと指示）。
-// チャットの＋シートは【質問集】と【📅候補日】の2枚になった（どちらも農家の機能）。
+// チャットの＋シートは【質問集】と【📅日程案】の2枚になった（どちらも農家の機能）。
 
 // きっかけアンケートの選択肢（SurveyStats・さがすの初回いいねアンケートで共用）
 // きっかけアンケート（初回いいね時・2026-07-24）：Q1どこで知ったか（単一）、Q2どう使いたいか（複数）
