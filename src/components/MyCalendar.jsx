@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays } from "../lib/utils";
+import { getCache, setCache } from "../lib/viewCache";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
@@ -12,12 +13,17 @@ const CAL_OVERLAP = "#E24B4A";
 // jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
 // get_my_calendar_jobs（SECURITY DEFINER）経由で自分の当事者applicationsに紐づく行だけ取得する。
 export function MyCalendar({ backToToday, onDayTapJobs }) {
-  const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState([]); // [{job_number,crop,task,work_time,town,date_start,date_end,application_id,application_status,partner_name}]
+  // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
+  // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
+  // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
+  // ★キャッシュに入れてよいのはJSON安全な型だけ（2026-08-03のDate事故）。RPCの日付は文字列so安全。
+  //   いいねは Set だと復元できないため配列で持ち、読み出すときに Set に戻す。
+  const [entries, setEntries] = useState(() => getCache("today:entries") ?? []);
+  const [loading, setLoading] = useState(() => getCache("today:entries") === undefined);
   const [cvYear, setCvYear] = useState(new Date().getFullYear());
   const [cvMonth, setCvMonth] = useState(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [likedIds, setLikedIds] = useState(() => new Set()); // いいね済みjob_number（❤️表示）
+  const [likedIds, setLikedIds] = useState(() => new Set(getCache("cal:liked") ?? [])); // いいね済みjob_number（❤️表示）
   // 「下書きを進めませんか？」ボックスは削除（2026-08-19たきと指示）。
   // 下書きの続きは お仕事タブ（作成中）から入る＝カレンダーを開くたびに覆いかぶさる案内を出さない。
   // 付随して、カレンダーを開くたびに走っていた jobs（自分の下書き）の問い合わせ1本も無くなった
@@ -30,13 +36,27 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        const { data, error } = await supabase.rpc("get_my_calendar_jobs");
-        if (!cancelled) setEntries(error ? [] : (data || []));
-        // いいね済み求人（❤️バッジ用・自分のsaved_jobsのみ）
-        const { data: saved } = await supabase.from("saved_jobs").select("job_number").eq("worker_id", session.user.id);
-        if (!cancelled && saved) setLikedIds(new Set(saved.map(r => r.job_number)));
-      } catch {}
-      setLoading(false);
+        // 2本は互いに独立so、awaitする前に同時に投げる（2026-07-27たきと指示「直列を並列に」）。
+        // 以前は getSession→予定→いいね の直列3段で、しかも盤面を出すのに
+        // いいね（❤️の飾り）の到着まで待っていた
+        const calP = supabase.rpc("get_my_calendar_jobs");
+        const savedP = supabase.from("saved_jobs").select("job_number").eq("worker_id", session.user.id);
+
+        // 盤面は予定thatが返った時点で出す＝いいねは飾りso待たない
+        const calRes = await calP;
+        if (cancelled) return;
+        // ★失敗時はキャッシュのままにする（res.errorを見ずに上書きすると、通信不調の数秒間だけ
+        //   予定that消えて「予定はまだありません」に見える＝2026-08-07のフェイルオープンと同じ型）
+        if (!calRes.error) { const rows = calRes.data || []; setEntries(rows); setCache("today:entries", rows); }
+        setLoading(false);
+
+        // いいねは届き次第あとから乗せる（thenableはPromise.resolveで包む・2026-07-26教訓）
+        Promise.resolve(savedP).then(r => {
+          if (cancelled || r.error || !r.data) return;
+          const ids = r.data.map(x => x.job_number);
+          setLikedIds(new Set(ids)); setCache("cal:liked", ids); // Setは保存できないso配列で持つ
+        }).catch(() => {});
+      } catch { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, []);
