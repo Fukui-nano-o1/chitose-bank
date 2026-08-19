@@ -226,7 +226,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const { hourlyViolation, dailyViolation, unknownWage } = validateMinWage(hourlyWage, dailyWage, workHours, minWage, breakMinutes);
   const [jobExp,            setJobExp]            = useState(d.jobExp ?? "");
   const [beginnerOk,        setBeginnerOk]        = useState(d.beginnerOk ?? false); // 🌱はじめての人も歓迎 → jobs.beginner_ok
-  const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分が評価した相手のみ・労働局確認済み）
+  const [instantApproveRepeat, setInstantApproveRepeat] = useState(d.instantApproveRepeat ?? false); // 🌟また呼びたい即決 → jobs.instant_approve_repeat（効果は自分の求人×自分がお気に入り登録した相手＝repeat_rosterのみ・労働局確認済み）
   const [flagInfoOpen, setFlagInfoOpen] = useState(null); // 「初心者大歓迎とは？」「リピート即決とは？」の説明ボックス（2026-07-18）
   const [jobPerks, setJobPerks] = useState(d.jobPerks ?? null); // この求人だけの待遇上書き → jobs.perks（NULL=プロフィールの待遇・2026-07-18）
   const [experiencedPreferred, setExperiencedPreferred] = useState(d.experiencedPreferred ?? false); // 💪経験者優遇 → jobs.experienced_preferred（2026-07-18・必要経験の選択式は撤回）

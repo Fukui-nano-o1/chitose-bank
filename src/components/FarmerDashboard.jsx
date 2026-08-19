@@ -1673,6 +1673,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     ❤️ お気に入り登録する
                   </label>
                 )}
+                {/* お気に入り登録＝リピート即決の判定そのもの（trg_instant_approve が repeat_roster を見る・2026-08-19）。
+                    登録の意味を伏せない。解除はまた呼びたいリストからいつでもできる */}
+                {completeWantAgain === true && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"-10px 0 16px 26px" }}>
+                    登録すると、新しい求人のお知らせが届きます。「🌟また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
+                  </p>
+                )}
                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                   <button onClick={()=>setCompleteModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
                   <button onClick={submitFarmerReview} disabled={completeSubmitting || completeWantAgain===null || completeEntrust===null}
