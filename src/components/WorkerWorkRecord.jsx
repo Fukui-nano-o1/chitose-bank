@@ -65,8 +65,6 @@ function Breakdown({ title, rows }) {
 export function WorkRecordBody({ data, showName }) {
   const t = data.totals || {};
   const recent = data.recent || [];
-  // 閲覧された回数の説明は？タップで展開（2026-08-07たきと指示・常時表示をやめる）
-  const [showViewHelp, setShowViewHelp] = useState(false);
   // 直近5件の要約＝この面で農家がまず知りたい1行（数えるのは記録に残る欠勤だけ）
   const absentCount = recent.filter(r => r.attended === false).length;
   const clean = absentCount === 0;
@@ -82,23 +80,6 @@ export function WorkRecordBody({ data, showName }) {
       </div>
       {(t.unknown_time_count ?? 0) > 0 && (
         <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0" }}>うち{t.unknown_time_count}件は勤務時間の記録がなく、時間に含めていません</p>
-      )}
-      {/* 閲覧された回数（2026-08-07たきと裁定）：匿名カウンター＝誰が見たかは記録していない。
-          DBが本人・運営にだけ値を返す（農家にはキーがnull）＝この枠は本人と運営にしか出ない */}
-      {data.profile_view_count != null && (
-        <>
-          <div style={{ marginTop:8, background:"#FAFAFA", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span className="f-sans" style={{ fontSize:11, color:"#717171" }}>閲覧された回数</span>
-              <button type="button" onClick={()=>setShowViewHelp(v=>!v)} aria-label="説明" className="f-sans"
-                style={{ width:16, height:16, borderRadius:"50%", border:"1px solid #D9D9D9", background: showViewHelp ? "#EFEFEF" : "#fff", color:"#999", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0, lineHeight:1 }}>？</button>
-            </span>
-            <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{data.profile_view_count}<span style={{ fontSize:11, fontWeight:700, marginLeft:2 }}>回</span></span>
-          </div>
-          {showViewHelp && (
-            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0", lineHeight:1.6 }}>農家がプロフィールを確認した回数。本人と運営にだけ表示され、誰が見たかは記録していません</p>
-          )}
-        </>
       )}
     </div>
 
@@ -154,22 +135,6 @@ export function WorkerWorkRecord({ workerId, showName }) {
     setState(data);
   }, [cacheKey, workerId]);
   useEffect(() => { load(); }, [load]);
-
-  // 閲覧された回数のリアルタイム表示（2026-08-07たきと指示）：本人・運営が記録面を開いている間、
-  // 農家の閲覧（+1）をその場で数字に反映する。チャットのライブ購読（ChatView）と同じ作法。
-  // RLSにより本人・運営以外には行が届かない＝農家が購読しても何も来ない（開示範囲は不変）
-  const canLive = !!(state && typeof state === "object" && state.profile_view_count != null);
-  useEffect(() => {
-    if (!canLive) return;
-    const ch = supabase.channel("wpv-" + workerId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "worker_profile_view_counts", filter: "worker_id=eq." + workerId }, (payload) => {
-        const v = payload?.new?.view_count;
-        if (v == null) return;
-        setState(prev => (prev && typeof prev === "object") ? { ...prev, profile_view_count: Number(v) } : prev);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [canLive, workerId]);
 
   if (state === null) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>;
   if (state === "denied") return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>この方のはたらいた記録は表示できません</p>;

@@ -118,11 +118,8 @@ export function WorkerPreviewSheet() {
         try {
           const { data: { session } } = await supabase.auth.getSession(); // ローカル読み＝往復なし
           const viewer = session?.user || null;
-          // 閲覧された回数（2026-08-07たきと裁定：匿名カウンター）。誰が見たかは送らない・保存されない。
-          // 本人と運営はRPC側でも数えないが、リクエスト自体を省く。失敗しても表示には影響させない
-          if (viewer?.id && viewer.id !== workerId && !isAdmin(viewer)) {
-            Promise.resolve(supabase.rpc("count_worker_profile_view", { p_worker_id: workerId })).catch(() => {});
-          }
+          // 閲覧された回数の計測は廃止（2026-08-19たきと指示「閲覧された回数は削除」）＝
+          // 表示が無くなったので数えない。DBの窓口・集計テーブルは記録so残してある
           // 段階1：プロフィール。未承認の自己紹介(pr_pending等)を農家に渡さないため、承認済み列だけ返す
           // RPC経由（2026-08-07）。★このRPCが列を絞る役目は今も現役＝ここは消さない。
           // ★under_review（審査中は本人と運営以外に見せない・2026-07-19）は【いま休眠中】：
