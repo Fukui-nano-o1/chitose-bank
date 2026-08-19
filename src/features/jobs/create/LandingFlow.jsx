@@ -1017,21 +1017,19 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
       {/* 終了3択モーダル */}
       {showExitModal && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:28, maxWidth:360, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
+        // 注記と「キャンセル」は削除（2026-08-19たきと指示）。閉じる手段は背景タップ＝
+        // キャンセルボタンを消しても閉じ込めないように、被せ側に onClick を持たせる
+        <div onClick={() => setShowExitModal(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:28, maxWidth:360, width:"100%", boxShadow:"0 8px 40px rgba(0,0,0,0.15)" }}>
             <h3 className="f-sans" style={{ fontSize:18, fontWeight:700, color:"#222", marginBottom:20, textAlign:"center" }}>作成を終了しますか？</h3>
             <div style={{ display:"grid", gap:10 }}>
               <button onClick={() => { setShowExitModal(false); handleTopSave({ exit: true }); }} disabled={draftSaving} className="btn-primary" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12 }}>保存して終了</button>
-              <div>
-                <button onClick={() => {
-                  try { localStorage.removeItem('landingFlowDraft_v1'); localStorage.removeItem('postLoginReturnTo'); } catch {}
-                  setShowExitModal(false);
-                  window.location.hash = "/profile/employer";
-                  if (typeof onSkip === "function") onSkip();
-                }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}>保存せずに終了</button>
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", marginTop:6 }}>最後に「保存して終了」した内容は残ります</p>
-              </div>
-              <button onClick={() => setShowExitModal(false)} className="f-sans" style={{ width:"100%", padding:"10px", background:"none", border:"none", fontSize:13, color:"#717171", cursor:"pointer" }}>キャンセル</button>
+              <button onClick={() => {
+                try { localStorage.removeItem('landingFlowDraft_v1'); localStorage.removeItem('postLoginReturnTo'); } catch {}
+                setShowExitModal(false);
+                window.location.hash = "/profile/employer";
+                if (typeof onSkip === "function") onSkip();
+              }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, borderRadius:12, background:"#fff", border:"1px solid #EBEBEB", color:"#222", cursor:"pointer" }}>保存せずに終了</button>
             </div>
           </div>
         </div>
