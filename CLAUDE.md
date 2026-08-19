@@ -6047,3 +6047,41 @@ viewCache（JSON）に入れると復元時に文字列になり読む側that落
 【検証】build成功・lint 0 error（react/jsx-no-undef that import漏れを1件検出→修正）。
 実機：①仕事の評価ページのカードthatさがすと同じ見た目か ②タップで終了の確認・評価that開くか
 ③送信で祝祭→一覧から消えるか ④応募状況ページの評価モーダルthat従来どおり動くか（共有化の回帰）
+
+
+━━━ 2026-08-19 求人詳細：保険カードをカレンダーの下へ移植（保険タブ廃止・指連動の横スワイプ）━━━
+【たきと指示】「保険カードをカレンダーの下に移植。余白は同じ高さで調節。保険カードが複数並ぶ場合は
+横スワイプさせる。指に連動」。
+【置き場所＝入口を1つに】保険タブは廃止し、地図・カレンダーの下の区画（JobInsuranceSection）に一本化。
+3画面とも同じ形にした：求人詳細（JobSearchMapView＋JobDetailPanel.JobLocationSection・余白5）／
+ボックス版（JobDetailBody・この画面は地図もカレンダーも余白20so20）／掲載前の確認ページ
+（LandingFlow・maxWidth870で中央・余白5）。見出しは「🛡 保険の準備」（危険箇所セクションと同じ体裁）。
+申告が無い求人は区画ごと出さない。
+【見るデータは不変】詳細・ボックス版＝掲載時凍結の insuranceSnapshot のみ（プロフィール現在値への
+フォールバック禁止・2026-08-02）。確認ページ＝プレビューso confEmployer（現在値）のまま。
+【★lib/hDrag.js 新設＝useHorizontalDrag（横スクロール要素を指に1:1で追従）】
+ブラウザ任せにできない理由：ContentQSwipeArea のルートは touch-action:"pan-y" so、その中に置いた
+overflow-x:auto は【ブラウザの横スクロールthat丸ごと止まる】（touch-action は要素と祖先の積で決まる＝
+子で pan-x を宣言しても復活しない）。so touchmove で scrollLeft を書いて自前で作る。
+規則は DragSheet・ContentQSwipeArea と同じ＝①8px動くまで軸を決めない ②1ジェスチャで軸は1回だけ確定
+（縦と決まったら以後ノータッチ）③横は preventDefault して scrollLeft を書く ④はみ出していない
+（カード1枚）ときは掴まない。★タブ切替との取り合いは起きない＝ContentQSwipeArea 側thaが inHScroll
+（overflow-x thatあり実際にはみ出している祖先）を見つけて譲る。
+※この touch-action の性質so、RelatedJobs（その他の求人・同じくタブの中の横カルーセル）も
+　スマホでは指で送れていない可能性thatある（矢印ボタンとPCのスクロールバーは効く）。未確認・別途。
+【InsurancePanel】swipe プロップを追加（2列グリッド→横一列・カード幅 clamp(148px,42%,200px)）。
+カードの中身・裏返しの説明・自己申告の注記は従来のまま＝表示を二重実装しない。
+scroll-snap は使わない（scrollLeft を自前で書くsoスナップと喧嘩する）。
+【後始末】ContentQTabs・ContentQSwipeArea の showInsurance は呼び手thatゼロになったso削除
+（保険タブthat復活して新しい区画と二重にならないように）。★タブを足す時は ContentQTabs の tabs と
+ContentQSwipeArea の keys を必ず同じ並びで直す（横スワイプの行き先thatずれる）。
+旧リンク #/work/job/{No}/insurance はどの枝にも当たらず「仕事の内容」に落ちる＝保険も同じ面にある。
+【検証】build成功／eslint 0 error・warning 26（着手前と同数）／hDrag は実ソースを import して
+node で13項目を機械検算（指に1:1で追従・縦は譲る・8pxの方向ロック・1枚だけなら掴まない＝
+タブ切替thatが生きる・touchend で解放・cleanup で全リスナーthatが外れる）／search-fingerprint の
+baseline 差分は着手前と完全に同一＝新たなズレなし（baseline 自体thaが着手前から古い・既知）。
+【実機目視の残り】①保険カードthatカレンダーの下に出るか（余白thaが地図・カレンダーと揃っているか）
+②カードthat3枚以上の求人で指に付いて横に送れるか ③同じ場所で縦スクロール・タブの横スワイプthat
+従来どおり効くか（取り合いthatないか）④カードのタップで説明thaが裏返るか
+⑤ボックス版（ステータスページ・お仕事タブ）と掲載前の確認ページでも同じに出るか
+━━━ ここまで ━━━
