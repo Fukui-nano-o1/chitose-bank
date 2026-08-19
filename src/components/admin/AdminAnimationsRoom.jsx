@@ -25,7 +25,7 @@ const CELEBRATIONS = [
   { title:"公開しました！",             where:"求人の掲載（即公開）。終了後に選択カード（求人を見る／一覧に戻る）", src:"App.jsx", after:{ jobNumber:1026 } },
   { title:"求人ができました！",         where:"求人の掲載（公開間近）。終了後に選択カード（一覧に戻るのみ）", src:"App.jsx", after:{ jobNumber:null } },
   { title:"承認しました",               where:"応募者ページで応募を承認", src:"FarmerDashboard.jsx" },
-  { title:"おつかれさまでした",         where:"完了して評価（農家）", src:"FarmerDashboard.jsx" },
+  { title:"おつかれさまでした",         where:"バイトの評価（農家）", src:"FarmerDashboard.jsx" },
   { title:"ありがとうございました",     where:"働き手の評価送信", src:"WorkerApplications.jsx" },
   { title:"報告しました",               where:"保険の準備の報告", src:"TodayPage.jsx" },
   { title:"ありがとうございます",       where:"働き手フロー完了（構想段階の導線）", src:"App.jsx" },

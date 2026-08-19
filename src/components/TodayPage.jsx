@@ -112,7 +112,7 @@ export function TodayPage({ me, defaultRole }) {
   // statusだけで見ると採用済みが拾えず、緊急連絡・開始の箱が薄いままだった（2026-07-27たきと報告）
   const hiredMine = mine.filter(e => e.application_id
     && (hiredIds.has(e.application_id) || ["contracted","working"].includes(e.application_status)));
-  // startedMine（作業中の応募）は廃止（2026-08-19）：「バイトを評価」の先取り点灯だけが読み手だったが、
+  // startedMine（作業中の応募）は廃止（2026-08-19）：「仕事の評価」の先取り点灯だけが読み手だったが、
   // 中身の無いバッジ・作業が終わる前の評価の誘いになっていたため下で削除した
   const tEmergency = (() => {
     const seen = new Set(); const out = [];
@@ -253,7 +253,7 @@ export function TodayPage({ me, defaultRole }) {
                    desc:"運営から求人内容の修正のお願いが届いたとき、ここから直して再申請します。" },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
     // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
-    question:    { icon:"💬", title:"求人への質問",         btn:"回答する →",
+    question:    { icon:"💬", title:"求人の質問",           btn:"回答する →",
                    desc:"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。", nav: e => {
       // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
       try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
@@ -278,9 +278,9 @@ export function TodayPage({ me, defaultRole }) {
                    desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
-    // 完了して評価する（2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
+    // バイトの評価（旧・完了して評価する・2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
     // 行タップ（専用ページ経由）でも同じ着地。cb_completeAppId は評価モーダルの自動展開用に併せて渡す
-    complete:    { icon:"✅", title:"完了して評価する",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
+    complete:    { icon:"✅", title:"バイトの評価",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
                    desc:"作業の完了を記録して、働き手を評価します。完了の記録から3日以内は評価だけ後からもできます。",
                    before: () => { try { sessionStorage.setItem("cb_appFilter", "completed"); } catch {} } },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
@@ -298,7 +298,7 @@ export function TodayPage({ me, defaultRole }) {
     // 来たらDB側のcron auto_start_work() が自動で作業中にする＝誰にも時刻を押させない
     // ここに出るのは「農家が完了を記録した後・自分がまだ終了を確認していない・完了から3日以内」だけ
     // （my_todo_items の w_review の定義）。作業が終わる前は出ない＝まだ評価できない（2026-08-19）
-    w_review:    { icon:"⭐", title:"バイトを評価",         btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
+    w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価ページへ →",   nav: () => "/profile/worker/approved",
                    desc:"仕事がすべて終わり、農家が完了を記録すると、ここに評価する仕事が並びます。作業中や作業日の途中はまだ評価できません。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
@@ -308,7 +308,7 @@ export function TodayPage({ me, defaultRole }) {
   // 面接の回答を送信してリストが空になった時は「送信完了しました。」を出す（2026-07-26たきと指示。ページを離れたらリセット）
   const [answeredDone, setAnsweredDone] = useState(false);
   useEffect(() => { setAnsweredDone(false); }, [pageStage]);
-  const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正", question: "質問に答える" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     farmer: ["t_emergency", "revision", "question", "hire", "insurance", "complete"],   // approve・interviewは削除（2026-08-19）
@@ -498,7 +498,7 @@ export function TodayPage({ me, defaultRole }) {
           const activeOrder = []; const byStage = new Map();
           [["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chat・t_cardは削除）
           myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
-          // ★「バイトを評価」（旧・農家を評価）の先取り点灯は削除（2026-08-19たきと報告）：
+          // ★「仕事の評価」（旧・農家を評価→バイトを評価）の先取り点灯は削除（2026-08-19たきと報告）：
           //   2026-07-27の「採用済みなら常に開ける」で、DBのやること(my_todo_items)ではなく
           //   採用済み・作業中の応募の数で箱を灯していた。その数はこの箱の専用ページが読む
           //   my_todo_items には無いので【バッジは1なのに開くと「この用事はいまありません」】になり、

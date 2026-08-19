@@ -777,14 +777,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         }
         // ここから下は、今日ページからの着地（応募が手元に揃ってから判定する）。
         // 行き先はいずれも応募者ページなので、応募をこの面で読む今の形と噛み合っている
-        // 完了・評価モーダルの着地（2026-07-24）：今日ページの「完了して評価する」から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
+        // 完了・評価モーダルの着地（2026-07-24）：今日ページの「バイトの評価」（旧・完了して評価する）から cb_completeAppId 経由で自動展開（モーダルはここに常駐）
         try {
           const pendC = sessionStorage.getItem("cb_completeAppId");
           if (pendC) {
             sessionStorage.removeItem("cb_completeAppId");
             const target = appData.find(x => x.id === pendC);
             // completed も対象（評価だけ残っている応募・2026-07-27）。以前は進行中の状態しか通さず、
-            // 今日ページの「完了して評価する」が完了済みの応募では何も開かなかった
+            // 今日ページの「バイトの評価」（旧・完了して評価する）が完了済みの応募では何も開かなかった
             if (target && (CHAT_ELIGIBLE_STATUSES.includes(target.status) || target.status === 'completed')) openCompleteModal(target);
           }
         } catch {}
@@ -1523,7 +1523,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const datePast = !!jobEnd && jobEnd < ymdLocal(new Date());
                   // ★完了ラベル（暗幕）は評価まで終わってから（2026-07-27たきと指示）。
                   //   従来は日程が過ぎた時点で暗幕＋pointerEvents:noneを掛けていたため、今日ページの
-                  //   「完了して評価する」から来ても応募者カードに触れず、完了記録・評価ができなかった。
+                  //   「バイトの評価」（旧・完了して評価する）から来ても応募者カードに触れず、完了記録・評価ができなかった。
                   //   todoAppIds（my_todo_items由来＝完了記録・評価が残っている応募）が1件でもあれば暗幕を出さない
                   const jobPendingAction = byJob[jn].some(a => todoAppIds.has(a.id));
                   const jobPast = datePast && !jobPendingAction;
