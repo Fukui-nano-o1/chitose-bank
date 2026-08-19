@@ -1633,14 +1633,6 @@ export default function App(){
         </button>
 
         <div style={{ display:"flex", alignItems:"center", gap:12, position:"relative" }}>
-          <button onClick={() => { window.location.hash = "/work/new"; }}
-            className="f-sans app-header-post-btn"
-            style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
-                     fontSize:14, fontWeight:600, color:"#222", padding:"8px 14px", borderRadius:20 }}>
-            <span className="post-label-full">求人を出す</span>
-            <span className="post-label-short">＋求人</span>
-          </button>
-
           <button onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
             aria-label="メニュー"
             style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
@@ -2061,7 +2053,6 @@ export default function App(){
           </div>
           <div>
             <p className="f-sans footer-col-title">雇う・働く</p>
-            <button onClick={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans footer-col-link">求人を出す</button>
             <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">掲載のしくみ</button>
             <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額支払型とは</button>
             <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans footer-col-link">保険の準備</button>
