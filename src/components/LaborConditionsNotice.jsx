@@ -10,7 +10,7 @@
 // ・★記録に無い法定の明示事項（契約の更新・変更の範囲・退職に関する事項ほか）は作らない（データ憲法3条・
 //   表示にダミー禁止）。「記録にありません」と正直に出し、文末で当事者間の別途明示を促す。
 // ・印刷は appStyles の「契約の印刷」@media print と対（.cb-ctr-print / -overlay / -sheet の3クラス）。
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { payTermsLine, overtimeLine, WAGE_CLOSING_RULE_LABELS, INSURANCE_ITEMS, normalizeInsuranceItems, ROLE_GREEN, ROLE_ORANGE } from "../lib/utils";
@@ -92,6 +92,13 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
   const [open, setOpen] = useState(null);        // 表示中の契約（applications行）
   const [partnerName, setPartnerName] = useState(""); // 凍結名を持たない旧契約のRPCフォールバック名
   const [infoOpen, setInfoOpen] = useState(false); // 説明は？ボタンで展開（また呼びたいリストと同じ作法・2026-08-18たきと指示）
+  // ★出現アニメ中のすり抜け対策（2026-08-18たきと報告「？タップで閉じる。コメント展開しない」）：
+  // .cb-sheet-up は cbPopGate で最初の0.8秒 pointer-events:none になる（アニメ中の誤タップ防止・2026-07-27）。
+  // pointer-events は子に継承されるので、この間のタップはシートをすり抜けて黒幕に当たり「閉じる」になっていた。
+  // 開いた直後の黒幕タップ（＝すり抜け）は無視する。POP_MS はアニメ長と揃えること
+  const POP_MS = 850;
+  const listOpenAt = useRef(0);
+  const docOpenAt = useRef(0);
 
   useEffect(() => {
     if (!me?.id) return;
@@ -113,6 +120,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
   }, [me?.id, isWorker]);
 
   const openNotice = (r) => {
+    docOpenAt.current = Date.now();
     setOpen(r); setPartnerName("");
     const s = r.terms_snapshot || {};
     // 相手の凍結名が無い旧契約だけRPCで引く（働き手から見た相手＝募集主／雇い手から見た相手＝働き手）
@@ -130,7 +138,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
     <>
       {/* 「わたしの記録」「記録」カテゴリーの中に並ぶ1枚（2026-08-18たきと指示）＝専用の見出しは持たない。
           件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す） */}
-      <button onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+      <button type="button" onClick={() => { listOpenAt.current = Date.now(); setListOpen(true); }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
         <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>労働条件通知書</span>
         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
           {rows === null ? "読み込み中…" : count > 0 ? `${count}件　採用の時点で決まった労働条件です。表示・印刷できます` : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
@@ -139,13 +147,16 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
 
       {/* 一覧（契約の選択） */}
       {listOpen && createPortal(
-        <div onClick={() => setListOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000 }}>
+        <div onClick={(e) => { if (e.target !== e.currentTarget) return; if (Date.now() - listOpenAt.current < POP_MS) return; setListOpen(false); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000 }}>
           <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
             <button onClick={() => setListOpen(false)} aria-label="閉じる" style={{ position:"absolute", top:12, right:12, width:36, height:36, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:16, cursor:"pointer", zIndex:1 }}>✕</button>
-            <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
-              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>労働条件通知書</p>
-              <button onClick={() => setInfoOpen(v => !v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: infoOpen ? accent : "#F0F0F0", color: infoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
-            </div>
+            {/* 見出し行ごと「？」の当たり判定にする（22pxだけだと外して黒幕に当たる・2026-08-18たきと報告）。
+                ✕（右上・36px）と重ならないよう右に48pxの余白を空ける。？は見た目の丸チップ＝入れ子のbuttonにしない */}
+            <button type="button" onClick={(e) => { e.stopPropagation(); setInfoOpen(v => !v); }} aria-label="説明を見る" aria-expanded={infoOpen}
+              style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 12px", padding:"4px 48px 4px 0", background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
+              <span className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222" }}>労働条件通知書</span>
+              <span className="f-sans" style={{ width:22, height:22, borderRadius:11, background: infoOpen ? accent : "#F0F0F0", color: infoOpen ? "#fff" : "#717171", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
+            </button>
             {infoOpen && (
               <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 12px" }}>
                 採用（両者の確認）が決まった時点の労働条件の記録です。タップすると内容の表示・印刷ができます。あとから変更できません。
@@ -191,7 +202,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
           const workerName = s?.party_names?.worker || (isWorker ? myName : partnerName) || "—";
           const sections = buildSections(s, r);
           return (
-            <div onClick={() => setOpen(null)} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500 }}>
+            <div onClick={(e) => { if (e.target !== e.currentTarget) return; if (Date.now() - docOpenAt.current < POP_MS) return; setOpen(null); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500 }}>
               <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
                 {/* ✕は置かない（外タップで閉じる・入力ボックスの統一と同じ作法）。下部に「とじる」あり */}
                 <div className="cb-ctr-print">
