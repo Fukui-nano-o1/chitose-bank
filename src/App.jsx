@@ -563,6 +563,29 @@ export default function App(){
     setApplyIdle(true);
     window.location.hash = "/profile/worker/applying";
   }, [showApplyDone]);
+  // ボックスの出現アニメ中の「すり抜けタップ」で閉じない（2026-08-18たきと指示「一括修理しろ」）。
+  // 【原因】.cb-sheet-up は cbPopGate で最初の0.8秒 pointer-events:none になる（アニメ中は中身が
+  // 動いていて狙った位置と当たる要素がずれるため・2026-07-27の日程チップ修理）。pointer-events は
+  // 【子に継承される】ので、その0.8秒の間のタップはボックスを丸ごとすり抜けて黒幕(.cb-box-overlay)に
+  // 当たり、黒幕の onClick（＝閉じる）が走っていた。利用者には「押したのに閉じた」と見える。
+  // 【修理】黒幕そのものが叩かれた瞬間に、中のボックスがまだ押せない状態なら、そのクリックを捨てる。
+  // captureで document に置くので、React（listenerは document.body 側）へ届く前に止まる＝
+  // 各オーバーレイ（53箇所・23ファイル）のコードは1行も触らずに全部に効く。
+  // 判定は「実際に押せない状態か」をブラウザに聞く（computed pointer-events）＝アニメ長を写経しない。
+  // 本物の黒幕タップ（閉じる意図）が捨てられるのはアニメ中だけ＝もう一度タップすれば閉じる。
+  useEffect(() => {
+    const swallowPopThrough = (e) => {
+      const t = e.target;
+      if (!t || typeof t.classList?.contains !== "function") return;
+      if (!t.classList.contains("cb-box-overlay")) return; // 黒幕への直撃だけを見る（中身のタップは無関係）
+      const sheet = t.querySelector(".cb-sheet-up");        // ゲートを持つのはこのクラスだけ
+      if (!sheet) return;
+      try { if (getComputedStyle(sheet).pointerEvents !== "none") return; } catch { return; }
+      e.stopPropagation(); e.preventDefault();
+    };
+    document.addEventListener("click", swallowPopThrough, true);
+    return () => document.removeEventListener("click", swallowPopThrough, true);
+  }, []);
   // 全ボタン共通のタップの手応え（振動のみ・無音・iOSでは静かに無視される）。
   // 「押せた」の証拠＝文字が読めない利用者への最小のフィードバック（2026-08-06）
   useEffect(() => {

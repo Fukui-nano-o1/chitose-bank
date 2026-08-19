@@ -5703,7 +5703,18 @@ POP_MS=850ms経過後」に限定＝すり抜けでは閉じない（POP_MSはcb
 ②見出し行ごと？の当たり判定にした（22pxの丸だけだと外して黒幕に当たる）。✕と重ならないよう右に48pxの余白。
 ？は見た目のチップ＝入れ子のbuttonにしない。
 ★systemic：同じ .cb-box-overlay + .cb-sheet-up の組は他のボックスにも多数あり、同じすり抜けを持つ。
-気になったらCSS側（黒幕にも同じgateを掛ける等）で一括修理する。今回は指示の範囲＝この部品だけ直した。
+【同日・一括修理（たきと指示「一括修理しろ」）】App.jsx に swallowPopThrough を1本置いた（capture・document）。
+ 判定＝「黒幕(.cb-box-overlay)そのものが叩かれた」かつ「中の .cb-sheet-up の computed pointer-events が
+ none（＝まだ押せない）」なら、そのクリックを stopPropagation+preventDefault で捨てる。
+ ・captureで document に置くのでReact（listenerは document.body 側）へ届く前に止まる＝
+   各オーバーレイ53箇所・23ファイルのコードは1行も触らずに全部へ効く
+ ・アニメ長（0.8秒）を写経しない＝「実際に押せない状態か」をブラウザに聞く。CSSのcbPop/cbPopGateを
+   変えても自動追従する。★逆に .cb-sheet-up 以外のクラスにゲートを足したら、この判定にも足すこと
+ ・本物の黒幕タップ（閉じる意図）が捨てられるのはアニメ中だけ＝もう一度タップすれば閉じる
+ ・LaborConditionsNotice に入れていた時間ガード（POP_MS=850の写経）は重複so撤去した。
+   残したのは e.target===e.currentTarget の直接タップ判定だけ（作法として妥当・二重機構にしない）
+【CSS側で直さなかった理由】黒幕にも cbPopGate を掛けると、その0.8秒はタップが黒幕も抜けて【背後のページ】に
+ 落ちる（誤操作の入口になる）。押せない状態のクリックをJSで捨てる方が範囲が狭く安全と判断した。
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-19 「農家を評価」の空バッジ・空昇格を修理（6c5d01c）━━━
