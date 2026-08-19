@@ -139,6 +139,19 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
     }
   };
 
+  // 印刷（2026-08-18たきと報告「1枚目の大部分が空白」）：紙に出さないものを流し込みから外すため、
+  // 押した瞬間に html/body へ .cb-print-doc を付ける。効くのは @media print の中だけなので画面は変わらない。
+  // ★:has() に頼らない＝素のクラスセレクタで確実に当てる。afterprint は iOS で発火しないことが
+  //   あるため時間でも外す（外し忘れても画面には影響しない）。
+  const printNotice = () => {
+    const el = [document.documentElement, document.body];
+    el.forEach(n => n && n.classList.add("cb-print-doc"));
+    const off = () => { el.forEach(n => n && n.classList.remove("cb-print-doc")); window.removeEventListener("afterprint", off); };
+    window.addEventListener("afterprint", off);
+    setTimeout(off, 60000);
+    try { window.print(); } catch { off(); }
+  };
+
   const count = rows ? rows.length : 0;
 
   return (
@@ -259,7 +272,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                   </p>
                 </div>
                 <div className="no-print" style={{ display:"flex", gap:10, marginTop:16 }}>
-                  <button onClick={() => { try { window.print(); } catch {} }} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
+                  <button onClick={printNotice} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
                   <button onClick={() => setOpen(null)} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
                 </div>
               </div>

@@ -1113,6 +1113,17 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
      紙に出さないものは display:none で流し込みから外す＝通知書が1枚目の先頭から始まる。
      visibility の指定も残す：他の @media print ブロック（QR印刷・委託の仕様書）が
      body * { visibility: hidden } を無条件に掛けるため、それを打ち消す必要がある。 */
+  /* ★:has() に依存しない（2026-08-18・1枚目の空白が直らなかった件）。
+     印刷ボタンを押した瞬間に html/body へ .cb-print-doc を付ける
+     （LaborConditionsNotice.printNotice）。素のクラスセレクタなので :has() の対応状況に左右されない。
+     ★空白の正体＝.cb-lock-scroll の html,body{overflow:hidden;height:100%}。
+     body の高さがちょうど1画面ぶんになり、その空白が先に流れていた。 */
+  html.cb-print-doc, body.cb-print-doc {
+    overflow: visible !important; height: auto !important; position: static !important;
+    margin: 0 !important; padding: 0 !important; background: #fff !important;
+  }
+  body.cb-print-doc > *:not(.cb-ctr-print-overlay) { display: none !important; }
+  body.cb-print-doc #root { display: none !important; }
   body:has(.cb-ctr-print) > *:not(.cb-ctr-print-overlay) { display: none !important; }
   body * { visibility: hidden; }
   .cb-ctr-print, .cb-ctr-print * { visibility: visible; }

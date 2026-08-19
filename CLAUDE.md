@@ -6459,6 +6459,19 @@ reviews3・apps25・ghost0）で 6項目の保存が当事者・向き・段階�
 ・html/body の position:static・margin:0 も明示（cb-lock-scroll の固定を印刷時に戻す）
 ・オーバーレイとシートの padding を0に＝紙の余白はブラウザの既定ページ余白に任せる
 ・区画（当事者欄・1〜6の各項目）に .cb-ctr-sec を付け、break-inside:avoid＝改ページで項目が割れない
+【★続報：1回目の修理では直らなかった（たきと報告「空白は修正されていない」）】
+空白の正体を実物で特定＝.cb-lock-scroll の `html:has(.cb-lock-scroll), body:has(.cb-lock-scroll)
+{ overflow:hidden; height:100% }`。ボックス表示中は body の高さがちょうど1画面ぶんに固定されるため、
+その1画面ぶんの空白が先に流れ、通知書が後ろへ押し出されていた（「1枚目の大部分が空白」と一致）。
+1回目の修理はこれを打ち消す作りだったが、判定を全て :has() に頼っていた。
+【2回目の修理】:has() 依存をやめ、印刷ボタンを押した瞬間に html/body へ .cb-print-doc を付ける
+（LaborConditionsNotice.printNotice）。CSSは素のクラスセレクタ：
+  html.cb-print-doc, body.cb-print-doc { overflow:visible; height:auto; position:static; margin:0; padding:0 }
+  body.cb-print-doc > *:not(.cb-ctr-print-overlay) { display:none }   ／  body.cb-print-doc #root { display:none }
+クラスを外すのは afterprint（iOSで発火しないことがあるため60秒の保険つき）。効くのは @media print の
+中だけなので、外し忘れても画面には影響しない。:has() 版の規則も残置（二重）。
 【検証】build成功・eslint 0 error・distにクラスと規則の反映・CSS全体の波括弧の均衡（過去に@mediaの
 取り違えで壊した前例あり）を機械確認。紙の実物は未確認＝要・実機
+【メモ】この作業中、python heredoc 経由の日本語で「が」が"tha" に化ける現象が再発した
+（2026-08-16の記録と同型）。コメントは chr(0x304C) で組み立てて回避した。
 ━━━ ここまで ━━━
