@@ -169,7 +169,7 @@ const MENU_ITEMS = [
 ];
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
-// ☰の中身：求人を出す・使い方・この画面を報告・管理・ログアウト（2026-07-14最終形）。
+// ☰の中身：求人を探す・使い方・この画面を報告・管理・ログアウト（2026-08-19 たきと指示で「求人を出す」を削除し「求人を探す」を新設）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
 const MOBILE_TABS = [
   { k:"search",   icon:"🔍", label:"さがす" },
@@ -180,7 +180,7 @@ const MOBILE_TABS = [
   { k:"calendar", icon:"📆", label:"今日" },
   { k:"profile",  icon:"👤", label:"プロフィール" },
 ];
-// モバイル☰メニューの静的リンク項目（求人を出す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
+// モバイル☰メニューの静的リンク項目（求人を探す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
   { key:"admin",   label:"⚙️ 管理",       hash:"/admin",   auth:false, adminOnly:true },
   { key:"boxes",   label:"🗂 ボックス一覧", hash:"/boxes",   auth:false, adminOnly:true },
@@ -1722,7 +1722,7 @@ export default function App(){
         </button>
         {mobileMenuOpen && (
           <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
-            <button onClick={()=>{ setMobileMenuOpen(false); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }} className="f-sans app-header-mobile-menu-item">🌱 求人を出す</button>
+            <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/search"; }} className="f-sans app-header-mobile-menu-item">🔍 求人を探す</button>
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
             {me && (
               <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item">💬 この画面を報告</button>
