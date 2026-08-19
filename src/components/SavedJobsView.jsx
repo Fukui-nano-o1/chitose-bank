@@ -190,33 +190,17 @@ export function SavedJobsView({ me }) {
   }, [boxJob]); // eslint-disable-line react-hooks/exhaustive-deps -- boxFullは取得済み判定のみ（依存に入れると再取得ループ）
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
-  // 開閉は雇い手の応募者ページと同じ作法＝横スワイプ or 案内行のタップ。今日ページのカレンダー箱から
-  // 来たときは合図(cb_openCalendar)で開いた状態で着地する
-  const [calOnTop, setCalOnTop] = useState(false);
+  // ★2026-08-19たきと指示「カレンダーは展開がデフォルトで、非表示できないようにして」＝常時展開。
+  //   開閉（横スワイプ・案内行のタップ・畳むアニメ・今日ページからの合図 cb_openCalendar）は全部撤去した。
+  //   読み込み中・いいねが0件の時も出す＝この面に来れば必ず予定が見える（隠れる道を残さない）。
   const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }＝選んだ日の求人を光らせる
-  // 畳む動作は開く動作の逆順（①縦に畳む→②横に縮む・2026-07-29たきと指示）。応募者ページと同じ作法
-  const [calClosing, setCalClosing] = useState(false);
-  const calCloseT = useRef(null);
-  const CAL_CLOSE_MS = 660; // CSS: 縦0.34s +（0.34s待ち）横0.3s ＝ 0.64s ＋ 余白
-  useEffect(() => () => clearTimeout(calCloseT.current), []);
-  const toggleCalTop = () => {
-    if (calOnTop) {
-      if (calClosing) return;
-      setCalClosing(true);
-      setCalDay(null);
-      calCloseT.current = setTimeout(() => { setCalOnTop(false); setCalClosing(false); }, CAL_CLOSE_MS);
-    } else {
-      clearTimeout(calCloseT.current);
-      setCalClosing(false);
-      setCalOnTop(true);
-      try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { window.scrollTo(0, 0); }
-    }
-  };
   const jobCardRefs = useRef({});
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("saved");
+  // 今日ページのカレンダー箱から来た時の合図は、もう開くための材料ではない（常時展開ので）。
+  // 置きっぱなしにしないためここで捨てる（合図を立てる側＝TodayPage は農家側でも使うので残す）
   useEffect(() => {
-    try { if (sessionStorage.getItem("cb_openCalendar")) { sessionStorage.removeItem("cb_openCalendar"); setCalOnTop(true); } } catch {}
+    try { sessionStorage.removeItem("cb_openCalendar"); } catch {}
   }, []);
   const onCalDayTap = (ymd, jobNumbers) => {
     setCalDay({ ymd, jobs: jobNumbers });
@@ -226,27 +210,12 @@ export function SavedJobsView({ me }) {
       if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
     }, 40);
   };
-  // 横スワイプでカレンダーを開閉（応募者ページと同じ判定。内側の横スクロールで始まったタッチは奪わない）
-  const swipeRef = useRef(null);
-  const onSwipeStart = (e) => {
-    const inHScroll = (() => {
-      for (let n = e.target; n && n !== e.currentTarget; n = n.parentElement) {
-        try {
-          const st = window.getComputedStyle(n);
-          if ((st.overflowX === "auto" || st.overflowX === "scroll") && n.scrollWidth > n.clientWidth + 1) return true;
-        } catch { return true; }
-      }
-      return false;
-    })();
-    swipeRef.current = inHScroll ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
-  const onSwipeEnd = (e) => {
-    const s = swipeRef.current; swipeRef.current = null;
-    if (!s) return;
-    const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return; // 横スワイプのみ
-    toggleCalTop();
-  };
+  // 常時展開のカレンダー（2026-08-19たきと指示「展開がデフォルトで、非表示できないように」）。
+  // 読み込み中の画面にも同じものを出す＝この面に来れば必ず予定が見える。
+  // cb-cal-reveal は面を開いた時のヌルッとした登場（畳む側 cb-cal-closing はもう使わない）
+  const calendarTop = (
+    <div className="cb-cal-reveal" style={{ marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>
+  );
   // ★取得の失敗を「0件」と断定しない（2026-08-17・たきと報告「アイコン→ボックス→求人タップ→閉じると
   //   ステータスページが空になる」の根治）。
   // 実際に起きていたこと（本番のログで裏取り済み）：ボックスを開くと求人の原寸写真が数枚流れる。その裏で
@@ -345,7 +314,7 @@ export function SavedJobsView({ me }) {
   // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる。
   // ★読み込めなかった時は仮の箱を出し続けない（永久に読み込み中に見える）／♡の空状態も出さない
   //   （「0件」と嘘をつかない・憲法3条）＝失敗を正直に出し、もう一度読み込む道を置く
-  if (rows === null) return loadFailed ? (
+  if (rows === null) return <div>{calendarTop}{loadFailed ? (
     <div style={{ textAlign:"center", padding:"64px 24px" }}>
       <div style={{ fontSize:34, marginBottom:14 }}>📡</div>
       <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, margin:0 }}>
@@ -354,7 +323,7 @@ export function SavedJobsView({ me }) {
       <button onClick={retryLoad} className="f-sans"
         style={{ marginTop:18, padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>もう一度読み込む</button>
     </div>
-  ) : <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>;
+  ) : <div style={{ paddingTop:4 }}><AutoSkeleton shapeKey="saved" /></div>}</div>;
 
   const photoOf = (r) => photoThumb(r.photos?.[0]);
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
@@ -386,21 +355,14 @@ export function SavedJobsView({ me }) {
           <button onClick={retryLoad} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>再読み込み</button>
         </div>
       )}
-      {/* 展開はヌルッと（2026-07-27たきと指示）：cb-cal-revealが高さ0→自動へ滑らかに開く */}
-      {(calOnTop || calClosing) && <div className={"cb-cal-reveal" + (calClosing ? " cb-cal-closing" : "")} style={{ marginBottom:14 }}><div><MyCalendar onDayTapJobs={onCalDayTap} /></div></div>}
-      {rows.length > 0 && (
-        <button onClick={toggleCalTop} className="f-sans"
-          style={{ width:"100%", background:"none", border:"none", padding:"0 0 6px", fontSize:11, color:"#B0B0B0", textAlign:"center", cursor:"pointer" }}>
-          {(calOnTop && !calClosing) ? "横スワイプでカレンダーを畳む" : "📅 横スワイプでカレンダーを開く"}
-        </button>
-      )}
+      {calendarTop}
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ fontSize:40, marginBottom:16, color:"#E24B4A" }}>♡</div>
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
       ) : (
-        <div ref={skelRef} onTouchStart={onSwipeStart} onTouchEnd={onSwipeEnd} style={{ display:"grid", gap:10 }}>
+        <div ref={skelRef} style={{ display:"grid", gap:10 }}>
           {rows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
