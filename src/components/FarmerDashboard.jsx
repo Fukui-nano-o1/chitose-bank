@@ -5,7 +5,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
   markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster,
-  upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
+  upsertInsurance, insertChatMessage } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
@@ -782,12 +782,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (dateSending || dates.length === 0) return;
     setDateSending(a.id);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await getSession();
       if (!session) { setDateSending(null); alert("ログインが切れています。開き直してください。"); return; }
       const body = "【日程の相談】この日はいかがですか？\n"
         + dates.slice().sort().map(d => calFmtDate(d)).join("・")
-        + "\n※まだ決定ではありません。都合that合わなければ、この チャットで教えてください。";
-      const { error } = await supabase.from("messages").insert({ application_id: a.id, sender_id: session.user.id, body });
+        + "\n※まだ決定ではありません。都合が合わなければ、このチャットで教えてください。";
+      const { error } = await insertChatMessage(a.id, session.user.id, body);
       setDateSending(null);
       if (error) { fbError(); alert("送信に失敗しました：" + error.message); return; }
       setDateSel(prev => ({ ...prev, [a.id]: [] }));

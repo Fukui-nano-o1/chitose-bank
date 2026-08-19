@@ -81,6 +81,9 @@ export const submitFarmerFinalReviewRpc = (applicationId, r) =>
     p_favorite: !!r.favorite,
   });
 export const insertAttendanceEvent = (row) => supabase.from('attendance_events').insert(row);
+// チャットへの投函（日程の調節の相談・2026-08-16）。本文の組み立ては画面側that持つ＝ここは配管だけ
+export const insertChatMessage = (applicationId, senderId, body) =>
+  supabase.from("messages").insert({ application_id: applicationId, sender_id: senderId, body });
 
 // ── 働き手の情報（承認済み列だけ返すRPC窓口を通す）───────
 export const fetchWorkerProfileForFarmer = (workerId) =>
