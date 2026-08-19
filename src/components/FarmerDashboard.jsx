@@ -1029,7 +1029,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               })()}
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
               {/* 来られる日（期間求人・すり合わせの起点・2026-07-24） */}
-              <AvailDatesChips value={a.available_dates} />
+              <AvailDatesChips value={a.available_dates} agreed={a.agreed_dates} />
               {/* 働く日（確定済み・2026-07-24 追記3） */}
               <AgreedDatesRow value={a.agreed_dates} />
               {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}

@@ -195,7 +195,7 @@ export function WorkerApplications({ filter, me }) {
                 <div onClick={()=>openPhaseInfo(appPhaseKey(a))} role="button" style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, marginBottom:8, background:c.bg, color:c.fg, cursor:"pointer" }}>{label(a)}</div>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 4px" }}>{[jobDates[a.job_number]?.crop, jobDates[a.job_number]?.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:12 }}>#{a.job_number}</span></p>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-                <AvailDatesChips value={a.available_dates} />
+                <AvailDatesChips value={a.available_dates} agreed={a.agreed_dates} />
                 <AgreedDatesRow value={a.agreed_dates} />
                 {/* お仕事の流れ（応募→承認→面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-25） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} /></div>}

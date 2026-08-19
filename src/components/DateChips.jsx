@@ -16,7 +16,12 @@ export function AgreedDatesRow({ value, fs = 12 }) {
 // 来られる日チップ（応募者カード・返事待ちカード・チャット文脈カード共用・2026-07-24）。
 // value＝applications.available_dates：["YYYY-MM-DD",...]（特定日・列挙）のみ表示。
 // 'any'（期間中いつでもOK）は非表示（2026-07-24たきと指示：全期間working前提ので表示不要）。null（単日）も非表示
-export function AvailDatesChips({ value, fs = 12 }) {
+// ★agreed（働く日＝agreed_dates）が決まっていたら、来られる日は出さない（2026-08-18たきと指示
+//   「働く日と来られる日が重複している。働く日に統一」）＝農家が働く日を確定した後は同じ日付が
+//   二重に並ぶだけので、確定した働く日に一本化する。未確定の間は従来どおり出す（判断の材料）。
+//   判定はこの部品1箇所＝出す画面ごとに条件が枝分かれしない
+export function AvailDatesChips({ value, agreed, fs = 12 }) {
+  if (Array.isArray(agreed) && agreed.length > 0) return null;
   const dates = Array.isArray(value) ? value : [];
   if (dates.length === 0) return null;
   return (

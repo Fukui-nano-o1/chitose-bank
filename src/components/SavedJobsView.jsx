@@ -601,7 +601,7 @@ export function SavedJobsView({ me }) {
                     共有部品＝応募者カード・返事待ちカード・チャット文脈カードと同じ見た目。
                     'any'（期間中いつでも）・未選択は部品側で非表示（実データ／未設定／非表示の三択・憲法3条） */}
                 <AgreedDatesRow value={r.agreed_dates} />
-                <AvailDatesChips value={r.available_dates} />
+                <AvailDatesChips value={r.available_dates} agreed={r.agreed_dates} />
                 {/* 応募の進み具合＝常時展開（2026-08-16たきと指示「この応募状況カードを削除し、
                     カードの内容を展開したままにしよう」）。旧📋応募状況カード（→応募状況ページへの
                     遷移）を廃止し、その中身＝お仕事の流れバー（FlowBar・応募状況ページと同じ共有部品）を
