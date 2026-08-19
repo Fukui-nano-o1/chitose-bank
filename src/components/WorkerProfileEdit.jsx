@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
-import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
+import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton, Dots } from "./ui";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
@@ -460,6 +460,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16・農家プロと同じ規則）
           // 配置（2026-07-16）：アイコン・ニックネーム／アイコンの下に自己紹介。任意は農家プロと同じ系統順（条件系→属性→問いかけ系が最後）
           // カードの絵文字アイコンは削除＝テキストのみ（2026-08-14たきと指示・雇い手編集ページと同型）
+          // 枠と値の色は役割色（働き手=橙 ROLE_ORANGE／雇い手側は緑）＝いまどちらの面にいるかが枠で分かる
+          // （2026-08-19たきと指示「各カードの枠に色を配色」・役割カラー規約2026-07-22の目印の一種）
           { k:"avatar",    l:"アイコン",     v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
           { k:"nickname",  l:"ニックネーム", req:true, v: nickname },
           { k:"pr",        l:"自己紹介",     req:true, v: pr },
@@ -477,14 +479,14 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
           return (
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
+          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid " + ROLE_ORANGE, borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
             {revFlagged && (
               <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>⚠️ 修正のお願い</span>
             )}
             {/* アイコンのカードだけ1行まるごと＋アイコン本体を大きく（2026-08-14たきと指示・雇い手編集ページと同型） */}
             {b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} />}
             <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
-            <span style={{ fontSize:11, color: b.v ? "#00A86B" : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
+            <span style={{ fontSize:11, color: b.v ? ROLE_ORANGE : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
           </button>
           );
         })}
