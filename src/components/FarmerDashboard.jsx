@@ -835,12 +835,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         {EMP_FLOW_STEPS.map((s, i) => {
           const isDone = done[i]; const isActive = i === active;
           const reached = isDone || isActive;
+          const isNow = isActive && s === "仕事"; // 働き手側FlowBarと同じ（塗りつぶしの緑＋上下に跳ねて明滅）
           return (
             <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
               {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? ROLE_GREEN : "#E5E5E5" }} />}
-              <div className={isActive && s === "仕事" ? "cb-flow-now" : undefined}
+              <div className={isNow ? "cb-flow-now" : undefined}
                 style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
-                background: isDone ? ROLE_GREEN : "#fff", border: isDone ? "none" : isActive ? "2px solid " + ROLE_GREEN : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? ROLE_GREEN : "#C8C8C8" }}>
+                background: (isDone || isNow) ? ROLE_GREEN : "#fff", border: (isDone || isNow) ? "none" : isActive ? "2px solid " + ROLE_GREEN : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? ROLE_GREEN : "#C8C8C8" }}>
                 {isDone ? "✓" : ""}
               </div>
               <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? ROLE_GREEN : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>

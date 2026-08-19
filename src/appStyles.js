@@ -122,7 +122,10 @@ input:focus { outline: none; }
    丸が上下にゆっくり跳ねながら明滅する＝いま作業中であることを、文字を読まなくても分かるようにする。
    ★対象は「仕事」の段が現在地の時だけ（FlowBar・雇い手側の鏡写しバーの両方で同じクラスを使う）。
    動きを減らす設定の端末では止める（丸そのものは残る） */
-@keyframes cbFlowNow { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-4px); opacity: .35; } }
+/* ★透過で明滅させない（2026-08-19たきと指示「横棒が透けている。●は緑で透けないようにしろ」）：
+   opacity を落とすと丸の後ろの横棒が透けて見えた。丸は常に不透明の緑のまま、
+   上下の動きと【緑の濃淡】で明滅させる（背景色はアニメがインラインstyleより優先される） */
+@keyframes cbFlowNow { 0%, 100% { transform: translateY(0); background-color: #00A86B; } 50% { transform: translateY(-4px); background-color: #6FCBA4; } }
 .cb-flow-now { animation: cbFlowNow 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .cb-flow-now { animation: none; } }
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
