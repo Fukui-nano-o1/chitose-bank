@@ -52,9 +52,13 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setSaving(false); return; }
+      // confirmed_at＝本人がこの内容を確認して保存した時刻（2026-08-19 裁定D案）。
+      // 自動初期登録（seed_emergency_contact）はこの列を書かないのでNULLのまま＝相手方に出ない。
+      // ここで初めて時刻が入り、採用成立時に contract_emergency_contact が中身を返すようになる。
       const { error } = await supabase.from("emergency_contacts").upsert({
         auth_id: session.user.id,
         name: name.trim(), relation: relation.trim(), phone: phone.trim(),
+        confirmed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: "auth_id" });
       setSaving(false);
