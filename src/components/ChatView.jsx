@@ -80,11 +80,15 @@ export function ChatView({ applicationId, onBack }) {
   };
   const planReplyText = (labels) =>
     labels.length ? "【日程の承認】" + labels.join("・") + " に伺います。よろしくお願いします。" : "";
+  // 入力欄から、この仕組みが作った承認文だけを取り除く（打ちかけの本文は残す）
+  const stripPlanReply = (t) => String(t || "").split("【日程の承認】")[0].replace(/\s*$/, "");
   // タブのタップ：選び直すたびに、打ちかけの文の後ろの返事だけを作り替える
   const togglePlanDay = (msgId, label) => {
     const cur = (planSel && planSel.msgId === msgId) ? planSel.labels : [];
     // このメッセージのタブを触り始めた時点の入力を土台にする（打ちかけの文を壊さない）
-    if (!planSel || planSel.msgId !== msgId) planBaseRef.current = text.replace(/\s*$/, "");
+    // 土台＝打ちかけの文。★前に作った承認文（【日程の承認】以降）は必ず落とす
+    //   （2026-08-19たきと報告：古い日程案→新しい日程案の順にタップすると承認文が二重に積まれた）
+    if (!planSel || planSel.msgId !== msgId) planBaseRef.current = stripPlanReply(text);
     const next = cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label];
     const base = planBaseRef.current;
     setPlanSel(next.length ? { msgId, labels: next } : null);
@@ -503,6 +507,18 @@ export function ChatView({ applicationId, onBack }) {
     if (!saved) alert("カレンダーへの記録ができませんでした（" + why + "）。メッセージはこのまま送ります。");
     await send();
   };
+  // 日程案は最新のものだけ押せる（2026-08-19たきと指示「日程案は最新の方を優先に。
+  // 前回の日程案をタップするとバグが発生する」）：古い日程案は履歴として日付は残すが、
+  // 押せないタグにする＝どれに返事しているのかが一意になり、承認文が二重に積まれない
+  const latestPlanMsgId = (() => {
+    let id = null;
+    for (const m of msgs) if (m.sender_id !== myId && parsePlanLabels(m.body)) id = m.id;
+    return id;
+  })();
+  // 新しい日程案が届いたら、古い方で選んでいた分は捨てる（古い日付のまま送らない）
+  useEffect(() => {
+    if (planSel && planSel.msgId !== latestPlanMsgId) { setPlanSel(null); setPlanConfirm(null); }
+  }, [latestPlanMsgId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
   // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
   const readMarkMsgId = (() => {
@@ -700,7 +716,7 @@ export function ChatView({ applicationId, onBack }) {
               <div style={{ alignSelf: mine ? "flex-end" : "flex-start", width:"75%" }}>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:-2, justifyContent: mine ? "flex-end" : "flex-start" }}>
                   {labels.map(l => {
-                    if (mine || reportMode) return (
+                    if (mine || reportMode || m.id !== latestPlanMsgId) return (
                       <span key={l} className="f-sans" style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, background:"#F2F2F2", color:"#717171", border:"1px solid #E5E5E5", cursor:"default" }}>{l}</span>
                     );
                     const on = sel.includes(l);
@@ -712,7 +728,7 @@ export function ChatView({ applicationId, onBack }) {
                   })}
                 </div>
                 {/* 注記は箱の外＝チップの折り返しに影響しない。高さも2行ぶんで固定して下の吹き出しも動かさない */}
-                {!mine && !reportMode && (
+                {!mine && !reportMode && m.id === latestPlanMsgId && (
                   <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"4px 0 0", lineHeight:1.5, minHeight:33 }}>
                     {sel.length ? "選んだ日が入力欄に入りました。送信ボタンで最終確認します。" : "来られる日をタップすると、返事が入力欄に入ります。"}
                   </p>
