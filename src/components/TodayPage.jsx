@@ -10,7 +10,7 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
   countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
-import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel,
+import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel, DayReportPanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
 // 今日ページから箱を消した用件（2026-08-19たきと指示）。DBのやること一覧(my_todo_items)は
@@ -282,8 +282,13 @@ export function TodayPage({ me, defaultRole }) {
     // バイトの評価（旧・完了して評価する・2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
     // 行タップ（専用ページ経由）でも同じ着地。cb_completeAppId は評価モーダルの自動展開用に併せて渡す
     complete:    { icon:"✅", title:"バイトの評価",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
-                   desc:"作業の完了を記録して、働き手を評価します。作業が始まってから、終わって24時間の間ここに並びます。",
+                   desc:"作業の完了を記録して、働き手を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。",
                    before: () => { try { sessionStorage.setItem("cb_appFilter", "completed"); } catch {} } },
+    // 今日の記録（2026-08-19たきと指示「最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する。
+    // それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」）＝評価フローの中日側。
+    // 専用ページ（DayReportPanel）が一覧と入力を両方持つので、行ボタン用の nav は持たない
+    day_report:  { icon:"📋", title:"今日の記録",         btn:"記録する →",
+                   desc:"その日に起きたこと（働き手の遅刻・欠勤、会えないなど）を記録します。最終の作業日より前の作業日に並びます。作業全体の評価は最終日にお願いします。" },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
@@ -301,7 +306,10 @@ export function TodayPage({ me, defaultRole }) {
     // （my_todo_items の w_review の定義）。作業が終わる前は出ない＝まだ評価できない（2026-08-19）
     // 専用ページ（ReviewStagePanel）that一覧と入力を両方持つso、行ボタン用のnavは持たない（2026-08-19）
     w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価する →",
-                   desc:"働いた農園を評価します。作業が始まってから、終わって24時間の間ここに並びます。" },
+                   desc:"働いた農園を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。" },
+    // 今日の記録（働き手側・上の day_report と対）。選択肢だけが違う（遅れる・休む・農家に会えない）
+    w_day_report:{ icon:"📋", title:"今日の記録",         btn:"記録する →",
+                   desc:"その日に起きたこと（遅れる・休む、農家に会えないなど）を記録します。最終の作業日より前の作業日に並びます。仕事全体の評価は最終日にお願いします。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
@@ -311,8 +319,9 @@ export function TodayPage({ me, defaultRole }) {
   const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
-    farmer: ["t_emergency", "revision", "question", "hire", "insurance", "complete"],   // approve・interviewは削除（2026-08-19）
-    worker: ["t_emergency", "w_revision", "w_review"],   // w_interviewは削除（2026-08-19）
+    // day_report（今日の記録）は complete（バイトの評価）の手前に置く＝正規フロー順（中日→最終日）
+    farmer: ["t_emergency", "revision", "question", "hire", "insurance", "day_report", "complete"],   // approve・interviewは削除（2026-08-19）
+    worker: ["t_emergency", "w_revision", "w_day_report", "w_review"],   // w_interviewは削除（2026-08-19）
   };
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
@@ -465,8 +474,13 @@ export function TodayPage({ me, defaultRole }) {
              タップでその場に 終了の確認・評価 を開く＝ページを移らない */
           <ReviewStagePanel items={pItems} meId={me?.id} onReviewed={(id)=>removeTodo(id, "w_review")} />
         ) : pageStage === "t_emergency" ? (
-          /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示） */
-          <EmergencyStagePanel items={pItems} role={role} />
+          /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示）。
+             ⚠️緊急連絡の入力は「今日の記録」と同じ共有部品（DayReportSheet）が開く */
+          <EmergencyStagePanel items={pItems} role={role} meId={me?.id} />
+        ) : (pageStage === "day_report" || pageStage === "w_day_report") ? (
+          /* 今日の記録（最終作業日より前の作業日・2026-08-19たきと指示）：
+             仕事の評価ページと同じカード構造で、タップでその場に入力シートが開く */
+          <DayReportPanel items={pItems} meId={me?.id} role={role} />
         ) : (
           <TodoStagePanel stage={pageStage} items={pItems} />
         )}

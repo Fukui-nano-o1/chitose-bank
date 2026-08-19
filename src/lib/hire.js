@@ -4,35 +4,16 @@
 // ここに置くのは「判定」と「文言」だけ。実行（rpc confirm_terms）と画面の更新は各呼び出し側が行う
 // （DBの権限・人数上限・見送りの波及は従来どおり confirm_terms が担保する）。
 import { supabase } from "./supabase";
-import { CHAT_ELIGIBLE_STATUSES } from "./utils";
+import { CHAT_ELIGIBLE_STATUSES, appWorkDates } from "./utils";
 
 // 契約成立＝本名の相互開示（2026-07-30たきと裁定(B)）。採用の確認には必ずこの明示を入れること
 export const HIRE_NAME_DISCLOSURE_NOTE =
   "採用すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。";
 
-// 実働日集合を作る（DBの app_work_dates と同じ規則・2026-08-06）：
-//   agreed_dates（非空配列）があればその日付／無ければ求人範囲 date_start..date_end を展開／
-//   いずれからも holidays（jobs.holidays）を除く。返り値は 'YYYY-MM-DD' 文字列の Set。
-// ★DB(app_work_dates)と1対1で揃えること＝ズレると画面とサーバーで警告が食い違う
-const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-function effectiveWorkDates(app, job) {
-  const set = new Set();
-  if (!job) return set;
-  const holidays = new Set(Array.isArray(job.holidays) ? job.holidays.filter(x => typeof x === "string") : []);
-  const agreed = app && Array.isArray(app.agreed_dates) ? app.agreed_dates : null;
-  if (agreed && agreed.length) {
-    for (const d of agreed) if (typeof d === "string" && !holidays.has(d)) set.add(d);
-    return set;
-  }
-  if (!job.date_start) return set;
-  const start = new Date(job.date_start + "T00:00:00");
-  const end = new Date((job.date_end || job.date_start) + "T00:00:00");
-  for (let t = new Date(start); t <= end; t.setDate(t.getDate() + 1)) {
-    const s = ymd(t);
-    if (!holidays.has(s)) set.add(s);
-  }
-  return set;
-}
+// 実働日集合＝lib/utils の appWorkDates（DBの app_work_dates と1対1・2026-08-06／2026-08-19に共通化）。
+// ここで自前に持っていた同じ実装は、評価フローの最終日判定（lastAppWorkDay）と物差しを揃えるため
+// lib/utils へ移した＝実働日の数え方はサイト内に1つだけ（変えるならDBの app_work_dates も同時に）
+const effectiveWorkDates = appWorkDates;
 
 // 二重予約の下調べ：同じ働き手が、【実働日が重なる】自分の別の求人にも進んでいないか。
 // 求人票の生の範囲ではなく、agreed_dates（実際に働く日）と holidays を反映した実働日の積で見る

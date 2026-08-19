@@ -5,7 +5,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb, isFinalWorkDayReached } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { YesNoPill, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -182,10 +182,16 @@ export function WorkerApplications({ filter, me }) {
                 <AgreedDatesRow value={a.agreed_dates} />
                 {/* お仕事の流れ（応募→承認→面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-25） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} /></div>}
-                {/* 評価（Part2）：作業が始まってから出す（2026-08-19たきと指示「作業開始から終了24時間以内まで」）。
-                    今日ページの⭐仕事の評価の箱と同じ窓＝箱that灯っているのにここにボタンthat無い、を作らない。
+                {/* 評価（Part2）：最終の作業日から出す（2026-08-19たきと指示
+                    「最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する」）。
+                    それより前の作業日は評価ではなく「今日の記録」（遅刻・欠勤・農家に会えない）＝
+                    今日ページの📋今日の記録の箱が受け持つ。
+                    ★今日ページの⭐仕事の評価の箱と同じ窓にする＝箱が灯っているのにここにボタンが無い、
+                      逆にここにボタンがあるのに箱が無い、のどちらも作らない。判定は lib/utils の
+                      isFinalWorkDayReached（DBの my_todo_items と同じ物差し＝app_work_dates の最終日）。
                     DBの壁(trg_reviews_phase_gate)も worker_to_farmer は working 以上を許す */}
-                {["working","completed"].includes(a.status) && (
+                {(a.status === "completed"
+                  || (a.status === "working" && isFinalWorkDayReached(a, jobDates[a.job_number]))) && (
                   a.attended === false ? (
                     a._disputed ? (
                       <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>異議申立を送信しました</p>

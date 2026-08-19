@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDayReached } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, YesNoPill, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -28,6 +28,7 @@ import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refre
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
+import { DayReportSheet } from "./DayReportSheet";
 
 // 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
 // ★ピルは「見るもの」ではなく【隠すもの】の選択＝見送り／失効／取り消しの3つだけ。複数選択可。
@@ -295,6 +296,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const jobList = [];
 
 
+  // その日の記録（2026-08-19たきと指示）：最終の作業日より前の作業日は、完了・評価でなく
+  // 「遅刻・欠勤・会えない」の記録をつける。入力と保存は共有部品 DayReportSheet
+  // （今日ページの📋今日の記録・緊急連絡のシートと同じもの＝入力を枝分かれさせない）。
+  // ★ここで記録しても作業全体の出欠（applications.attended）は変わらない＝最終日の評価で決まる
+  const [dayReportApp, setDayReportApp] = useState(null);
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
   const [completeWantAgain, setCompleteWantAgain] = useState(null);
@@ -815,12 +821,26 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 // 迫る）状態だった。complete_work は承認済み〜作業中を受け付ける（開始確認は要件でない）ため、
                 // ここから直接「働き手は来ましたか？」→「来なかった」に入れる。作業日前は
                 // RPCが「開始日はまだ先です」と理由付きで断る
-                if (phase === "contracted" || phase === "working") return (
-                  <div style={{ display:"flex", gap:8 }}>
-                    {chatBtn}
-                    <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✅ 完了・欠勤を記録</button>
-                  </div>
-                );
+                // ★2026-08-19たきと指示「最終日だけ全体的な評価。これは全ての工程の終了を意味する。
+                //   それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」＝最終の作業日に達するまでは
+                //   完了・評価でなく【その日の記録】を出す。中日にここから完了させると、まだ作業が残って
+                //   いるのに全工程が終わってしまう。判定は lib/utils の isFinalWorkDayReached
+                //   （DBの my_todo_items と同じ物差し＝app_work_dates の最終日）
+                if (phase === "contracted" || phase === "working") {
+                  const jinfo = jobInfoMap[a.job_number];
+                  if (!isFinalWorkDayReached(a, jinfo)) return (
+                    <div style={{ display:"flex", gap:8 }}>
+                      {chatBtn}
+                      <button onClick={()=>setDayReportApp(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>📋 今日の記録</button>
+                    </div>
+                  );
+                  return (
+                    <div style={{ display:"flex", gap:8 }}>
+                      {chatBtn}
+                      <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✅ 完了・欠勤を記録</button>
+                    </div>
+                  );
+                }
                 // 完了（出勤あり）でまだ評価していない応募＝評価ボタンを出す（2026-07-27たきと指示）。
                 // 欠勤記録済み（attended===false）は評価の代わりので出さない。評価後はチャットだけに戻る
                 if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)) return (
@@ -899,6 +919,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     // 応募者ページは下余白もCSS側(20px)へ一本化するので、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
     <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : jobTab === "applicants" ? "15px 0 0" : "15px 0 80px" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
+      {/* その日の記録（最終の作業日より前の作業日・2026-08-19）。祝祭は出さない（祝う場面ではない） */}
+      <DayReportSheet app={dayReportApp && { id: dayReportApp.id }} meId={me?.id} role="farmer"
+        onClose={()=>setDayReportApp(null)} onDone={()=>setDayReportApp(null)} />
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。

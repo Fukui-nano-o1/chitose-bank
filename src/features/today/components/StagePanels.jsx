@@ -19,6 +19,7 @@ import ContractPartyName from "../../../components/ContractPartyName";
 import ContractEmergencyContact from "../../../components/ContractEmergencyContact";
 import { JobCard } from "../../../components/JobCard";
 import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
+import { DayReportSheet } from "../../../components/DayReportSheet";
 import { Celebration } from "../../../components/Celebration";
 
 
@@ -27,8 +28,13 @@ import { Celebration } from "../../../components/Celebration";
 // 右:相手のアイコン＋段階ラベル。カードタップでボックス（下からのシート）が開き、
 // 実行（⚠️緊急連絡・チャット・求人ページ）はシート内のボタンが担う。
 // ★モジュールレベル定義を維持すること：親内で定義すると再レンダーごとに再マウントされる（フォーカス消失バグの同族）
-export function EmergencyStagePanel({ items, role }) {
+export function EmergencyStagePanel({ items, role, meId }) {
   const [boxItem, setBoxItem] = useState(null); // 展開中のボックス（ステータスページのboxJobと同じ作法）
+  // ⚠️緊急連絡の中身＝その日の記録の入力（今日の記録の箱と同じ共有部品・2026-08-19）。
+  // ★従来は #/emergency/{id} へ飛ばしていたが、その行き先のページは2026-08-19の
+  //   緊急連絡モーダル削除で無くなっており、profileページに着地して何も開かない状態だった。
+  //   入力を作り直したのでこの場で開く（新しいルートは足さない）
+  const [reportApp, setReportApp] = useState(null);
   // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
   const boxSheetRef = useRef(null), boxScrollRef = useRef(null);
   useSheetDragClose(boxSheetRef, boxScrollRef, ()=>setBoxItem(null), !!boxItem);
@@ -112,8 +118,8 @@ export function EmergencyStagePanel({ items, role }) {
                 {e.application_id && <ContractEmergencyContact applicationId={e.application_id} style={{ margin:"0 0 12px" }} />}
                 {/* 操作（ステータスページのボタン群と同じ位置づけ。主役＝緊急連絡） */}
                 <div style={{ display:"grid", gap:8 }}>
-                  <button onClick={()=>{ setBoxItem(null); window.location.hash = "/emergency/" + e.application_id; }} className="f-sans"
-                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⚠️ 緊急連絡をする →</button>
+                  <button onClick={()=>{ setBoxItem(null); setReportApp({ id: e.application_id }); }} className="f-sans"
+                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⚠️ 緊急連絡をする</button>
                   {chatOk && (
                     <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + e.application_id; }} className="f-sans"
                       style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
@@ -126,6 +132,9 @@ export function EmergencyStagePanel({ items, role }) {
           </div>
         );
       })()}
+      {/* その日の記録の入力（今日の記録の箱と同じ共有部品＝入力と保存を2箇所で枝分かれさせない） */}
+      <DayReportSheet app={reportApp} meId={meId} role={role}
+        onClose={()=>setReportApp(null)} onDone={()=>setReportApp(null)} />
     </>
   );
 }
@@ -426,6 +435,82 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
         onClose={()=>setReviewApp(null)}
         onDone={(id)=>{ setReviewApp(null); setDone({ title:"ありがとうございました" }); onReviewed(id); }} />
       {done && <Celebration title={done.title} onDone={()=>setDone(null)} />}
+    </>
+  );
+}
+
+// 今日の記録ページ（#/calendar/todo/day_report・#/calendar/todo/w_day_report・2026-08-19たきと指示
+// 「最終日だけ全体的な評価。それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」）：
+// 最終作業日より前の作業日は、評価の代わりにこの記録が並ぶ。並べ方は仕事の評価ページと同じ
+// （さがすと同じ求人カード＋タップでその場に入力シート）＝役割で画面の骨を変えない。
+// 入力と保存は共有部品 DayReportSheet（緊急連絡のシートと同じもの）。
+// ★片付いても箱からは消さない：記録は「何か起きた時だけ」つけるものので、1件つけたら
+//   その日の用事が終わる、とは限らない（遅刻の後に早退、もある）。祝祭も出さない（祝う場面ではない）。
+// ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元）
+export function DayReportPanel({ items, meId, role }) {
+  // ★viewCacheには入れない：mapJobPublicRow の dateStart/dateEnd は Date オブジェクトので、
+  //   JSONで保存→復元すると文字列になり読む側が落ちる（2026-08-03の実害と同じ型）
+  const [jobs, setJobs] = useState({});
+  const [reportApp, setReportApp] = useState(null);
+  const [sentIds, setSentIds] = useState(() => new Set()); // この画面で記録できたもの（控えめな既済み表示）
+  const numsKey = items.map(t => t.job_number).filter(Boolean).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const nums = numsKey ? numsKey.split(",").map(Number) : [];
+      if (!nums.length) return;
+      try {
+        const { data, error } = await fetchPublicJobsByNumbers(nums);
+        // 失敗時は手元の値を上書きしない（2026-08-07フェイルオープン規則）
+        if (cancelled || error || !data) return;
+        setJobs(prev => {
+          const nx = { ...prev };
+          data.forEach(r => { nx[r.job_number] = mapJobPublicRow(r); });
+          return nx;
+        });
+      } catch { /* 取得できなくてもカードは最小形で出す */ }
+    })();
+    return () => { cancelled = true; };
+  }, [numsKey]);
+  const partnerColor = role === "farmer" ? ROLE_ORANGE : ROLE_GREEN;
+  return (
+    <>
+      <div style={{ display:"grid", gap:16 }}>
+        {items.map(t => {
+          const job = jobs[t.job_number];
+          const open = () => setReportApp({ id: t.application_id });
+          return (
+            <div key={t.application_id} style={{ display:"grid", gap:8 }}>
+              {/* 相手（誰についての記録か・誰に届くか）。アイコンは相手の役割色（チャットの役割色枠と同じ規約） */}
+              <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={32} ring={partnerColor} bg={partnerColor} />
+                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {t.partner_name ? t.partner_name + "さん" : "相手"}
+                </span>
+                {sentIds.has(t.application_id) && (
+                  <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#E24B4A" }}>記録しました</span>
+                )}
+              </div>
+              {job ? (
+                <JobCard job={job} variant="wide" onOpen={open} hideEndLabel />
+              ) : (
+                <button onClick={open} className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
+                  <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{[t.crop, t.task].filter(Boolean).join(" ") || "求人"}</span>
+                  <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{t.job_number}</span>
+                </button>
+              )}
+              <button onClick={open} className="f-sans"
+                style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>
+                遅刻・欠勤などを記録する
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <DayReportSheet app={reportApp} meId={meId} role={role}
+        onClose={()=>setReportApp(null)}
+        onDone={(id)=>{ setReportApp(null); setSentIds(prev => new Set(prev).add(id)); }} />
     </>
   );
 }

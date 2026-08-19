@@ -123,6 +123,46 @@ export function entryWorkDays(entry) {
   return keep(out);
 }
 
+// ── 契約上の実働日（DBの app_work_dates と1対1）──────────
+// agreed_dates（非空配列）があればその日付／無ければ求人票の期間 date_start..date_end を展開／
+// いずれからも holidays（求人の休日）を除く。返り値は "YYYY-MM-DD" の Set。
+// ★entryWorkDays との違い＝available_dates（働き手が申請した希望日・未確定）を混ぜない。
+//   こちらは「契約として働く日」＝二重予約の壁（lib/hire）と評価フローの最終日判定が使う物差し。
+// ★DB(app_work_dates)と1対1で揃えること。ズレると画面とサーバーの判断が食い違う
+export function appWorkDates(app, job) {
+  const set = new Set();
+  if (!job) return set;
+  const holidays = new Set(Array.isArray(job.holidays) ? job.holidays.filter(x => typeof x === "string") : []);
+  const agreed = app && Array.isArray(app.agreed_dates) ? app.agreed_dates : null;
+  if (agreed && agreed.length) {
+    for (const d of agreed) if (typeof d === "string" && !holidays.has(d.slice(0, 10))) set.add(d.slice(0, 10));
+    return set;
+  }
+  if (!job.date_start) return set;
+  const start = String(job.date_start).slice(0, 10);
+  const end = job.date_end ? String(job.date_end).slice(0, 10) : start;
+  // 比較は "YYYY-MM-DD" の文字列（時差の影響を受けない）。上限400は壊れた終了日への保険
+  for (let t = new Date(start + "T00:00:00"), i = 0; ymdLocal(t) <= end && i < 400; t.setDate(t.getDate() + 1), i++) {
+    const s = ymdLocal(t);
+    if (!holidays.has(s)) set.add(s);
+  }
+  return set;
+}
+// 最終作業日（"YYYY-MM-DD"／分からなければ null）。
+// ★評価フローの境目（2026-08-19たきと指示）：最終日＝全体の評価（全工程の終了）／
+//   それ以外の作業日＝その日の記録（遅刻・欠勤・相手が来ない）。判定はこの1関数に集約する
+export function lastAppWorkDay(app, job) {
+  let last = null;
+  for (const d of appWorkDates(app, job)) if (!last || d > last) last = d;
+  return last;
+}
+// 今日が最終作業日に達したか（＝全体の評価を出してよいか）。
+// 日程が分からない求人は true に倒す＝評価の道を塞がない（DB側 my_todo_items の coalesce と同じ）
+export function isFinalWorkDayReached(app, job, today = ymdLocal(new Date())) {
+  const last = lastAppWorkDay(app, job);
+  return !last || today >= last;
+}
+
 // ── 勤務時間（work_time）の読み取り ──────────────────────
 // work_time（"8:00〜17:00"）の開始時刻を「その日の0時からの分」で返す。取れなければ null
 export const workStartMinutes = (workTime) => {
@@ -840,9 +880,27 @@ export const TASK_OPTIONS = [
 
 // 分割3-B（2026-07-25）：App.jsxから移動
 
-// 緊急連絡の種別選択肢（当事者ごとに異なる）。attendance_events.kindのCHECK制約と対応
-export const WORKER_EMERGENCY_KINDS = [{ v:"late", l:"遅れる" }, { v:"absent_notice", l:"欠勤の連絡" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
-export const FARMER_EMERGENCY_KINDS = [{ v:"cancel", l:"中止" }, { v:"postpone", l:"延期" }, { v:"no_show_report", l:"👻 現地に相手がいません・連絡がつきません" }];
+// その日の記録（旧・緊急連絡）の種別選択肢。attendance_events.kind の CHECK 制約と対応する。
+// ★2026-08-19たきと指示「最終日だけ全体的な評価。それ以外は遅刻や欠勤、農家が来ていないとかの入力」＝
+//   中日（最終作業日より前の作業日）はこの記録が評価の代わりに並ぶ。入力の窓口は
+//   components/DayReportSheet.jsx 1つだけ（今日ページの箱・緊急連絡のシートの両方が呼ぶ）。
+// ★農家が記録する late / absent_notice は【その日の記録】であって、作業全体の出欠ではない
+//   （applications.attended は最終日の評価で決まる）。DB側の通知も actor で言い回しを変える
+//   （trg_notify_attendance・農家＝「遅刻の記録」／働き手＝「遅れる連絡」）。
+// v=kind／l=選択肢のラベル／d=補足（何が起きたときに押すのか）
+export const WORKER_DAY_REPORT_KINDS = [
+  { v:"late",           l:"遅れます・遅れました",       d:"到着が作業の開始時刻に間に合わないとき" },
+  { v:"absent_notice",  l:"休みます（欠勤の連絡）",     d:"今日は行けないとき。早いほど農家が段取りを直せます" },
+  { v:"no_show_report", l:"農家に会えない・連絡がつかない", d:"集合場所に相手がいないとき。運営にも同時に伝わります" },
+];
+export const FARMER_DAY_REPORT_KINDS = [
+  { v:"late",           l:"働き手が遅れて来た（遅刻）",   d:"開始時刻に間に合わなかったとき" },
+  { v:"absent_notice",  l:"働き手が来なかった（欠勤）",   d:"その日の欠勤の記録です。作業全体の出欠は最終日の評価で決めます" },
+  { v:"no_show_report", l:"働き手に会えない・連絡がつかない", d:"集合場所に相手がいないとき。運営にも同時に伝わります" },
+  { v:"cancel",         l:"今日の作業を中止した",           d:"天候などで作業自体を取りやめたとき" },
+  { v:"postpone",       l:"今日の作業を延期した",           d:"別の日にずらしたとき" },
+];
+export const dayReportKinds = (role) => role === "farmer" ? FARMER_DAY_REPORT_KINDS : WORKER_DAY_REPORT_KINDS;
 
 // 分割3-C（2026-07-25）：App.jsxから移動（求人詳細・確認ページ・プレビューシートで共用）
 
