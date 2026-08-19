@@ -819,10 +819,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const empFlowState = (a) => {
     const approved = ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
     const hired    = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
-    const started  = a.status === "working" || a.status === "completed"; // 作業日の開始時刻を過ぎると自動でworkingになる
+    // ★働き手側FlowBar（ui.jsx）と同じ規則：「仕事」に✓が付くのは仕事が終わってから
+    //   （2026-08-18たきと指示「仕事まで進めてチェックは入れるな」）。鏡写しの約束を守る
     const reported = a.status === "completed";
     const reviewed = reviewedAppIds.has(a.id) || (a.status === "completed" && a.attended === false); // 欠勤記録は評価の代わり
-    const done = [true, approved, hired, hired, started, reported, reviewed];
+    const done = [true, approved, hired, hired, reported, reported, reviewed];
     return { done, active: done.findIndex(d => !d) };
   };
   // ※コンポーネントではなく関数として呼ぶ（親の再描画で作り直されても状態を持たないので影響なし）
@@ -836,7 +837,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           return (
             <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
               {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? ROLE_GREEN : "#E5E5E5" }} />}
-              <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+              <div className={isActive && s === "仕事" ? "cb-flow-now" : undefined}
+                style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
                 background: isDone ? ROLE_GREEN : "#fff", border: isDone ? "none" : isActive ? "2px solid " + ROLE_GREEN : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? ROLE_GREEN : "#C8C8C8" }}>
                 {isDone ? "✓" : ""}
               </div>

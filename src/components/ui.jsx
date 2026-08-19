@@ -474,10 +474,12 @@ export const FLOW_STEPS = ["応募", "承認", "面接", "採用", "仕事", "�
 export const flowState = (a) => {
   const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
   const approved = bothConfirmed || !["applied", "rejected", "expired", "canceled"].includes(a.status);
-  const started  = a.status === "working" || a.status === "completed"; // 仕事（作業日の開始時刻を過ぎると自動でworkingになる）
-  const reported = a.status === "completed"; // 完了報告（作業完了が記録された）
+  // ★「仕事」に✓が付くのは仕事が終わってから（2026-08-18たきと指示「仕事まで進めてチェックは入れるな」）。
+  //   作業中（working）は仕事が“現在地”＝丸のまま。以前は開始した時点で✓が付き、まだ働いている求人が
+  //   「仕事は済んだ」に見えていた（＝完了していない求人の進み具合が実態とずれる）
+  const reported = a.status === "completed"; // 完了報告（作業完了が記録された）＝ここで仕事も済みになる
   const reviewed = !!a._reviewed || (a.status === "completed" && a.attended === false); // 評価（評価の行があるか＝呼び出し側が _reviewed で渡す）
-  const done = [true, approved, bothConfirmed, bothConfirmed, started, reported, reviewed];
+  const done = [true, approved, bothConfirmed, bothConfirmed, reported, reported, reviewed];
   return { done, active: done.findIndex(d => !d) };
 };
 export const FlowBar = ({ a }) => {
@@ -490,7 +492,10 @@ export const FlowBar = ({ a }) => {
         return (
           <div key={s} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", position:"relative", minWidth:0 }}>
             {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
-            <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
+            {/* 現在地が「仕事」の時だけ上下に跳ねながら明滅（2026-08-18たきと指示
+                「仕事のところだけ、アップダウンに点滅を追加」）＝いま作業中であることの目印 */}
+            <div className={isActive && s === "仕事" ? "cb-flow-now" : undefined}
+              style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
               background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
               {isDone ? "✓" : ""}
             </div>

@@ -113,6 +113,13 @@ input:focus { outline: none; }
   .cb-cal-reveal, .cb-cal-head, .cb-cal-body-wrap,
   .cb-cal-reveal.cb-cal-closing, .cb-cal-reveal.cb-cal-closing .cb-cal-body-wrap { animation: none; }
 }
+/* 進み具合バーの現在地「仕事」の目印（2026-08-18たきと指示「仕事のところだけ、アップダウンに点滅を追加」）：
+   丸が上下にゆっくり跳ねながら明滅する＝いま作業中であることを、文字を読まなくても分かるようにする。
+   ★対象は「仕事」の段が現在地の時だけ（FlowBar・雇い手側の鏡写しバーの両方で同じクラスを使う）。
+   動きを減らす設定の端末では止める（丸そのものは残る） */
+@keyframes cbFlowNow { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(-4px); opacity: .35; } }
+.cb-flow-now { animation: cbFlowNow 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .cb-flow-now { animation: none; } }
 @keyframes cbPop { from { transform: scale(.85); } to { transform: scale(1); } }
 /* 出現アニメ中はタップを受け付けない（2026-07-27・日程チップの誤タップ修理）。
    0.85→1へ弾みながら拡大する間は中身が動いているため、狙った位置と実際に当たる要素がずれる。
