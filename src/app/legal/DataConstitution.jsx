@@ -17,14 +17,27 @@ export function DataConstitution({ onClose }) {
     { num:12, title:"漏えい・事故対応",          body:"個人情報、原本資料、個別収支、取引情報の漏えい、誤公開、不正閲覧のおそれがある場合は、速やかに公開停止、影響範囲確認、本人通知、必要な報告、再発防止を行う。" },
   ];
 
+  // 様式は利用規約（Terms.jsx）・プライバシーポリシーと同一。片方を変えたら他も合わせること
   return (
     <div className="cb-lock-scroll"
-      style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
-      onClick={onClose}
+      style={{
+        position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.38)",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        // viewport-fit=cover のため fixed は時計・ホームバーの下まで画面全体を覆う。
+        // 安全領域を足さないと上下の余白がそこに食われて不揃いに見える（この内側＝ボックスの入る範囲）
+        padding:"calc(16px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px))",
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        style={{ position:"relative", width:"min(92vw, 920px)", maxHeight:"88vh", overflowY:"auto", background:"#FFFFFF", borderRadius:24, padding:"32px", boxShadow:"0 24px 80px rgba(0,0,0,0.18)", fontFamily:"'Noto Sans JP','Inter',sans-serif" }}
-        onClick={e => e.stopPropagation()}
+        style={{
+          position:"relative", width:"min(92vw, 920px)",
+          // 100% ＝ 上の padding の内側にぴったり収まる＝上下の余白が均等・ボックスの中央が画面の中央。
+          // 88vh だと画面全体に対する割合になり、安全領域のぶん下へはみ出して余白が不揃いになる
+          maxHeight:"100%", overflowY:"auto",
+          background:"#FFFFFF", borderRadius:24, padding:"32px",
+          boxShadow:"0 24px 80px rgba(0,0,0,0.18)", fontFamily:"'Noto Sans JP','Inter',sans-serif",
+        }}
       >
         <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"center" }}>データ憲法</h2>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:24 }}>日本農業研究所（chitose-bank） v1.1 · 制定日：2026年5月25日</p>
