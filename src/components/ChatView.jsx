@@ -79,7 +79,10 @@ export function ChatView({ applicationId, onBack }) {
     return labels.length ? labels : null;
   };
   const planReplyText = (labels) =>
-    labels.length ? "【日程の承認】" + labels.join("・") + " に伺います。よろしくお願いします。" : "";
+    // 「伺います」は目上を訪ねる時の言い方（2026-08-19たきと指摘「仕事しに行くのに伺います？」）。
+    // 働き手は仕事をしに行くのであって、へりくだって訪問するのではない＝当事者どうし対等の言葉にする。
+    // 「行けます」は available_dates（来られる日＝行ける日の申告）とも意味が揃う（確定は農家の採用）
+    labels.length ? "【日程の承認】" + labels.join("・") + " に行けます。よろしくお願いします。" : "";
   // 入力欄から、この仕組みが作った承認文だけを取り除く（打ちかけの本文は残す）
   const stripPlanReply = (t) => String(t || "").split("【日程の承認】")[0].replace(/\s*$/, "");
   // タブのタップ：選び直すたびに、打ちかけの文の後ろの返事だけを作り替える
