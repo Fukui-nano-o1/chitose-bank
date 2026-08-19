@@ -4,8 +4,7 @@
 // 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, isJobDraft, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb, entryWorkDays } from "../lib/utils";
-import { StatusRibbonLeft, NoticeJumpText } from "./ui";
+import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays } from "../lib/utils";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）が当事者のapplicationsから、
@@ -19,23 +18,9 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   const [cvMonth, setCvMonth] = useState(new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState(null);
   const [likedIds, setLikedIds] = useState(() => new Set()); // いいね済みjob_number（❤️表示）
-  // 下書きを進めませんか？（2026-07-19）：カレンダータップ（タブを開いた時）に下書きがあればボックス展開。
-  // カードタップ→保存済みステップから求人フロー再開（#/work/edit/{n}・hashだけでshowJobPostが立つ既存レール）
-  const [draftPrompt, setDraftPrompt] = useState(null);
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        // ★下書きの定義は lib/utils の isJobDraft に一本化（2026-07-27たきと指示）。
-        //   以前はここだけ「status=draft かつ 掲載歴なし」で見ており、日程が過ぎた求人（＝終了）まで
-        //   下書きとして「進めませんか？」が出ていた。判定に必要な日付・勤務時間も取得する
-        const { data } = await supabase.from("jobs").select("job_number,crop,task,photos,draft_step,opened_at,status,date_start,date_end,work_time").eq("farmer_id", session.user.id).eq("status", "draft").order("created_at", { ascending: false });
-        const drafts = (data || []).filter(isJobDraft);
-        if (drafts.length > 0) setDraftPrompt(drafts);
-      } catch {}
-    })();
-  }, []);
+  // 「下書きを進めませんか？」ボックスは削除（2026-08-19たきと指示）。
+  // 下書きの続きは お仕事タブ（作成中）から入る＝カレンダーを開くたびに覆いかぶさる案内を出さない。
+  // 付随して、カレンダーを開くたびに走っていた jobs（自分の下書き）の問い合わせ1本も無くなった
   const [flashNoPlan, setFlashNoPlan] = useState(false);
   const flashTimer = useRef(null);
 
@@ -198,35 +183,6 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       {/* 見出し「カレンダー」は削除（2026-07-27たきと指示）：カレンダーを見れば分かる＝重複。
           「今日」から入った月の予定（backToToday）だけは、どの画面かの手がかりとして残す */}
       {backToToday && <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>月の予定</h2>}
-      {/* 下書きを進めませんか？ボックス（2026-07-19）：下書きカードタップ→保存済みステップから求人フロー再開。
-          意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルと説明の間に横線・上限30px/下限フッター+40px・タイトル20/本文18） */}
-      {draftPrompt && (
-        <div onClick={()=>setDraftPrompt(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられるので重複 */}
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="📝 下書きを進めませんか？" /></p>
-            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            <div>
-              <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"0 0 14px" }}>作成途中の求人があります。カードをタップすると、続きから再開できます。</p>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-                {draftPrompt.map(j => {
-                  const photo = photoThumb(j.photos?.[0]);
-                  return (
-                    <button key={j.job_number} onClick={()=>{ setDraftPrompt(null); window.location.hash = "/work/edit/" + j.job_number; }}
-                      className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                      <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
-                        {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                        <StatusRibbonLeft label="下書き" color="#717171" />
-                      </div>
-                      <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", margin:0, padding:"7px 8px 9px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[j.crop, j.task].filter(Boolean).join(" ") || ("求人 #" + j.job_number)}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {/* 読み込み中の骨は〈○○年○○月〉の見出し1本ぶんだけ（2026-07-29たきと指示）。
           盤面ぶんの大きな面は出さない＝展開の順番（見出しが出て、そこから下に開く）と骨の形が一致する */}
       {loading ? (
