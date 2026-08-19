@@ -280,41 +280,11 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
             </div>{/* 3枚並びここまで */}
             </div></div>{/* ②縦の展開ここまで */}
           </div>
-          {/* 役割色の凡例（第11弾） */}
-          <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:8 }}>
-            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:ROLE_GREEN }} />求人期間</span>
-            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:ROLE_ORANGE }} />求職期間</span>
-            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}><span style={{ width:10, height:10, borderRadius:3, background:CAL_OVERLAP }} />重複</span>
-          </div>
-          {/* 名前チップの凡例（2026-07-29）：段階色は帯・チャットと同じ体系なので、ここでも同じ意味で読める */}
-          <div style={{ display:"flex", justifyContent:"center", gap:14, marginTop:6, flexWrap:"wrap" }}>
-            {["contracted","working"].map(k => (
-              <span key={k} className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}>
-                <span style={{ background:APP_PHASE_COLOR[k], color:"#fff", fontSize:9, fontWeight:700, borderRadius:3, padding:"0 4px", lineHeight:1.6 }}>名前</span>
-                {APP_PHASE_LABEL[k]}
-              </span>
-            ))}
-          </div>
-          {/* 斜線＝承認済み・採用前（2026-08-11たきと指示）：希望日はカレンダーに出すが、
-              採用までは働くと決まっていない。採用するとその日はふつうの塗りに変わる */}
-          <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:6 }}>
-            <span className="f-sans" style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:"#717171" }}>
-              <span style={{ width:10, height:10, borderRadius:3, background:`repeating-linear-gradient(135deg, ${ROLE_GREEN}3D 0 4px, ${ROLE_GREEN}0F 4px 8px)` }} />
-              斜線＝まだ確定していない（採用で確定）
-            </span>
-          </div>
-          {/* 濃淡の意味（2026-07-27たきと指示）：公開中だけ濃く、それ以外（公開間近・一時非公開・終了）は薄く。
-              ★下書き（一度も掲載していない求人）はカレンダーに出さない（2026-08-19たきと指示・
-                get_my_calendar_jobs 側で除外）ので、薄い色に下書きは含まれない */}
-          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"4px 0 0" }}>濃い色＝公開中／薄い色＝それ以外　❤️＝いいね</p>
-          <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"center", margin:"2px 0 0" }}>名前は採用が決まった方のみ表示されます（面接中は出ません）</p>
+          {/* 盤面の下の説明文（役割色の凡例・名前チップの凡例・斜線の意味・濃淡と❤️・名前の注記）は
+              すべて削除（2026-08-19たきと指示「カレンダーの説明文。すべて削除」）＝盤面だけを見せる。
+              色や斜線の意味そのものは変えていない（塗り分けは従来どおり） */}
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
-          )}
-          {!loading && entries.length === 0 && (
-            <p className="f-sans" style={{ fontSize:12, color:"#999", textAlign:"center", margin:"10px 0 0", lineHeight:1.7 }}>
-              予定はまだありません。応募が承認されると、ここに表示されます。
-            </p>
           )}
         </>
       )}
