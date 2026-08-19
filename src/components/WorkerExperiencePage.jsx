@@ -3,7 +3,7 @@
 // worker_profiles の experience_entries / self_declared / experienced_tasks を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS } from "../lib/utils";
+import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS, ROLE_ORANGE } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AutoSkeleton, Dots } from "./ui";
 
@@ -41,7 +41,7 @@ export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDe
         <div style={{ display:"flex", borderBottom:"1px solid #EBEBEB", marginBottom:12 }}>
           {[{ k:"exp", l:"経験" }, { k:"decl", l:"資格" }].map(t => (
             <button key={t.k} type="button" onClick={()=>goTo(t.k === "exp" ? 0 : 1)} className="f-sans"
-              style={{ flex:1, padding:"10px 0", background:"none", border:"none", borderBottom: activeTab === t.k ? "2px solid #00A86B" : "2px solid transparent", marginBottom:-1, fontSize:14, fontWeight:700, color: activeTab === t.k ? "#00A86B" : "#717171", cursor:"pointer" }}>{t.l}</button>
+              style={{ flex:1, padding:"10px 0", background:"none", border:"none", borderBottom: activeTab === t.k ? "2px solid " + ROLE_ORANGE : "2px solid transparent", marginBottom:-1, fontSize:14, fontWeight:700, color: activeTab === t.k ? ROLE_ORANGE : "#717171", cursor:"pointer" }}>{t.l}</button>
           ))}
         </div>
       )}
@@ -69,7 +69,7 @@ export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDe
             ))}
             {expEntries.length < 5 && (
               <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
-                style={{ display:"block", width:"100%", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600, minHeight:72, boxSizing:"border-box" }}>＋ 経験を追加</button>
+                style={{ display:"block", width:"100%", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:ROLE_ORANGE, cursor:"pointer", fontWeight:600, minHeight:72, boxSizing:"border-box" }}>＋ 経験を追加</button>
             )}
           </div>
         </div>
@@ -105,9 +105,9 @@ export function WorkerDeclarationBoxes({ selfDeclared, setSelfDeclared }) {
         return (
           <div key={it.k}>
             <button type="button" onClick={()=>setOpenKey(open ? null : it.k)}
-              className="f-sans" style={{ display:"block", width:"100%", boxSizing:"border-box", background: open ? "#00A86B" : "#F7F7F7", border:"1px solid " + (open || on ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer", textAlign:"left" }}>
+              className="f-sans" style={{ display:"block", width:"100%", boxSizing:"border-box", background: open ? ROLE_ORANGE : "#F7F7F7", border:"1px solid " + (open || on ? ROLE_ORANGE : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer", textAlign:"left" }}>
               <span style={{ display:"block", fontSize:14, fontWeight:700, color: open ? "#fff" : "#222" }}>{it.label}</span>
-              <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? "#00A86B" : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
+              <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_ORANGE : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
             </button>
             {open && (
               /* 展開したボックス：この申告のON/OFFをその場で切り替える（保存はページ/モーダル共通の「保存する」） */
@@ -189,7 +189,7 @@ export function WorkerExperiencePage() {
                 return (
                   <button key={v} type="button" onClick={()=>setExperiencedTasks(prev => on ? prev.filter(x=>x!==v) : [...prev, v])} className="f-sans" style={{
                     padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
-                    border:"1px solid " + (on ? "#00A86B" : "#EBEBEB"), background: on ? "#E6F7EF" : "#F7F7F7", color: on ? "#00A86B" : "#717171",
+                    border:"1px solid " + (on ? ROLE_ORANGE : "#EBEBEB"), background: on ? "#FFF1E8" : "#F7F7F7", color: on ? ROLE_ORANGE : "#717171",
                   }}>{v}</button>
                 );
               })}
@@ -198,7 +198,7 @@ export function WorkerExperiencePage() {
         )}
 
         <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
-        {saved && <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:12 }}>保存しました ✓</p>}
+        {saved && <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:12 }}>保存しました ✓</p>}
       </>)}
     </div>
   );
