@@ -6338,3 +6338,48 @@ build成功・eslint 0 error・警告24（変更前と同数）。
 【残（たきと判断）】①相談窓口を掲載時の必須にするか（いまは任意＝通知書に「記録にありません」と出る）
 ②未入力バッジ（employerUnsetCount）に相談窓口を数えるか ③求人ページにも相談窓口を出すか
 （いまは契約後の労働条件通知書だけ＝法が求めるのは契約時の明示なので最小に留めた）
+
+━━━ 2026-08-19 評価フローを作業日で二分（最終日＝全体の評価／中日＝その日の記録）━━━
+【たきと指示】「まず、最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する。
+それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」
+【境目＝最終作業日（app_work_dates の最大日）】lib/utils に appWorkDates / lastAppWorkDay /
+isFinalWorkDayReached を新設。DBの app_work_dates と1対1（agreed_dates ＞ 求人期間、holidays を除く）。
+★lib/hire.js が自前に持っていた同じ実装（effectiveWorkDates）をこれに寄せた＝実働日の数え方は
+サイト内に1つだけ。変えるときは【DBの app_work_dates・lib/utils・DBの my_todo_items】の3つを揃える。
+★entryWorkDays（カレンダーの塗り）とは別物のまま＝あちらは available_dates（未確定の希望日）を混ぜる。
+【DB（migration 20260819053536 / 20260819053633・本番適用済み・repo写経は本文md5がDB現物と一致）】
+・attendance_events に work_date（date・nullable）＝どの作業日の記録か。既存1行（異議申立）は null のまま
+・trg_notify_attendance の言い回しを actor で出し分け。農家の late/absent_notice は
+  「遅刻の記録」「欠勤の記録」＝従来は農家が記録しても相手に「相手方から遅れる連絡がありました」と
+  届いていた（向きが逆）。あわせて「これはその日の記録です。作業全体の完了と出欠は最終作業日の
+  評価で決まります」を本文に明示。件名・本文・お知らせに MM/DD を付ける
+・my_todo_items：complete（バイトの評価）/ w_review（仕事の評価）は today >= 最終作業日 のときだけ。
+  中日は新しい day_report / w_day_report（status='working' かつ 今日が実働日 かつ 最終日より前）。
+  ★CASE でなく独立した枝にしてある＝保険の報告など他の用件と同時に並べられる
+  ★日程が分からない求人は last_wd が null → coalesce(last_wd, today) で「最終日に達した」に倒す
+    ＝評価の道を塞がない。逆に その日の記録 は last_wd が null なら出さない（中日を特定できない）
+【画面】
+・components/DayReportSheet.jsx 新設＝その日の記録の【入力と保存の唯一の窓口】。種別は lib/utils の
+  WORKER/FARMER_DAY_REPORT_KINDS（農家＝遅刻/欠勤/会えない/中止/延期、働き手＝遅れる/休む/農家に会えない）。
+  ★保存するのは attendance_events の1行だけ＝作業全体の出欠（applications.attended）には触れない。
+    出欠と完了は最終日の評価（submit_farmer_review／complete_work）が決める
+・今日ページに📋今日の記録の箱（両役割・TODO_META＋TODO_STAGE_CATALOG）＋専用ページ DayReportPanel
+  （仕事の評価ページと同じカード構造＝役割で画面の骨を変えない）
+・応募状況の⭐仕事の評価・応募者シートの✅完了・欠勤を記録は最終作業日に達してから出す。
+  中日の応募者シートは📋今日の記録に差し替え（中日に完了させると作業が残っているのに全工程が終わる）
+・緊急連絡のシートの⚠️ボタンを同じ入力に接続。★従来の行き先 #/emergency/{id} は2026-08-19の
+  緊急連絡モーダル削除で中身が無く、profileページに着地して何も開かない状態だった（＝壊れていた入口の復旧）
+【法務・記録の位置づけ】attendance_events への書き込みは当事者RLS（actor_id=auth.uid() かつ その応募の
+当事者）で従来から開いている経路＝新しい保存機能の解禁ではない。届出は受理済み（2026-08-07）。
+運営の主観は混ぜない（事実の記録のみ）＝2026-07-16「推薦・選別の禁止」に抵触しない。
+【検証】build成功・eslint 0 error・警告24（着手前と同数＝新規ゼロ）／実働日ヘルパーを node で20項目
+機械検算／本番6件で JS と DB app_work_dates の一致を実測／DB実弾（ロールバック付き・残置ゼロ実測
+apps25・att1・ghost0）で 中日=day_report+w_day_report・最終日=complete/w_review、農家の記録が
+「08/19の遅刻の記録」・働き手は「08/19の遅れる連絡」、第三者の挿入は拒否、出欠は不変 を確認。
+【実機目視の残り】①複数日の求人の中日に今日ページへ📋今日の記録が出るか（⭐/✅は出ないこと）
+②最終日に📋が消えて⭐/✅に替わるか ③記録の送信→相手に届くお知らせの文面 ④緊急連絡の⚠️から
+シートが開くか ⑤単日の求人は従来どおり初日から評価できるか
+【残（たきと判断）】①その日の記録を worker_work_record（はたらいた記録）の遅刻・欠勤に数えるか
+（いまは数えない＝欠勤は applications.attended だけを見る）②運営の見守り（#/admin/working）に
+その日の記録を出すか ③#/emergency/{id} のルート自体（メールのリンク先）は着地して何も開かないまま
+━━━ ここまで ━━━
