@@ -309,6 +309,11 @@ export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","experience","new-applicants"];
   const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h === "admin/review" || h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment" || h.startsWith("admin/consignment/")) return "admin"; if (h === "admin/working" || h.startsWith("admin/working/")) return "admin"; if (h === "admin/upcoming" || h.startsWith("admin/upcoming/")) return "admin"; if (h === "admin/evaluation" || h.startsWith("admin/evaluation/")) return "admin"; if (h === "admin/system" || h.startsWith("admin/system/")) return "admin"; if (h === "admin/review-comments" || h.startsWith("admin/review-comments/")) return "admin"; if (h === "admin/reports" || h.startsWith("admin/reports/")) return "admin"; if (h === "admin/farmer-pages" || h.startsWith("admin/farmer-pages/")) return "admin"; if (h === "admin/animations" || h.startsWith("admin/animations/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  // #/account（新規登録①）はタブ（部屋番号）を持たないため readHashTab は null を返す。
+  // null＝「URLの指定なし＝既定の着地でよい」と読む箇所が3つあり（tab→URL同期・トップ着地・
+  // セッション復元）、そのままだとリロードのたびに さがす や まもなく開始に奪われる。
+  // 判定をここ1箇所に集約し、その3箇所で「奪わない」印として使う
+  const isAccountHash = () => window.location.hash.replace(/^#\/?/, "") === "account";
   const initialHashTab = readHashTab(); // 起動した瞬間にURLでタブ指定があったか（同期useEffectが書き込む前の記録）
   const [tab,setTab]=useState(initialHashTab ?? "search");
   // 利用規約・プライバシーポリシーを開いたら必ず先頭から（2026-07-30たきと指示）。
@@ -325,7 +330,9 @@ export default function App(){
     // フロー系(求人作成・編集・詳細・チャット・緊急連絡リンク)は正当にhashを保持
     // 応募の成功ページ（apply/done・apply/pending）も保持する（2026-07-30）。プロフィール保存からの
     // 昇格でtabがprofile→searchに変わるため、保持しないと着地の瞬間に#/searchへ巻き戻る
-    const _inFlow = _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/") || _curHash.startsWith("emergency/") || _curHash.startsWith("apply/");
+    // 新規登録①(#/account)も保持する（2026-08-19）：部屋番号が無くtabは"search"のままなので、
+    // 保持しないとマウント直後にここが #/search を書き、リロードで さがす に飛ばされる
+    const _inFlow = _curHash === "account" || _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/") || _curHash.startsWith("emergency/") || _curHash.startsWith("apply/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
     const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash === "profile/worker/profile" || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash === "profile/employer/profile" || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
@@ -517,7 +524,10 @@ export default function App(){
     if (back) { window.location.hash = "/" + back; return; }
     setTab("profile");
   };
-  const [openAccountForm,setOpenAccountForm]=useState(false); // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)
+  // #/account 直打ち用(URL由来の任意入口・needsAccountHolderとは別系統)。
+  // 初期値をhashから同期的に決める＝リロードで さがす が一瞬見えてから切り替わるのを防ぐ
+  // （求人フローの showJobPost と同じ作法）。未ログインなら下のeffectが #/login へ送る
+  const [openAccountForm,setOpenAccountForm]=useState(() => isAccountHash());
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
   const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/consignment"); } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19。/profile 等のサブページ含む）
@@ -682,11 +692,12 @@ export default function App(){
   //（initialHashTab=null＝既定着地の時だけ）。判定は1アプリ起動につき1回（ログアウト時はreloadで起動し直すため実質毎回）
   const topLandingChecked = useRef(false);
   useEffect(() => {
-    if (topLandingChecked.current || !me || initialHashTab !== null) return;
+    // #/account は「指定なし」ではなく行き先の指定（新規登録①）ので着地を奪わない（2026-08-19）
+    if (topLandingChecked.current || !me || initialHashTab !== null || isAccountHash()) return;
     topLandingChecked.current = true;
     // RPCが返るまでの数秒間にユーザーが別ページへ移動していたら着地させない（2026-08-02）：
     // 「開いた時の着地」であって、操作中の引き戻しはしない。判定は今のhashで行う
-    const stillOnDefault = () => { const t = readHashTab(); return t === null || t === "search"; };
+    const stillOnDefault = () => { if (isAccountHash()) return false; const t = readHashTab(); return t === null || t === "search"; };
     (async () => {
       // ── ① 新着の応募（未対応＝status='applied'の件数。my_nav_badges の applicants_pending が
       //    下部ナビ「🤝応募者」バッジと同じ唯一のソース。決めればゼロになり着地は自然に止む）
