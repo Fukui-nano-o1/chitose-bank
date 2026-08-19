@@ -352,10 +352,11 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                       </button>
                     );
                   })()}
-                  {/* 📄 労働条件通知書（2026-08-18たきと指示・両役割の入口に新設）：
-                      採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ */}
-                  <LaborConditionsNotice me={me} role="worker" />
                 </div>
+                {/* 📄 労働条件通知書（2026-08-18たきと指示・新設カード）：独立した区画。
+                    採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い。
+                    旧「契約の記録」（実績モーダル内）の機能はここへ統合済み＝1機能1入口 */}
+                <LaborConditionsNotice me={me} role="worker" />
               </>);
             })()}
             {showWAch && (
