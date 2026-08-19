@@ -349,7 +349,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 従業員数(staff)は全面削除（2026-08-01たきと指示）
   const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
   // 待遇ボックスの要約チップ。受動喫煙も他の待遇と同じ行になった（2026-08-19）ので、決めてあればここに出す
-  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", hasRaise&&"昇給", hasSeverancePay&&"退職手当", employerPaysSupplies&&"持ち物負担", accessoryOk&&"アクセサリーOK", smokingPolicy && (smokingPolicy === "喫煙場所あり" ? "喫煙場所あり" : "禁煙")].filter(Boolean);
+  const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", hasRaise&&"昇給", hasSeverancePay&&"退職手当", employerPaysSupplies&&"作業用品の負担", accessoryOk&&"アクセサリーOK", smokingPolicy && (smokingPolicy === "喫煙場所あり" ? "喫煙場所あり" : "禁煙")].filter(Boolean);
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   // 関わり方4問の回答済みラベル（格子サマリー用・2026-08-14）。ローカルstateから引く＝保存前でも即反映
@@ -658,7 +658,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="昇給" checked={hasRaise} onChange={setHasRaise} /></div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}><ToggleSwitch accent={AC} label="退職手当" checked={hasSeverancePay} onChange={setHasSeverancePay} /></div>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
-          <ToggleSwitch accent={AC} label="持ち物は農家負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
+          {/* 「作業用品」＝労基法89条5号・労基則5条1項6号の語（2026-08-19たきと確認）。
+              「持ち物」等に言い換えないこと＝労働条件通知書と同じ語で揃える */}
+          <ToggleSwitch accent={AC} label="作業用品は募集主の負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
           {employerPaysSupplies && (
             <div style={{ marginLeft:16, paddingBottom:12 }}>
               <input value={suppliesCap} onChange={e=>setSuppliesCap(e.target.value)} placeholder="上限の設定（例：上限1,000円まで / 軍手・長靴のみ）" className="field f-sans" style={{ width:"100%", fontSize:13 }} />

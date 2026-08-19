@@ -867,7 +867,9 @@ export function perkBadges(ep) {
     // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じ有無だけの項目＝労働条件の明示事項
     ep.has_raise && "📈 昇給",
     ep.has_severance_pay && "💼 退職手当",
-    ep.employer_pays_supplies && ("🧤 持ち物は農家負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
+    // 「作業用品」＝労基法89条5号・労基則5条1項6号の語（食費、作業用品その他の負担）。
+    // 法令は「労働者に負担させるもの」を書かせる向きなので、値は必ず誰が負担するかまで書く（2026-08-19）
+    ep.employer_pays_supplies && ("🧤 作業用品は募集主負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
     ep.accessory_ok && "💍 アクセサリーOK",
   ].filter(Boolean);
 }

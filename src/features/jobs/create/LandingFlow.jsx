@@ -1773,7 +1773,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? "あり" : EMPTY_MARK },
                       { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? "あり" : EMPTY_MARK },
                       { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? "あり" : EMPTY_MARK },
-                      { label:"持ち物負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `あり${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
+                      { label:"作業用品の負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `募集主が負担${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
                       { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
                       // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
                       // 確認ページは掲載前のプレビューので、プロフィールの現在値（confEmployer）を出す。
@@ -1845,7 +1845,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             { k:"has_bonus", l:"🎁 賞与" },
                             { k:"has_raise", l:"📈 昇給" },
                             { k:"has_severance_pay", l:"💼 退職手当" },
-                            { k:"employer_pays_supplies", l:"🧤 持ち物は農家負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
+                            { k:"employer_pays_supplies", l:"🧤 作業用品は募集主の負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
                             { k:"accessory_ok", l:"💍 アクセサリーOK" },
                           ].map(row => (
                             <div key={row.k} style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
