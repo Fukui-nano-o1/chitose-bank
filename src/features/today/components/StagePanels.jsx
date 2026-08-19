@@ -419,12 +419,18 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
           const open = () => setReviewApp({ id: t.application_id, farmer_id: t.partner_id });
           if (job) {
             // onOpen＝タップの行き先をこの面に預ける（新しいタブで求人詳細を開かない）
-            return <JobCard key={t.application_id} job={job} variant="wide" onOpen={open} hideEndLabel />;
+            // ★黒の枠線（2026-08-19たきと指示）は包みで描く＝JobCard（枠なしカード）は触らない。
+            //   写真の角丸(16)と同じ半径＋overflow:hidden so、写真の角that枠から出ない
+            return (
+              <div key={t.application_id} style={{ border:"1.5px solid #222", borderRadius:16, overflow:"hidden" }}>
+                <JobCard job={job} variant="wide" onOpen={open} hideEndLabel />
+              </div>
+            );
           }
           // 求人の情報that引けなかった時（掲載の行that無い等）：作物×作業と#No.だけの最小カード
           return (
             <button key={t.application_id} onClick={open} className="f-sans"
-              style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
+              style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1.5px solid #222", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
               <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{[t.crop, t.task].filter(Boolean).join(" ") || "求人"}</span>
               <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{t.job_number}</span>
             </button>
