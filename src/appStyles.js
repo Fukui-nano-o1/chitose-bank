@@ -477,9 +477,11 @@ input:focus { outline: none; }
   }
   /* スクロール連動の自動格納（2026-07-24）：下部バー(cb-scroll-hide)と同じタイミングで下へ隠す */
   body.cb-scroll-hide .app-header-mobile-float { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
-  /* 運営チャットの浮遊ボックス（2026-07-25）：☰浮遊ボタンと同じ作法でスクロール中は下へ格納 */
-  .cb-admin-chat-fab { transform: translate3d(0, 0, 0); will-change: transform; transition: transform .25s ease; }
-  body.cb-scroll-hide .cb-admin-chat-fab { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
+  /* 浮遊ボックス（プロフィール編集のプレビュー）：☰浮遊ボタンと同じ作法でスクロール中は下へ格納。
+     元は運営チャットの浮遊ボックス用の .cb-admin-chat-fab。2026-08-19に運営チャットを一覧の行へ
+     戻したので、残る使い手に合わせて中立な名前にした */
+  .cb-float-box { transform: translate3d(0, 0, 0); will-change: transform; transition: transform .25s ease; }
+  body.cb-scroll-hide .cb-float-box { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
   /* 応募者ページの絞り込みバー（2026-07-27たきと指示）：下部バーの真上に浮かせ、
@@ -513,12 +515,6 @@ input:focus { outline: none; }
   .cb-applicant-filter-inline { display: none !important; }
   body.cb-scroll-hide .cb-applicant-filter-bar { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
   body.cb-typing .cb-applicant-filter-bar { display: none !important; }
-  /* 応募者ページの運営チャット（2026-08-07たきと指示「その上に運営チャット配置」）：
-     絞り込みバー（min-height:56px）の真上＝バーの下端(64+12)＋バー高56px＋間10px。
-     inlineのbottom指定に勝つため!important。格納・入力中退避もバーと同じ距離・作法で揃える */
-  .cb-admin-chat-fab-raised { bottom: calc(64px + 12px + 56px + 10px + env(safe-area-inset-bottom, 0px)) !important; }
-  body.cb-scroll-hide .cb-admin-chat-fab-raised { transform: translate3d(0, calc(100% + 64px + 12px + 56px + 10px + env(safe-area-inset-bottom, 0px)), 0); }
-  body.cb-typing .cb-admin-chat-fab-raised { display: none !important; }
   /* 応募者ページのスワイプ追従（2026-07-27たきと指示）：指の動きに合わせて求人カードだけが
      同じ方向へズレる（カレンダー・タブ・凡例は動かさない＝動かす対象を絞ると意図が伝わる）。
      ズレ幅は親グリッドの--cb-swipe-dxをJSが直書き。指を離す/発火時は0に戻り、.cb-swipingが
@@ -1053,12 +1049,12 @@ body:has(.qset-full) .app-header-mobile-float,
 body:has(.cb-lock-scroll) .profile-employer-fab,
 body:has(.cb-preview-overlay) .profile-employer-fab,
 body:has(.cb-box-overlay) .profile-employer-fab { display: none !important; }
-/* 浮遊ボックス（運営チャット／プロフィールのプレビュー）も同じ扱い（2026-08-03）：
+/* 浮遊ボックス（プロフィール編集のプレビュー）も同じ扱い（2026-08-03）：
    ボックス・プレビュー展開中は暗幕の下に透けるので隠す */
-body:has(.cb-lock-scroll) .cb-admin-chat-fab,
-body:has(.cb-preview-overlay) .cb-admin-chat-fab,
-body:has(.cb-box-overlay) .cb-admin-chat-fab,
-body:has(.qset-full) .cb-admin-chat-fab { display: none !important; }
+body:has(.cb-lock-scroll) .cb-float-box,
+body:has(.cb-preview-overlay) .cb-float-box,
+body:has(.cb-box-overlay) .cb-float-box,
+body:has(.qset-full) .cb-float-box { display: none !important; }
 body:has(.qset-full) .profile-employer-fab,
 body:has(.qset-full) .nav-coach { display: none !important; }
 body:has(.qset-full) .site-footer-fixed { display: none !important; }

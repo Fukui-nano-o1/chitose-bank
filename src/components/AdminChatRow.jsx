@@ -1,15 +1,15 @@
-// 運営チャットの浮遊ボックス＋DMスレッド（2026-08-07：ChatListから共有部品へ切り出し）。
-// たきと指示「応募者ページのステータス絞り込みを導入しよう。その上に運営チャット配置」＝
-// チャット一覧以外のページにも置けるようにする。中身（admin_messages・本人スレのみRLS・
-// ポップアップ・リアルタイム・復帰時再取得）は2026-07-16〜の実装をそのまま移設。
-// raised: 応募者ページ用＝絞り込みバー(.cb-applicant-filter-bar)の真上に浮かせる（モバイルのみ・CSS側）
+// 運営チャット（運営DM）のスレッド行＋ポップアップ。
+// 2026-08-19たきと指示「運営チャットを浮遊ボックスにするの撤回。チャット一覧に移植」＝
+// 浮遊ボックス（2026-07-25〜2026-08-19）をやめ、チャット一覧の最上部の行に戻した。
+// 中身（admin_messages・本人スレのみRLS・ポップアップ・リアルタイム・復帰時再取得）は
+// 2026-07-16〜の実装のまま。行の見た目は一覧の他のスレッド行に合わせてある。
 import { useState, useEffect, useRef } from "react";
 import { closeReadNotifications } from "../lib/push";
 import { supabase } from "../lib/supabase";
 import { fmtJstShort } from "../lib/utils";
 import { LinkifiedText } from "./ui";
 
-export function AdminChatFab({ raised }) {
+export function AdminChatRow() {
   const [dmOpen, setDmOpen] = useState(false);
   const [dmMsgs, setDmMsgs] = useState([]);
   const [dmUnread, setDmUnread] = useState(0);
@@ -59,16 +59,27 @@ export function AdminChatFab({ raised }) {
     else { setDmText(""); await loadDm(false); }
     setDmSending(false);
   };
+  // 一覧に出す1行ぶんの下書き（プレビュー＝最後のメッセージ。無ければ使い方の一言）
+  const last = dmMsgs.length ? dmMsgs[dmMsgs.length - 1] : null;
+  const preview = last ? (last.from_admin ? "🛡 " : "") + String(last.body || "").replace(/\s+/g, " ") : "運営への連絡もここから送れます。";
   return (<>
-    {/* 浮遊ボックス（2026-07-25たきと指示・一覧の最上部行から移設） */}
+    {/* 一覧の最上部の行（他のスレッド行と同じ形：アイコン40px・名前・未読バッジ・下に1行の要約） */}
     <button onClick={()=>{ setDmOpen(true); loadDm(true); }}
-      className={"f-sans cb-admin-chat-fab" + (raised ? " cb-admin-chat-fab-raised" : "") + (dmUnread > 0 ? " cb-urgent-card" : "")}
-      style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
-      <span style={{ fontSize:18, lineHeight:1 }}>🛡</span>
-      <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>運営チャット</span>
-      {dmUnread > 0 && <span style={{ minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{dmUnread}</span>}
+      className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")}
+      style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
+        border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
+      <span style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, lineHeight:1 }}>🛡</span>
+      <div style={{ minWidth:0, flex:1 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
+          <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>chitose-bank運営</p>
+          {dmUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{dmUnread}</span>}
+          {/* 段階チップの位置には役割を出す（当事者チャットと見分けがつくように） */}
+          <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:"#5B7B6D", color:"#fff", flexShrink:0 }}>運営</span>
+        </div>
+        <p style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{preview}</p>
+      </div>
     </button>
-    {/* 運営DMスレッド（ポップアップ・✕/背景で閉じる） */}
+    {/* 運営DMスレッド（ポップアップ・ボックス外タップで閉じる） */}
     {dmOpen && (
       <div className="cb-lock-scroll" onClick={()=>setDmOpen(false)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
         <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
