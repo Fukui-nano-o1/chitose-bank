@@ -5868,9 +5868,12 @@ answeredDone（「送信完了しました。」の一時表示・このパネ�
 REMOVED_STAGES に "w_interview" を追加＝DBのやること一覧に残る用件を画面から除外（件数と箱の一致）。
 【★返事は消えていない】農家の【面接の質問】はチャットに届くので、そのままチャットで返事する
 （回答パネルもチャットへ投函する実装だったso、相手も証跡も同じ）。
-【残置＝使い手のいない部品2つ】InterviewReplyPanel（111行）と NewApplicantsPanel は、それぞれの
-箱を消したことで参照ゼロになった。箱を戻す時にそのまま使えるso残し、冒頭に「現在この部品を使う
-画面は無い」と明記した。消すかは別途判断（この夏の削除は撤回された例that1件あるso即削除しない）。
+【使い手のいない部品2つ＝削除した（同日たきと指示「パネルは使わない」・commit e58be56）】
+InterviewReplyPanel(116行)・NewApplicantsPanel(51行) を削除。道連れで不要になった import と
+todayApi の窓口（fetchInterviewQuestions・insertMessage＝この2パネルが唯一の使い手だった）も撤去。
+合計 -182行。StagePanels に残る部品は EmergencyStagePanel・HireStagePanel の2つ＋markHireSheet。
+消えた部品を指していたコメント（NewApplicantsPage の花びらの注記・採用の演出の注記）も実態に合わせた。
+※戻したくなったら git 履歴（e58be56 の親）から復元できる。
 【今日ページのやること・現在の顔】農家＝⚠️緊急連絡／📝求人の修正／💬求人の質問／🤝採用する／
 🛡保険の報告／✅バイトの評価／👤プロフィール入力（常設・先頭）。
 働き手＝⚠️緊急連絡／📝求職の修正／⭐仕事の評価／👤プロフィール入力（常設・先頭）。
