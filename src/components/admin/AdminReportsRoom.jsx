@@ -18,12 +18,17 @@ import { getCache, setCache } from "../../lib/viewCache";
 
 const KINDS = [
   { k: "all",     l: "すべて" },
+  { k: "pay",     l: "未払い" },
   { k: "job",     l: "求人" },
   { k: "comment", l: "コメント" },
   { k: "person",  l: "人" },
   { k: "screen",  l: "画面" },
 ];
-const KIND_TABLE = { job: "job_reports", comment: "message_reports", person: "profile_reports", screen: "feedback" };
+const KIND_TABLE = { pay: "pay_incidents", job: "job_reports", comment: "message_reports", person: "profile_reports", screen: "feedback" };
+// 未払いの申告の状態（2026-08-20たきと裁定「未払い確定ではなく未払い申告」）。
+// reported＝申告あり／checking＝運営が事実確認中／resolved＝解決／unresolved＝未解決で閉じた。
+// resolved/unresolved は一覧から消える（記録はDBに残る＝この画面の従来方針）
+const PAY_STATUS_LABEL = { reported: "申告あり（未確認）", checking: "事実確認中" };
 // 画面の報告（feedback）のカテゴリ→日本語。入力側（FeedbackModal）のFEEDBACK_CATEGORIESと対応
 const FB_LABEL = { confusing: "分かりにくい", broken: "動かない", typo: "誤字・表示", suggestion: "提案", other: "その他" };
 
@@ -52,20 +57,23 @@ export function AdminReportsRoom() {
   const paneStyle = { flex: "0 0 100%", boxSizing: "border-box", scrollSnapAlign: "start", padding: "0 2px", alignSelf: "flex-start" };
 
   const load = useCallback(async () => {
-    const [jr, mr, pr, fb] = await Promise.all([
+    const [jr, mr, pr, fb, py] = await Promise.all([
       supabase.from("job_reports").select("*").order("created_at", { ascending: false }),
       supabase.from("message_reports").select("*").order("created_at", { ascending: false }),
       supabase.from("profile_reports").select("*").order("created_at", { ascending: false }),
       supabase.from("feedback").select("*").order("created_at", { ascending: false }),
+      // 未払いの申告（2026-08-20）。snapshotは重いので一覧では取らない（状態と要点だけ）
+      supabase.from("pay_incidents").select("id,application_id,job_number,status,created_at,admin_note").order("created_at", { ascending: false }),
     ]);
     // 失敗した台帳は手元の値を上書きしない（フェイルオープン規則・2026-08-07）
-    if (jr.error && mr.error && pr.error && fb.error) { setItems(prev => prev || []); return; }
+    if (jr.error && mr.error && pr.error && fb.error && py.error) { setItems(prev => prev || []); return; }
     const merged = [
       ...(jr.error ? [] : (jr.data || []).map(r => ({ ...r, kind: "job" }))),
       ...(mr.error ? [] : (mr.data || []).map(r => ({ ...r, kind: "comment" }))),
       ...(pr.error ? [] : (pr.data || []).map(r => ({ ...r, kind: "person" }))),
       ...(fb.error ? [] : (fb.data || []).map(r => ({ ...r, kind: "screen" }))),
-    ].filter(r => r.status !== "resolved")
+      ...(py.error ? [] : (py.data || []).map(r => ({ ...r, kind: "pay" }))),
+    ].filter(r => r.status !== "resolved" && r.status !== "unresolved")
      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)); // 最新順（全タブ共通）
     setItems(merged);
     setCache("admin:reports", merged);
@@ -84,6 +92,23 @@ export function AdminReportsRoom() {
       return next;
     });
   };
+  // 未払いの申告の状態遷移（reported→checking→resolved/unresolved）。checkingは一覧に残る＝
+  // 「確認を始めた」の記録。resolved/unresolvedで一覧から消える（decided_atを刻む）
+  const setPayStatus = async (r, status) => {
+    if (busy) return;
+    setBusy(r.id);
+    const patch = { status, ...(status === "resolved" || status === "unresolved" ? { decided_at: new Date().toISOString() } : {}) };
+    const { error } = await supabase.from("pay_incidents").update(patch).eq("id", r.id);
+    setBusy(null);
+    if (error) { alert("更新に失敗しました：" + error.message); return; }
+    setItems(prev => {
+      const next = (status === "checking")
+        ? (prev || []).map(x => (x.kind === "pay" && x.id === r.id) ? { ...x, status } : x)
+        : (prev || []).filter(x => !(x.kind === "pay" && x.id === r.id));
+      setCache("admin:reports", next);
+      return next;
+    });
+  };
 
   const countOf = (k) => (items || []).filter(r => k === "all" || r.kind === k).length;
   const kindLabel = (k) => (KINDS.find(x => x.k === k) || {}).l || k;
@@ -95,6 +120,7 @@ export function AdminReportsRoom() {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <span className="f-sans" style={chipStyle}>{kindLabel(r.kind)}</span>
         <p className="f-sans" style={{ fontSize: 14, fontWeight: 700, color: r.kind === "screen" ? "#222" : "#E24B4A", margin: 0, flex: 1, minWidth: 0 }}>
+          {r.kind === "pay" && <>💰 未払いの申告　求人 #{r.job_number}</>}
           {r.kind === "job" && <>求人 #{r.job_number}　{r.issue_type}</>}
           {r.kind === "comment" && r.reason}
           {r.kind === "person" && r.issue_type}
@@ -103,6 +129,18 @@ export function AdminReportsRoom() {
         <span className="f-sans" style={timeStyle}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</span>
       </div>
       {/* 中身：台帳ごとの事実（旧AdminTab通報節と同じ項目） */}
+      {r.kind === "pay" && (
+        <>
+          {/* 申告であって確定ではない（2026-08-20たきと裁定）＝言葉を間違えない。
+              求人・契約・日次記録・最終回答は pay_incidents.snapshot に凍結済み（一覧では取らない） */}
+          <p className="f-sans" style={{ fontSize: 12, color: "#717171", lineHeight: 1.7, margin: "0 0 8px" }}>
+            状態：<b style={{ color: r.status === "checking" ? "#1E88E5" : "#E24B4A" }}>{PAY_STATUS_LABEL[r.status] || r.status}</b>　
+            これは申告であって、未払いの確定ではありません。契約と日次の記録は申告時点の姿で凍結保存されています。
+            必要に応じて双方へ事実確認をしてください（賃金は労基法24条の中心的義務）。
+          </p>
+          <p className="f-sans" style={{ fontSize: 11, color: "#B0B0B0", margin: "0 0 10px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…</p>
+        </>
+      )}
       {r.kind === "job" && (
         <p className="f-sans" style={{ fontSize: 12, color: "#717171", margin: "0 0 10px" }}>対象：{r.target_field}{r.detail ? `　${r.detail}` : ""}</p>
       )}
@@ -127,14 +165,27 @@ export function AdminReportsRoom() {
         </>
       )}
       {/* 導線＋対応済み。求人=審査プレビューの深いリンク／人=働き手プレビュー（既存レール） */}
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
         {r.kind === "job" && (
           <button onClick={() => { window.location.hash = "/admin/review/" + r.job_number; }} className="f-sans" style={linkBtn}>求人を見る</button>
         )}
         {r.kind === "person" && (
           <button onClick={() => openWorkerPreview(r.target_worker_id)} className="f-sans" style={linkBtn}>働き手を見る</button>
         )}
-        <button onClick={() => resolve(r)} disabled={busy === r.id} className="f-sans" style={{ ...resolveBtn, opacity: busy === r.id ? 0.6 : 1 }}>対応済みにする</button>
+        {r.kind === "pay" ? (
+          <>
+            {r.job_number != null && (
+              <button onClick={() => { window.location.hash = "/admin/review/" + r.job_number; }} className="f-sans" style={linkBtn}>求人を見る</button>
+            )}
+            {r.status === "reported" && (
+              <button onClick={() => setPayStatus(r, "checking")} disabled={busy === r.id} className="f-sans" style={{ ...linkBtn, color: "#1E88E5", borderColor: "#1E88E5", opacity: busy === r.id ? 0.6 : 1 }}>事実確認を始めた</button>
+            )}
+            <button onClick={() => { if (confirm("未解決のまま閉じます（記録は残ります）。よろしいですか？")) setPayStatus(r, "unresolved"); }} disabled={busy === r.id} className="f-sans" style={{ ...linkBtn, opacity: busy === r.id ? 0.6 : 1 }}>未解決で閉じる</button>
+            <button onClick={() => setPayStatus(r, "resolved")} disabled={busy === r.id} className="f-sans" style={{ ...resolveBtn, opacity: busy === r.id ? 0.6 : 1 }}>解決にする</button>
+          </>
+        ) : (
+          <button onClick={() => resolve(r)} disabled={busy === r.id} className="f-sans" style={{ ...resolveBtn, opacity: busy === r.id ? 0.6 : 1 }}>対応済みにする</button>
+        )}
       </div>
     </div>
   );
@@ -143,7 +194,7 @@ export function AdminReportsRoom() {
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 14px 80px" }}>
       <AdminNav current="reports" />
       <p className="f-sans" style={{ fontSize: 12, color: "#717171", lineHeight: 1.7, margin: "0 0 12px" }}>
-        利用者からの報告（求人・チャットのコメント・人・画面）をここに集約しています。対応済みは表示していません（記録は残ります）。
+        利用者からの報告（未払いの申告・求人・チャットのコメント・人・画面）をここに集約しています。対応済み・解決済みは表示していません（記録は残ります）。
       </p>
 
       {/* タブ（タップでも移動・スワイプ中は現在面から点灯を導出）＝システムページと同じ視覚文法 */}

@@ -223,6 +223,27 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
       {okTrust && trust.want_again_workers > 0 && (
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{black ? "" : "🌟"}また働きたい×{trust.want_again_workers}</p>
       )}
+      {/* 求人内容との一致（2026-08-20たきと裁定）：働き手の最終評価 match_level を1契約1票で集計。
+          ★％では出さない＝母数を消さない（8/10件）。5件未満は数字を出さない（MVPの最低ゲート＝
+          1〜2件の偶然でプロフィールの印象を決めない。法的・統計的な基準値ではない）。
+          日次の「予定と違います」はここの分母に使わない（1つの仕事で複数の差異が起きるため）。
+          集計と公開判定（双方揃うか完了3日）はDB側 employer_trust_info が担う＝ここは表示だけ */}
+      {okTrust && trust.match_total != null && (
+        (trust.match_total >= 5) ? (
+          <div style={{ margin:"0 0 6px" }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0 }}>
+              求人内容との一致　{trust.match_matched} / {trust.match_total}件
+            </p>
+            {(trust.match_partly > 0 || trust.match_differed > 0) && (
+              <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0" }}>
+                一部違った {trust.match_partly}件{trust.match_differed > 0 ? `・大きく違った ${trust.match_differed}件` : ""}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 6px" }}>求人内容との一致　まだ十分な記録がありません</p>
+        )
+      )}
       {okTrust && trust.completed_hires > 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
       )}

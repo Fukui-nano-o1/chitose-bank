@@ -78,6 +78,15 @@ export function WorkerReviewSheet({ app, meId, dayCount, onDone, onClose }) {
       onSubmit={submit}
       onClose={onClose}
       confirmNote="送信すると、あとから直すことはできません。肯定的な答えだけが農園のページに表示されます（否定的な答えは公開されませんが、記録には残ります）。"
+      /* 未払いの明示（2026-08-20たきと裁定）：申告として運営にも即時に記録・通知される。
+         DB側のトリガー（trg_pay_incident_on_unpaid）が起票するので、ここは説明だけ＝黙って通報しない */
+      confirmExtra={answers.pay_status === "unpaid" ? (
+        <div style={{ padding:"9px 0" }}>
+          <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", background:"#FFF6EE", border:"1px solid #F3D3B5", borderRadius:8, padding:"8px 10px", lineHeight:1.7, margin:0 }}>
+            「未払い」は、未払いの申告として運営にも記録されます。運営が内容を確認し、必要に応じて双方に事実を確認します。
+          </p>
+        </div>
+      ) : null}
     />
   );
 }
