@@ -11,7 +11,7 @@ import { useSheetDragClose } from "../../../lib/sheetDrag";
 import { confirmTerms, fetchMyFarmJobs, fetchPublicJobsByNumbers } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb, mapJobPublicRow,
-  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES } from "../../../lib/utils";
+  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, appWorkDates } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../../../lib/hire";
 import { Avatar, Dots } from "../../../components/ui";
@@ -416,7 +416,9 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
       <div style={{ display:"grid", gap:16 }}>
         {items.map(t => {
           const job = jobs[t.job_number];
-          const open = () => setReviewApp({ id: t.application_id, farmer_id: t.partner_id });
+          // 実働日数（客観データの見出し用）。求人票の休日は jobs_public の行があれば反映
+          const open = () => setReviewApp({ id: t.application_id, farmer_id: t.partner_id,
+            dayCount: appWorkDates(t, { date_start: t.date_start, date_end: t.date_end, holidays: job?.holidays }).size || null });
           if (job) {
             // onOpen＝タップの行き先をこの面に預ける（新しいタブで求人詳細を開かない）
             // ★黒の枠線（2026-08-19たきと指示）は包みで描く＝JobCard（枠なしカード）は触らない。
@@ -437,7 +439,7 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
           );
         })}
       </div>
-      <WorkerReviewSheet app={reviewApp} meId={meId}
+      <WorkerReviewSheet app={reviewApp} meId={meId} dayCount={reviewApp?.dayCount || null}
         onClose={()=>setReviewApp(null)}
         onDone={(id)=>{ setReviewApp(null); setDone({ title:"ありがとうございました" }); onReviewed(id); }} />
       {done && <Celebration title={done.title} onDone={()=>setDone(null)} />}

@@ -20,18 +20,23 @@ import { dayReportKinds, ymdLocal } from "../lib/utils";
 // onDone(applicationId)＝保存できた時に親へ知らせる（一覧から消す・祝祭を出すのは親の仕事）。
 export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
   const [kind, setKind] = useState("");
+  const [detail, setDetail] = useState("");   // 内訳（選択式・kindにsubがある時だけ必須）
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // 開き直したら前回の選択を持ち越さない（別の日・別の相手の記録に前の入力が残らないように）
-  useEffect(() => { setKind(""); setReason(""); }, [app?.id]);
+  useEffect(() => { setKind(""); setDetail(""); setReason(""); }, [app?.id]);
   const kinds = dayReportKinds(role);
   const day = workDate || ymdLocal(new Date());
+  const selKind = kinds.find(k => k.v === kind);
+  const needsDetail = !!selKind?.sub;
   const submit = async () => {
     if (!app || !kind || submitting) return;
+    if (needsDetail && !detail) return;
     setSubmitting(true);
     try {
       const { error } = await supabase.from("attendance_events").insert({
         application_id: app.id, actor_id: meId, kind,
+        detail: needsDetail ? detail : null,
         reason: reason.trim() || null, work_date: day,
       });
       if (error) { fbError(); alert("記録の保存に失敗しました：" + error.message); setSubmitting(false); return; }
@@ -53,18 +58,35 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
         <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>{dayLabel} の記録</p>
         <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 14px" }}>
           その日に起きたことを記録します。相手にお知らせが届き、記録として残ります。
-          作業全体の評価は、最終の作業日にお願いします。
+          何もなかった日は、記録しなくて大丈夫です。作業全体の評価は、最終の作業日にお願いします。
         </p>
         <div style={{ display:"grid", gap:8, marginBottom:14 }}>
           {kinds.map(k => {
             const on = kind === k.v;
             return (
-              <button key={k.v} onClick={()=>setKind(k.v)} className="f-sans"
-                style={{ textAlign:"left", padding:"12px 14px", borderRadius:12, cursor:"pointer",
-                  border: on ? "2px solid #E24B4A" : "1px solid #EBEBEB", background: on ? "#FFF5F5" : "#fff" }}>
-                <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{k.l}</span>
-                <span style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.6, marginTop:3 }}>{k.d}</span>
-              </button>
+              <div key={k.v}>
+                <button onClick={()=>{ setKind(k.v); setDetail(""); }} className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, cursor:"pointer", boxSizing:"border-box",
+                    border: on ? "2px solid #E24B4A" : "1px solid #EBEBEB", background: on ? "#FFF5F5" : "#fff" }}>
+                  <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{k.l}</span>
+                  <span style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.6, marginTop:3 }}>{k.d}</span>
+                </button>
+                {/* 内訳（選択式）：何が違ったか・どう終わったかを構造化して残す（detail列）。
+                    自由記述に埋めない＝あとで「求人票と現実の一致」を集計できるデータになる */}
+                {on && k.sub && (
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, margin:"8px 2px 0" }}>
+                    {k.sub.map(sc => {
+                      const son = detail === sc.v;
+                      return (
+                        <button key={sc.v} onClick={()=>setDetail(sc.v)} className="f-sans"
+                          style={{ padding:"8px 12px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+                            border: son ? "2px solid #E24B4A" : "1px solid #DDD",
+                            background: son ? "#E24B4A" : "#fff", color: son ? "#fff" : "#555" }}>{sc.l}</button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -74,8 +96,8 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
         <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
           <button onClick={onClose} disabled={submitting} className="f-sans"
             style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-          <button onClick={submit} disabled={submitting || !kind} className="f-sans"
-            style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (submitting || !kind) ? 0.5 : 1 }}>
+          <button onClick={submit} disabled={submitting || !kind || (needsDetail && !detail)} className="f-sans"
+            style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (submitting || !kind || (needsDetail && !detail)) ? 0.5 : 1 }}>
             {submitting ? "送信中..." : "記録する"}
           </button>
         </div>

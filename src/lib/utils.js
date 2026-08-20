@@ -896,11 +896,19 @@ export const TASK_OPTIONS = [
 // ★農家が記録する late / absent_notice は【その日の記録】であって、作業全体の出欠ではない
 //   （applications.attended は最終日の評価で決まる）。DB側の通知も actor で言い回しを変える
 //   （trg_notify_attendance・農家＝「遅刻の記録」／働き手＝「遅れる連絡」）。
-// v=kind／l=選択肢のラベル／d=補足（何が起きたときに押すのか）
+// v=kind／l=選択肢のラベル／d=補足（何が起きたときに押すのか）／sub=内訳（選択式・detail列へ）。
+// ★2026-08-20たきと裁定：日次は事故ログに徹する。追加は「予定と違います」「途中で終了・作業できなかった」の
+//   2系統だけ＝これ以上、日次画面を太らせない。正常な日は何も入力させない（毎日押させると誰も押さなくなる）。
+//   「予定と違います」（働き手のみ）は求人票と現実の一致を測る中核データ＝内訳は選択式で構造化して残す。
 export const WORKER_DAY_REPORT_KINDS = [
   { v:"late",           l:"遅れます・遅れました",       d:"到着が作業の開始時刻に間に合わないとき" },
   { v:"absent_notice",  l:"休みます（欠勤の連絡）",     d:"今日は行けないとき。早いほど農家が段取りを直せます" },
   { v:"no_show_report", l:"農家に会えない・連絡がつかない", d:"集合場所に相手がいないとき。運営にも同時に伝わります" },
+  { v:"plan_mismatch",  l:"予定と違います",             d:"求人に書かれていた内容と実際が違ったとき。何が違ったかを選んでください",
+    sub:[{ v:"content", l:"作業内容が違った" }, { v:"time", l:"時間が違った" }, { v:"place", l:"場所が違った" },
+         { v:"pay", l:"報酬・条件が違った" }, { v:"other", l:"その他" }] },
+  { v:"work_incomplete", l:"作業が途中で終了・作業できなかった", d:"天候や段取りで、その日の作業が予定どおり進まなかったとき",
+    sub:[{ v:"stopped_early", l:"途中で終了した" }, { v:"could_not_work", l:"作業できなかった" }] },
 ];
 export const FARMER_DAY_REPORT_KINDS = [
   { v:"late",           l:"働き手が遅れて来た（遅刻）",   d:"開始時刻に間に合わなかったとき" },
@@ -908,8 +916,21 @@ export const FARMER_DAY_REPORT_KINDS = [
   { v:"no_show_report", l:"働き手に会えない・連絡がつかない", d:"集合場所に相手がいないとき。運営にも同時に伝わります" },
   { v:"cancel",         l:"今日の作業を中止した",           d:"天候などで作業自体を取りやめたとき" },
   { v:"postpone",       l:"今日の作業を延期した",           d:"別の日にずらしたとき" },
+  { v:"work_incomplete", l:"作業が途中で終了・作業できなかった", d:"その日の作業が予定どおり進まなかったとき",
+    sub:[{ v:"stopped_early", l:"途中で終了した" }, { v:"could_not_work", l:"作業できなかった" }] },
 ];
 export const dayReportKinds = (role) => role === "farmer" ? FARMER_DAY_REPORT_KINDS : WORKER_DAY_REPORT_KINDS;
+// 最終日の客観データ（この仕事の記録）の見出し。attendance_events.kind → 集計行のラベル。
+// dispute_no_show（異議申立）はメタな記録なので数えない
+export const DAY_FACT_LABELS = [
+  { k:"late",            l:"遅刻" },
+  { k:"absent_notice",   l:"欠勤" },
+  { k:"no_show_report",  l:"合流トラブル" },
+  { k:"plan_mismatch",   l:"予定と違った" },
+  { k:"work_incomplete", l:"作業の中断" },
+  { k:"cancel",          l:"中止" },
+  { k:"postpone",        l:"延期" },
+];
 
 // 分割3-C（2026-07-25）：App.jsxから移動（求人詳細・確認ページ・プレビューシートで共用）
 

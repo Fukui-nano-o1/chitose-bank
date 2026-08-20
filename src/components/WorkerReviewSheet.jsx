@@ -1,55 +1,62 @@
-// 仕事の全体的な評価（働き手→農園）の入力シート（2026-08-19新設・同日に1問1ページへ）。
+// 最終日の評価（働き手→農家）＝今回の仕事のふりかえり（2026-08-20たきと裁定で3問×3択に再設計）。
 // ★この形は2箇所から開く：①応募状況ページ（#/profile/worker/approved）②今日ページの「仕事の評価」。
-//   同じ入力が枝分かれしないよう、設問と保存はこの1部品に集約する
-//   （項目を足す時・文言を変える時はここだけを直す）。
-// ★ページ送り・戻る・最終確認の機構は共有部品 ReviewWizard が持つ＝農家→働き手の評価
-//   （FarmerDashboard の完了・評価）と同じ形になる。見た目や送り方を変えるならあちらを直す。
-// 保存するのは reviews の1行だけ（打刻の署名は撃たない・2026-08-18「打刻の全面削除」）。
+//   同じ入力が枝分かれしないよう、設問と保存はこの1部品に集約する。
+// ★対称設計にしすぎない（たきと裁定）：働き手側が測るのは人柄より【求人の信頼性】＝
+//   ①求人に書かれていた内容と実際は一致していたか ②報酬は約束どおり支払われたか ③また働きたいか。
+// ★公開自由記述は置かない（2026-08-20たきと裁定・泥沼の回避）。
+// 保存は reviews の1行だけ。真実は3択の新列（match_level/pay_status/want_again_choice）に持ち、
+//   既存 boolean（as_described/paid_as_posted/want_again）は互換の影として同時に立てる
+//   ＝公開バッジ（reviews_public_badges）と信頼カードがそのまま動く。
 // DBの壁：trg_reviews_party_consistency（当事者と向きの一致）＋trg_reviews_phase_gate
-//   （worker_to_farmer は working 以上）が最後の担保なので、画面はその手前の案内に徹する。
-// ★モジュールレベル定義を維持すること：親の中で定義すると再レンダーごとに再マウントされ、
-//   textarea のフォーカス・入力中の下書きが消える（LandingFlowのフォーカス消失バグと同族）。
+//   （worker_to_farmer は working 以上）が最後の担保。
+// ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元・CLAUDE.md）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { fbSuccess, fbError } from "../lib/feedback";
-import { ReviewWizard } from "./ReviewWizard";
+import { FinalReviewSheet } from "./FinalReviewSheet";
 
-// 全体の評価の設問（順＝表示順）。k は reviews の列名と1対1。
-// ★列を足したら DBの reviews_public_badges の列挙と components/ReceivedReviews.jsx の
-//   BADGE_DEFS.worker_to_farmer も同時に直すこと（直さないと入力できるのに誰にも表示されない）。
-// ★肯定（はい）だけが相手に表示される（利用規約 第8条2）。いいえは公開されないが記録には残る。
-// ★entrust / followed_instructions / completed_work は農家→働き手の評価語なので、この向きでは使わない。
-const REVIEW_QUESTIONS = [
-  { k:"want_again",         label:"また働きたい",             hint:"またこの農園で働きたいと思いましたか" },
-  { k:"as_described",       label:"説明のとおりだった",       hint:"作業の内容・時間・場所が求人の説明どおりでしたか" },
-  { k:"safety_care",        label:"安全に配慮されていた",     hint:"危険な場所や作業の説明・備えがありましたか" },
-  { k:"on_time",            label:"時間どおりだった",         hint:"始まりと終わりが予定どおりでしたか" },
-  { k:"instructions_clear", label:"教え方が分かりやすかった", hint:"何をどうすればよいか、分かるように教えてもらえましたか" },
-  { k:"paid_as_posted",     label:"賃金が求人のとおりだった", hint:"金額・支払い方（当日の現金手渡し）が求人のとおりでしたか" },
+// 設問（3問・すべて3択）。k は reviews の列名と1対1。
+// ★選択肢を変える時は DBのCHECK制約（reviews_match_level_check 等）と対で直すこと
+const WORKER_FINAL_QUESTIONS = [
+  { k:"match_level", label:"求人に書かれていた内容と、実際の仕事は一致していましたか", choices:[
+    { v:"matched",  l:"一致していた" },
+    { v:"partly",   l:"一部違った" },
+    { v:"differed", l:"大きく違った" },
+  ]},
+  { k:"pay_status", label:"報酬は約束どおり支払われましたか", choices:[
+    { v:"paid",   l:"支払われた" },
+    { v:"unpaid", l:"未払い" },
+    { v:"other",  l:"その他" },
+  ]},
+  { k:"want_again_choice", label:"またこの農家の仕事をしたいですか", choices:[
+    { v:"yes",     l:"はい" },
+    { v:"neutral", l:"どちらともいえない" },
+    { v:"no",      l:"いいえ" },
+  ]},
 ];
 
-const taStyle = { width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px",
-  fontSize:16, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" };
-
 // app＝{ id, farmer_id }（応募のID と 相手＝農家のauth_id）。meId＝自分のauth_id。
+// dayCount＝実働日数（分かる時だけ・客観データの見出しに出す）。
 // onDone(applicationId)＝保存できた時に親へ知らせる（一覧から消す・祝祭を出すのは親の仕事）。
-export function WorkerReviewSheet({ app, meId, onDone, onClose }) {
-  const [answers, setAnswers] = useState({});          // { [k]: true|false }
-  const [publicComment, setPublicComment] = useState("");
-  const [privateMemo, setPrivateMemo] = useState("");
+export function WorkerReviewSheet({ app, meId, dayCount, onDone, onClose }) {
+  const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   // 開き直したら前回の入力を持ち越さない（別の応募の評価に前の答えが残らないように）
-  useEffect(() => { setAnswers({}); setPublicComment(""); setPrivateMemo(""); }, [app?.id]);
+  useEffect(() => { setAnswers({}); }, [app?.id]);
   const submit = async () => {
     if (!app || submitting) return;
-    if (REVIEW_QUESTIONS.some(q => answers[q.k] === undefined)) return;
+    if (WORKER_FINAL_QUESTIONS.some(q => !answers[q.k])) return;
     setSubmitting(true);
     try {
+      const wc = answers.want_again_choice;
       const { error } = await supabase.from("reviews").insert({
         application_id: app.id, reviewer_id: meId, reviewee_id: app.farmer_id,
         direction: "worker_to_farmer",
-        ...Object.fromEntries(REVIEW_QUESTIONS.map(q => [q.k, answers[q.k]])),
-        public_comment: publicComment.trim() || null, private_memo: privateMemo.trim() || null,
+        match_level: answers.match_level, pay_status: answers.pay_status, want_again_choice: wc,
+        // 互換の影（公開バッジ・信頼カードの材料）。はい→true／いいえ→false／どちらとも→null
+        as_described: answers.match_level === "matched",
+        paid_as_posted: answers.pay_status === "paid",
+        want_again: wc === "yes" ? true : wc === "no" ? false : null,
       });
       if (error) { fbError(); alert("評価の保存に失敗しました：" + error.message); setSubmitting(false); return; }
       fbSuccess();
@@ -59,32 +66,18 @@ export function WorkerReviewSheet({ app, meId, onDone, onClose }) {
   };
   if (!app) return null;
   return (
-    <ReviewWizard
-      title="仕事の評価"
-      questions={REVIEW_QUESTIONS}
+    <FinalReviewSheet
+      app={app}
+      title="今回の仕事のふりかえり"
+      intro="これで今回の仕事は終わりになります。答えは3つだけです。"
+      dayCount={dayCount}
+      questions={WORKER_FINAL_QUESTIONS}
       answers={answers}
       onAnswer={(k, v)=>setAnswers(prev => ({ ...prev, [k]: v }))}
-      resetKey={app.id}
       submitting={submitting}
       onSubmit={submit}
       onClose={onClose}
-      lastPageTitle="ひとこと（任意）"
-      lastPageHint="書かなくても送信できます。"
-      lastPage={
-        <>
-          <textarea value={publicComment} onChange={e=>setPublicComment(e.target.value)}
-            placeholder="農園について良かった点を一言（公開されます）" rows={3} className="f-sans" style={taStyle} />
-          <textarea value={privateMemo} onChange={e=>setPrivateMemo(e.target.value)}
-            placeholder="自分だけが見えるメモ" rows={3} className="f-sans" style={{ ...taStyle, marginTop:8 }} />
-        </>
-      }
-      confirmNote="送信すると、この仕事は終わりになります。あとから直すことはできません。「はい」と答えた項目だけが農園に表示されます。"
-      confirmExtra={
-        <div style={{ padding:"9px 0" }}>
-          <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 2px" }}>農園について一言（公開）</p>
-          <p className="f-sans" style={{ fontSize:13, color: publicComment.trim() ? "#222" : "#B0B0B0", margin:0, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{publicComment.trim() || "（なし）"}</p>
-        </div>
-      }
+      confirmNote="送信すると、あとから直すことはできません。肯定的な答えだけが農園のページに表示されます（否定的な答えは公開されませんが、記録には残ります）。"
     />
   );
 }

@@ -5,7 +5,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb, isFinalWorkDone } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb, isFinalWorkDone, appWorkDates } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -451,6 +451,7 @@ export function WorkerApplications({ filter, me }) {
       {/* 仕事の評価：フォームと保存は共有部品（今日ページの「仕事の評価」と同じもの）。
           送信できたら一覧の表示を評価済みに変え、祝祭を出す＝画面側の役目だけをここに残す */}
       <WorkerReviewSheet app={reviewModalApp && { id: reviewModalApp.id, farmer_id: reviewModalApp.farmer_id }} meId={me.id}
+        dayCount={reviewModalApp ? appWorkDates(reviewModalApp, jobDates[reviewModalApp.job_number]).size || null : null}
         onClose={()=>setReviewModalApp(null)}
         onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setCelebrate({ title:"ありがとうございました" }); }} />
 

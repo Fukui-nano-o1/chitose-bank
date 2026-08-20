@@ -6507,3 +6507,54 @@ reviews3・apps25・roster3・ghost0）で ①6項目が正しい列に入る・
 最終ページに❤️が出るか ③送信する→最終確認→送信で評価登録完了の控えが6項目出るか
 ④「働き手が来なかった場合は→欠勤として記録する」がどのページからでも押せるか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-20 評価の三層化（日次＝事故ログ／最終日＝3問の評価／プロフィール＝自動生成）━━━
+【たきと裁定（全文の設計指示）】各日は「評価」ではなく「事実記録」に徹する。最終日だけ全体の評価。
+正常な日は入力させない（毎日押させると誰も押さなくなる）。最終日は客観データを自動表示し
+本人に再入力させない。設問は3問程度。公開自由記述レビューは当面いらない（誹謗中傷・感情的評価・
+個人情報・削除依頼の泥沼）。対称設計にしすぎない（働き手側は人柄より求人の信頼性を測る）。
+単なるレビューサイトに落とさない＝「作物別・作業別に、本当に働いた人間の実績を可視化する」背骨。
+
+【① 日次（DayReportSheet）＝2系統だけ追加・これ以上太らせない】
+・plan_mismatch「予定と違います」（働き手のみ）＝内訳を選択式で構造化：作業内容/時間/場所/報酬・条件/その他
+　→ attendance_events.detail 列（新設・CHECK付き）。★求人票と現実の一致＝曖昧な口コミより強い中核データ
+・work_incomplete「作業が途中で終了・作業できなかった」（両役割）＝内訳：途中で終了/作業できなかった
+・migration 20260820102646：kind CHECK に2値追加・detail列・trg_notify_attendance に新ラベルと内訳の
+　日本語（【報酬・条件が違った】等）を状況の行へ。通知の実測＝「08/19の「予定と違う」の記録：求人 #N　【報酬・条件が違った】…」
+・正常な日は入力させない：今日ページの📋今日の記録の箱は QUIET_BADGE_STAGES＝件数バッジを出さず、
+　「いま これだけ」にも昇格させない（箱は入口として常に出す・説明文も「何かあった日だけ」に変更）
+
+【② 最終日（FinalReviewSheet 新設・ReviewWizard は削除）＝完全に別画面】
+構造：①客観データの自動表示（attendance_events を当事者RLSで引いて件数表示＝遅刻N回・欠勤N回・
+合流トラブルN回…・0件でも見せる・問題ゼロなら「記録された問題はありません」）②3問×3択（縦の選択肢）
+③農家のみ特記タグ ④送信するタップで最終確認（従来の一拍は維持）。自由記述の入力は両方向とも廃止
+（reviews の public_comment/private_memo 列と審査の仕組みは残置＝データは消していない）。
+・農家→働き手（今回の仕事を完了する）：仕事は完了したか（予定どおり/一部/できなかった）／
+　またこの人と働きたいか（はい/どちらとも/いいえ）／特記タグ＝肯定4（丁寧/早い/指示をよく確認/安全）＋
+　否定2（作業に問題/コミュニケーションに問題＝記録のみ・絶対に公開しない）。
+　❤️お気に入り登録は「はい」の時だけ。欠勤の道（footer）は不変
+・働き手→農家（今回の仕事のふりかえり）：求人と実際は一致していたか（一致/一部違った/大きく違った）／
+　報酬は約束どおり支払われたか（支払われた/未払い/その他）／またこの農家の仕事をしたいか
+【DB（migration 20260820102733）】reviews に want_again_choice/work_outcome/traits/match_level/pay_status
+（すべてCHECK付き）。★真実は新列・既存booleanは互換の影として挿入時に導出（yes→true・no→false・
+neutral→null／completed→completed_work／matched→as_described／paid→paid_as_posted）＝
+repeat_roster・trg_instant_approve・worker_trust_info・badges がそのまま動く。
+・submit_farmer_final_review（新RPC・anon revoke）＝完了+評価+お気に入りの1トランザクション。
+　★旧 submit_farmer_review はDBに残置（古いJSの互換）。名前を分けたのはPostgRESTのオーバーロード
+　曖昧解決（300）を踏まないため
+・reviews_public_badges に trait_careful/fast/attentive/safe の4キー追加（否定タグは集計にも出さない）
+【フロント】FinalReviewSheet.jsx 新設（器・両方向共用・controlled answers）／WorkerReviewSheet・
+FarmerDashboard の完了評価モーダルがこれを使う／ReceivedReviews の BADGE_DEFS 更新（trait_*追加・
+旧キーは旧データ用に残置＝>0の時だけ出る）／dayCount（実働日数）は appWorkDates から各呼び出し側が計算
+【検証】build成功・lint 0 error（警告24＝着手前と同数）／DB実弾（ロールバック付き・残置ゼロ実測
+reviews3・apps25・att1・roster3・ghost0）：日次の通知に内訳の日本語が載る／不正detailは拒否／
+新RPCで outcome=partial の影がfalse・yes の影がtrue・名簿登録／働き手の直接insertで影の導出／
+双方揃いのバッジ＝paid=1・一部違った=0・neutral=0・trait_careful=1・否定タグはキー自体なし。
+repo写経は3関数とも本文md5がDB現物と一致。
+【実機目視の残り】①日次シートに新しい2種別と内訳ピルが出るか ②最終日の画面に「この仕事の記録」の
+件数が出るか ③3問＋タグ→最終確認→送信 ④📋の箱に数字が付かないこと・「いま これだけ」に
+今日の記録が出ないこと
+【残（たきと判断）】①未払い（pay_status='unpaid'）の報告を運営へ即通知するか（いまは記録のみ）
+②プロフィールの実績表示に「予定と違った」の集計を出すか（求人票と現実の一致率＝雇い手側の信頼指標）
+③旧 submit_farmer_review・instructions_clear 列など旧世代の掃除（データが積む前なら整理は軽い）
+━━━ ここまで ━━━

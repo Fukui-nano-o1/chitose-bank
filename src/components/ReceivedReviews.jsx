@@ -8,27 +8,33 @@ import { supabase } from "../lib/supabase";
 import { Dots } from "./ui";
 
 // 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順。
-// ★入力の設問（農家→働き手＝FarmerDashboard の FARMER_REVIEW_QUESTIONS／
-//   働き手→農園＝WorkerReviewSheet の REVIEW_QUESTIONS）と、DBの reviews_public_badges の列挙と、
+// ★入力の設問（農家→働き手＝FarmerDashboard の FARMER_FINAL_QUESTIONS＋FARMER_TRAIT_TAGS／
+//   働き手→農家＝WorkerReviewSheet の WORKER_FINAL_QUESTIONS）と、DBの reviews_public_badges の列挙と、
 //   ここの3箇所は対で直すこと。どれか1つでも欠けると「入力できるのに誰にも表示されない」になる
 const BADGE_DEFS = {
-  // 2026-08-19に画面が2項目→6項目に（受け皿の6キーは最初から揃っていた）
+  // 2026-08-20に3問×3択＋特記タグへ再設計。trait_*＝肯定タグの集計（否定タグは公開されない）。
+  // entrust/on_time/followed_instructions は旧データ用に残す（>0の時だけ出る）
   farmer_to_worker: [
     { k: "want_again", label: "🌟 また呼びたい" },
+    { k: "completed_work", label: "予定どおり完了" },
+    { k: "trait_careful", label: "丁寧だった" },
+    { k: "trait_fast", label: "作業が早かった" },
+    { k: "trait_attentive", label: "指示をよく確認した" },
+    { k: "trait_safe", label: "安全に作業した" },
     { k: "entrust", label: "安心して任せられた" },
     { k: "on_time", label: "時間どおり" },
     { k: "as_described", label: "聞いていたとおり" },
     { k: "followed_instructions", label: "指示どおり" },
-    { k: "completed_work", label: "最後までやり切った" },
   ],
-  // 2026-08-19に3→6項目（instructions_clear / paid_as_posted は同日に reviews へ追加した列）
+  // 2026-08-20に3問×3択へ再設計（求人と一致・報酬は約束どおり・また働きたい）。
+  // safety_care/on_time/instructions_clear は旧データ用に残す（>0の時だけ出る）
   worker_to_farmer: [
     { k: "want_again", label: "🌟 また働きたい" },
-    { k: "as_described", label: "説明どおり" },
+    { k: "as_described", label: "求人のとおりだった" },
+    { k: "paid_as_posted", label: "報酬は約束どおり" },
     { k: "safety_care", label: "安全に配慮" },
     { k: "on_time", label: "時間どおり" },
     { k: "instructions_clear", label: "教え方が分かりやすい" },
-    { k: "paid_as_posted", label: "賃金は求人のとおり" },
   ],
 };
 

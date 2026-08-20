@@ -287,8 +287,10 @@ export function TodayPage({ me, defaultRole }) {
     // 今日の記録（2026-08-19たきと指示「最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する。
     // それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」）＝評価フローの中日側。
     // 専用ページ（DayReportPanel）が一覧と入力を両方持つので、行ボタン用の nav は持たない
+    // ★事実記録に徹する（2026-08-20たきと裁定「日次は事故ログ」）：何かあった日だけ使う窓口。
+    //   正常な日は何も入力させない＝バッジで急かさない（QUIET_BADGE_STAGES・毎日押させると誰も押さなくなる）
     day_report:  { icon:"📋", title:"今日の記録",         btn:"記録する →",
-                   desc:"その日に起きたこと（働き手の遅刻・欠勤、会えないなど）を記録します。最終の作業日より前の作業日に並びます。作業全体の評価は最終日にお願いします。" },
+                   desc:"働き手の遅刻・欠勤、会えない、作業の中断など、何かあった日だけ記録します。何もなかった日は入力不要です。作業全体の評価は最終日にお願いします。" },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
     // w_confirm（求人内容の確認）は廃止（2026-07-25たきと指示）：内容を確認した上で応募するのが前提。
@@ -307,14 +309,17 @@ export function TodayPage({ me, defaultRole }) {
     // 専用ページ（ReviewStagePanel）that一覧と入力を両方持つso、行ボタン用のnavは持たない（2026-08-19）
     w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価する →",
                    desc:"働いた農園を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。" },
-    // 今日の記録（働き手側・上の day_report と対）。選択肢だけが違う（遅れる・休む・農家に会えない）
+    // 今日の記録（働き手側・上の day_report と対）。選択肢が違う（遅れる・休む・会えない・予定と違う・中断）
     w_day_report:{ icon:"📋", title:"今日の記録",         btn:"記録する →",
-                   desc:"その日に起きたこと（遅れる・休む、農家に会えないなど）を記録します。最終の作業日より前の作業日に並びます。仕事全体の評価は最終日にお願いします。" },
+                   desc:"遅れる・休む、農家に会えない、予定と違うなど、何かあった日だけ記録します。何もなかった日は入力不要です。仕事全体の評価は最終日にお願いします。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
+  // 事故ログ系の箱（今日の記録）は件数バッジを出さず、「いま これだけ」にも昇格させない（2026-08-20たきと裁定
+  // 「通常は何もしない。異常があったときだけ記録する」＝毎日押させる圧を作らない。箱は入口として常に出す）
+  const QUIET_BADGE_STAGES = new Set(["day_report", "w_day_report"]);
   // answeredDone（送信完了しました。の一時表示）は廃止（2026-08-19）：面接の回答パネル専用だった
   const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
@@ -357,6 +362,8 @@ export function TodayPage({ me, defaultRole }) {
     //   薄表示は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）
     // ★なにもなければ説明文を明記（2026-08-03たきと指示）：行き先が空っぽの面だと
     //   「なぜ何も無いのか」が分からないため、該当0件でも専用ページ（用件の説明＋空状態）へ送る
+    // 事故ログ系（今日の記録）は数字で急かさない：作業中の仕事がある間は普通の明るさで置いておくだけ
+    const quiet = QUIET_BADGE_STAGES.has(stage);
     const dim = n === 0;
     const onTapBox = () => {
       if (m.boxNav) { window.location.hash = m.boxNav(); return; }   // 専用ページを挟まず直接その面へ（プロフィールの未入力）
@@ -368,7 +375,7 @@ export function TodayPage({ me, defaultRole }) {
         padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
         opacity: dim ? 0.45 : 1,
       }}>
-        {n > 0 && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
+        {n > 0 && !quiet && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
         <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
         <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
       </button>
@@ -525,7 +532,7 @@ export function TodayPage({ me, defaultRole }) {
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
           // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当がある用件。
           // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」が一目で分かる。同日たきと指示）
-          const nowStage = catalog.filter(st => !st.startsWith("t_")).find(st => (byStage.get(st) || []).length > 0) || null;
+          const nowStage = catalog.filter(st => !st.startsWith("t_") && !QUIET_BADGE_STAGES.has(st)).find(st => (byStage.get(st) || []).length > 0) || null;
           // プロフィール入力（2026-08-19たきと指示）：両役割とも常に格子の先頭に置く常設の入口。
           // ★2026-08-03の「埋まれば非表示・空になればまた表示」は撤回：あの箱は「未入力」という
           //   お知らせだったが、名前が「プロフィール入力」＝いつでも入力しに行ける入口に変わったため、

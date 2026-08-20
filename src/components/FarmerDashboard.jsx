@@ -3,11 +3,11 @@ import { useState, useEffect, useRef } from "react";
 import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
   fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
   unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
-  markWorkNoShow, submitFarmerReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
+  markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -29,7 +29,7 @@ import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { DayReportSheet } from "./DayReportSheet";
-import { ReviewWizard } from "./ReviewWizard";
+import { FinalReviewSheet } from "./FinalReviewSheet";
 
 // 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
 // ★ピルは「見るもの」ではなく【隠すもの】の選択＝見送り／失効／取り消しの3つだけ。複数選択可。
@@ -39,20 +39,38 @@ import { ReviewWizard } from "./ReviewWizard";
 const APP_HIDABLE = ["rejected", "expired", "canceled"];
 
 
-// 仕事の全体的な評価（農家→働き手）の設問（2026-08-19に2問→6問・たきと指示
-// 「同じように農家→働き手の評価を設計しろ」）。k は reviews の列名と1対1。
-// ★列は増やしていない：この6つは reviews に既にあり、DBの reviews_public_badges も
-//   components/ReceivedReviews.jsx の BADGE_DEFS.farmer_to_worker も最初から6つを列挙している
-//   （画面が2つしか書いていなかっただけ）。設問を足す時はその3箇所を対で直すこと。
-// ★肯定（はい）だけが働き手に表示される（利用規約 第8条2）。いいえは公開されないが記録には残る。
-const FARMER_REVIEW_QUESTIONS = [
-  { k:"want_again",            label:"また呼びたい",             hint:"次の求人でも、この方に来てほしいと思いましたか" },
-  { k:"entrust",               label:"安心して任せられた",       hint:"見ていなくても任せられる働きぶりでしたか" },
-  { k:"on_time",               label:"時間どおりに来た",         hint:"開始の時刻に間に合っていましたか" },
-  { k:"as_described",          label:"聞いていたとおりだった",   hint:"プロフィールや面接で聞いた経験・できることのとおりでしたか" },
-  { k:"followed_instructions", label:"指示どおりに作業した",     hint:"教えたやり方のとおりに進めてもらえましたか" },
-  { k:"completed_work",        label:"最後までやり切った",       hint:"その日の作業を最後まで終えてもらえましたか" },
+// 最終日の評価（農家→働き手）の設問（2026-08-20たきと裁定で3問×3択＋タグに再設計）。
+// ①仕事は完了したか ②またこの人と働きたいか ③特記事項（タグ選択・任意）。
+// 客観データ（遅刻・欠勤の回数）は日次の記録から自動表示＝本人に再入力させない（FinalReviewSheet）。
+// ★真実は3択の新列（work_outcome/want_again_choice/traits）。既存 boolean（completed_work/want_again）は
+//   互換の影＝DB側 submit_farmer_final_review が導出する。選択肢を変える時はDBのCHECK制約と対で直すこと。
+// ★肯定だけが働き手に表示される（規約第8条2）。否定の答え・否定タグは公開されないが記録には残る。
+const FARMER_FINAL_QUESTIONS = [
+  { k:"work_outcome", label:"仕事は完了しましたか", choices:[
+    { v:"completed",     l:"予定どおり完了" },
+    { v:"partial",       l:"一部完了" },
+    { v:"not_completed", l:"完了できなかった" },
+  ]},
+  { k:"want_again_choice", label:"またこの人と働きたいですか", choices:[
+    { v:"yes",     l:"はい" },
+    { v:"neutral", l:"どちらともいえない" },
+    { v:"no",      l:"いいえ" },
+  ]},
 ];
+// 特記事項のタグ。肯定4つ＝公開集計（reviews_public_badges の trait_*）／否定2つ＝記録のみ・非公開。
+// ★タグを足す時は DBの badges 関数と ReceivedReviews.BADGE_DEFS（肯定のみ）を対で直すこと
+const FARMER_TRAIT_TAGS = {
+  label: "特記事項（あれば・複数可）",
+  hint: "良かった点は働き手のページに集計で表示されます。問題は記録として残ります（公開されません）",
+  options: [
+    { v:"careful",    l:"丁寧だった" },
+    { v:"fast",       l:"作業が早かった" },
+    { v:"attentive",  l:"指示をよく確認した" },
+    { v:"safe",       l:"安全に作業した" },
+    { v:"work_issue", l:"作業に問題があった", negative:true },
+    { v:"comm_issue", l:"コミュニケーションに問題があった", negative:true },
+  ],
+};
 
 export function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
@@ -319,21 +337,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [dayReportApp, setDayReportApp] = useState(null);
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
-  // 全体の評価の答え（2026-08-19に2問→6問・1問1ページ）。列名をそのまま鍵にする
+  // 最終日の評価の答え（2026-08-20に3問×3択＋タグへ再設計）。列名をそのまま鍵にする
   const [completeAnswers, setCompleteAnswers] = useState({});
-  const [completePublicComment, setCompletePublicComment] = useState("");
-  const [completePrivateMemo, setCompletePrivateMemo] = useState("");
+  const [completeTags, setCompleteTags] = useState([]);   // 特記事項タグ（FARMER_TRAIT_TAGS）
   const [completeSubmitting, setCompleteSubmitting] = useState(false);
   const [completeNotifyNext, setCompleteNotifyNext] = useState(true); // また呼びたい=はい時のみ表示。ON=repeat_rosterへupsert
-  const [completeDone, setCompleteDone] = useState(null); // 評価登録完了モーダル {jobLabel,jobNumber,workerId,workerName,at,wantAgain,entrust,publicComment,privateMemo,favorited}
+  const [completeDone, setCompleteDone] = useState(null); // 評価登録完了モーダル {jobLabel,jobNumber,workerId,workerName,at,answers,tags,favorited}
   const openCompleteModal = (a) => {
     // 完了ボタン＝そのまま評価（2026-08-16たきと指示）。以前は「働き手は来ましたか？」の1枚を
     // 挟んでいたが、通常の道（来た→評価）が2タップになるため廃止＝最初から評価を出す。
     // 送信＝完了の記録＋評価（submit_farmer_review・1トランザクション）。
     // 来なかった場合（欠勤の記録・72時間の異議申立）は評価画面の下に控えめに残す＝例外の道は消さない
     setCompleteModalApp(a);
-    setCompleteAnswers({});
-    setCompletePublicComment(""); setCompletePrivateMemo("");
+    setCompleteAnswers({}); setCompleteTags([]);
     setCompleteNotifyNext(true);
   };
   const markNoShow = async () => {
@@ -350,15 +366,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   const submitFarmerReview = async () => {
     if (!completeModalApp || completeSubmitting) return;
-    if (FARMER_REVIEW_QUESTIONS.some(q => completeAnswers[q.k] === undefined)) return;
+    if (FARMER_FINAL_QUESTIONS.some(q => !completeAnswers[q.k])) return;
     setCompleteSubmitting(true);
     try {
       // 原子化（2026-07-19）：完了処理・評価保存・お気に入り登録を1つのRPC＝1トランザクションで実行。
       // 送信ボタンのタップだけがトリガーで、途中失敗なら何も保存されない（中途半端な履歴が残らない）
-      const { data, error } = await submitFarmerReviewRpc(completeModalApp.id, {
-        answers: completeAnswers,
-        publicComment: completePublicComment.trim(), privateMemo: completePrivateMemo.trim(),
-        favorite: completeNotifyNext,
+      const { data, error } = await submitFarmerFinalReviewRpc(completeModalApp.id, {
+        workOutcome: completeAnswers.work_outcome,
+        wantAgainChoice: completeAnswers.want_again_choice,
+        traits: completeTags,
+        favorite: completeAnswers.want_again_choice === "yes" && completeNotifyNext,
       });
       if (error || !data?.ok) { fbError(); alert('送信に失敗しました（何も保存されていません）：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
       const favorited = !!data.favorited;
@@ -386,8 +403,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         workerId: completeModalApp.worker_id,
         workerName: workerProfiles[completeModalApp.worker_id]?.nickname || "働き手",
         at: new Date().toLocaleString("ja-JP", { year:"numeric", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit" }),
-        answers: completeAnswers,
-        publicComment: completePublicComment.trim(), privateMemo: completePrivateMemo.trim(),
+        answers: completeAnswers, tags: completeTags,
         favorited,
       });
       setCompleteModalApp(null);
@@ -1544,65 +1560,49 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // 農家がここから欠勤を記録できる（DB側も complete_work が同じ条件で受け付ける）＝
         // 2026-07-30に足した「来なかった場合の措置」を自動完了で奪わない
         const attendOpen = notDone || (completeModalApp.auto_completed && completeModalApp.attended == null);
-        const wantAgain = completeAnswers.want_again === true;
+        const wantAgain = completeAnswers.want_again_choice === "yes";
+        // 実働日数（客観データの見出し用）。求人情報が無ければ出さないだけ＝評価は止めない
+        const jinfo = jobInfoMap[completeModalApp.job_number];
+        const dayCount = jinfo ? appWorkDates(completeModalApp, jinfo).size : null;
         return (
-        /* 1問1ページ＋戻る＋最終確認（2026-08-19たきと指示「同じように農家→働き手の評価を設計しろ」）。
-           送り・戻る・最終確認の機構は共有部品 ReviewWizard＝働き手→農園の評価と同じ形になる。
-           完了の記録は従来どおり submit_farmer_review が評価と1トランザクションで行う */
-        <ReviewWizard
-          title={notDone ? "作業の完了と評価" : "作業の評価"}
-          questions={FARMER_REVIEW_QUESTIONS}
+        /* 最終日の専用画面（2026-08-20たきと裁定）＝①日次の記録の自動表示 ②3問×3択 ③特記タグ
+           →送信するタップで最終確認。器は共有部品 FinalReviewSheet（働き手→農家と同じ形・設問だけ違う）。
+           完了の記録は従来どおりRPC（submit_farmer_final_review）が評価と1トランザクションで行う */
+        <FinalReviewSheet
+          app={completeModalApp}
+          title="今回の仕事を完了する"
+          intro={notDone ? "送信すると、作業の完了が記録され、評価が働き手に届きます。" : "評価が働き手に届きます。"}
+          dayCount={dayCount}
+          questions={FARMER_FINAL_QUESTIONS}
           answers={completeAnswers}
           onAnswer={(k, v)=>setCompleteAnswers(prev => ({ ...prev, [k]: v }))}
-          resetKey={completeModalApp.id}
+          tagDef={FARMER_TRAIT_TAGS}
+          tags={completeTags}
+          onToggleTag={(v)=>setCompleteTags(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v])}
           submitting={completeSubmitting}
           onSubmit={submitFarmerReview}
           onClose={()=>setCompleteModalApp(null)}
-          pageHeight={280}
-          lastPageTitle="ひとこと（任意）"
-          lastPageHint="書かなくても送信できます。"
-          lastPage={
-            <>
-              <textarea value={completePublicComment} onChange={e=>setCompletePublicComment(e.target.value)}
-                placeholder="働きぶりで良かった点を一言（働き手のプロフィールに表示されます）" rows={3}
-                className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:16, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box" }} />
-              <textarea value={completePrivateMemo} onChange={e=>setCompletePrivateMemo(e.target.value)}
-                placeholder="自分だけが見えるメモ" rows={3}
-                className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:16, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginTop:8 }} />
-              {/* お気に入り登録＝リピート即決の判定そのもの（trg_instant_approve が repeat_roster を見る・2026-08-19）。
-                  登録の意味を伏せない。解除はまた呼びたいリストからいつでもできる */}
-              {wantAgain && (
-                <>
-                  <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", margin:"12px 0 0" }}>
-                    <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
-                    ❤️ お気に入り登録する
-                  </label>
-                  <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"4px 0 0 26px" }}>
-                    登録すると、新しい求人のお知らせが届きます。「🌟また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
-                  </p>
-                </>
-              )}
-            </>
-          }
-          confirmNote={notDone
-            ? "送信すると、作業の完了が記録され、評価が働き手に届きます。あとから直すことはできません。「はい」と答えた項目だけが働き手に表示されます。"
-            : "送信すると、評価が働き手に届きます。あとから直すことはできません。「はい」と答えた項目だけが働き手に表示されます。"}
-          confirmExtra={
-            <>
-              <div style={{ padding:"9px 0", borderBottom: wantAgain ? "1px solid #F4F4F4" : "none" }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 2px" }}>働きぶりについて一言（公開）</p>
-                <p className="f-sans" style={{ fontSize:13, color: completePublicComment.trim() ? "#222" : "#B0B0B0", margin:0, lineHeight:1.7, whiteSpace:"pre-wrap" }}>{completePublicComment.trim() || "（なし）"}</p>
-              </div>
-              {wantAgain && (
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"9px 0" }}>
-                  <span className="f-sans" style={{ fontSize:13, color:"#222" }}>❤️ お気に入り登録</span>
-                  <span className="f-sans" style={{ fontSize:13, fontWeight:800, flexShrink:0, color: completeNotifyNext ? "#00A86B" : "#B0B0B0" }}>{completeNotifyNext ? "する" : "しない"}</span>
-                </div>
-              )}
-            </>
-          }
-          /* 例外の道：来なかった場合（出欠の記録が済むまでのあいだだけ出す）。
-             どのページからでも押せるよう、送りの外（下）に置いたまま */
+          /* お気に入り登録＝リピート即決の判定そのもの（trg_instant_approve が repeat_roster を見る・2026-08-19）。
+             登録の意味を伏せない。解除はまた呼びたいリストからいつでもできる */
+          extra={wantAgain ? (
+            <div style={{ marginBottom:16 }}>
+              <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer" }}>
+                <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
+                ❤️ お気に入り登録する
+              </label>
+              <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"4px 0 0 26px" }}>
+                登録すると、新しい求人のお知らせが届きます。「🌟また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
+              </p>
+            </div>
+          ) : null}
+          confirmNote="送信すると、あとから直すことはできません。肯定的な答えと良かった点のタグだけが働き手のページに表示されます（否定的な答えは公開されませんが、記録には残ります）。"
+          confirmExtra={wantAgain ? (
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"9px 0" }}>
+              <span className="f-sans" style={{ fontSize:13, color:"#222" }}>❤️ お気に入り登録</span>
+              <span className="f-sans" style={{ fontSize:13, fontWeight:800, flexShrink:0, color: completeNotifyNext ? "#00A86B" : "#B0B0B0" }}>{completeNotifyNext ? "する" : "しない"}</span>
+            </div>
+          ) : null}
+          /* 例外の道：来なかった場合（出欠の記録が済むまでのあいだだけ出す） */
           footer={attendOpen ? (
             <button onClick={markNoShow} disabled={completeSubmitting} className="f-sans"
               style={{ display:"block", width:"100%", marginTop:16, paddingTop:14, borderTop:"1px solid #F0F0F0", background:"none", border:"none", fontSize:12, color:"#E24B4A", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
@@ -1757,14 +1757,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </div>
             <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", fontSize:13, marginBottom:14 }}>
               <p style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px" }}>評価内容</p>
-              {FARMER_REVIEW_QUESTIONS.map(q => (
-                <p key={q.k} style={{ margin:"0 0 4px", color:"#222" }}>{q.label}：<strong>{completeDone.answers?.[q.k] ? "はい" : "いいえ"}</strong></p>
+              {FARMER_FINAL_QUESTIONS.map(q => (
+                <p key={q.k} style={{ margin:"0 0 4px", color:"#222" }}>{q.label}：<strong>{(q.choices.find(c => c.v === completeDone.answers?.[q.k]) || {}).l || "—"}</strong></p>
               ))}
-              {completeDone.publicComment && (
-                <p style={{ margin:"8px 0 0", color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{completeDone.publicComment}</p>
-              )}
-              {completeDone.privateMemo && (
-                <p style={{ margin:"8px 0 0", color:"#717171", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>🔒 {completeDone.privateMemo}</p>
+              {(completeDone.tags || []).length > 0 && (
+                <p style={{ margin:"0 0 4px", color:"#222" }}>特記事項：<strong>{FARMER_TRAIT_TAGS.options.filter(t => completeDone.tags.includes(t.v)).map(t => t.l).join("・")}</strong></p>
               )}
             </div>
             <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
