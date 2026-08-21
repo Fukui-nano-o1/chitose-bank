@@ -222,6 +222,14 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
           const farmerName = s?.party_names?.farmer || s?.recruiter_name || (isWorker ? partnerName : myName) || "—";
           const workerName = s?.party_names?.worker || (isWorker ? myName : partnerName) || "—";
           const sections = buildSections(s, r);
+          // 印刷する／とじるは2箇所に置く（当事者欄の直下と、いちばん下）。
+          // 長い通知書でも最後までスクロールせずに押せる。className="no-print" ＝紙には出ない
+          const actionRow = (style) => (
+            <div className="no-print" style={{ display:"flex", gap:10, ...style }}>
+              <button onClick={printNotice} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
+              <button onClick={() => setOpen(null)} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
+            </div>
+          );
           return (
             <div onClick={(e) => { if (e.target === e.currentTarget) setOpen(null); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500, padding:"40px 16px" }}>
               <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
@@ -241,6 +249,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                     <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"10px 0 2px" }}>労働者</p>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{workerName}</p>
                   </div>
+                  {actionRow({ margin:"0 0 14px" })}
 
                   {sections.map(sec => (
                     <div key={sec.h} className="cb-ctr-sec" style={{ marginBottom:12 }}>
@@ -273,10 +282,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
                     chitose-bank（https://chitose-bank.com）
                   </p>
                 </div>
-                <div className="no-print" style={{ display:"flex", gap:10, marginTop:16 }}>
-                  <button onClick={printNotice} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
-                  <button onClick={() => setOpen(null)} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
-                </div>
+                {actionRow({ marginTop:16 })}
               </div>
             </div>
           );

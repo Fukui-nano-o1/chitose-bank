@@ -6679,7 +6679,12 @@ D（モード廃止）：チャット・今日・ステータスは既に役割�
   ★印刷時は @media print の !important（overlay padding:0／sheet max-height:none）が勝つので影響なし。
 ・当事者欄の見出し「使用者（募集主）」→「雇用者（募集主）」。
   ※労基法10条の用語は「使用者」が、指示どおり「雇用者」にした。他の画面・規約の「使用者」は無し（grep確認）。
-【検証】build成功・eslint 0 error・distで新文言と旧文言の消滅をgrep確認。実機の見た目は未確認
+・「印刷する／とじる」を2箇所に置いた（たきと指示）＝当事者欄（雇用者・労働者）の直下と、いちばん下。
+  長い通知書でも最後までスクロールせずに押せる。実体は actionRow(style) の1関数を2回描くだけ
+  ＝文言・見た目が片方だけ古くなることがない。className="no-print" ＝紙には出ない
+  （@media print の .no-print{display:none} ／ .cb-ctr-print-overlay .no-print{display:none} の両方が効く）
+【検証】build成功・eslint 0 error・distで新文言と旧文言の消滅をgrep確認。ボタン行が2箇所・
+定義に no-print・当事者欄の直後と本文の後、をnodeで機械確認。実機の見た目は未確認
 ━━━ ここまで ━━━
 
 ━━━ 2026-08-21 カレンダーに予定の操作（コピー・移動・内容編集）＝TimeTree式（たきと指示）━━━
