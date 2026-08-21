@@ -20,7 +20,11 @@ const CAL_OVERLAP = "#E24B4A";
 // canPostJob＝予定のない日のタップで「求人を出す」を出すか（2026-08-21たきと指示）。
 // 農家の置き場所（お仕事タブのカレンダー面・応募者ページ上部）だけ true。
 // 働き手のステータスページには出さない＝求人を出すのは農家の操作so、置き場所で出し分ける
-export function MyCalendar({ backToToday, canPostJob }) {
+// onDayJobs(ymd, jobNumbers)＝予定のある日のタップを親へ渡す（2026-08-21たきと指示
+// 「応募者ページはカレンダーだけ。特定の日程をタップして該当する求人カードのみ表示」）。
+// 渡された置き場所では日付シートを開かず、親that求人カードの絞り込みを行う。
+// 予定のない日は従来どおり（canPostJobなら求人を出すシート）＝絞り込みの解除は親の解除ボタンthat担う
+export function MyCalendar({ backToToday, canPostJob, onDayJobs }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
   // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
   // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
@@ -257,6 +261,13 @@ export function MyCalendar({ backToToday, canPostJob }) {
       return;
     }
     setFlashNoPlan(false);
+    // 予定のある日のタップを親へ渡す置き場所（応募者ページ・2026-08-21たきと指示）：
+    // シートは開かず、その日の求人番号を親に知らせて求人カードの絞り込みをさせる
+    if (onDayJobs) {
+      const jobs = [...new Set(idxs.map(i => entries[i]?.job_number).filter(Boolean))];
+      onDayJobs(ymd, jobs);
+      return;
+    }
     // 日付タップ＝どの置き場所でも日付シートを開く（2026-08-21たきと指示）。
     // 以前は応募者ページ・ステータスページだけ「その日の求人カードへスクロール＋黄色く光らせる」
     // という別の動きをしており（onDayTapJobs）、そこではシートthat永久に開かなかった。
