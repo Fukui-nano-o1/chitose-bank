@@ -376,8 +376,14 @@ export function TodayPage({ me, defaultRole }) {
         padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 3px 10px rgba(0,0,0,0.10)",
         opacity: dim ? 0.45 : 1,
       }}>
-        {/* 件数バッジ（右上の丸数字）は削除（2026-08-21たきと指示「今日ページの通知機能は削除。①と付くやつ」）。
-            該当の有無は薄表示（dim）だけが示す＝数字で急かさない */}
+        {/* 件数バッジ（右上の丸数字）は用件の箱からは削除（2026-08-21たきと指示「今日ページの通知機能は削除。
+            ①と付くやつ」）＝相手を待たせている用件を数字で急かさない。
+            ★例外＝プロフィール入力だけは付ける（同日たきと指示「プロフィール入力は通知バッジを付与」）：
+            これは相手のいる用件ではなく自分の持ち物の入力so、残りの数を出しても催促にならない。
+            色は役割色（今日の箱の2色だけの規約に合わせる） */}
+        {stage === "profile" && n > 0 && (
+          <span aria-label={"未入力" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:accent, color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>
+        )}
         <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
         <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
       </button>
