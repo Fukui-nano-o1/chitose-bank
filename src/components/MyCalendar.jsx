@@ -4,8 +4,9 @@
 // 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays } from "../lib/utils";
+import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
+import { fbSuccess, fbError } from "../lib/feedback";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）の予定を月グリッドに塗る。
@@ -33,6 +34,13 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   // 付随して、カレンダーを開くたびに走っていた jobs（自分の下書き）の問い合わせ1本も無くなった
   const [flashNoPlan, setFlashNoPlan] = useState(false);
   const flashTimer = useRef(null);
+  // ── 日付シートと移動モード（2026-08-19たきと指示＝TimeTree式のコピー・移動・編集をカレンダーへ）──
+  // シートは onDayTapJobs を持たない置き場所（お仕事タブのカレンダー面）だけで開く。
+  // onDayTapJobs がある置き場所（応募者ページ上部・ステータスページ）は従来どおり親に渡す＝挙動不変。
+  const [daySheet, setDaySheet] = useState(null);   // { ymd, idxs } | null
+  const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
+  const [moving, setMoving] = useState(false);      // 多重送信ガード
+  const [reloadKey, setReloadKey] = useState(0);    // 移動成功後に予定を取り直す合図（loadingは立てない＝骨は出ない）
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +71,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       } catch { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   const todayYmd = ymdLocal(new Date());
   // その予定が占める日は lib/utils の entryWorkDays に一本化（2026-08-11）。
@@ -184,20 +192,71 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
     return out;
   };
 
+  // ── 日程の移動（2026-08-19）：シートの「日程をうごかす」→盤面で移動先の日をタップ→確認→RPC ──
+  // 壁はDB側 move_job_dates が担保（本人・draft/pending/open・進行中の応募なし・今日以降・
+  // 期間と休日を同じ日数ずらす・記録は jobs の firehose that event_audit に自動で残す）
+  const confirmMove = async (ymd) => {
+    if (moving) return;
+    const mm = moveMode;
+    if (!window.confirm(`#${mm.jobNumber}「${mm.title}」を ${calFmtDate(ymd)} 開始にうごかします。期間と休日も同じ日数ずれます。よろしいですか？`)) return;
+    setMoving(true);
+    try {
+      const { data, error } = await supabase.rpc("move_job_dates", { p_job_number: mm.jobNumber, p_new_start: ymd });
+      if (error || !data?.ok) {
+        fbError();
+        const r = data?.reason;
+        alert(r === "has_applications" ? "応募が届いているため、日程はうごかせません。日程の相談はチャットで行ってください。"
+          : r === "past_date" ? "今日より前の日にはうごかせません。"
+          : r === "bad_status" ? "終了した求人の日程はうごかせません。"
+          : "うごかせませんでした：" + (r || error?.message || "不明"));
+        // 過去日だけは選び直せるようにモードを残す。それ以外は根本的に動かせないのでモード解除
+        if (r !== "past_date") setMoveMode(null);
+        return;
+      }
+      fbSuccess();
+      setMoveMode(null);
+      setReloadKey(k => k + 1); // 予定を取り直して盤面に反映（前回内容を出したまま裏で差し替え）
+    } finally { setMoving(false); }
+  };
+  // コピー＝既存 copy_job のレールそのまま（FarmerDashboard runJobAction "copy" と同じ作法・
+  // sessionStorage経由で新しい下書きを即復元）。日程は引き継がれない（2026-08-16たきと指示）
+  const copyFromSheet = async (n) => {
+    const { data, error } = await supabase.rpc("copy_job", { p_job_number: n });
+    if (error || !data?.ok) { fbError(); alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
+    if (data.dates_cleared) alert("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
+    setDaySheet(null);
+    window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+  };
+  // 内容の編集＝既存レール（公開中は一時非公開にしてから編集フローへ・FarmerDashboardと同じ確認文言）。
+  // ★unpublish_job は応募中・面接中を見送りにする（migration 20260808004900）＝確認文に明記
+  const editFromSheet = async (e) => {
+    if (e.status === "open") {
+      if (!window.confirm("内容を編集するには、いったん一時非公開にします。（さがすに表示されなくなります。応募中・面接中の方は見送りになります。編集後にもう一度掲載できます）よろしいですか？")) return;
+      const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: e.job_number });
+      if (error || !data?.ok) { fbError(); alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
+    }
+    setDaySheet(null);
+    window.location.hash = "/work/edit/" + e.job_number;
+  };
   const onDayTap = (dt) => {
+    const ymd = ymdLocal(dt);
+    // 移動モード中の日付タップ＝移動先の決定（最優先・シートや親への通知はしない）
+    if (moveMode) { confirmMove(ymd); return; }
     setSelectedDay(dt);
-    const matches = entriesOnDay(dt);
+    const idxs = entryIdxOnDay(ymd);
     if (flashTimer.current) clearTimeout(flashTimer.current);
-    if (matches.length === 0) {
+    if (idxs.length === 0) {
       setFlashNoPlan(true);
       flashTimer.current = setTimeout(() => setFlashNoPlan(false), 1800);
-      onDayTapJobs?.(ymdLocal(dt), []);
+      onDayTapJobs?.(ymd, []);
       return;
     }
     setFlashNoPlan(false);
-    // 予定カード（アジェンダ）は廃止（2026-07-27たきと指示）。日付タップの行き先は、
-    // 置き場所を持っているページ側（応募者ページ）へ渡す＝カレンダーは「日を選ぶ」だけの部品になる
-    onDayTapJobs?.(ymdLocal(dt), [...new Set(matches.map(m => m.job_number))]);
+    // 置き場所that行き先を持つ場合（応募者ページ・ステータスページ）は従来どおり親へ渡す。
+    // 持たない場合（お仕事タブのカレンダー面）は日付シートを開く（2026-08-19・TimeTree式の予定シート）
+    if (onDayTapJobs) { onDayTapJobs(ymd, [...new Set(idxs.map(i => entries[i].job_number))]); return; }
+    setDaySheet({ ymd, idxs });
   };
 
   return (
@@ -207,6 +266,14 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
       {/* 見出し「カレンダー」は削除（2026-07-27たきと指示）：カレンダーを見れば分かる＝重複。
           「今日」から入った月の予定（backToToday）だけは、どの画面かの手がかりとして残す */}
       {backToToday && <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 20px" }}>月の予定</h2>}
+      {/* 移動モードの帯（2026-08-19）：日程の移動先を選んでいる最中の案内。帯・トーストは
+          「外」that無いので閉じるボタンを置いてよい（2026-08-19の✕全廃の対象外と同じ扱い） */}
+      {moveMode && (
+        <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#0E8A6B", color:"#fff", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
+          <span style={{ fontSize:13, fontWeight:700, minWidth:0 }}>{moving ? "うごかしています…" : <>#{moveMode.jobNumber} の新しい開始日をタップしてください</>}</span>
+          <button onClick={()=>setMoveMode(null)} disabled={moving} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", color:"#fff", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>やめる</button>
+        </div>
+      )}
       {/* ★盤面は常に出す（2026-08-19たきと指示「カレンダーが閉じている状態から展開している。
           展開したままにしろ」）：以前は読み込み中だけ見出し1本ぶんの骨を出し、予定が0件なら
           盤面ごと案内文に差し替えていたため、データが届いた瞬間に下へ開いて見えていた。
@@ -311,6 +378,58 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
           )}
         </>
+      )}
+      {/* 日付シート（2026-08-19たきと指示＝TimeTree式）：日をタップ→その日の予定と操作。
+          開くのは onDayTapJobs を持たない置き場所（お仕事タブのカレンダー面）だけ。
+          規格＝cb-box-overlay + cb-lock-scroll 併用（2026-08-15）・✕なし・外タップで閉じる（2026-08-19）。
+          操作は 移動（新設 move_job_dates）／コピー（既存 copy_job）／内容の編集（既存の
+          一時非公開→編集レール）＝実行の壁は全てDB側that担保。応募の行は見るだけ（相手thatいる予定）。 */}
+      {daySheet && (
+        <div onClick={()=>setDaySheet(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{calFmtDate(daySheet.ymd)} の予定</p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            <div style={{ display:"flex", flexDirection:"column", gap:10, maxHeight:"55vh", overflowY:"auto", overscrollBehavior:"contain" }}>
+              {daySheet.idxs.map(i => {
+                const e = entries[i];
+                const own = e.relation === "own";
+                const title = ((e.crop||"") + " " + (e.task||"")).trim() || "無題";
+                return (
+                  <div key={e.relation + e.job_number + (e.application_id||"")} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
+                    <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{title} <span style={{ color:"#B0B0B0", fontWeight:600, fontSize:12 }}>#{e.job_number}</span></p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>
+                      {dateRangeLabel(e.date_start, e.date_end)}{e.work_time ? `　${e.work_time}` : ""}
+                    </p>
+                    {e.relation === "application" && e.partner_name && (
+                      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>
+                        {e.partner_name}さん　<span style={{ color: APP_PHASE_COLOR[phaseOfEntry(e)], fontWeight:700 }}>{APP_PHASE_LABEL[phaseOfEntry(e)]}</span>
+                      </p>
+                    )}
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
+                      {own && (
+                        <>
+                          <button onClick={()=>{ setDaySheet(null); setMoveMode({ jobNumber: e.job_number, title }); }} className="f-sans"
+                            style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>日程をうごかす</button>
+                          <button onClick={()=>copyFromSheet(e.job_number)} className="f-sans"
+                            style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピー</button>
+                          <button onClick={()=>editFromSheet(e)} className="f-sans"
+                            style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>内容を編集</button>
+                        </>
+                      )}
+                      <button onClick={()=>{ setDaySheet(null); window.location.hash = "/work/job/" + e.job_number; }} className="f-sans"
+                        style={{ background:"none", color:"#717171", border:"none", padding:"7px 4px", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>求人ページを見る</button>
+                    </div>
+                    {own && (
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
+                        日程をうごかせるのは、応募が届く前だけです。届いた後の日程はチャットで相談してください。
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
