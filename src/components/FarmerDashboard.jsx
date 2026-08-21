@@ -975,10 +975,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               {!empTopBack ? (
                 <>
                   <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
-                  <span>
-                    <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
-                    <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:ROLE_GREEN, borderRadius:20, padding:"3px 14px" }}>農家</span>
-                  </span>
+                  {/* 役割チップ「農家」は削除（2026-08-21たきと指示「配色で役割は判断可能」）。
+                      枠・ボタンの緑＝農家。働き手側（ProfileHub）の「働き手」チップは残す指示 */}
+                  <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
                   {/* 「農家」チップの下の導線2つ（2026-08-21たきと指示）。カードタップ=反転と分けるため stopPropagation */}
                   <span style={{ display:"flex", gap:10, marginTop:2 }}>
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/active"; }} className="f-sans"
