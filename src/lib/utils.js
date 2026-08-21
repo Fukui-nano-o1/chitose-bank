@@ -864,8 +864,8 @@ export const THIS_YEAR = new Date().getFullYear();
 // 非開示・確認済みのみ採用相手に表示・第三者情報の同意／第7条1を自動記録の実態に差し替え＝
 // 開始時刻は予定時刻を基準に自動記録し実到着を証明しない／第7条2を当事者間連絡＋緊急連絡の
 // 相手方および運営者への通知に差し替え）。第7条3・第9条は変更なし
-export const TERMS_VERSION = "v2.5-2026-08";
-export const PRIVACY_VERSION = "v4.1-2026-08";
+export const TERMS_VERSION = "v2.6-2026-08";
+export const PRIVACY_VERSION = "v4.2-2026-08";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）
 // 作業リスト（アイコン無し・文字だけカード。増やすときはここに1行足すだけ）

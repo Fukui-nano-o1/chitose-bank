@@ -239,6 +239,9 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
                 一部違った {trust.match_partly}件{trust.match_differed > 0 ? `・大きく違った ${trust.match_differed}件` : ""}
               </p>
             )}
+            {/* 帰属の明記（2026-08-21たきと裁定・規約第8条3）：これは働き手の回答の集計であって、
+                運営者が認定した事実ではない。この1行を外さないこと（規約が「集計である旨を明記」と約束している） */}
+            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"2px 0 0" }}>働き手の最終回答を集計</p>
           </div>
         ) : (
           <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 6px" }}>求人内容との一致　まだ十分な記録がありません</p>
