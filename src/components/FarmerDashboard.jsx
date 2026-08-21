@@ -958,22 +958,36 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
                文字タブの羅列を廃止し、タップで各サブページへ ═══ */}
-          {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。右上⇄で反転0.8秒 */}
+          {/* トップボックスは反転式（2026-07-16・働き手側と同構造）：表=アイコン＋農園名／裏=アイコン・名前抜きのプレビュー。
+              カードタップで反転（2026-08-21たきと指示「🔁ボタン削除。プロフィールカードタップで反転」）。
+              編集への導線は表面の「編集する」ボタンが担う。カードはbuttonでなくdiv＝中の実ボタンと入れ子にしないため */}
           <div style={{ position:"relative" }}>
-            <button onClick={()=>{ window.location.hash="/profile/employer/profile"; }}
+            <div role="button" tabIndex={0} onClick={()=>{
+                if (empTopAnim === "pflip-out") return; // 連打ガード
+                setEmpTopAnim("pflip-out");
+                setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
+              }}
+              onKeyDown={(e)=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
               className={"f-sans" + (empTopAnim ? " " + empTopAnim : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : "")}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
               style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
                 <>
-                  {/* 未設定の項目数（全て設定済みなら非表示）。右上は⇄マークなので左隣に */}
+                  {/* 未設定の項目数（全て設定済みなら非表示）。⇄削除に伴い右上へ */}
                   {empUnsetCount > 0 && (
-                    <span style={{ position:"absolute", top:12, right:52, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{empUnsetCount}</span>
+                    <span style={{ position:"absolute", top:12, right:12, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{empUnsetCount}</span>
                   )}
                   <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
                   <span>
                     <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
                     <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:ROLE_GREEN, borderRadius:20, padding:"3px 14px" }}>農家</span>
+                  </span>
+                  {/* 「農家」チップの下の導線2つ（2026-08-21たきと指示）。カードタップ=反転と分けるため stopPropagation */}
+                  <span style={{ display:"flex", gap:10, marginTop:2 }}>
+                    <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/active"; }} className="f-sans"
+                      style={{ background:"#fff", border:"1.5px solid " + ROLE_GREEN, color:ROLE_GREEN, borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>あなたの求人</button>
+                    <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/profile"; }} className="f-sans"
+                      style={{ background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>編集する</button>
                   </span>
                 </>
               ) : (
@@ -996,14 +1010,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   )}
                 </div>
               )}
-            </button>
-            <button onClick={(e)=>{
-              e.stopPropagation();
-              if (empTopAnim === "pflip-out") return; // 連打ガード。⇄ボタン自身にも同じアニメクラスを
-              // 付けてカードと一緒に回す（2026-08-19たきと指示「🔁ボタンも反転させよう」・裏＝プレビュー面でも回って現れる）
-              setEmpTopAnim("pflip-out");
-              setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
-            }} aria-label="表示を切り替える" className={empTopAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+            </div>
           </div>
           {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は削除（2026-07-25たきと指示）。
               各ページへの入口は下部フッター（応募者タブ・求人タブ）に一本化。URL直打ち(/profile/employer/*)は従来どおり生きている */}
