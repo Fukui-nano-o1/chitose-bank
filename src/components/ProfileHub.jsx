@@ -283,7 +283,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 if (wTopAnim === "pflip-out") return; // 連打ガード
                 setWTopAnim("pflip-out");
                 setTimeout(()=>{ setWTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_wTopBack", nv ? "1" : "0"); } catch {} return nv; }); setWTopAnim("pflip-in"); }, 400);
-              }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+              }} aria-label="表示を切り替える" className={wTopAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
             </div>
             {(() => {
               return (<>

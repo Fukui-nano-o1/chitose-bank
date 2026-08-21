@@ -999,10 +999,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
             <button onClick={(e)=>{
               e.stopPropagation();
-              if (empTopAnim === "pflip-out") return; // 連打ガード
+              if (empTopAnim === "pflip-out") return; // 連打ガード。⇄ボタン自身にも同じアニメクラスを
+              // 付けてカードと一緒に回す（2026-08-19たきと指示「🔁ボタンも反転させよう」・裏＝プレビュー面でも回って現れる）
               setEmpTopAnim("pflip-out");
               setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
-            }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+            }} aria-label="表示を切り替える" className={empTopAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
           </div>
           {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は削除（2026-07-25たきと指示）。
               各ページへの入口は下部フッター（応募者タブ・求人タブ）に一本化。URL直打ち(/profile/employer/*)は従来どおり生きている */}
@@ -1086,7 +1087,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               setInsOpenKey(null);                     // 開いていた入力ボックスは畳んでから返す
               setInsCardAnim("pflip-out");
               setTimeout(()=>{ setInsCardBack(v=>{ const nv = !v; try { localStorage.setItem("cb_insCardBack", nv ? "1" : "0"); } catch {} return nv; }); setInsCardAnim("pflip-in"); }, 400);
-            }} aria-label="表示を切り替える" style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+            }} aria-label="表示を切り替える" className={insCardAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
           </div>
           <div style={{ marginTop:16 }}>
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>記録</p>
