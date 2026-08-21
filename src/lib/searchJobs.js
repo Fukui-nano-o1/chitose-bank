@@ -63,3 +63,33 @@ export async function prefetchSearchJobs() {
   setCache("search:jobs", list);
   if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id));
 }
+
+// ── 👀 求人の閲覧数（2026-08-21たきと指示「❤️ボタンの左横に👀〇〇(数値)。求人をタップした総数」）──
+// 貯めるのは数だけ（job_view_counts＝job_number と通し数のみ・誰that見たかは持たない）。
+// 増やす窓口はDBの count_job_view 1本so、ここは「まとめて読む」と「1つ数える」の2つだけ。
+export async function fetchJobViewCounts(jobNumbers) {
+  const nums = (jobNumbers || []).filter(n => Number.isFinite(n));
+  if (nums.length === 0) return {};
+  const { data, error } = await supabase.from("job_view_counts").select("job_number,view_count").in("job_number", nums);
+  // 失敗は null を返す＝呼び出し元that手元の値を残せる（エラーの{data:null}を「ゼロ件」と読まない・2026-08-07規則）
+  if (error || !data) return null;
+  const map = {};
+  for (const r of data) map[r.job_number] = Number(r.view_count) || 0;
+  return map;
+}
+
+// 同じ端末で同じ求人を開き直しても10分は数えない（連打で増やさない・書き込みも減らす）
+const VIEW_DEDUPE_MS = 10 * 60 * 1000;
+export function countJobView(jobNumber) {
+  if (!Number.isFinite(jobNumber)) return false;
+  const key = "cb_jobViewed_" + jobNumber;
+  try {
+    const last = Number(sessionStorage.getItem(key) || 0);
+    if (Date.now() - last < VIEW_DEDUPE_MS) return false;
+    sessionStorage.setItem(key, String(Date.now()));
+  } catch {}
+  // 記録だけ＝失敗しても画面は何も変えない（閲覧の妨げにしない）。
+  // 数えるかどうかの規則（持ち主・運営・下書きは数えない）はDB側 count_job_view that唯一のソース
+  supabase.rpc("count_job_view", { p_job_number: jobNumber }).then(() => {}, () => {});
+  return true;
+}

@@ -11,7 +11,9 @@ import { CropIcon } from "./CropIcon";
 // onOpen（任意）：渡すと新しいタブでなくその場の遷移をonOpenに任せる（シート内から同一タブで開く用）
 // hideEndLabel（任意）：終了帯（募集終了/掲載終了/募集期間終了）を出さない。段階を別に語る場所（ステータス
 //   ページの展開ボックス）専用。既定は従来どおり表示ので、渡していない呼び出し元は無変更
-export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel }) {
+// views（任意・2026-08-21たきと指示）：この求人thatタップされた総数。❤️の左横に 👀N で出す。
+//   渡さない／0以下なら何も出さない＝呼び出し元は無変更（数字thatゼロの求人に0を出さない・憲法3条）
+export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
@@ -38,6 +40,21 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
       style={cardStyle}
       onClick={onOpen ? (e) => { e.preventDefault(); popPhoto(); onOpen(); } : popPhoto}
     >
+      {/* 👀 閲覧数（2026-08-21たきと指示）：❤️の左横。❤️thatが出ない求人（終了中・いいね不可の面）では
+          その場所（右端）に寄る＝どちらの場合も写真の右上に1つの群れとして収まる。
+          数字は job_view_counts の集計＝誰that見たかは持たない。0件のうちは出さない（ダミー禁止・憲法3条） */}
+      {Number(views) > 0 && (() => {
+        const hasHeart = typeof onToggleSave === "function" && !(job.filled || job.expired || job.closed);
+        return (
+          <span className="f-sans" aria-label={`閲覧数 ${views}`}
+            style={{ position:"absolute", top:10, right: hasHeart ? 62 : 10, zIndex:2, height:44,
+                     display:"flex", alignItems:"center", gap:4, padding:"0 12px", borderRadius:22,
+                     background:"rgba(255,255,255,0.92)", boxShadow:"0 1px 4px rgba(0,0,0,.18)",
+                     fontSize:13, fontWeight:700, color:"#555", whiteSpace:"nowrap", pointerEvents:"none" }}>
+            <span style={{ fontSize:15 }}>👀</span>{views}
+          </span>
+        );
+      })()}
       {typeof onToggleSave === "function" && !(job.filled || job.expired || job.closed) && (
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); popPhoto(); onToggleSave(job); }}

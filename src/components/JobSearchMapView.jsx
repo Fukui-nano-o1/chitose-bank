@@ -8,7 +8,7 @@ import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
-import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds } from "../lib/searchJobs";
+import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds, fetchJobViewCounts, countJobView } from "../lib/searchJobs";
 import { useRefreshTick, REFRESH_JOBS } from "../lib/refreshBus";
 import { createIdleQueue } from "../lib/idleQueue";
 import { CalendarView } from "./CalendarView";
@@ -495,6 +495,36 @@ export function JobSearchMapView({ onRegister, me }) {
   const applyPanelRef = useRef(null);
   const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
 
+  // ── 👀 閲覧数（2026-08-21たきと指示「❤️ボタンの左横に👀〇〇(数値)。求人をタップした総数」）──
+  // 数える場所は【求人の詳細thatが開いた時】の1箇所だけ＝カードのタップも、通知やチャットからの
+  // 直リンクも同じ道を通る（カードと詳細の両方で数えると二重に増える）。
+  // 更新頻度（たきと指示「メモリを圧迫しない程度」）：
+  //   ・読みは一覧の取得と同じ拍でまとめて1往復（job_number の集合で1回）。キャッシュthatあれば即描画
+  //   ・同じ端末で同じ求人を開き直しても、10分間は数えない（sessionStorage）＝連打で増えない・書き込みthat減る
+  const [viewCounts, setViewCounts] = useState(() => getCache("search:viewCounts") ?? {});
+  useEffect(() => {
+    const nums = (dbJobs || []).map(j => j.id).filter(n => Number.isFinite(n));
+    if (nums.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const map = await fetchJobViewCounts(nums);
+      if (cancelled || !map) return;   // 取得の失敗では手元の値を上書きしない（2026-08-07規則）
+      setViewCounts(map);
+      setCache("search:viewCounts", map);
+    })();
+    return () => { cancelled = true; };
+    // 一覧の中身that変わった時だけ引き直す＝一覧の再取得（jobsRefreshTick）に相乗り。独自のタイマーは持たない
+  }, [dbJobs]);
+  useEffect(() => {
+    const n = selectedJob?.id;
+    if (!Number.isFinite(n)) return;
+    if (!countJobView(n)) return;      // 10分以内の開き直しは数えない（libの規則）
+    // 自分の画面の数字も1つ進めておく（次の一覧取得でサーバーの値に揃う）。
+    // ★DB側は持ち主・運営を数えないので、その2者の画面でも進めない＝出ない値を出さない
+    if (!isOwnJob && !isAdmin(me)) setViewCounts(prev => ({ ...prev, [n]: (prev[n] || 0) + 1 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob?.id]);
+
   const openPastJob = (row) => {
     // いま見ている求人をタップ＝ボックスを閉じて、ページの先頭までゆっくり戻る（2026-07-27たきと指示）。
     // 一瞬で飛ばすと「どこへ戻ったか」が分からないため、スクロールしている過程を見せることが大事。
@@ -921,7 +951,7 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
           {filteredList.map(job => (
-            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} />
+            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} views={viewCounts[job.id]} />
           ))}
         </div>
       </div>
