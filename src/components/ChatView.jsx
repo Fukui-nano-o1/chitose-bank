@@ -926,11 +926,13 @@ export function ChatView({ applicationId, onBack }) {
                   return <button key={d} onClick={()=>setDateSel(prev => prev.includes(d) ? prev.filter(x=>x!==d) : [...prev, d])} className="f-sans" style={{ padding:"9px 12px", fontSize:13, fontWeight:700, borderRadius:20, cursor:"pointer", background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{calFmtDate(d)}</button>;
                 })}
               </div>
+              {/* ★ボタンは折り返させない（whiteSpace:nowrap）：シートは下端に固定なので、
+                  ラベルが2行になるとシートが上に伸びてチップの位置がずれる＝誤タップの原因になる */}
               <button disabled={dateSel.length===0} onClick={()=>{
                 const msg = "【日程案】" + [...dateSel].sort().map(calFmtDate).join("・") + " に来ていただきたいです。ご都合はいかがでしょうか。";
                 setText(prev => prev.trim() ? (prev.replace(/\s*$/, "") + " " + msg) : msg);
                 setDateSel([]); setTmplOpen(false);
-              }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background: dateSel.length===0 ? "#EBEBEB" : "#00A86B", color: dateSel.length===0 ? "#999" : "#fff", border:"none", borderRadius:10, cursor: dateSel.length===0 ? "not-allowed" : "pointer" }}>日程案を入力欄に入れる{dateSel.length>0 ? `（${dateSel.length}日）` : ""}</button>
+              }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background: dateSel.length===0 ? "#EBEBEB" : "#00A86B", color: dateSel.length===0 ? "#999" : "#fff", border:"none", borderRadius:10, cursor: dateSel.length===0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>日程案を入力欄に入れる{dateSel.length>0 ? `（${dateSel.length}日）` : ""}</button>
             </>
           );
         })();

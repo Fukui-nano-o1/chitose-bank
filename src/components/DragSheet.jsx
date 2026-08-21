@@ -40,7 +40,7 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
     const el = sheetRef.current;
     if (!el) return;
     el.style.willChange = "transform";
-    let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, lastX = 0, paneW = 1, axis = null, tracking = false, raf = 0;
+    let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, lastX = 0, paneW = 1, axis = null, tracking = false, raf = 0, startedOnTappable = false;
     const paint = () => {
       raf = 0;
       if (axis === "v") el.style.transform = `translateY(${lastY}px)`;
@@ -48,6 +48,10 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
     };
     const onStart = (e) => {
       if (e.touches.length !== 1) { tracking = false; return; }
+      // ★押せるものの上から始まったタッチでは【縦の引き下げ】を掴まない（2026-08-19・lib/sheetDrag と同じ規則）：
+      //   指は数px動く。掴むとシートが指に付いて下へずれ、離した瞬間の click がずれた後の別の要素に当たる。
+      //   横の「戻る」は面の移動ので従来どおり（掴んでも指を離した位置の要素を押す形にはならない）
+      startedOnTappable = !!(e.target && e.target.closest && e.target.closest("button, a, input, textarea, select, label, [role='button']"));
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; axis = null; tracking = true;
     };
     const onMove = (e) => {
@@ -59,7 +63,7 @@ export function DragSheet({ onClose, children, detail, pane = "main", onPaneChan
         if (Math.abs(dy) >= Math.abs(dx)) {
           // 縦：下向き＆中身が最上部のときだけシートを掴む。上向き・スクロール余地あり＝通常スクロールに譲る
           const sc = scrollRef.current;
-          if (dy > 0 && (!sc || sc.scrollTop <= 0)) {
+          if (dy > 0 && !startedOnTappable && (!sc || sc.scrollTop <= 0)) {
             axis = "v"; baseY = cy; el.style.transition = "none";
             baseTop = el.getBoundingClientRect().top; // 掴んだ瞬間の定位置（この時点でtransformは0）
           } else { tracking = false; return; }

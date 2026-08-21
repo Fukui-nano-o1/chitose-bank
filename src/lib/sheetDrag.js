@@ -6,11 +6,12 @@
 //   あちらは横スワイプの面送り（詳細⇄メイン）と同じジェスチャ判定に同居しているため実装を分けられず、
 //   ここは縦だけを取り出した同じ規則の写し。動きを変えるときは必ず両方を揃えること。
 //
-// 【規則】①中身that最上部（scrollTop<=0）のときの下向きドラッグだけシートを掴む
+// 【規則】⓪押せるもの（ボタン・入力）の上から始まったタッチは掴まない＝タップを奪わない
+//   ①中身が最上部（scrollTop<=0）のときの下向きドラッグだけシートを掴む
 //   （上向き・スクロール余地あり＝通常のスクロールに譲る）②掴んだら指に1:1で連動
 //   （rAFで1フレーム1回・will-changeで自前レイヤー・掴んだ瞬間の位置を基点に置き直す＝滑らか3点セット）
-//   ③離した時、引き下げたシートの上端that画面の縦中央より下なら閉じる／上なら定位置へ戻す
-//   （指の座標では判定しない＝どこを掴んだかに結果that左右されないため）
+//   ③離した時、引き下げたシートの上端が画面の縦中央より下なら閉じる／上なら定位置へ戻す
+//   （指の座標では判定しない＝どこを掴んだかに結果が左右されないため）
 //
 // 使い方：
 //   const sheetRef = useRef(null), scrollRef = useRef(null);
@@ -29,8 +30,16 @@ export function useSheetDragClose(sheetRef, scrollRef, onClose, open = true) {
     el.style.willChange = "transform";
     let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, grabbed = false, tracking = false, raf = 0;
     const paint = () => { raf = 0; el.style.transform = `translateY(${lastY}px)`; };
+    // ★押せるものの上から始まったタッチではシートを掴まない（2026-08-19たきと報告
+    //   「タップしたはずなのに別のタブがタップされる」の根治）：
+    //   指は数px動く。8px動いた時点でシートを掴むと、シートが指に付いて下へずれ、
+    //   離した瞬間の click は【ずれた後の位置】にある別の要素に当たる。
+    //   ボタン・入力の上は「押す場所」なので、そこからは引き下げない（背景や余白からは従来どおり引ける）
+    const TAPPABLE = "button, a, input, textarea, select, label, [role='button']";
     const onStart = (e) => {
       if (e.touches.length !== 1) { tracking = false; return; }
+      const t = e.target;
+      if (t && t.closest && t.closest(TAPPABLE)) { tracking = false; return; }
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; grabbed = false; tracking = true;
     };
     const onMove = (e) => {
@@ -40,7 +49,7 @@ export function useSheetDragClose(sheetRef, scrollRef, onClose, open = true) {
       if (!grabbed) {
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;  // 8px動くまで判定保留
         if (Math.abs(dy) < Math.abs(dx)) { tracking = false; return; } // 横の動きは渡す
-        // 下向き＆中身that最上部のときだけ掴む。スクロール領域thatなければシート自身を見る（常に0＝掴める）
+        // 下向き＆中身が最上部のときだけ掴む。スクロール領域がなければシート自身を見る（常に0＝掴める）
         const sc = (scrollRef && scrollRef.current) || el;
         if (!(dy > 0 && sc.scrollTop <= 0)) { tracking = false; return; }
         grabbed = true; baseY = cy;
