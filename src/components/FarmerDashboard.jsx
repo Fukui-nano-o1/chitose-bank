@@ -973,10 +973,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
                 <>
-                  {/* 未設定の項目数（全て設定済みなら非表示）。⇄削除に伴い右上へ */}
-                  {empUnsetCount > 0 && (
-                    <span style={{ position:"absolute", top:12, right:12, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{empUnsetCount}</span>
-                  )}
                   <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
                   <span>
                     <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
@@ -987,7 +983,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/active"; }} className="f-sans"
                       style={{ background:"#fff", border:"1.5px solid " + ROLE_GREEN, color:ROLE_GREEN, borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>あなたの求人</button>
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/profile"; }} className="f-sans"
-                      style={{ background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>編集する</button>
+                      style={{ position:"relative", background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>
+                      編集する
+                      {/* 未設定の項目数（全て設定済みなら非表示）。カード右上→編集するボタンへ移植（2026-08-21たきと指示） */}
+                      {empUnsetCount > 0 && (
+                        <span style={{ position:"absolute", top:-8, right:-8, minWidth:20, height:20, borderRadius:10, background:"#F5A623", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{empUnsetCount}</span>
+                      )}
+                    </button>
                   </span>
                 </>
               ) : (
