@@ -234,7 +234,7 @@ export function TodayPage({ me, defaultRole }) {
     // バッジ＝未入力の項目数（0なら出さない）。タップで未入力の欄が開き、保存で次の欄へ進む。
     // 行き先は編集ページ＝専用ページを挟まない（用件の一覧ではなく自分の入力そのものが行き先ので・boxNav）。
     // バッジ＝未入力の項目数＝プロフィール入口の名刺バッジと同じ数（数え方はlib/utilsが唯一のソース）
-    profile:     { icon:"👤", title:"プロフィール入力", btn:"入力する →",
+    profile:     { icon:"👤", title:"プロフィール入力", btn:"入力する →", color: accent,
                    desc:"タップすると、まだ入力していない欄が開きます。保存すると次の欄へ進みます。相手はプロフィールを見て応募・承認を決めるので、埋まっているほど選ばれやすくなります。",
                    // 合図（cb_fillProfile）＝着地した編集ページが最初の未入力ボックスをその場で開く。
                    // 以後は保存のたびに次の未入力へ進む（編集ページ側の既存の連鎖・2026-07-16）
@@ -247,15 +247,15 @@ export function TodayPage({ me, defaultRole }) {
     //   従来どおりある（横スワイプ or 案内行のタップで開く）。今日ページからの入口だけをやめた。
     //   受け側の合図 cb_openCalendar の読み取り（SavedJobsView・FarmerDashboard）は残置＝
     //   別の入口から開いた状態で着地させたくなった時にそのまま使える
-    t_emergency:{ icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id,
+    t_emergency:{ icon:"⚠️", title:"緊急連絡",             btn:"緊急連絡 →", color:"#E24B4A",       nav: e => "/emergency/" + e.application_id,
                    desc:"遅刻・欠勤・中止など、作業当日の急な連絡をする窓口です。採用が決まった仕事から使えます。" },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
-    revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number,
+    revision:    { icon:"📝", title:"求人に修正のお願い",   btn:"修正する →", color:"#F5A623",       nav: e => "/work/edit/" + e.job_number,
                    desc:"運営から求人内容の修正のお願いが届いたとき、ここから直して再申請します。" },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
     // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
-    question:    { icon:"💬", title:"求人の質問",           btn:"回答する →",
+    question:    { icon:"💬", title:"求人の質問",           btn:"回答する →", color:"#1E88E5",
                    desc:"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。", nav: e => {
       // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
       try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
@@ -272,16 +272,16 @@ export function TodayPage({ me, defaultRole }) {
     // 最終確認→OKでその場で採用（2026-08-19たきと指示「採用する枠削除。カードタップで採用する最終確認」）。
     // 2026-08-19に採用の実行窓口はこのページ1箇所に一本化済み（応募者シートの🤝はリンクに変更）。
     // nav は箱から直接押した時の保険＝その応募のシートへ送る（cb_openApplicantId・取り違え防止）
-    hire:        { icon:"🤝", title:"採用する",             btn:"採用する →",
+    hire:        { icon:"🤝", title:"採用する",             btn:"採用する →", color:"#00897B",
                    desc:"面接を終えた応募者を採用します。カードをタップすると最終確認が出ます（二重予約の警告つき）。",
                    nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } },
-    insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
+    insurance:   { icon:"🛡", title:"保険の準備の報告",     btn:"準備したと報告",   color:"#8E24AA", rpc:"confirm_insurance",
                    desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // バイトの評価（旧・完了して評価する・2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
     // 行タップ（専用ページ経由）でも同じ着地。cb_completeAppId は評価モーダルの自動展開用に併せて渡す
-    complete:    { icon:"✅", title:"バイトの評価",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
+    complete:    { icon:"✅", title:"バイトの評価",     btn:"完了・評価 →",     color:"#00A86B", flag:"cb_completeAppId", to:"/profile/employer/applicants",
                    desc:"作業の完了を記録して、働き手を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。",
                    before: () => { try { sessionStorage.setItem("cb_appFilter", "completed"); } catch {} } },
     // 今日の記録（2026-08-19たきと指示「最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する。
@@ -289,7 +289,7 @@ export function TodayPage({ me, defaultRole }) {
     // 専用ページ（DayReportPanel）が一覧と入力を両方持つので、行ボタン用の nav は持たない
     // ★事実記録に徹する（2026-08-20たきと裁定「日次は事故ログ」）：何かあった日だけ使う窓口。
     //   正常な日は何も入力させない＝バッジで急かさない（QUIET_BADGE_STAGES・毎日押させると誰も押さなくなる）
-    day_report:  { icon:"📋", title:"今日の記録",         btn:"記録する →",
+    day_report:  { icon:"📋", title:"今日の記録",         btn:"記録する →", color:"#717171",
                    desc:"働き手の遅刻・欠勤、会えない、作業の中断など、何かあった日だけ記録します。何もなかった日は入力不要です。作業全体の評価は最終日にお願いします。" },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
@@ -298,7 +298,7 @@ export function TodayPage({ me, defaultRole }) {
     // 求職の修正（2026-07-27たきと指示・枠のみ先行）：農家側 revision の働き手版。
     // 求職カード（求職一覧＝Phase2b）の実装後に、運営からの修正依頼をmy_todo_itemsが返す想定。
     // 中身（遷移先・実行内容）は未定ので nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
-    w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →",
+    w_revision:  { icon:"📝", title:"求職に修正のお願い", btn:"修正する →", color:"#F5A623",
                    desc:"運営から求職内容の修正のお願いが届いたとき、ここから直します。" },
     // ✍️面接の回答の箱は削除（2026-08-19たきと指示）。★返事ができなくなるわけではない：
     //   農家の【面接の質問】はチャットに届くので、そのままチャットで返事する（同じ相手・同じ証跡）。
@@ -307,10 +307,10 @@ export function TodayPage({ me, defaultRole }) {
     // ここに出るのは「農家が完了を記録した後・自分がまだ終了を確認していない・完了から3日以内」だけ
     // （my_todo_items の w_review の定義）。作業が終わる前は出ない＝まだ評価できない（2026-08-19）
     // 専用ページ（ReviewStagePanel）that一覧と入力を両方持つso、行ボタン用のnavは持たない（2026-08-19）
-    w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価する →",
+    w_review:    { icon:"⭐", title:"仕事の評価",         btn:"評価する →", color:"#00A86B",
                    desc:"働いた農園を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。" },
     // 今日の記録（働き手側・上の day_report と対）。選択肢が違う（遅れる・休む・会えない・予定と違う・中断）
-    w_day_report:{ icon:"📋", title:"今日の記録",         btn:"記録する →",
+    w_day_report:{ icon:"📋", title:"今日の記録",         btn:"記録する →", color:"#717171",
                    desc:"遅れる・休む、農家に会えない、予定と違うなど、何かあった日だけ記録します。何もなかった日は入力不要です。仕事全体の評価は最終日にお願いします。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
@@ -368,9 +368,13 @@ export function TodayPage({ me, defaultRole }) {
       if (m.boxNav) { window.location.hash = m.boxNav(); return; }   // 専用ページを挟まず直接その面へ（プロフィールの未入力）
       window.location.hash = "/calendar/todo/" + stage;
     };
+    // 枠線と配色（2026-08-21たきと指示「カードに枠線と配色を」）：用件ごとの色（TODO_METAのcolor）で
+    // 枠線＋うすい下地（color+"14"＝現在地バナー等と同じ8%の色付け）。色はサイトの既定パレットから
+    // （役割色・段階色・警告色）。該当なしは従来どおり薄表示（dim）が「いま用事が無い」を示す
+    const c = m.color || "#EBEBEB";
     return (
       <button onClick={onTapBox} className="f-sans" style={{
-        position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:18,
+        position:"relative", background: m.color ? c + "14" : "#fff", border:"1.5px solid " + c, borderRadius:18,
         padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
         opacity: dim ? 0.45 : 1,
       }}>
