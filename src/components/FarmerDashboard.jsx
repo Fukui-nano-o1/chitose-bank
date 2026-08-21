@@ -270,7 +270,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           setRosterRows(rr); setCache("farm:roster", rr);
         }
       } catch {}
-      try { if (sessionStorage.getItem("cb_afterDraftSave")==="1") { setJobTab("draft"); } sessionStorage.removeItem("cb_afterDraftSave"); } catch {}
+      // 「保存して終了」の直後は作成中の面へ寄せる。ただしURLthat別の面を名指ししている時は従わない
+      // （2026-08-21：フローの出口that入口の画面へ戻るようになったため、カレンダーから入って保存すると
+      //   URLはカレンダーなのに作成中thatが開く、という食い違いthat起きる。URLを正とする）
+      try {
+        if (sessionStorage.getItem("cb_afterDraftSave")==="1") {
+          const j = hashToJobTab();
+          if (!j || j === "home") setJobTab("draft");
+        }
+        sessionStorage.removeItem("cb_afterDraftSave");
+      } catch {}
     })();
   }, []);
 

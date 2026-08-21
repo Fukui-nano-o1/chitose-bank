@@ -773,7 +773,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       }
       try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
       setDraftOverlay(true);
-      setTimeout(() => { setDraftOverlay(false); window.location.hash = "/work"; if (typeof onComplete === "function") onComplete(); }, 1100);
+      // 行き先は親（App）that控えている入口の画面へ委ねる＝「戻る」（onSkip）と同じ作法（2026-08-21）。
+      // ここで hash を書くと、親that入口の画面へ書き直す前に一瞬別の画面へ飛び、
+      // 入口の控え（flowBackToRef）まで上書きされてしまう。onComplete を持たない呼び出しだけ従来の行き先に倒す
+      setTimeout(() => {
+        setDraftOverlay(false);
+        if (typeof onComplete === "function") onComplete();
+        else window.location.hash = "/profile/employer";
+      }, 1100);
     } else if (res.reason === "no_session") {
       saveDraft(); onLogin();
     } else {
