@@ -1053,17 +1053,11 @@ export function JobSearchMapView({ onRegister, me }) {
         }}><span className="cb-like-heart" style={{ display:"inline-block", fontSize:18 }}>{savedIds.has(selectedJob.id) ? "♥" : "♡"}</span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
         )}
         <div className="appear job-detail-body-mobile">
-          {/* 通報リンク（いいねの上=ページ先頭右）。自分の求人には出さない（2026-08-11たきと指示
-              「戻る以外のボタンを設置するな」＝新着の応募ページから開く自分の求人。
-              自分の求人を自分で報告する意味がも無いので、出どころに関係なく isOwnJob で伏せる） */}
-          {me && !isOwnJob && (
-            <div className="job-detail-back-btn" style={{ textAlign:"right", marginBottom:8 }}>
-              <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
-                background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
-                fontSize:11, color:"#717171", textDecoration:"underline", padding:"2px 4px",
-              }}>⚑ この求人を報告する</button>
-            </div>
-          )}
+          {/* ページ先頭右の通報リンクは削除（2026-08-19たきと指示「この求人を報告するといいねボタンが
+              重複している」）＝♡いいねの浮遊ボタン（position:fixed・右上）と同じ場所に重なっていた。
+              報告の入口はページ末尾の「⚑ この求人を報告する」1つに一本化（機能は消えていない）。
+              リンクthaが作っていた上の余白は残す（同指示「画面上部に余白を残して」）＝空のスペーサー */}
+          <div className="job-detail-back-btn" style={{ height:20, marginBottom:8 }} />
 
           <JobPhotoGallery job={selectedJob} employer={empEmployer} photosLooped={photosLooped} activeSlide={activeSlide} scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} />
 
