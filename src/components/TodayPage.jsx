@@ -288,7 +288,7 @@ export function TodayPage({ me, defaultRole }) {
     // それ以外は遅刻や欠勤、農家が来ていないとかの入力にする」）＝評価フローの中日側。
     // 専用ページ（DayReportPanel）が一覧と入力を両方持つので、行ボタン用の nav は持たない
     // ★事実記録に徹する（2026-08-20たきと裁定「日次は事故ログ」）：何かあった日だけ使う窓口。
-    //   正常な日は何も入力させない＝バッジで急かさない（QUIET_BADGE_STAGES・毎日押させると誰も押さなくなる）
+    //   正常な日は何も入力させない（毎日押させると誰も押さなくなる・数字や昇格で急かさない）
     day_report:  { icon:"📋", title:"今日の記録",         btn:"記録する →",
                    desc:"働き手の遅刻・欠勤、会えない、作業の中断など、何かあった日だけ記録します。何もなかった日は入力不要です。作業全体の評価は最終日にお願いします。" },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
@@ -317,10 +317,9 @@ export function TodayPage({ me, defaultRole }) {
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
-  // 事故ログ系の箱（今日の記録）は「いま これだけ」に昇格させない（2026-08-20たきと裁定
-  // 「通常は何もしない。異常があったときだけ記録する」＝毎日押させる圧を作らない。箱は入口として常に出す）。
-  // ※件数バッジ自体は2026-08-21に全箱から削除した（「①と付くやつは削除」）ので、いまの役目は昇格の除外だけ
-  const QUIET_BADGE_STAGES = new Set(["day_report", "w_day_report"]);
+  // QUIET_BADGE_STAGES（事故ログ系を数字・昇格で急かさない仕組み）は撤去（2026-08-21）：
+  // 件数バッジ全廃＋「いま これだけ」廃止で読み手がゼロになった。思想（2026-08-20裁定
+  // 「通常は何もしない。異常があったときだけ記録する」）は箱の説明文が引き続き担う
   // answeredDone（送信完了しました。の一時表示）は廃止（2026-08-19）：面接の回答パネル専用だった
   const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
@@ -533,44 +532,21 @@ export function TodayPage({ me, defaultRole }) {
           //   箱そのものはカタログにあるので薄表示で常に並ぶ＝入口は消えない。
           const catalog = TODO_STAGE_CATALOG[role] || [];
           const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
-          // いま これだけ（2026-08-06）：正規フロー順（catalog順）で最初に該当がある用件。
-          // 昇格した用件は下の格子から抜く（複製でなく移動＝「上に動いた」が一目で分かる。同日たきと指示）
-          const nowStage = catalog.filter(st => !st.startsWith("t_") && !QUIET_BADGE_STAGES.has(st)).find(st => (byStage.get(st) || []).length > 0) || null;
+          // 「いま これだけ」（2026-08-06新設の最優先1枚カード）は廃止（2026-08-21たきと指示
+          // 「催促しているとストレスになる。普通のカードに戻して」）＝昇格せず全用件を格子に並べる
           // プロフィール入力（2026-08-19たきと指示）：両役割とも常に格子の先頭に置く常設の入口。
           // ★2026-08-03の「埋まれば非表示・空になればまた表示」は撤回：あの箱は「未入力」という
           //   お知らせだったが、名前が「プロフィール入力」＝いつでも入力しに行ける入口に変わったため、
           //   埋まっていても消さない（働き手側が全部埋まっていて箱が無かった＝入口が消えていた）。
           // バッジは未入力の数（0なら出さない＝薄表示になり「いま用事が無い」を示す）。
-          // カタログには入れない＝「いま これだけ」はcatalogから選ぶのでprofileは昇格しない（二重表示にならない）
+          // カタログには入れない＝常設の入口として自前でunshiftする（下の1行）
           const unsetN = profileUnset ? (role === "farmer" ? profileUnset.f : profileUnset.w) : 0;
           stageOrder.unshift("profile");
           return (
             <div style={{ marginBottom:24 }}>
               <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
-              {/* いま これだけ（2026-08-06・赤ちゃん前提の第0歩）：分かれ道10本の手前に「最優先の1本」を
-                  大きく1枚だけ出す。正規フロー順（catalog順）で最初に該当がある用件＝次の一歩。
-                  タップの行き先は下のボックスと同じ専用ページ＝入口が増えるだけで、実行の窓口は増やさない。
-                  10ボックスは従来どおり下に残す（追加可能・削除可能・他を壊さない） */}
-              {(() => {
-                if (!nowStage) return null;
-                const nm = TODO_META[nowStage]; if (!nm) return null;
-                return (
-                  <button onClick={() => { window.location.hash = "/calendar/todo/" + nowStage; }}
-                    className="f-sans cb-now-pulse"
-                    /* 幅と左右の余白は .cb-now-pulse が持つ（拡大ぶんの余白を確保するため。
-                       ここで width:100% を書くとインラインが勝って余白が消え、脈動で縁が切れる） */
-                    style={{ display:"flex", alignItems:"center", gap:16, background:"#fff", border:"3px solid " + accent, borderRadius:20, padding:"20px 18px", marginBottom:12, cursor:"pointer", textAlign:"left" }}>
-                    <span style={{ fontSize:44, lineHeight:1, flexShrink:0 }}>{nm.icon}</span>
-                    <span style={{ flex:1, minWidth:0 }}>
-                      <span className="f-sans" style={{ display:"block", fontSize:12, fontWeight:800, color:accent, letterSpacing:".08em" }}>いま これだけ</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:20, fontWeight:800, color:"#222", marginTop:2 }}>{nm.title}</span>
-                    </span>
-                    {/* 右端の丸数字は削除（2026-08-21たきと指示「①と付くやつは削除」） */}
-                  </button>
-                );
-              })()}
               <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
-                {stageOrder.filter(st => st !== nowStage).map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} count={st === "profile" ? unsetN : undefined} />)}
+                {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} count={st === "profile" ? unsetN : undefined} />)}
               </div>
             </div>
           );
