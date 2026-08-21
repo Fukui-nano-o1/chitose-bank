@@ -317,8 +317,9 @@ export function TodayPage({ me, defaultRole }) {
   // 右上=放置数バッジ。タップで下に対象一覧（働き手アイコン＋ニックネーム＋求人チップ＋実行ボタン）が展開。
   // A案（2026-07-24たきと確定）：農家タブ＝働き手を出す／働き手タブ＝相手（農家）名は出さない（求人チップで識別）
   const todoKey = (t) => t.application_id || ("j" + t.job_number);
-  // 事故ログ系の箱（今日の記録）は件数バッジを出さず、「いま これだけ」にも昇格させない（2026-08-20たきと裁定
-  // 「通常は何もしない。異常があったときだけ記録する」＝毎日押させる圧を作らない。箱は入口として常に出す）
+  // 事故ログ系の箱（今日の記録）は「いま これだけ」に昇格させない（2026-08-20たきと裁定
+  // 「通常は何もしない。異常があったときだけ記録する」＝毎日押させる圧を作らない。箱は入口として常に出す）。
+  // ※件数バッジ自体は2026-08-21に全箱から削除した（「①と付くやつは削除」）ので、いまの役目は昇格の除外だけ
   const QUIET_BADGE_STAGES = new Set(["day_report", "w_day_report"]);
   // answeredDone（送信完了しました。の一時表示）は廃止（2026-08-19）：面接の回答パネル専用だった
   const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
@@ -362,8 +363,6 @@ export function TodayPage({ me, defaultRole }) {
     //   薄表示は「いま用事が無い」の目印としてのみ残す（押せなさの表現ではない）
     // ★なにもなければ説明文を明記（2026-08-03たきと指示）：行き先が空っぽの面だと
     //   「なぜ何も無いのか」が分からないため、該当0件でも専用ページ（用件の説明＋空状態）へ送る
-    // 事故ログ系（今日の記録）は数字で急かさない：作業中の仕事がある間は普通の明るさで置いておくだけ
-    const quiet = QUIET_BADGE_STAGES.has(stage);
     const dim = n === 0;
     const onTapBox = () => {
       if (m.boxNav) { window.location.hash = m.boxNav(); return; }   // 専用ページを挟まず直接その面へ（プロフィールの未入力）
@@ -375,7 +374,8 @@ export function TodayPage({ me, defaultRole }) {
         padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
         opacity: dim ? 0.45 : 1,
       }}>
-        {n > 0 && !quiet && <span aria-label={"残り" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:"#00A86B", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>}
+        {/* 件数バッジ（右上の丸数字）は削除（2026-08-21たきと指示「今日ページの通知機能は削除。①と付くやつ」）。
+            該当の有無は薄表示（dim）だけが示す＝数字で急かさない */}
         <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
         <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
       </button>
@@ -551,7 +551,6 @@ export function TodayPage({ me, defaultRole }) {
               {(() => {
                 if (!nowStage) return null;
                 const nm = TODO_META[nowStage]; if (!nm) return null;
-                const nCount = (byStage.get(nowStage) || []).length;
                 return (
                   <button onClick={() => { window.location.hash = "/calendar/todo/" + nowStage; }}
                     className="f-sans cb-now-pulse"
@@ -563,7 +562,7 @@ export function TodayPage({ me, defaultRole }) {
                       <span className="f-sans" style={{ display:"block", fontSize:12, fontWeight:800, color:accent, letterSpacing:".08em" }}>いま これだけ</span>
                       <span className="f-sans" style={{ display:"block", fontSize:20, fontWeight:800, color:"#222", marginTop:2 }}>{nm.title}</span>
                     </span>
-                    <span style={{ flexShrink:0, minWidth:34, height:34, borderRadius:17, background:accent, color:"#fff", fontSize:16, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 8px" }}>{nCount}</span>
+                    {/* 右端の丸数字は削除（2026-08-21たきと指示「①と付くやつは削除」） */}
                   </button>
                 );
               })()}
