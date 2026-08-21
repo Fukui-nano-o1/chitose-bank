@@ -974,7 +974,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
                 <>
-                  <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} />
+                  {/* アイコンにも役割色の枠（2026-08-21たきと指示）＝働き手側（ProfileHub・橙）と同じ作法 */}
+                  <Avatar url={empMini?.avatar_url} name={empMini?.nickname || me?.name} size={84} ring={ROLE_GREEN} />
                   {/* 役割チップ「農家」は削除（2026-08-21たきと指示「配色で役割は判断可能」）。
                       枠・ボタンの緑＝農家。働き手側（ProfileHub）の「働き手」チップは残す指示 */}
                   <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{empMini?.nickname || me?.name || "農園名未設定"}</span>
