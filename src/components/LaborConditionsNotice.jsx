@@ -165,10 +165,12 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
         </span>
       </button>
 
-      {/* 一覧（契約の選択） */}
+      {/* 一覧（契約の選択）。ボックスは上下40pxの余白を残して画面中央＝2026-08-01に統一した
+          編集モーダルと同じ規格（overlayに padding:"40px 16px"／シートは maxHeight:"100%"＝
+          余白を差し引いた高さが上限）。85vhだと余白が上下で不均等に見えるので使わない */}
       {listOpen && createPortal(
-        <div onClick={(e) => { if (e.target === e.currentTarget) setListOpen(false); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000 }}>
-          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
+        <div onClick={(e) => { if (e.target === e.currentTarget) setListOpen(false); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000, padding:"40px 16px" }}>
+          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
             {/* 見出し行ごと「？」の当たり判定にする（22pxだけだと外して黒幕に当たる・2026-08-18たきと報告）。
                 ✕（右上・36px）と重ならないよう右に48pxの余白を空ける。？は見た目の丸チップ＝入れ子のbuttonにしない */}
             <button type="button" onClick={(e) => { e.stopPropagation(); setInfoOpen(v => !v); }} aria-label="説明を見る" aria-expanded={infoOpen}
@@ -221,8 +223,8 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
           const workerName = s?.party_names?.worker || (isWorker ? myName : partnerName) || "—";
           const sections = buildSections(s, r);
           return (
-            <div onClick={(e) => { if (e.target === e.currentTarget) setOpen(null); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500 }}>
-              <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+            <div onClick={(e) => { if (e.target === e.currentTarget) setOpen(null); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500, padding:"40px 16px" }}>
+              <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
                 {/* ✕は置かない（外タップで閉じる・入力ボックスの統一と同じ作法）。下部に「とじる」あり */}
                 <div className="cb-ctr-print">
                   <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"0 0 2px", textAlign:"center" }}>労働条件通知書</p>
@@ -232,7 +234,7 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
 
                   {/* 当事者欄 */}
                   <div className="cb-ctr-sec" style={{ border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
-                    <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"0 0 2px" }}>使用者（募集主）</p>
+                    <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"0 0 2px" }}>雇用者（募集主）</p>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 2px" }}>{farmerName}</p>
                     {s.recruiter_address && <p className="f-sans" style={{ fontSize:12, color:"#444", margin:0 }}>{s.recruiter_address}</p>}
                     {s.recruiter_contact && <p className="f-sans" style={{ fontSize:12, color:"#444", margin:0 }}>{s.recruiter_contact}</p>}
