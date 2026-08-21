@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
+import { openWorkerPreview } from "../lib/previewBus";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
 import { Avatar, QaChat, Dots } from "./ui";
 import { FarmerDashboard } from "./FarmerDashboard";
@@ -147,7 +148,6 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
   const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・2026-08-19に任意へ）
-  const [showWAch, setShowWAch] = useState(false); // 🌟わたしの実績モーダル
   const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
   const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
   useEffect(() => {
@@ -320,7 +320,15 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 </div>
                 <div style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>わたしの記録</p>
-                  <button onClick={()=>{ setShowWAch(true); setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {} }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                  {/* タップ＝プロフィールプレビュー（WorkerPreviewSheet）を「記録」タブで開く（2026-08-21たきと指示
+                      「実績はプロフィールの記録タブを出すように」）。旧・実績専用モーダル（WorkerTrustCardのみ＝
+                      プレビュー1枚目と同じ見た目）は廃止＝実績の表示は はたらいた記録（WorkerWorkRecord）に一本化 */}
+                  <button onClick={async ()=>{
+                    setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {}
+                    let wid = wMini?.auth_id || null;
+                    if (!wid) { try { const { data: { session } } = await supabase.auth.getSession(); wid = session?.user?.id || null; } catch {} }
+                    if (wid) openWorkerPreview(wid, 1); // 1＝記録（はたらいた記録）の面
+                  }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
                     {wHub.reviewed > wSeenReviews && <span style={{ position:"absolute", top:10, right:12, fontSize:18, lineHeight:1 }}>🌟</span>}
                     <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🌟</span>
                     <span style={{ flex:1, minWidth:0 }}>
@@ -359,21 +367,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 </div>
               </>);
             })()}
-            {showWAch && (
-              <div className="cb-lock-scroll" onClick={()=>setShowWAch(false)} style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-                <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative" }}>
-                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 14px" }}>🌟 わたしの実績</p>
-                  {/* 実績が1つでもあれば台帳カードを出す（2026-07-24修正）。旧判定は評価(reviewed)のみを見ており、
-                      完了はあるが評価が付いていない（完了1回・評価0）状態でハブの「完了1回」と食い違い、空表示になっていた。
-                      WorkerTrustCard の実績ブロック判定（完了/また働きたい/作業時間のいずれか>0）に揃える */}
-                  {((wHub.completed || 0) > 0 || (wHub.wantAgain || 0) > 0 || (wHub.hours || 0) > 0)
-                    ? <WorkerTrustCard profile={wMini || {}} trust={wTrust} hideSelfDeclare />
-                    : <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"28px 8px" }}>最初の仕事を終えると、ここに実績が刻まれます</p>}
-                  {/* 契約の記録と印刷（2026-08-16）は「📄 労働条件通知書」カードへ移した（2026-08-18・1機能1入口）。
-                      入口はプロフィール入口の「わたしの記録」に常設＝実績モーダルの中に隠れない */}
-                </div>
-              </div>
-            )}
+            {/* 旧・🌟わたしの実績モーダル（WorkerTrustCard hideSelfDeclare）は削除（2026-08-21）＝
+                カードタップは WorkerPreviewSheet の「記録」タブ直行に一本化。
+                契約の記録と印刷（2026-08-16）は「📄 労働条件通知書」カードへ移設済み（2026-08-18・1機能1入口） */}
           </>
         ) : (
         <div className="profile-content">

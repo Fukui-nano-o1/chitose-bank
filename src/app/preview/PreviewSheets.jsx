@@ -102,9 +102,13 @@ export function WorkerPreviewSheet() {
   const [page, setPage] = useState(0);
   useEffect(() => {
     const f = (e) => {
-      const workerId = e.detail;
+      // detail は従来の worker_id（文字列）と、開始面つきの { workerId, page } の両形を受ける
+      //（previewBus.openWorkerPreview の第2引数・2026-08-21。古い呼び出し元は文字列のまま）
+      const d = e.detail;
+      const workerId = (d && typeof d === "object") ? d.workerId : d;
       if (!workerId) return;
-      setPage(0); // 開くたびに1枚目から
+      const startPage = (d && typeof d === "object" && (d.page === 1 || d.page === 2)) ? d.page : 0;
+      setPage(startPage); // 開くたびに指定の面から（省略時は1枚目）
       // 段階表示（2026-08-07たきと報告「展開が10秒。優先順位つけて表示させて」）：
       // 従来はプロフィール＋実績RPCの両方が返るまで「読み込み中」＝遅い方（実績のコールドスパイク）が
       // 全体を人質にしていた。3段に分離：

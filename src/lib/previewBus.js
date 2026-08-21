@@ -9,8 +9,10 @@
 export function openEmployerPreview(farmerId) {
   if (farmerId) window.dispatchEvent(new CustomEvent("cb:openEmployerPreview", { detail: farmerId }));
 }
-export function openWorkerPreview(workerId) {
-  if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: workerId }));
+// page（任意）＝開いた時に見せる面：0=プロフィール／1=記録（はたらいた記録）／2=評価。
+// 省略時は従来どおり1枚目（プロフィール）。わたしの実績カード→記録タブ直行に使う（2026-08-21）
+export function openWorkerPreview(workerId, page) {
+  if (workerId) window.dispatchEvent(new CustomEvent("cb:openWorkerPreview", { detail: page ? { workerId, page } : workerId }));
 }
 // 段階の説明シート（2026-07-25）：どのステータス表示からでも openPhaseInfo(段階キー) で説明を開く。
 // 受け手（PhaseInfoSheet）はcomponents/uiにあり、App.jsxに1つだけマウント
