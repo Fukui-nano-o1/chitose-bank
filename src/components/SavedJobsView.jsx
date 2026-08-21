@@ -339,18 +339,26 @@ export function SavedJobsView({ me }) {
     terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
   } : null; return a ? appPhaseKey(a) : null; };
   const shownRows = rows.filter(r => { const k = truePhaseOf(r); return !k || !savedHidden.includes(k); });
-  // 終わったカード（暗幕＋中央ラベルthatかかるもの）＝完了・見送り・掲載取り下げ・取り消し・失効。
-  // ★下の描画の covered と同じ式を使う（片方だけ変えない）＝並びと見た目that食い違わない
-  const isDoneRow = (r) => {
+  // 並びの順（2026-08-19たきと指示「上からラベルなしカード、完了、見送り、失効、取り消しの順」）。
+  // ★下の描画のラベル（covered / coverLabel）と同じ式・同じ優先順で判定する（片方だけ変えない）＝
+  //   並びと貼られたラベルthat食い違わない。掲載取り下げは見送りの一種so見送りと同じ組に入る
+  const ROW_RANK = { none: 0, completed: 1, rejected: 2, expired: 3, canceled: 4 };
+  const rowRank = (r) => {
     const jobEnd = r.date_end || r.date_start;
     const jobPast = !!jobEnd && jobEnd < ymdLocal(new Date());
-    return jobPast
-      || ["rejected", "canceled", "expired", "completed"].includes(r.application_status);
+    const st = r.application_status;
+    const isRejected = st === "rejected";     // 見送り（掲載取り下げを含む）
+    const isCanceled = st === "canceled";
+    const isExpired = st === "expired";
+    const isCompleted = st === "completed";
+    if (!(jobPast || isRejected || isCanceled || isExpired || isCompleted)) return ROW_RANK.none; // ラベルなし＝進行中
+    if (isCompleted) return ROW_RANK.completed;
+    if (isRejected) return ROW_RANK.rejected;
+    if (isCanceled) return ROW_RANK.canceled;
+    return ROW_RANK.expired; // 失効（応募の失効／日程that過ぎただけのいいね＝どちらも「失効」のラベル）
   };
-  // 終わったカードは下へ（2026-08-19たきと指示「完了ラベルのあるカードは下の方に配置」）。
-  // 進行中のもの＝上。終わったもの＝下。それぞれの中の並び（求人番号の新しい順）は変えない
-  // （Array.prototype.sort は安定so、同じ組の中の順序はそのまま保たれる）
-  const orderedRows = [...shownRows].sort((a, b) => (isDoneRow(a) ? 1 : 0) - (isDoneRow(b) ? 1 : 0));
+  // 安定ソートso、同じ組の中の並び（求人番号の新しい順）はそのまま保たれる
+  const orderedRows = [...shownRows].sort((a, b) => rowRank(a) - rowRank(b));
   // ピルの見た目・作法はチャット一覧／応募者ページと同一（同じCSSクラスを共用＝
   // モバイルは下部の浮遊バー・PCは本文中の並び。格納・オーバーレイ中の非表示も同じ）
   const filterButtons = SAVED_HIDABLE.map(k => ({
