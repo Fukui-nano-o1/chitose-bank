@@ -1292,18 +1292,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const shown = dbApplicants.filter(a => !appHidden.includes(appPhaseKey(a)));
             const order = []; const byJob = {};
             shown.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
-            // ── カレンダーだけ（2026-08-21たきと指示「応募者ページはカレンダーだけにしてみて。
-            //    求人カードは非表示。特定の日程をタップして該当する求人カードのみ表示」）──
-            // 日を選ぶまで求人カード・絞り込みバー・凡例は出さない（求人カードthat無い間は意味を持たないため）。
+            // ── カレンダー＋直近の求人カード（2026-08-21たきと指示）──
+            // 「応募者ページはカレンダーだけ。日付タップで該当する求人カードのみ表示」に、
+            // 同日の追い指示「1番直近の求人カードはデフォルトで表示しておこう」を重ねた形：
+            //   日を選んでいない間＝カレンダー＋1番直近の求人カード1枚（絞り込みバー・凡例は出さない）
+            //   日を選ぶと＝その日の求人カードだけ（従来どおり絞り込みバー・凡例つき）
+            // ★order は my_farm_applicants（created_at降順）の初出順ので order[0]＝一番新しい応募の求人。
             // 日付タップの受け口は calendarTop の onDayJobs（同じ日をもう一度タップ＝解除）
-            if (!calDay) return [calendarTop,
+            const dayJobs = calDay ? new Set(calDay.jobs) : null;
+            const dayOrder = calDay ? order.filter(jn => dayJobs.has(jn)) : order.slice(0, 1);
+            const calHint = (
               <p key="app-cal-hint" className="f-sans" style={{ gridColumn:"1/-1", fontSize:12, color:"#999", textAlign:"center", margin:"0 0 8px", lineHeight:1.8 }}>
                 日付をタップすると、その日の求人と応募者が表示されます
-              </p>];
-            // 選んだ日の求人だけに絞る（並びは従来のまま＝orderの順序を保つ）
-            const dayJobs = new Set(calDay.jobs);
-            const dayOrder = order.filter(jn => dayJobs.has(jn));
-            const dayNote = (
+              </p>
+            );
+            const dayNote = calDay && (
               <div key="app-day-note" style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF6DE", border:"1px solid #E8C77A", borderRadius:12, padding:"10px 14px", marginBottom:4 }}>
                 <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}>📅 {calFmtDate(calDay.ymd)} の求人を表示しています</span>
                 <button onClick={()=>setCalDay(null)} className="f-sans" style={{ flexShrink:0, background:"#fff", border:"1px solid #E8C77A", borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#8A6D1D", cursor:"pointer" }}>解除</button>
@@ -1352,10 +1355,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               </div>
             );
             const body = dayOrder.length === 0
-              // 選んだ日に0件＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03）
+              // 0件＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03）。
+              // 日を選んでいない時（直近カードの面）も、絞り込みで全員隠れている時はここで説明する
               ? [<div key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>
                   <p style={{ margin:0 }}>
-                    この日の求人には、表示できる応募者がいません。
+                    {calDay ? "この日の求人には、表示できる応募者がいません。" : "表示できる応募者がいません。"}
                     {appHidden.length > 0 && <><br/>{appHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。</>}
                   </p>
                   {appHidden.length > 0 && (
@@ -1452,7 +1456,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            return [calendarTop, dayNote, tabBar, floatingFilterBar, ...body, legend];
+            // 日を選んでいない時は静かな面＝カレンダー・案内・直近カード1枚だけ
+            //（絞り込みバー・凡例は日を選んだ時だけ＝従来どおり）
+            return calDay
+              ? [calendarTop, dayNote, tabBar, floatingFilterBar, ...body, legend]
+              : [calendarTop, calHint, ...body];
           })()
         )
       ) : jobTab==="expired" ? (
