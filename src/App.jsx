@@ -1505,7 +1505,8 @@ export default function App(){
     ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience" || tab === "new-applicants") && !me) ? "search" : tab)
     : "search";
 
-  // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「さがす・いいね」を「📣求人・🤝応募者」に差し替え。
+  // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「いいね」を「🤝応募者」に差し替え。
+  // 「📣求人」は2026-08-21たきと指示で「🔍さがす」に戻した（両モードとも先頭はさがす）。
   // 後半3つ（カレンダー・チャット・プロフィール）は両モード共通。未ログインは現行のまま（empNav=false）
   const empNav = !!(me && empCtx);
   // 訪問者版3タブ（未ログイン・2026-07-24）：さがす／入れ方／登録・ログイン
@@ -1514,15 +1515,16 @@ export default function App(){
     { k:"install", icon:"📲", label:"入れ方", hash:"/install" },
     { k:"login",   icon:"🔑", label:"登録・ログイン", hash:"/login" },
   ];
-  // 農家：求人→応募者→チャット(③約束する)→カレンダー(④当日)→プロフィール（第12弾・時系列。働き手と文法統一）
+  // 農家：さがす→応募者→チャット(③約束する)→カレンダー(④当日)→プロフィール（第12弾・時系列。働き手と文法統一）
   const navTabs = !me
     ? visitorNav
     : empNav
     ? [
         // matchは「そのタブの領域に居るか」を明示する（2026-07-27）。hashのstartsWithだけだと
-        // 作成中(drafts)・期限切れ(expired)・雇い手プロフィール等で どのタブも点かない穴があった
-        { k:"emp-jobs",       icon:"📣", label:"求人",       hash:"/profile/employer/active",
-          match: h => h.startsWith("profile/employer/active") || h.startsWith("profile/employer/drafts") || h.startsWith("profile/employer/expired") },
+        // 雇い手プロフィール等で どのタブも点かない穴があった
+        // 「求人」(emp-jobs→/profile/employer/active)は「さがす」に差し替え（2026-08-21たきと指示）。
+        // 自分の求人ページへはプロフィール入口のカード（作成中/公開中/期限切れ）から従来どおり行ける
+        { k:"search",         icon:"🔍", label:"さがす" },
         { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: navBadges.applicants_pending,
           match: h => h.startsWith("profile/employer/applicants") },
         { k:"chats",          icon:"💬", label:"チャット" },
@@ -1807,7 +1809,8 @@ export default function App(){
             const badge = t.k === "chats" ? (navBadges.chat_threads || 0)
               : t.k === "profile" ? (navBadges.review_due || 0)
               : (t.badge || 0);
-            const warn = t.k === "emp-jobs" && (navBadges.job_revision || 0) > 0;
+            // ⚠（job_revision＝修正のお願い）の表示は「求人」タブごと消えた（2026-08-21・さがすに差し替え）。
+            // 修正のお願いの気づきは今日ページの「📝求人の修正」箱とお知らせ・メールが引き続き担う
             return (
             <button key={t.k}
               onClick={() => {
@@ -1841,9 +1844,6 @@ export default function App(){
                 {t.k === "profile" && me ? <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={26} bg={empCtx ? ROLE_GREEN : ROLE_ORANGE} /> : t.icon}
                 {badge > 0 && (
                   <span style={{ position:"absolute", top:-4, right:-10, minWidth:16, height:16, borderRadius:8, background:"#E24B4A", color:"#fff", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px", pointerEvents:"none" }}>{badge > 99 ? "99+" : badge}</span>
-                )}
-                {warn && (
-                  <span aria-label="差し戻しあり" style={{ position:"absolute", top:-6, right:-10, fontSize:13, lineHeight:1, pointerEvents:"none", filter:"drop-shadow(0 1px 1px rgba(0,0,0,0.25))" }}>⚠️</span>
                 )}
               </span>
               <span className="label">{t.label}</span>
