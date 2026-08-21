@@ -983,13 +983,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/active"; }} className="f-sans"
                       style={{ background:"#fff", border:"1.5px solid " + ROLE_GREEN, color:ROLE_GREEN, borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>あなたの求人</button>
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/profile"; }} className="f-sans"
-                      style={{ position:"relative", background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>
-                      編集する
-                      {/* 未設定の項目数（全て設定済みなら非表示）。カード右上→編集するボタンへ移植（2026-08-21たきと指示） */}
-                      {empUnsetCount > 0 && (
-                        <span style={{ position:"absolute", top:-8, right:-8, minWidth:20, height:20, borderRadius:10, background:"#F5A623", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{empUnsetCount}</span>
-                      )}
-                    </button>
+                      style={{ background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>編集する</button>
+                    {/* 未設定の数字バッジは削除（2026-08-21たきと指示「働き手と農家のバッジ表示は削除」）。
+                        未設定の気づきはカード枠の強調（cb-urgent-card/-still）と今日ページのプロフィール入力が担う */}
                   </span>
                 </>
               ) : (

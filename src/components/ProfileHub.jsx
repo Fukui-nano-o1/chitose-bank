@@ -250,10 +250,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
                 {!wTopBack ? (
                   <>
-                    {/* 未設定の項目数（編集ページの10ボックス基準）。全て設定済みなら非表示。右上は⇄マークなので左隣に */}
-                    {wUnsetCount > 0 && (
-                      <span style={{ position:"absolute", top:12, right:52, minWidth:22, height:22, borderRadius:11, background:"#F5A623", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{wUnsetCount}</span>
-                    )}
+                    {/* 未設定の数字バッジは削除（2026-08-21たきと指示「働き手と農家のバッジ表示は削除」）。
+                        未設定の気づきはカード枠の強調（cb-urgent-card/-still）と今日ページのプロフィール入力が担う */}
                     <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} ring={ROLE_ORANGE} />
                     <span>
                       <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
