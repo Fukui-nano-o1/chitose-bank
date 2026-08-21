@@ -1,7 +1,7 @@
 // 月カレンダー（#/calendar/month・分割・大物①・2026-07-24）：当事者applicationsの作業日程を月グリッドに塗る部品。
 // 「今日」ページ(TodayPage)の奥の画面。プロフィール内蔵カレンダー・応募者ページ上部でも使用（backToToday無し）。
-// 予定カード（アジェンダ）は2026-07-27に廃止：カレンダーは「日を選ぶ」だけを担い、
-// 選んだ日の求人をどう見せるかは置き場所を持つページ側（応募者ページ）の仕事＝onDayTapJobsで渡す。
+// 予定カード（アジェンダ）は2026-07-27に廃止→2026-08-21に日付シートとして復活：
+// 日をタップすると、その日の予定と操作（日程の移動・コピー・内容の編集）をシートで出す。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
@@ -10,14 +10,14 @@ import { fbSuccess, fbError } from "../lib/feedback";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）の予定を月グリッドに塗る。
-// 日付タップ＝その日の求人番号を親へ通知。
+// 日付タップ＝その日の予定と操作を日付シートで開く（この部品の中で完結・親への通知はしない）。
 // jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
 // get_my_calendar_jobs（SECURITY DEFINER）経由で取得する。
 // ★出すのは【公開中の求人】と【応募している求人】と【いいねした求人（公開中）】（2026-08-19たきと指示）。
 //   自分の求人は status='open' のものだけ＝終了・審査中・下書きは出さない
 //   （migration 20260819…_calendar_only_open_and_applied → …_calendar_restore_liked_rows で
 //    いいねだけ復元）。絞り込みはRPC側that行う＝フロントに条件を書かない。
-export function MyCalendar({ backToToday, onDayTapJobs }) {
+export function MyCalendar({ backToToday }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
   // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
   // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
@@ -35,8 +35,7 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
   const [flashNoPlan, setFlashNoPlan] = useState(false);
   const flashTimer = useRef(null);
   // ── 日付シートと移動モード（2026-08-19たきと指示＝TimeTree式のコピー・移動・編集をカレンダーへ）──
-  // シートは onDayTapJobs を持たない置き場所（お仕事タブのカレンダー面）だけで開く。
-  // onDayTapJobs がある置き場所（応募者ページ上部・ステータスページ）は従来どおり親に渡す＝挙動不変。
+  // シートはこの部品を置いた全ての画面で開く（お仕事タブのカレンダー面・応募者ページ上部・ステータスページ）。
   const [daySheet, setDaySheet] = useState(null);   // { ymd, idxs } | null
   const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
   const [moving, setMoving] = useState(false);      // 多重送信ガード
@@ -249,13 +248,13 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
     if (idxs.length === 0) {
       setFlashNoPlan(true);
       flashTimer.current = setTimeout(() => setFlashNoPlan(false), 1800);
-      onDayTapJobs?.(ymd, []);
       return;
     }
     setFlashNoPlan(false);
-    // 置き場所that行き先を持つ場合（応募者ページ・ステータスページ）は従来どおり親へ渡す。
-    // 持たない場合（お仕事タブのカレンダー面）は日付シートを開く（2026-08-19・TimeTree式の予定シート）
-    if (onDayTapJobs) { onDayTapJobs(ymd, [...new Set(idxs.map(i => entries[i].job_number))]); return; }
+    // 日付タップ＝どの置き場所でも日付シートを開く（2026-08-21たきと指示）。
+    // 以前は応募者ページ・ステータスページだけ「その日の求人カードへスクロール＋黄色く光らせる」
+    // という別の動きをしており（onDayTapJobs）、そこではシートthat永久に開かなかった。
+    // シートはその日の予定を一覧で見せ、求人ページへも行けるso、カードへ飛ばす動きは畳んだ
     setDaySheet({ ymd, idxs });
   };
 
@@ -380,7 +379,6 @@ export function MyCalendar({ backToToday, onDayTapJobs }) {
         </>
       )}
       {/* 日付シート（2026-08-19たきと指示＝TimeTree式）：日をタップ→その日の予定と操作。
-          開くのは onDayTapJobs を持たない置き場所（お仕事タブのカレンダー面）だけ。
           規格＝cb-box-overlay + cb-lock-scroll 併用（2026-08-15）・✕なし・外タップで閉じる（2026-08-19）。
           操作は 移動（新設 move_job_dates）／コピー（既存 copy_job）／内容の編集（既存の
           一時非公開→編集レール）＝実行の壁は全てDB側that担保。応募の行は見るだけ（相手thatいる予定）。 */}

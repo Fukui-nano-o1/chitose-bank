@@ -444,22 +444,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   }, [jobTab]);
   // カレンダーの予定カード（アジェンダ）を廃止した引き継ぎ（2026-07-27たきと指示）：
   // 日付タップ＝その日の求人を、下の応募者リストで光らせて位置まで運ぶ。求人の中身は既存の求人カードが持っている
-  const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }
-  const jobCardRefs = useRef({});
-  const onCalDayTap = (ymd, jobNumbers) => {
-    setCalDay({ ymd, jobs: jobNumbers });
-    if (!jobNumbers.length) return;
-    setTimeout(() => {
-      const el = jobNumbers.map(n => jobCardRefs.current[n]).find(Boolean);
-      if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
-    }, 40);
-  };
   // 常時展開のカレンダー（ステータスページの calendarTop と同じ作法）。
   // ページ側の横スワイプ（求人一覧⇄応募者などの面送り）にカレンダーの月送りを食われないよう、
   // タッチはここで止める（開閉が無くなった今も、月送りを守るために必要）
   const calendarTop = (
     <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-      style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
+      style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar /></div>
   );
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
@@ -1317,13 +1307,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 )}
               </div>
             );
-            // カレンダーで日を選んだのに、その日の求人が今の絞り込みに出ていない時だけ知らせる
-            // （「予定がない」はカレンダー側が出すので、ここでは重複させない・2026-07-27）
-            const calNote = (calDay && calDay.jobs.length > 0 && !calDay.jobs.some(n => order.includes(n))) ? (
-              <p key="cal-note" className="f-sans" style={{ gridColumn:"1/-1", fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"2px 0 6px" }}>
-                この日の求人は、いまの絞り込みには表示されていません。
-              </p>
-            ) : null;
             const body = order.length === 0
               // 非表示で0件＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03）
               ? [<div key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>
@@ -1355,13 +1338,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   const jobPast = datePast && !jobPendingAction;
                   const jobCompleted = jobPast && byJob[jn].some(a => a.status === "completed");
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
-                  const calHit = !!calDay && calDay.jobs.includes(jn);
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。
                   // 既存の .cb-urgent-card（赤影＋3.5秒の浮遊ループ）をそのまま使う。終わった求人は静かにする
                   const cardUrgent = !jobPast && byJob[jn].some(a => todoAppIds.has(a.id));
                   return (
-                    <div key={`job-${jn}`} ref={el => { jobCardRefs.current[jn] = el; }} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
-                      style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background: calHit ? "#FFF6DE" : "#fff", border:"1px solid " + (calHit ? "#E8C77A" : "#EBEBEB"), borderRadius:14, overflow:"hidden", marginTop:2, transition:"background .5s", pointerEvents: jobPast ? "none" : undefined }}>
+                    <div key={`job-${jn}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
+                      style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
                       {jobPast && (
                         <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
@@ -1426,7 +1408,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            return [calendarTop, tabBar, calNote, floatingFilterBar, ...body, legend];
+            return [calendarTop, tabBar, floatingFilterBar, ...body, legend];
           })()
         )
       ) : jobTab==="expired" ? (

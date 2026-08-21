@@ -209,8 +209,6 @@ export function SavedJobsView({ me }) {
   // ★2026-08-19たきと指示「カレンダーは展開がデフォルトで、非表示できないようにして」＝常時展開。
   //   開閉（横スワイプ・案内行のタップ・畳むアニメ・今日ページからの合図 cb_openCalendar）は全部撤去した。
   //   読み込み中・いいねが0件の時も出す＝この面に来れば必ず予定が見える（隠れる道を残さない）。
-  const [calDay, setCalDay] = useState(null); // { ymd, jobs:[job_number] }＝選んだ日の求人を光らせる
-  const jobCardRefs = useRef({});
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("saved");
   // 今日ページのカレンダー箱から来た時の合図は、もう開くための材料ではない（常時展開ので）。
@@ -218,20 +216,12 @@ export function SavedJobsView({ me }) {
   useEffect(() => {
     try { sessionStorage.removeItem("cb_openCalendar"); } catch {}
   }, []);
-  const onCalDayTap = (ymd, jobNumbers) => {
-    setCalDay({ ymd, jobs: jobNumbers });
-    if (!jobNumbers.length) return;
-    setTimeout(() => {
-      const el = jobNumbers.map(n => jobCardRefs.current[n]).find(Boolean);
-      if (el) el.scrollIntoView({ behavior:"smooth", block:"center" });
-    }, 40);
-  };
   // 常時展開のカレンダー（2026-08-19たきと指示「展開がデフォルトで、非表示できないように」
   // →「アニメーションも削除。常に展開している状態」）。
   // 開閉の仕掛けも登場アニメ（cb-cal-reveal）も持たない＝最初から開いた形でそこにあるだけ。
   // 読み込み中の画面にも同じものを出す＝この面に来れば必ず予定が見える
   const calendarTop = (
-    <div style={{ marginBottom:14 }}><MyCalendar onDayTapJobs={onCalDayTap} /></div>
+    <div style={{ marginBottom:14 }}><MyCalendar /></div>
   );
   // ★取得の失敗を「0件」と断定しない（2026-08-17・たきと報告「アイコン→ボックス→求人タップ→閉じると
   //   ステータスページが空になる」の根治）。
@@ -448,10 +438,9 @@ export function SavedJobsView({ me }) {
             const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : isCanceled ? APP_PHASE_COLOR.canceled : "#111";
             const phase = phaseOf(r);
             // カレンダーで選んだ日に該当する求人は光らせる（応募者ページと同じ引き継ぎ）
-            const calHit = !!calDay && calDay.jobs.includes(r.job_number);
             return (
-              <div key={r.job_number} ref={el => { jobCardRefs.current[r.job_number] = el; }}
-                style={{ position:"relative", display:"flex", alignItems:"stretch", background: calHit ? "#FFF6DE" : "#fff", border:"1px solid " + (calHit ? "#E8C77A" : "#EBEBEB"), borderRadius:14, overflow:"hidden", transition:"background .5s", pointerEvents: covered ? "none" : undefined }}>
+              <div key={r.job_number}
+                style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
                 {covered && (
                   <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
