@@ -233,7 +233,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 核（アイコン・農園名・作業場所）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（紹介PR→作業場所に差替・2026-07-16）
   // 数え方はlib/utilsのemployerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）。
   // 2026-08-07追加：募集者の連絡先＋緊急連絡先（hasEmergency＝emergency_contactsの有無）も同関数で数える
-  const { req: empUnsetReq, total: empUnsetCount } = employerUnsetCount(empMini, { hasEmergency });
+  // req（核の未設定数）はカード枠の強調に使っていたが、強調は削除（2026-08-21）＝totalだけ使う
+  const { total: empUnsetCount } = employerUnsetCount(empMini, { hasEmergency });
   // 自由記述の審査帯（2026-07-19）は削除した（2026-08-17）。承認プロセスの削除（2026-08-14）で
   // 自由記述は保存＝即公開になり、trg_ep_z_publish_texts が texts_pending / texts_submitted_at /
   // texts_revision_requested_at を書かれた瞬間に畳む（＝クリアする）。この3列を立てる関数は
@@ -968,7 +969,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);
               }}
               onKeyDown={(e)=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
-              className={"f-sans" + (empTopAnim ? " " + empTopAnim : empUnsetReq > 0 ? " cb-urgent-card" : empUnsetCount > 0 ? " cb-urgent-still" : "")}
+              className={"f-sans" + (empTopAnim ? " " + empTopAnim : "")}
               onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && empTopAnim === "pflip-in") setEmpTopAnim(""); }}
               style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_GREEN, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
               {!empTopBack ? (
@@ -983,9 +984,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/active"; }} className="f-sans"
                       style={{ background:"#fff", border:"1.5px solid " + ROLE_GREEN, color:ROLE_GREEN, borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>あなたの求人</button>
                     <button onClick={(e)=>{ e.stopPropagation(); window.location.hash="/profile/employer/profile"; }} className="f-sans"
-                      style={{ background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>編集する</button>
-                    {/* 未設定の数字バッジは削除（2026-08-21たきと指示「働き手と農家のバッジ表示は削除」）。
-                        未設定の気づきはカード枠の強調（cb-urgent-card/-still）と今日ページのプロフィール入力が担う */}
+                      style={{ position:"relative", background:ROLE_GREEN, border:"1.5px solid " + ROLE_GREEN, color:"#fff", borderRadius:20, padding:"8px 18px", fontSize:13, fontWeight:800, cursor:"pointer" }}>
+                      編集する
+                      {/* 未設定の項目数（全て設定済みなら非表示）。カード右上→編集するボタンへ移植（2026-08-21たきと指示）。
+                          カード枠の強調（cb-urgent-card/-still）は削除＝未設定の気づきはこのバッジと今日ページが担う */}
+                      {empUnsetCount > 0 && (
+                        <span style={{ position:"absolute", top:-8, right:-8, minWidth:20, height:20, borderRadius:10, background:"#F5A623", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{empUnsetCount}</span>
+                      )}
+                    </button>
                   </span>
                 </>
               ) : (

@@ -5,7 +5,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { openWorkerPreview } from "../lib/previewBus";
-import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
+import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems } from "../lib/utils";
 import { Avatar, QaChat, Dots } from "./ui";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
@@ -147,7 +147,6 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
-  const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・2026-08-19に任意へ）
   const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
   const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
   useEffect(() => {
@@ -159,24 +158,19 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
         if (!session || cancelled) return;
         // 【第1波】互いに依存しない4本を同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 依存があるのは「きょうの仕事」件数だけ（応募の結果を見て求人の日程を引く）ので第2波に回す
-        const [{ data: wp }, { data: apps }, openRes, { data: ts }, emgRes, revRes] = await Promise.all([
+        const [{ data: wp }, { data: apps }, openRes, { data: ts }, revRes] = await Promise.all([
           supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("applications").select("id,status,attended,job_number").eq("worker_id", session.user.id),
           // さがす箱＝きょう応募できる求人件数。jobs_public は終了した求人も返すようになったので
           // status='open' を明示する（2026-08-05・さがすに終了求人を並べた際の連動）
           supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).eq("status", "open").then(r => r, () => ({ count: 0 })),
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
-          // 緊急連絡先（別テーブル・self-only）＝名刺バッジの数え方に要る（任意項目として数える）
-          supabase.from("emergency_contacts").select("name,phone").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
+          // 緊急連絡先の取得（hasEmg）は名刺バッジ専用だった＝バッジ削除（2026-08-21）とともに撤去
           // 評価済みかは自分が書いた評価の行で見る（打刻の終了確認は廃止・2026-08-18）
           supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
         ]);
         if (cancelled) return;
         if (wp) { setWMini(wp); setCache("hub:wMini", wp); snapSet("wMini", wp); }
-        if (!emgRes?.error) {
-          const has = !!((emgRes?.data?.name || "").trim() || (emgRes?.data?.phone || "").trim());
-          setHasEmg(has); setCache("hub:hasEmg", has);
-        }
         // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
         // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
         if (apps) {
@@ -210,11 +204,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
     })();
     return () => { cancelled = true; };
   }, [wTab]);
-  // 働き手プロフィールの未設定項目数（編集ページのボックスに対応。トップボックス右上のバッジ＋赤影に使用）
-  // 核＝応募に必要な3項目（ニックネーム・居住地・自己紹介）が未設定→赤影＋浮遊アニメ／
-  // 任意のみ未設定→赤影のみ（2026-07-16・核の中身は2026-08-19に3項目へ揃えた）
-  // 数え方はlib/utilsのworkerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）
-  const { req: wUnsetReq, total: wUnsetCount } = workerUnsetCount(wMini, { hasEmergency: hasEmg });
+  // 名刺カードの未設定バッジ・枠の強調（cb-urgent-card/-still）は削除（2026-08-21たきと指示）。
+  // 未設定の気づきは今日ページの「プロフィール入力」が担う（数え方はlib/utils workerUnsetCountのまま）
   // 自己紹介の審査帯（2026-07-19）は削除した（2026-08-17）。承認プロセスの削除（2026-08-14）で
   // 自由記述は保存＝即公開になり、trg_wp_z_publish_texts が pr_pending/pr_qa_pending/pr_submitted_at を
   // 書かれた瞬間に畳む＝「審査中の働き手」という状態が構造的に存在しない（実データも0件で確認）。
@@ -245,13 +236,13 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
             {/* トップボックスは反転式（2026-07-16）：表=アイコン＋ニックネーム／裏=アイコン・ニックネーム抜きのプレビュー。右上⇄で反転0.8秒 */}
             <div style={{ position:"relative" }}>
               <button onClick={()=>{ window.location.hash="/profile/worker/profile"; }}
-                className={"f-sans" + (wTopAnim ? " " + wTopAnim : wUnsetReq > 0 ? " cb-urgent-card" : wUnsetCount > 0 ? " cb-urgent-still" : "")}
+                className={"f-sans" + (wTopAnim ? " " + wTopAnim : "")}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && wTopAnim === "pflip-in") setWTopAnim(""); }}
                 style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid " + ROLE_ORANGE, borderRadius:24, padding:"28px 20px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box" }}>
                 {!wTopBack ? (
                   <>
                     {/* 未設定の数字バッジは削除（2026-08-21たきと指示「働き手と農家のバッジ表示は削除」）。
-                        未設定の気づきはカード枠の強調（cb-urgent-card/-still）と今日ページのプロフィール入力が担う */}
+                        未設定の気づきは今日ページのプロフィール入力が担う（枠の強調も同日削除） */}
                     <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} ring={ROLE_ORANGE} />
                     <span>
                       <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
