@@ -458,7 +458,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // タッチはここで止める（開閉が無くなった今も、月送りを守るために必要）
   const calendarTop = (
     <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
-      style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar /></div>
+      style={{ gridColumn:"1/-1", marginBottom:14 }}><MyCalendar canPostJob /></div>
   );
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
@@ -1449,7 +1449,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           })
         )
       ) : jobTab==="calendar" ? (
-        <div style={{ gridColumn:"1/-1" }}><MyCalendar /></div>
+        <div style={{ gridColumn:"1/-1" }}><MyCalendar canPostJob /></div>
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ fontSize:44, marginBottom:14 }}>🌱</div>

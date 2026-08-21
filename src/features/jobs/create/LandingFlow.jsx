@@ -147,7 +147,21 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const [hourlyWageInput, setHourlyWageInput] = useState(d.hourlyWageInput ?? "");
   const [dailyWageInput,  setDailyWageInput]  = useState(d.dailyWageInput  ?? "");
   // 日程（Date は JSON.parse で文字列になるので再変換）
-  const [jobDateStart,    setJobDateStart]    = useState(d.jobDateStart ? new Date(d.jobDateStart) : null);
+  // カレンダーの「この日から始まる求人を出す」（2026-08-21）：タップした日that cb_newJobDateStart で届く。
+  // 優先順は 下書きの日程 ＞ タップした日＝進行中の入力を上書きしない。編集モードは対象外
+  // （applyJobRow that正）。消費は下のマウントeffectで行う（初期化関数内で消すとStrictModeの
+  // 二重実行で2回目that空になるため、読むだけにする）
+  const [jobDateStart,    setJobDateStart]    = useState(() => {
+    if (d.jobDateStart) return new Date(d.jobDateStart);
+    if (!_editJobNumber) {
+      try {
+        const v = sessionStorage.getItem("cb_newJobDateStart");
+        if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + "T00:00:00");
+      } catch {}
+    }
+    return null;
+  });
+  useEffect(() => { try { sessionStorage.removeItem("cb_newJobDateStart"); } catch {} }, []);
   const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
   // 期間内の休日（2026-08-03たきと指示）："YYYY-MM-DD"配列。休日ボタン→カレンダータップで設定
   const [jobHolidays,     setJobHolidays]     = useState(Array.isArray(d.jobHolidays) ? d.jobHolidays : []);

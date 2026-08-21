@@ -17,7 +17,10 @@ const CAL_OVERLAP = "#E24B4A";
 //   自分の求人は status='open' のものだけ＝終了・審査中・下書きは出さない
 //   （migration 20260819…_calendar_only_open_and_applied → …_calendar_restore_liked_rows で
 //    いいねだけ復元）。絞り込みはRPC側that行う＝フロントに条件を書かない。
-export function MyCalendar({ backToToday }) {
+// canPostJob＝予定のない日のタップで「求人を出す」を出すか（2026-08-21たきと指示）。
+// 農家の置き場所（お仕事タブのカレンダー面・応募者ページ上部）だけ true。
+// 働き手のステータスページには出さない＝求人を出すのは農家の操作so、置き場所で出し分ける
+export function MyCalendar({ backToToday, canPostJob }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
   // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
   // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
@@ -246,6 +249,9 @@ export function MyCalendar({ backToToday }) {
     const idxs = entryIdxOnDay(ymd);
     if (flashTimer.current) clearTimeout(flashTimer.current);
     if (idxs.length === 0) {
+      // 予定のない日＝「求人を出す」の入口（2026-08-21たきと指示）。農家の置き場所だけ。
+      // 働き手の置き場所（canPostJobなし）は従来どおり「この日の予定はありません」を一瞬出す
+      if (canPostJob) { setDaySheet({ ymd, idxs: [] }); return; }
       setFlashNoPlan(true);
       flashTimer.current = setTimeout(() => setFlashNoPlan(false), 1800);
       return;
@@ -388,6 +394,17 @@ export function MyCalendar({ backToToday }) {
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{calFmtDate(daySheet.ymd)} の予定</p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <div style={{ display:"flex", flexDirection:"column", gap:10, maxHeight:"55vh", overflowY:"auto", overscrollBehavior:"contain" }}>
+              {/* 予定のない日（canPostJobの置き場所だけここに来る）＝求人を出す入口（2026-08-21たきと指示）。
+                  タップした日は cb_newJobDateStart で求人フローへ渡し、開始日の初期値になる（一度きり・下書き優先） */}
+              {daySheet.idxs.length === 0 && (
+                <div style={{ textAlign:"center", padding:"6px 0 2px" }}>
+                  <p className="f-sans" style={{ fontSize:13, color:"#999", margin:"0 0 14px" }}>この日の予定はありません。</p>
+                  <button onClick={()=>{ try { sessionStorage.setItem("cb_newJobDateStart", daySheet.ymd); } catch {} setDaySheet(null); window.location.hash = "/work/new"; }}
+                    className="f-sans" style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:24, padding:"12px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                    この日から始まる求人を出す
+                  </button>
+                </div>
+              )}
               {daySheet.idxs.map(i => {
                 const e = entries[i];
                 const own = e.relation === "own";
