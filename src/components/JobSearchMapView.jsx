@@ -1119,7 +1119,7 @@ export function JobSearchMapView({ onRegister, me }) {
 
           <JobReviews job={selectedJob} sort={reviewSort} onSort={setReviewSort} showAll={showAllReviews} onShowAll={setShowAllReviews} />
 
-          <RelatedJobs currentJob={selectedJob} jobList={jobList} savedIds={savedIds} canLike={canLike} onToggleSave={toggleSave} />
+          <RelatedJobs currentJob={selectedJob} jobList={jobList} savedIds={savedIds} canLike={canLike} onToggleSave={toggleSave} viewCounts={viewCounts} />
 
           {/* 通報リンク（目立たせない・ログイン時のみ） */}
           {me && (

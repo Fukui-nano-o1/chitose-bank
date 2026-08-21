@@ -360,7 +360,8 @@ export function JobReviews({ job, sort, onSort, showAll, onShowAll }) {
 // ★prop名を currentJob にしている理由（2026-08-18）：この区画には「一覧の各求人」を指す
 //   ローカル変数 job が既にある。prop も job にすると filter(job => job.id !== job.id) と
 //   自分自身の比較になり、その他の求人が常に0件になる（build も lint も通ってしまう）。
-export function RelatedJobs({ currentJob, jobList, savedIds, canLike, onToggleSave }) {
+// viewCounts（任意・2026-08-21たきと指示「その他の求人にも」）：job_number→閲覧数。一覧と同じ👀ピルを出す
+export function RelatedJobs({ currentJob, jobList, savedIds, canLike, onToggleSave, viewCounts }) {
   return (<>
     {/* その他の求人（0件なら「ありません」を表示） */}
     <div className="job-detail-more-jobs" style={{ marginBottom:20 }}>
@@ -373,7 +374,7 @@ export function RelatedJobs({ currentJob, jobList, savedIds, canLike, onToggleSa
         style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}
       >
         {jobList.filter(job => job.id !== currentJob.id).map(job => (
-          <JobCard key={job.id} job={job} variant="related" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? onToggleSave : undefined} />
+          <JobCard key={job.id} job={job} variant="related" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? onToggleSave : undefined} views={viewCounts?.[job.id]} />
         ))}
       </Carousel>
       )}
