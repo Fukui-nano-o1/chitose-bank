@@ -1802,8 +1802,9 @@ export default function App(){
                   ? (empNav ? (cur === "profile/employer" || cur === "profile") : safeTab === "profile")
                   : safeTab === t.k);
             // 宿題バッジ（第12弾）：数字＝待たせている/自分の宿題の件数。求人(農家)の差し戻しのみ⚠フラグ
+            // ★「今日」タブの赤バッジ（navBadges.todo）は削除（2026-08-21たきと指示「タブの赤バッジも必要ない」・
+            //   今日ページ内の丸数字バッジ全廃と対）。my_nav_badges の todo は取得だけ続く（DB不変・読み手なし）
             const badge = t.k === "chats" ? (navBadges.chat_threads || 0)
-              : t.k === "calendar" ? (navBadges.todo || 0)
               : t.k === "profile" ? (navBadges.review_due || 0)
               : (t.badge || 0);
             const warn = t.k === "emp-jobs" && (navBadges.job_revision || 0) > 0;
