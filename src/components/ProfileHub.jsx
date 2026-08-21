@@ -4,8 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
-import { openWorkerPreview } from "../lib/previewBus";
-import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
+import { WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
 import { Avatar, QaChat, Dots, SwipeTabPages } from "./ui";
 import { WorkerWorkRecord } from "./WorkerWorkRecord";
 import { ReceivedReviews } from "./ReceivedReviews";
@@ -149,10 +148,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
   const [wPvPage, setWPvPage] = useState(0);       // 裏面プレビューの面（0=プロフィール/1=記録/2=評価・2026-08-21）
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
-  const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
   const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・2026-08-19に任意へ）＝未設定数の数え方に要る
   const [wSeekFlip, setWSeekFlip] = useState(false); // 「新しく求職を出す」カードの反転（届出受理待ちの案内・2026-07-25）
-  const [wSeenReviews, setWSeenReviews] = useState(() => { try { return parseInt(localStorage.getItem("cb_wSeenReviews") || "0", 10) || 0; } catch { return 0; } }); // 既読の評価件数（🌟は新着時のみ）
   useEffect(() => {
     if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
     let cancelled = false;
@@ -162,12 +159,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
         if (!session || cancelled) return;
         // 【第1波】互いに依存しない4本を同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 依存があるのは「きょうの仕事」件数だけ（応募の結果を見て求人の日程を引く）ので第2波に回す
-        const [{ data: wp }, { data: apps }, openRes, { data: ts }, emgRes, revRes] = await Promise.all([
+        const [{ data: wp }, { data: apps }, { data: ts }, emgRes, revRes] = await Promise.all([
           supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("applications").select("id,status,attended,job_number").eq("worker_id", session.user.id),
-          // さがす箱＝きょう応募できる求人件数。jobs_public は終了した求人も返すようになったので
-          // status='open' を明示する（2026-08-05・さがすに終了求人を並べた際の連動）
-          supabase.from("jobs_public").select("job_number", { count: "exact", head: true }).eq("status", "open").then(r => r, () => ({ count: 0 })),
           supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
           // 緊急連絡先（別テーブル・self-only）＝名刺バッジの数え方に要る（任意項目として数える）
           supabase.from("emergency_contacts").select("name,phone").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
@@ -193,22 +187,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
           };
           setWAppCounts(counts); setCache("hub:wCounts", counts);
         }
-        const openCount = openRes.count || 0;
-        // 【第2波】きょうの仕事バッジ＝当日が作業日の確定した仕事（契約済み以降）の件数
-        let todayCount = 0;
-        try {
-          const contracted = (apps || []).filter(a => ["contracted","working"].includes(a.status));
-          if (contracted.length) {
-            const { data: jd } = await supabase.from("jobs_public").select("job_number,date_start,date_end").in("job_number", contracted.map(a => a.job_number));
-            const today = ymdLocal(new Date());
-            const jm = Object.fromEntries((jd || []).map(j => [j.job_number, j]));
-            todayCount = contracted.filter(a => { const j = jm[a.job_number]; if (!j) return false; const s = j.date_start, e = j.date_end || j.date_start; return s && s <= today && today <= e; }).length;
-          }
-        } catch {}
+        // 「わたしの実績」カードの要約（wHub＝当日の仕事・求人件数・評価件数）は
+        // カード削除（2026-08-21）とともに撤去＝jobs_publicの2本の問い合わせも不要になった
         if (cancelled) return;
         if (ts?.ok) { setWTrust(ts); setCache("hub:wTrust", ts); }
-        const hub = { today: todayCount, searchOpen: openCount, reviewed: ts?.reviewed_count || 0, completed: ts?.completed_count || 0, hours: ts?.total_hours || 0, wantAgain: ts?.want_again_count || 0 };
-        setWHub(hub); setCache("hub:wHub", hub);
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -344,23 +326,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 </div>
                 <div style={{ marginTop:16 }}>
                   <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>わたしの記録</p>
-                  {/* タップ＝プロフィールプレビュー（WorkerPreviewSheet）を「記録」タブで開く（2026-08-21たきと指示
-                      「実績はプロフィールの記録タブを出すように」）。旧・実績専用モーダル（WorkerTrustCardのみ＝
-                      プレビュー1枚目と同じ見た目）は廃止＝実績の表示は はたらいた記録（WorkerWorkRecord）に一本化 */}
-                  <button onClick={async ()=>{
-                    setWSeenReviews(wHub.reviewed); try { localStorage.setItem("cb_wSeenReviews", String(wHub.reviewed)); } catch {}
-                    let wid = wMini?.auth_id || null;
-                    if (!wid) { try { const { data: { session } } = await supabase.auth.getSession(); wid = session?.user?.id || null; } catch {} }
-                    if (wid) openWorkerPreview(wid, 1); // 1＝記録（はたらいた記録）の面
-                  }} className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                    {wHub.reviewed > wSeenReviews && <span style={{ position:"absolute", top:10, right:12, fontSize:18, lineHeight:1 }}>🌟</span>}
-                    <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🌟</span>
-                    <span style={{ flex:1, minWidth:0 }}>
-                      <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>わたしの実績</span>
-                      <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4 }}>完了 {wHub.completed}回　🌟 {wHub.wantAgain}　作業 {wHub.hours}時間</span>
-                    </span>
-                  </button>
-                  {/* 📋 経験・できること（自己申告）：わたしの実績の下へ（2026-07-23）。タップで編集ボックスを開く */}
+                  {/* 「🌟わたしの実績」カード（プレビューの記録タブ直行）は削除（2026-08-21たきと指示）＝
+                      名刺カードの反転→記録／評価タブと完全に重複するため。実績・評価の表示は
+                      名刺カード裏面（SwipeTabPages）に一本化。評価新着の🌟マークも一緒に廃止 */}
+                  {/* 📋 経験・できること（自己申告）。タップで編集ボックスを開く */}
                   {(() => {
                     const chips = wMini ? [
                       ...((Array.isArray(wMini.experience_entries) ? wMini.experience_entries : []).filter(e => e && (e.crop||"").trim()).map(e => `${e.crop}×${e.task||""}${e.duration ? `（${e.duration}）` : ""}`)),
