@@ -111,6 +111,7 @@ export function WorkRecordBody({ data, showName }) {
 
     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 2px 0" }}>
       すべて記録から出しています。時間は求人の勤務時間から数えています（休憩は引いていません）。
+      進行中の仕事は、終わった作業日のぶんまで時間に入れています（件数と作物別・作業別は、仕事が完了してから数えます）。
       遅刻の判定はしません（開始時刻は自動で記録されるため、そこから遅刻を決めつけません）。
       点数や順位は付けません。
     </p>
