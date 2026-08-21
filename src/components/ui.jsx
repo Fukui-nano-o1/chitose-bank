@@ -111,6 +111,74 @@ export const Avatar = ({ url, name, size = 40, ring, bg }) => {
       </div>;
 };
 
+// プロフィールプレビューの面ページャー（タブ＋指追従スワイプ）＝唯一の実装（2026-08-21）。
+// 使い手：WorkerPreviewSheet（PreviewSheets）／ProfileHubの働き手名刺カード裏面。
+// 規則はボックス一覧・農家プロ作成中⇄公開中と同じ作法：横と分かってから（8px）transformを直接書く＝
+// 毎フレームの再描画なしで指に付いてくる。縦の指は奪わない（touchAction:pan-y）。端は1/3の抵抗。
+// タブのタップは stopPropagation＝名刺カード（タップ=反転）の中に置いても反転を起こさない
+export function SwipeTabPages({ tabs, page, onPage, children }) {
+  const n = tabs.length;
+  const step = 100 / n;
+  const trackRef = useRef(null);
+  const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
+  const basePct = () => -page * step;
+  const onStart = (e) => {
+    dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
+  };
+  const onMove = (e) => {
+    const s = dragRef.current, el = trackRef.current;
+    if (!s || !el) return;
+    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.lock !== "h") return;
+    const atEdge = (page === 0 && dx > 0) || (page === n - 1 && dx < 0); // 端は1/3の抵抗
+    s.dx = atEdge ? dx / 3 : dx;
+    el.style.transition = "none";
+    el.style.transform = `translateX(calc(${basePct()}% + ${s.dx}px))`;
+  };
+  const onEnd = () => {
+    const s = dragRef.current, el = trackRef.current;
+    dragRef.current = null;
+    if (!s || !el || s.lock !== "h") return;
+    el.style.transition = "transform .3s ease";
+    const threshold = Math.min(80, s.w / 4);
+    let next = page;
+    if (s.dx < -threshold && page < n - 1) next = page + 1;
+    else if (s.dx > threshold && page > 0) next = page - 1;
+    el.style.transform = `translateX(${-next * step}%)`;
+    if (next !== page) onPage(next);
+  };
+  const kids = Array.isArray(children) ? children : [children];
+  return (
+    <>
+      {/* どの面を見ているかの目印。タップでも切り替わる（スワイプがあることに気づけるように） */}
+      <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
+        {tabs.map((l, i) => (
+          <button key={i} type="button" onClick={(e)=>{ e.stopPropagation(); onPage(i); }} className="f-sans"
+            style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", background:"#fff",
+              border: page===i ? "2px solid #222" : "1px solid #EBEBEB",
+              fontSize:12, fontWeight: page===i ? 800 : 600, color: page===i ? "#222" : "#999" }}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
+        <div ref={trackRef} style={{ display:"flex", alignItems:"flex-start", width:(n*100)+"%", transform:`translateX(${basePct()}%)`, transition:"transform .3s ease" }}>
+          {kids.map((c, i) => (
+            <div key={i} style={{ width:(100/n)+"%", flexShrink:0, boxSizing:"border-box",
+              paddingRight: i < n-1 ? 5 : 0, paddingLeft: i > 0 ? 5 : 0 }}>
+              {c}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // 読み込み中の「…」（2026-07-30たきと指示・遊び心）：点が1つずつ跳ねる。
 // 読み上げには「…」1文字だけ渡す（点3つを読み上げさせない）
 export const Dots = () => (

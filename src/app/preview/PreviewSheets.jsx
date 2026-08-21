@@ -1,13 +1,13 @@
 // 相手の顔を出すプレビューシート（働き手・雇い手）。第2次構造改革2026-08-17でApp.jsxから移設。
 // ★開くのは lib/previewBus のイベント経由（openWorkerPreview / openEmployerPreview）＝
 //   どの画面からも同じ窓口で開く。表示してよい項目の正は components/TrustCards。
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { isAdmin, ROLE_GREEN, farmIntroTopics, farmHostQa, perkBadges, workerQaItems } from "../../lib/utils";
 import { getCache, setCache, clearCache } from "../../lib/viewCache";
 import { openWorkerPreview, openEmployerPreview } from "../../lib/previewBus";
-import { Dots, QaChat } from "../../components/ui";
+import { Dots, QaChat, SwipeTabPages } from "../../components/ui";
 import { WorkerTrustCard, FarmerTrustCard } from "../../components/TrustCards";
 import { WorkerWorkRecord } from "../../components/WorkerWorkRecord";
 import { ReceivedReviews } from "../../components/ReceivedReviews";
@@ -175,44 +175,8 @@ export function WorkerPreviewSheet() {
     setTimeout(() => setRep(null), 1800);
   };
 
-  // ── 指追従ページャー（ボックス一覧・農家プロ作成中⇄公開中と同じ作法）──
-  // 横に動かしたと分かってから（8px）transformを直接書く＝毎フレームの再描画なしで指に付いてくる。
-  // 縦の指はページャーが奪わない（touchAction:pan-y）＝ボックスの縦スクロールは従来どおり。
-  // ボックスは3枚（0=プロフィール／1=受け取った評価／2=はたらいた記録）。横スワイプで行き来する
-  const PV_PAGES = 3;
-  const pvStep = 100 / PV_PAGES; // トラック幅に対する1ページ分の割合
-  const trackRef = useRef(null);
-  const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
-  const basePct = () => -page * pvStep;
-  const onPagerStart = (e) => {
-    dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
-  };
-  const onPagerMove = (e) => {
-    const s = dragRef.current, el = trackRef.current;
-    if (!s || !el) return;
-    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
-    }
-    if (s.lock !== "h") return;
-    const atEdge = (page === 0 && dx > 0) || (page === PV_PAGES - 1 && dx < 0); // 端は1/3の抵抗
-    s.dx = atEdge ? dx / 3 : dx;
-    el.style.transition = "none";
-    el.style.transform = `translateX(calc(${basePct()}% + ${s.dx}px))`;
-  };
-  const onPagerEnd = () => {
-    const s = dragRef.current, el = trackRef.current;
-    dragRef.current = null;
-    if (!s || !el || s.lock !== "h") return;
-    el.style.transition = "transform .3s ease";
-    const threshold = Math.min(80, s.w / 4);
-    let next = page;
-    if (s.dx < -threshold && page < PV_PAGES - 1) next = page + 1;
-    else if (s.dx > threshold && page > 0) next = page - 1;
-    el.style.transform = `translateX(${-next * pvStep}%)`;
-    if (next !== page) setPage(next);
-  };
+  // ページャーは共有部品 SwipeTabPages（ui.jsx）に一本化（2026-08-21）。
+  // ProfileHubの名刺カード裏面と同じ実装＝送り方・見た目が枝分かれしない
 
   if (!st) return null;
   // 報告できるのはログイン済みの他人だけ（自分は報告しない＝DB側のCHECK制約と揃える）
@@ -224,40 +188,27 @@ export function WorkerPreviewSheet() {
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
-            {/* 2枚のどちらを見ているかの目印。タップでも切り替わる（スワイプがあることに気づけるように） */}
-            <div style={{ display:"flex", gap:8, margin:"0 0 14px" }}>
-              {[{ k:0, l:"プロフィール" }, { k:1, l:"記録" }, { k:2, l:"評価" }].map(t => (
-                <button key={t.k} type="button" onClick={()=>setPage(t.k)} className="f-sans"
-                  style={{ flex:1, padding:"9px 0", borderRadius:10, cursor:"pointer", background:"#fff",
-                    border: page===t.k ? "2px solid #222" : "1px solid #EBEBEB",
-                    fontSize:12, fontWeight: page===t.k ? 800 : 600, color: page===t.k ? "#222" : "#999" }}>
-                  {t.l}
-                </button>
-              ))}
-            </div>
-            <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
-              <div ref={trackRef} style={{ display:"flex", alignItems:"flex-start", width:"300%", transform:`translateX(${basePct()}%)`, transition:"transform .3s ease" }}>
-                {/* 1枚目：プロフィール（従来の中身をそのまま） */}
-                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
-                  <WorkerTrustCard profile={st.profile} trust={st.trust} />
-                  {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
-                  <QaChat items={workerQaItems(st.profile)} />
-                  <MyReviewsOfWorker workerId={st.worker_id} />
-                  {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"profile", field:"", issue:"", detail:"", sending:false, done:false })} />}
-                </div>
-                {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品）。
-                    並びは プロフィール→記録→評価（2026-08-07たきと指示で評価と入れ替え） */}
-                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", padding:"0 5px" }}>
-                  <WorkerWorkRecord workerId={st.worker_id} />
-                  {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
-                </div>
-                {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定）。
-                    公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
-                <div style={{ width:"33.3333%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-                  <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
-                </div>
+            <SwipeTabPages tabs={["プロフィール","記録","評価"]} page={page} onPage={setPage}>
+              {/* 1枚目：プロフィール（従来の中身をそのまま） */}
+              <div>
+                <WorkerTrustCard profile={st.profile} trust={st.trust} />
+                {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
+                <QaChat items={workerQaItems(st.profile)} />
+                <MyReviewsOfWorker workerId={st.worker_id} />
+                {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"profile", field:"", issue:"", detail:"", sending:false, done:false })} />}
               </div>
-            </div>
+              {/* 2枚目：はたらいた記録（働き手ダッシュボードと同じ部品）。
+                  並びは プロフィール→記録→評価（2026-08-07たきと指示で評価と入れ替え） */}
+              <div>
+                <WorkerWorkRecord workerId={st.worker_id} />
+                {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
+              </div>
+              {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定）。
+                  公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
+              <div>
+                <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
+              </div>
+            </SwipeTabPages>
           </>
         ) : st.blocked ? (
           /* 休眠中の受け皿（審査を戻した時に再武装する。上の段階1のコメントと対）。

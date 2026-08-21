@@ -6,7 +6,9 @@ import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { openWorkerPreview } from "../lib/previewBus";
 import { ymdLocal, WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
-import { Avatar, QaChat, Dots } from "./ui";
+import { Avatar, QaChat, Dots, SwipeTabPages } from "./ui";
+import { WorkerWorkRecord } from "./WorkerWorkRecord";
+import { ReceivedReviews } from "./ReceivedReviews";
 import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
@@ -145,6 +147,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [wAppCounts, setWAppCounts] = useState(() => getCache("hub:wCounts") ?? { applying:0, approved:0 });
   const [wTopBack, setWTopBack] = useState(() => { try { return localStorage.getItem("cb_wTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [wTopAnim, setWTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
+  const [wPvPage, setWPvPage] = useState(0);       // 裏面プレビューの面（0=プロフィール/1=記録/2=評価・2026-08-21）
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [wHub, setWHub] = useState(() => getCache("hub:wHub") ?? { today:0, searchOpen:0, reviewed:0 }); // ハブ箱用（2026-07-22）：当日の仕事・きょう応募できる求人件数・評価件数
   const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・2026-08-19に任意へ）＝未設定数の数え方に要る
@@ -283,14 +286,22 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 ) : (
                   <div className="f-sans" style={{ width:"100%", textAlign:"left" }}>
                     {/* プレビューの統一（2026-07-26たきと指示）：裏面も本物のプレビュー
-                        （WorkerPreviewSheet＝農家が見る構造：WorkerTrustCard＋Q&A）と同一にする。
-                        trustは本人限定RPC(my_worker_trust_stats)＝worker_trust_infoと同形ので そのまま渡せる */}
+                        （WorkerPreviewSheet＝農家が見る構造）と同一にする。
+                        3タブ（プロフィール／記録／評価）＋指スワイプ＝共有部品SwipeTabPages（2026-08-21たきと指示）。
+                        trustは本人限定RPC(my_worker_trust_stats)＝worker_trust_infoと同形ので そのまま渡せる。
+                        タブのタップは部品側がstopPropagation＝カードは反転しない。中身のタップ＝反転（表へ戻る） */}
                     {wMini ? (
-                      <>
-                        <WorkerTrustCard profile={wMini} trust={wTrust} />
-                        {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
-                        <QaChat items={workerQaItems(wMini)} />
-                      </>
+                      <SwipeTabPages tabs={["プロフィール","記録","評価"]} page={wPvPage} onPage={setWPvPage}>
+                        <div>
+                          <WorkerTrustCard profile={wMini} trust={wTrust} />
+                          {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
+                          <QaChat items={workerQaItems(wMini)} />
+                        </div>
+                        {/* 記録＝はたらいた記録（本人は閲覧資格あり・worker_work_recordの関係ゲート） */}
+                        <div>{wMini.auth_id && <WorkerWorkRecord workerId={wMini.auth_id} />}</div>
+                        {/* 評価＝受け取った評価（肯定バッジ＋審査済みコメント。公開できる評価が無ければ何も描かない） */}
+                        <div>{wMini.auth_id && <ReceivedReviews userId={wMini.auth_id} direction="farmer_to_worker" />}</div>
+                      </SwipeTabPages>
                     ) : (
                       <p style={{ fontSize:13, color:"#999", textAlign:"center", margin:"32px 0" }}>プロフィールは未設定です</p>
                     )}
