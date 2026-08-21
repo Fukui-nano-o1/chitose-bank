@@ -1,0 +1,15 @@
+-- Disk IO 対策（2026-08-21 たきと裁定）：PostgREST の接続ロール authenticator の work_mem を 16MB に。
+-- 【なぜ】スキーマキャッシュ再構築（75回/日・Realtime DDL起因）の内省クエリが、nano既定の
+--   work_mem 2184kB を超えて毎回 9,104KB を一時ファイルに spill ＝累計254GB・約1.9GB/日の
+--   ディスク書き込み（Disk IO 警告の本丸）。16MB ならメモリ内で収まる見込み。
+-- 【安全】work_mem は「必要な時だけ使う上限」で常時確保ではない。適用前実測：authenticator 2接続・
+--   PostgREST pool 上限10・利用者クエリのソート対象は全てKB級（全表 heap_blks_read=0）＝
+--   この上限に近づくのは内省クエリだけ。
+-- 【効き始め】ロール設定は新しい接続から効く。PostgREST は再構築のたびに接続プールを作り直す
+--   （73回/日）ので数時間内に全接続へ行き渡る。
+-- 【判定】適用24時間後の pg_stat_database(postgres) の temp_files / temp_bytes 増分がゼロ近傍なら勝ち。
+--   ベースライン（適用直後の実測）＝ 2026-08-21 06:28:33 UTC・temp_files 86,875・
+--   temp_bytes 274,224,200,109。減っていなければ 16MB でも不足（メモリ内ソートはディスク上より
+--   膨らむ）＝ 32MB へ1行で引き上げ。
+-- 【戻し方】 alter role authenticator reset work_mem;
+alter role authenticator set work_mem = '16MB';

@@ -7031,4 +7031,42 @@ JobCard（関連求人と同じ「写真に情報を重ねる」型）に差し�
 JobCard(wide)・search:viewCounts・saved:rows の配線と新文言を確認。実機目視の残り：
 ①一覧がさがすと同じカードで並ぶか ②♥タップで解除→再タップで戻る→閉じて開き直すと解除分が消える
 ③👀の数字 ④カードタップで求人ページ→戻るとマイページ ⑤募集終了の帯とハート非表示
+━━━ 2026-08-21 Disk IO警告の犯人特定（測定ゲート）＝chat_readsは無罪・真犯人はスキーマ再構築のtemp spill ━━━
+【経緯】applications 27〜36回/分のバースト疑いから調査→A〜E案→たきと「回数でなくIO寄与で順番を決めろ・
+測定を先に」→測定3点（読み取り専用）で前提が覆った。測定ゲートが機能した実例として記録する。
+【測定結果（全て実測）】
+・読み取り＝全ユーザー表で heap_blks_read=0（applications hit 494,505/read 0 等）＝読みは1バイトも
+  ディスクに触れていない。A（購読統合）/B（デバウンス）/CはDisk IOに無効と確定
+・chat_reads（D案の対象）＝生涯 UPSERT 1,356回・WAL 583KB・直近24hのPOSTは【1回】＝現在の規模では無罪。
+  「開いている端末×12回/分」の設計自体は実在（時限爆弾）＝11月対策として畳む価値は残る
+・★真犯人＝PostgREST スキーマキャッシュ再構築の内省クエリ（with f as -- CTE with sane arg_modes…）。
+  work_mem 2184kB（nano既定）< 必要量so【毎回9,104KB固定でtempにspill】×再構築75回/日（Speed-2Aの嵐）
+  ＝約1.9GB/日。pg_stat_database実測：temp_files 86,599・temp_bytes 254GB（WALは224MBしかない）。
+  Speed-2Aで「CPUの無駄」とした嵐の正体はDisk IOだった
+・推定1段の注記：pgssに見える犯人クエリのcallsは206回のみ（PostgREST版更新でクエリ文が変わり過去分は
+  追い出されたと推定）。ただし「1回9,104KB固定×既知の75回/日」の積算はこの推定に依存しない
+【たきと裁定（2026-08-21）】
+1. 真犯人対応が最優先。(a)work_mem 16MBを最初から撃つ（8MB段階上げは9.1MB>8MBで無意味so却下）＋
+   (b)Supabaseサポート起票を即日。効果判定＝適用24h後のtemp増分ゼロ近傍なら勝ち
+2. D承認・名目は【11月対策】（Disk IO対策の看板は下ろす）・着手は真犯人の後
+3. A・B格下げ維持：D+A+Bを1本の「リクエスト削減」PRに畳んで半日以内。C封印・E廃棄
+【実施済み（本セッション）】
+・(a)適用済み：alter role authenticator set work_mem='16MB'（migration 20260821062823・repo写経済み）。
+  適用前実測＝authenticator 2接続/active 0・pool上限10・利用者クエリのソートは全てKB級＝RAM リスク低。
+  ロール設定は新規接続から効く（PostgRESTはプール作り直し73回/日so数時間で行き渡る）
+・(b)起票文＝docs/supabase-support-ticket-2026-08-21.md（英語提出用＋日本語控え）。
+  ★提出はたきとのPC作業（ダッシュボード→Support。この環境からは出せない）
+・24h判定のベースライン＝【2026-08-21 06:28:33 UTC・temp_files 86,875・temp_bytes 274,224,200,109】
+  （調査中も嵐は進行so冒頭の254GBから微増。判定はこのベースラインとの差分で行う）
+【次セッションのタスク（順番厳守）】
+1. 適用24h後（2026-08-22 06:28 UTC以降）に
+   select now(), temp_files, temp_bytes from pg_stat_database where datname='postgres';
+   を実行しベースラインとの増分を報告。ゼロ近傍＝勝ち／減っていなければ32MBへ1行引き上げ
+2. 勝ち確認後：D+A+Bの「リクエスト削減」PR（半日上限）＝
+   D: ChatView.jsx 211-214のchat_reads UPSERTを「既読が実際に動いた時だけ」（194の判定の内側へ）＋
+      ポーリング5秒→15秒（352行）
+   A: App.jsx hired-watch(1228-1261)をstage-watch(1265-1334)へ統合（1233のGETは1273の部分集合so削除）
+   B: stage-watchの2リスナー→1リスナー＋onAppChange(1328)に5秒デバウンス
+   ※行番号は2026-08-21時点。着手前にgrepで再実測すること
+3. C（stage-watchの1 RPC化）は封印のまま。E（chatlist-liveのフィルタ）は廃棄
 ━━━ ここまで ━━━
