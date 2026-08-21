@@ -368,13 +368,13 @@ export function TodayPage({ me, defaultRole }) {
       if (m.boxNav) { window.location.hash = m.boxNav(); return; }   // 専用ページを挟まず直接その面へ（プロフィールの未入力）
       window.location.hash = "/calendar/todo/" + stage;
     };
-    // 枠線と配色（2026-08-21たきと指示「カードに枠線と配色を」→同日「働き手と農家の2色だけ」）：
-    // 全箱とも今の役割の色（accent＝働き手橙/農家緑）で枠線＋うすい下地（color+"14"＝現在地バナー等と
-    // 同じ8%の色付け）。用件ごとの色分けはしない。該当なしは従来どおり薄表示（dim）が「いま用事が無い」を示す
+    // 枠線と配色（2026-08-21たきと指示「カードに枠線と配色を」→「働き手と農家の2色だけ」→
+    // 「背景は白で統一。影も追加」）：枠線＝今の役割の色（accent＝働き手橙/農家緑）・背景＝白・
+    // 影あり。用件ごとの色分けはしない。該当なしは従来どおり薄表示（dim）が「いま用事が無い」を示す
     return (
       <button onClick={onTapBox} className="f-sans" style={{
-        position:"relative", background: accent + "14", border:"1.5px solid " + accent, borderRadius:18,
-        padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)",
+        position:"relative", background:"#fff", border:"1.5px solid " + accent, borderRadius:18,
+        padding:"24px 10px 18px", textAlign:"center", cursor:"pointer", boxShadow:"0 3px 10px rgba(0,0,0,0.10)",
         opacity: dim ? 0.45 : 1,
       }}>
         {/* 件数バッジ（右上の丸数字）は削除（2026-08-21たきと指示「今日ページの通知機能は削除。①と付くやつ」）。
