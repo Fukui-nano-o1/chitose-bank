@@ -1300,7 +1300,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             // ★order は my_farm_applicants（created_at降順）の初出順ので order[0]＝一番新しい応募の求人。
             // 日付タップの受け口は calendarTop の onDayJobs（同じ日をもう一度タップ＝解除）
             const dayJobs = calDay ? new Set(calDay.jobs) : null;
-            const dayOrder = calDay ? order.filter(jn => dayJobs.has(jn)) : order.slice(0, 1);
+            // ★その日の自分の求人は【応募者ゼロでも出す】（2026-08-21たきと報告「タップしてもカードが出てこない」の修理）。
+            //   order＝応募者がいる求人だけので、それだけで絞ると応募の無い求人・絞り込みで全員隠れた求人のカードが消える。
+            //   応募者ありを先（order順＝新しい応募の順）・無しを後ろに。jobInfoMap に無い番号＝自分の求人でない
+            //   （働き手として応募した求人・いいね）ので出さない
+            const dayOrder = calDay
+              ? [...order.filter(jn => dayJobs.has(jn)), ...calDay.jobs.filter(jn => jobInfoMap[jn] && !byJob[jn])]
+              : order.slice(0, 1);
             const calHint = (
               <p key="app-cal-hint" className="f-sans" style={{ gridColumn:"1/-1", fontSize:12, color:"#999", textAlign:"center", margin:"0 0 8px", lineHeight:1.8 }}>
                 日付をタップすると、その日の求人と応募者が表示されます
@@ -1356,19 +1362,25 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
             const body = dayOrder.length === 0
               // 0件＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03）。
-              // 日を選んでいない時（直近カードの面）も、絞り込みで全員隠れている時はここで説明する
+              // 日を選んだ時の0件＝その日に自分の求人が無い（応募の有無・絞り込みは関係なくなった＝
+              // 求人カード自体は応募者ゼロでも出すため）。働き手として応募した日・いいねの日をタップした時がこれ。
+              // 日を選んでいない時（直近カードの面）＝絞り込みで全員隠れている時にここで説明する
               ? [<div key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>
                   <p style={{ margin:0 }}>
-                    {calDay ? "この日の求人には、表示できる応募者がいません。" : "表示できる応募者がいません。"}
-                    {appHidden.length > 0 && <><br/>{appHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。</>}
+                    {calDay ? "この日に、あなたが出した求人はありません。" : "表示できる応募者がいません。"}
+                    {!calDay && appHidden.length > 0 && <><br/>{appHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。</>}
                   </p>
-                  {appHidden.length > 0 && (
+                  {!calDay && appHidden.length > 0 && (
                     <button onClick={()=>setAppHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
                   )}
                 </div>]
               : dayOrder.map(jn => {
                   // 求人カード化（2026-07-25たきと指示）：左＝トップ写真／右＝タイトル・No.／その下に応募者アイコンの横スワイプ列。
                   // アイコン列のtouchはstopPropagationで親のフィルタ切替スワイプと分離する
+                  // apps＝この求人の表示できる応募者。応募者ゼロでもカードは出す（2026-08-21）ので必ず||[]で受ける
+                  const apps = byJob[jn] || [];
+                  // 全員が絞り込みで隠れているのか、そもそも応募が無いのかを右側の文言で区別する
+                  const hiddenCount = apps.length === 0 ? dbApplicants.filter(a => a.job_number === jn).length : 0;
                   const info = jobInfoMap[jn] || {};
                   const title = [info.crop, info.task].filter(Boolean).join(" ") || `求人 #${jn}`;
                   // 表示は軽量サムネ優先（2026-07-25）：thumbが無い旧写真は原寸URLへフォールバック
@@ -1382,13 +1394,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   //   従来は日程が過ぎた時点で暗幕＋pointerEvents:noneを掛けていたため、今日ページの
                   //   「バイトの評価」（旧・完了して評価する）から来ても応募者カードに触れず、完了記録・評価ができなかった。
                   //   todoAppIds（my_todo_items由来＝完了記録・評価が残っている応募）が1件でもあれば暗幕を出さない
-                  const jobPendingAction = byJob[jn].some(a => todoAppIds.has(a.id));
+                  const jobPendingAction = apps.some(a => todoAppIds.has(a.id));
                   const jobPast = datePast && !jobPendingAction;
-                  const jobCompleted = jobPast && byJob[jn].some(a => a.status === "completed");
+                  const jobCompleted = jobPast && apps.some(a => a.status === "completed");
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。
                   // 既存の .cb-urgent-card（赤影＋3.5秒の浮遊ループ）をそのまま使う。終わった求人は静かにする
-                  const cardUrgent = !jobPast && byJob[jn].some(a => todoAppIds.has(a.id));
+                  const cardUrgent = !jobPast && apps.some(a => todoAppIds.has(a.id));
                   return (
                     <div key={`job-${jn}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
@@ -1423,6 +1435,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       </button>
                       {/* 右：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
                       <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center" }}>
+                        {/* 応募者ゼロでもカードは出す（2026-08-21）：右側は理由の一言。
+                            全員が絞り込みで隠れている時と、まだ応募が無い時を区別する */}
+                        {apps.length === 0 ? (
+                          <p className="f-sans" style={{ width:"100%", textAlign:"center", fontSize:12, color:"#999", margin:0, lineHeight:1.7 }}>
+                            {hiddenCount > 0
+                              ? <>絞り込みで{hiddenCount}名を非表示にしています</>
+                              : <>この求人への応募はまだありません</>}
+                          </p>
+                        ) : (<>
                         {/* アイコンのみ・中央配置（2026-07-25たきと指示）：箱装飾なし。少人数なら中央、溢れたら横スクロール（max-content＋margin auto） */}
                         {/* アイコン列がはみ出して実際に横スクロールできる時だけ、ページのスワイプに渡さない
                             （2026-07-27たきと報告「失効・見送りのカードでしかスワイプが効かない」の修理）。
@@ -1433,7 +1454,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                              ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
                           style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
-                          {byJob[jn].map(a => {
+                          {apps.map(a => {
                             const wp = workerProfiles[a.worker_id];
                             // 失効応募のアイコンは「失効当時の状態」で表示（2026-07-25たきと指示）。失効はappliedからのみ発生（cron）＝応募中。
                             // 失効の事実はカード全体の黒「失効」オーバーレイが担う（アイコン側に失効ラベルは出さない）
@@ -1452,6 +1473,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           })}
                           </div>
                         </div>
+                        </>)}
                       </div>
                     </div>
                   );
