@@ -180,9 +180,9 @@ const MENU_ITEMS = [
 // ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理・ログアウト
 // （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
-// アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。まず働き手ナビだけ。
+// アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。農家ナビ（empNav）も同日に追従済み。
 // 「カレンダー」=カレンダー枠／「今日」=時計 で描き分け＝旧📅📆の取り違え注意は解消。
-// 農家ナビ（empNav）・訪問者ナビは絵文字のまま＝揃えるときは NavIcon を同じ形で差し込む。
+// 訪問者ナビ（visitorNav）だけ絵文字のまま＝揃えるときは NavIcon を同じ形で差し込む。
 const MOBILE_TABS = [
   { k:"search",   icon:<NavIcon name="search" />,   label:"さがす" },
   // ラベルは「カレンダー」（2026-08-22たきと指示・旧「♡ステータス」2026-07-27）：
@@ -1564,12 +1564,13 @@ export default function App(){
         // 雇い手プロフィール等で どのタブも点かない穴があった
         // 「求人」(emp-jobs→/profile/employer/active)は「さがす」に差し替え（2026-08-21たきと指示）。
         // 自分の求人ページへはプロフィール入口のカード（作成中/公開中/期限切れ）から従来どおり行ける
-        { k:"search",         icon:"🔍", label:"さがす" },
-        { k:"emp-applicants", icon:"🤝", label:"応募者",     hash:"/profile/employer/applicants", badge: navBadges.applicants_pending,
+        // アイコンは働き手ナビと同じアウトラインSVG（NavIcon・2026-08-22）。応募者=2人の人物
+        { k:"search",         icon:<NavIcon name="search" />,     label:"さがす" },
+        { k:"emp-applicants", icon:<NavIcon name="applicants" />, label:"応募者", hash:"/profile/employer/applicants", badge: navBadges.applicants_pending,
           match: h => h.startsWith("profile/employer/applicants") },
-        { k:"chats",          icon:"💬", label:"チャット" },
-        { k:"calendar",       icon:"📆", label:"今日" },
-        { k:"profile",        icon:"👤", label:"マイページ",
+        { k:"chats",          icon:<NavIcon name="chats" />,      label:"チャット" },
+        { k:"calendar",       icon:<NavIcon name="today" />,      label:"今日" },
+        { k:"profile",        icon:<NavIcon name="profile" />,    label:"マイページ",
           match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ]
     : MOBILE_TABS;
