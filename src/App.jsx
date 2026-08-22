@@ -171,25 +171,27 @@ const bootIdleQueue = createIdleQueue();
 // 運営憲章・利用規約・プライバシーはフッター3列に常設のため☰からは削除（二重掲載の解消・2026-07-14）
 const MENU_ITEMS = [
   { key:"chats",    label:"💬 チャット",   hash:"/chats",    auth:true  },
-  { key:"calendar", label:"📆 今日", hash:"/calendar", auth:true  },
   { key:"profile",  label:"マイページ",  hash:"/profile",  auth:true  },
   { key:"login",    label:"ログイン",      hash:"/login",    auth:false, guestOnly:true },
 ];
 
-// モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
+// モバイル下部バー：☰(左端・アイコンのみ)＋4機能タブ。
 // ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理・ログアウト
 // （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
-// 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
+// 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→カレンダー→チャット(③約束する)→マイページ
 // アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。
 // 農家ナビ（empNav）・訪問者ナビ（visitorNav）も同日に追従＝下部ナビの絵文字アイコンは全廃。
-// 「カレンダー」=カレンダー枠／「今日」=時計 で描き分け＝旧📅📆の取り違え注意は解消。
+// ★「今日」タブは下部バー・PC☰・農家ナビの3箇所から削除（2026-08-22たきと指示「今日ページを
+//   下部ヘッダーから切り離して」）＝やることカード群をマイページ両面へ移した後の段。
+//   ページ自体（#/calendar・用件の専用ページ #/calendar/todo/*）は生きている＝マイページの
+//   やることの箱・お知らせ・メールのリンクから従来どおり到達する（TAB_URL_KEYSにcalendarを残置）。
+//   NavIcons の today（時計）は使い手がゼロになったが、次の入口を作る時に使うので残す。
 const MOBILE_TABS = [
   { k:"search",   icon:<NavIcon name="search" />,   label:"さがす" },
   // ラベルは「カレンダー」（2026-08-22たきと指示・旧「♡ステータス」2026-07-27）：
   // この面の上部にカレンダーが常時展開されているため（2026-08-19）。
   { k:"saved",    icon:<NavIcon name="calendar" />, label:"カレンダー" },
   { k:"chats",    icon:<NavIcon name="chats" />,    label:"チャット" },
-  { k:"calendar", icon:<NavIcon name="today" />,    label:"今日" },
   { k:"profile",  icon:<NavIcon name="profile" />,  label:"マイページ" },
 ];
 // モバイル☰メニューの静的リンク項目（求人を探す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
@@ -1570,7 +1572,6 @@ export default function App(){
         { k:"emp-applicants", icon:<NavIcon name="applicants" />, label:"応募者", hash:"/profile/employer/applicants", badge: navBadges.applicants_pending,
           match: h => h.startsWith("profile/employer/applicants") },
         { k:"chats",          icon:<NavIcon name="chats" />,      label:"チャット" },
-        { k:"calendar",       icon:<NavIcon name="today" />,      label:"今日" },
         { k:"profile",        icon:<NavIcon name="profile" />,    label:"マイページ",
           match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ]
