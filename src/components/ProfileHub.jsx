@@ -13,6 +13,7 @@ import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
 import LaborConditionsNotice from "./LaborConditionsNotice";
+import { LikedJobsCard } from "./LikedJobsCard";
 
 // 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
@@ -357,6 +358,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                       採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い。
                       旧「契約の記録」（実績モーダル内）の機能はここへ統合済み＝1機能1入口 */}
                   <LaborConditionsNotice me={me} role="worker" />
+                  {/* いいねした求人（2026-08-22たきと指示「マイページのわたしの記録グループにいいねした求人カードを新設」）。
+                      データ源・キャッシュはステータスページと共用（my_job_actions／saved:rows）。読み取り専用＝
+                      ♥解除の窓口は増やさない（求人ページ・ステータスページのまま） */}
+                  <LikedJobsCard me={me} />
                 </div>
               </>);
             })()}
