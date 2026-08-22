@@ -525,7 +525,7 @@ const STEPS = [
               並びは TodayPage の TODO_STAGE_CATALOG.farmer＋先頭の常設プロフィール入力。
               アイコンは実物と同じ NavIcon（絵文字→アウトラインSVG・2026-08-22）。
               枠＝役割色1.5px・白背景・影＝実物の TodoStageBox と同じ規格（2026-08-21） */}
-          {[["profile","プロフィール入力",1],["alert","緊急連絡"],["edit","求人の修正"],["question","求人の質問"],["handshake","採用する",1],["shield","保険の報告"],["clipboard","今日の記録"],["check","バイトの評価"]].map(([ic, l, on]) => (
+          {[["profile","プロフィール入力",1],["alert","緊急連絡"],["edit","求人の修正"],["question","求人の質問"],["hire","採用する",1],["shield","保険の報告"],["clipboard","今日の記録"],["check","バイトの評価"]].map(([ic, l, on]) => (
             <div key={l} style={{ position:"relative", border:`1.5px solid ${GREEN}`, borderRadius:18, padding:"20px 6px 14px", textAlign:"center", background:"#fff", boxShadow:"0 3px 10px rgba(0,0,0,0.10)", opacity: on ? 1 : 0.45 }}>
               <div style={{ display:"flex", justifyContent:"center", marginBottom:8, color:"#333" }}><NavIcon name={ic} size={36} /></div>
               <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:INK, margin:0, lineHeight:1.4 }}>{l}</p>

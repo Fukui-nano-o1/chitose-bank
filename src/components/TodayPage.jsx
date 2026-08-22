@@ -273,7 +273,7 @@ export function TodayPage({ me, defaultRole }) {
     // 最終確認→OKでその場で採用（2026-08-19たきと指示「採用する枠削除。カードタップで採用する最終確認」）。
     // 2026-08-19に採用の実行窓口はこのページ1箇所に一本化済み（応募者シートの🤝はリンクに変更）。
     // nav は箱から直接押した時の保険＝その応募のシートへ送る（cb_openApplicantId・取り違え防止）
-    hire:        { iconName:"handshake", title:"採用する",             btn:"採用する →",
+    hire:        { iconName:"hire", title:"採用する",             btn:"採用する →",
                    desc:"面接を終えた応募者を採用します。カードをタップすると最終確認が出ます（二重予約の警告つき）。",
                    nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } },
     insurance:   { iconName:"shield", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
@@ -385,7 +385,7 @@ export function TodayPage({ me, defaultRole }) {
         {stage === "profile" && n > 0 && (
           <span aria-label={"未入力" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:accent, color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>
         )}
-        <span style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#333" }}><NavIcon name={m.iconName} size={44} /></span>
+        <span style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#333" }}><NavIcon name={m.iconName} size={52} /></span>
         <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
       </button>
     );
