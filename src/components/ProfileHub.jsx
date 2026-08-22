@@ -397,8 +397,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
             {/* 浮遊の「← プロフィール」ボックスは削除（2026-07-25たきと指示・農家側の「← 農家プロ」削除と対）。
                 戻りは下部ナビのプロフィールタップ（＝働き手トップへ）が担う */}
             {/* 「働き手プロフィール」の見出しは削除（2026-08-03たきと指示・名刺カードから開けば現在地は明らか）。
-                他のサブページ（返事待ち・きょうの仕事）は従来どおり見出しを出す */}
-            {wTab !== "wprofile" && (
+                あなたの応募（applying）の見出しも削除（2026-08-22たきと指示「タイトルとタイトル下の横線削除」・
+                横線＝WorkerApplicationsルートのborderTop側で削除）。きょうの仕事は従来どおり見出しを出す */}
+            {wTab !== "wprofile" && wTab !== "applying" && (
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
                 <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:0 }}>{WORKER_TAB_TITLES[wTab]}</h2>
               </div>

@@ -424,7 +424,9 @@ export function WorkerApplications({ filter, me }) {
   // お仕事の流れ（FLOW_STEPS/flowState/FlowBar）は components/ui.jsx へ移設（2026-08-16）：
   // ステータスページのボックスでも同じ進み具合を展開表示するため、見た目・段の定義を1箇所に。
   return (
-    <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
+    // あなたの応募（applying）はタイトルと横線を出さない（2026-08-22たきと指示）＝
+    // 見出しはProfileHub側で非表示・横線(borderTop)と見出しぶんの余白はここで外す。きょうの仕事は従来どおり
+    <div style={filter !== "approved" ? { marginTop:8 } : { marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {/* ラベル「応募状況」＋説明文は見出し直下（2026-08-22たきと指示で一度 過去の応募の下へ移した後、
           「あなたが応募した求人の状況です。は応募状況の下に移植」で元の並びに復帰）。
