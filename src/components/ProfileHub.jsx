@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
-import { WORKER_DECLARATIONS, ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
+import { ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
 import { Avatar, QaChat, Dots, SwipeTabPages } from "./ui";
 import { WorkerWorkRecord } from "./WorkerWorkRecord";
 import { ReceivedReviews } from "./ReceivedReviews";
@@ -348,30 +348,11 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                   {/* 「🌟わたしの実績」カード（プレビューの記録タブ直行）は削除（2026-08-21たきと指示）＝
                       名刺カードの反転→記録／評価タブと完全に重複するため。実績・評価の表示は
                       名刺カード裏面（SwipeTabPages）に一本化。評価新着の🌟マークも一緒に廃止 */}
-                  {/* 📋 経験・できること（自己申告）。タップで編集ボックスを開く */}
-                  {(() => {
-                    const chips = wMini ? [
-                      ...((Array.isArray(wMini.experience_entries) ? wMini.experience_entries : []).filter(e => e && (e.crop||"").trim()).map(e => `${e.crop}×${e.task||""}${e.duration ? `（${e.duration}）` : ""}`)),
-                      ...(wMini.farm_experience ? ["🌾 " + wMini.farm_experience] : []),
-                      ...((Array.isArray(wMini.experienced_tasks) ? wMini.experienced_tasks : []).filter(Boolean)),
-                      ...(wMini.transport ? ["🚗 " + wMini.transport] : []),
-                      ...((Array.isArray(wMini.self_declared) ? wMini.self_declared : []).map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip).filter(Boolean)),
-                    ] : [];
-                    // ボックスは他と同じ白・グレー枠（2026-07-26たきと指示）。チップ（タグ）の青は残す
-                    return (
-                      <button onClick={()=>{ try { sessionStorage.setItem("cb_expFromApp","1"); } catch {} window.location.hash="/experience"; }} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"16px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"block" }}>
-                        <span className="f-sans" style={{ display:"block", fontSize:15, fontWeight:800, color:"#222", marginBottom: chips.length ? 8 : 4 }}>📋 経験・できること（自己申告）</span>
-                        {chips.length > 0 ? (<>
-                          <span style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:6 }}>
-                            {chips.map((c,i) => <span key={i} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:20, padding:"4px 10px" }}>{c}</span>)}
-                          </span>
-                          <span className="f-sans" style={{ display:"block", fontSize:10, color:"#A0A8B4", lineHeight:1.5 }}>ご本人の申告です。運営が確認したものではありません。タップして編集</span>
-                        </>) : (
-                          <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", lineHeight:1.6 }}>作物×作業の経験や、免許・資格を登録できます。タップして登録 →</span>
-                        )}
-                      </button>
-                    );
-                  })()}
+                  {/* 「📋 経験・できること（自己申告）」カードは削除（2026-08-22たきと指示）。
+                      ★中身は消えていない：登録・編集はプロフィール編集の「経験・資格」ボックス
+                      （WorkerProfileEdit・2026-08-03にページからモーダルへ復帰）が担い、
+                      相手への表示は名刺カード裏面のプロフィール面（WorkerTrustCard）に出る。
+                      専用ページ #/experience もURL直打ちで生きている（入口だけをやめた） */}
                   {/* 労働条件通知書（2026-08-18たきと指示）＝「わたしの記録」カテゴリーの1枚。
                       採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い。
                       旧「契約の記録」（実績モーダル内）の機能はここへ統合済み＝1機能1入口 */}
