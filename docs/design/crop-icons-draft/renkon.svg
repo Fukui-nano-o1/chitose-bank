@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="レンコン">
+<circle cx="32" cy="34" r="19.5" fill="#E8DFC2"/>
+<circle cx="32" cy="34" r="16.8" fill="#F7F1DE"/>
+<ellipse cx="32.0" cy="24.2" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(0 32.0 24.2)"/><ellipse cx="38.9" cy="27.1" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(45 38.9 27.1)"/><ellipse cx="41.8" cy="34.0" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(90 41.8 34.0)"/><ellipse cx="38.9" cy="40.9" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(135 38.9 40.9)"/><ellipse cx="32.0" cy="43.8" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(180 32.0 43.8)"/><ellipse cx="25.1" cy="40.9" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(225 25.1 40.9)"/><ellipse cx="22.2" cy="34.0" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(270 22.2 34.0)"/><ellipse cx="25.1" cy="27.1" rx="2.9" ry="3.7" fill="#DCCFA8" transform="rotate(315 25.1 27.1)"/>
+<circle cx="32" cy="34" r="2.7" fill="#DCCFA8"/>
+</svg>

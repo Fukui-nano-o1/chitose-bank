@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="サトイモ">
+<defs><clipPath id="tr"><path d="M32 15 C40.5 15 46 23 46 33.5 C46 44 40.5 51.5 32 51.5 C23.5 51.5 18 44 18 33.5 C18 23 23.5 15 32 15 Z"/></clipPath></defs>
+<path d="M32 15 C40.5 15 46 23 46 33.5 C46 44 40.5 51.5 32 51.5 C23.5 51.5 18 44 18 33.5 C18 23 23.5 15 32 15 Z" fill="#A78B5F"/>
+<g clip-path="url(#tr)">
+<ellipse cx="39" cy="41" rx="17" ry="15" fill="#97794B"/><ellipse cx="27" cy="33" rx="14" ry="14" fill="#A78B5F"/>
+<path d="M18.5 26 C27 29 37 29 45.5 26" stroke="#84693F" stroke-width="1.6" fill="none" opacity="0.85"/>
+<path d="M18 34.5 C27 37.5 37 37.5 46 34.5" stroke="#84693F" stroke-width="1.6" fill="none" opacity="0.85"/>
+<path d="M19.5 43 C27 45.5 37 45.5 44.5 43" stroke="#84693F" stroke-width="1.5" fill="none" opacity="0.75"/>
+</g>
+<ellipse cx="32" cy="16.5" rx="6.5" ry="3" fill="#EFE6CE"/>
+</svg>

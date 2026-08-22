@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="サツマイモ">
+<defs><clipPath id="sw"><path d="M9 32 C15 25 24 21 33 21.5 C43 22 51 26.5 55 32 C51 37.5 43 42 33 42.5 C23.5 43 15 39 9 32 Z"/></clipPath></defs>
+<g transform="rotate(-18 32 32)">
+<path d="M9 32 C15 25 24 21 33 21.5 C43 22 51 26.5 55 32 C51 37.5 43 42 33 42.5 C23.5 43 15 39 9 32 Z" fill="#A84A66"/>
+<g clip-path="url(#sw)"><ellipse cx="34" cy="40" rx="24" ry="10" fill="#93395A"/><ellipse cx="30" cy="29" rx="20" ry="9" fill="#A84A66"/></g>
+<path d="M22 29 Q23.5 30.5 22.5 32" stroke="#C9738C" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+<path d="M34 26.5 Q35.5 28 34.5 29.5" stroke="#C9738C" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+<path d="M43 30.5 Q44.5 32 43.5 33.5" stroke="#C9738C" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</g>
+</svg>

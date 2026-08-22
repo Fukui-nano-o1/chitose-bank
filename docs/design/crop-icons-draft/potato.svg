@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ジャガイモ">
+<defs><clipPath id="pt"><path d="M14 34 C14 25 21 19 31 19.5 C42 20 50 26 50 34.5 C50 43 42.5 48.5 32 48.5 C21 48.5 14 43 14 34 Z"/></clipPath></defs>
+<path d="M14 34 C14 25 21 19 31 19.5 C42 20 50 26 50 34.5 C50 43 42.5 48.5 32 48.5 C21 48.5 14 43 14 34 Z" fill="#C9A063"/>
+<g clip-path="url(#pt)"><ellipse cx="38" cy="41" rx="20" ry="13" fill="#B58A4E"/><ellipse cx="28" cy="31" rx="17" ry="12" fill="#C9A063"/></g>
+<path d="M24 28 Q25.5 29.5 24.5 31" stroke="#8F6B3A" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+<path d="M37 25.5 Q38.5 27 37.5 28.5" stroke="#8F6B3A" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+<path d="M42 35 Q43.5 36.5 42.5 38" stroke="#8F6B3A" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+<path d="M28 40 Q29.5 41.5 28.5 43" stroke="#8F6B3A" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+</svg>
