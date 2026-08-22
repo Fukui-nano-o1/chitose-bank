@@ -14,6 +14,7 @@ import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { LikedJobsCard } from "./LikedJobsCard";
+import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
 
 // 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
@@ -364,6 +365,11 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                       （my_job_actions／saved:rows）。一覧はJobCard（関連求人と同じ型・wide全幅）＋♥解除⇄再いいね */}
                   <LikedJobsCard me={me} />
                 </div>
+                {/* やることカード群（2026-08-22たきと指示「今日ページのカード群をマイページの
+                    いいねした求人カードの下にコピー。実機確認後、今日ページの削除に移行する」）。
+                    正本は今日ページ（TodayPage）＝移行中の複製。行き先の専用ページ(#/calendar/todo/*)も
+                    今日ページ側に残っている（削除の段でこちらへ引っ越す） */}
+                <TodayTaskBoxes role="worker" />
               </>);
             })()}
             {/* 旧・🌟わたしの実績モーダル（WorkerTrustCard hideSelfDeclare）は削除（2026-08-21）＝
