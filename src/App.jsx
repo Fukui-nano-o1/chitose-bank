@@ -6,6 +6,7 @@ import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBu
 import { chatCache, hydrateChatCache } from "./lib/chatCache";
 import { createIdleQueue } from "./lib/idleQueue";
 import { useSheetDragClose } from "./lib/sheetDrag";
+import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
 import { Celebration } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
@@ -464,18 +465,30 @@ export default function App(){
     })();
     return () => { cancelled = true; };
   }, [me?.id, empCtx]);
-  // 行動計測：ページ遷移ロガー（運営者本人の自己デバッグ専用・page_eventsへfire-and-forget）。
-  // 利用者（協力者・一般）の閲覧行動は記録しない（データ憲法・行動記録の憲法／2026-07-27たきと指示）。
-  // DB側もRLS「pe insert self admin only」で本人以外のINSERTを拒否＝画面の実装に関わらず入らない
+  // 行動計測：ページ遷移ロガー（page_eventsへfire-and-forget）。記録するのは2経路だけ：
+  // ①運営者本人（自己デバッグ・従来どおり）②未ログインの訪問者（流入元src＋端末ごとの匿名キーanon_key
+  //   ＝?src=insta 等の流入計測。2026-08-22たきと指示）。ログイン済みの一般利用者は従来どおり記録しない
+  //   （データ憲法・2026-07-27）。DB側のRLSも二重の壁＝管理者本人INSERTと「auth_id=null＋anon_key必須」の
+  //   匿名INSERTだけを通し、読み取りは従来どおり管理者のみ（20260822023935）
+  useEffect(() => { getTrafficSrc(); }, []); // ?src= は初回ロードで必ず拾って控える（記録経路が無いログイン中でも保存だけ残す）
   const lastLoggedHashRef = useRef(null);
   useEffect(() => {
-    if (!me?.id || !isAdmin(me)) return;
+    const adminSelf = !!(me?.id && isAdmin(me));
+    if (me && !adminSelf) return; // ログイン済みの一般利用者は記録しない
     // 起動バーストから外して後送り（2026-08-18 Speed-1C-1）。
     // ★記録する値は【発生した瞬間】に確定して持つ。実行時に window.location.hash を読み直すと、
     //   待っている間に利用者が別画面へ移っていて計測が嘘になる
     // ★保留中に次の遷移が起きたら、保留分を先に流してから新しい分を送る＝DBで前後が入れ替わらない
     let pending = null;
-    const send = (row) => supabase.from("page_events").insert(row).then(() => {}, () => {});
+    const insertRow = (row) => supabase.from("page_events").insert(row).then(() => {}, () => {});
+    const send = adminSelf
+      ? insertRow
+      : (row) => supabase.auth.getSession().then(({ data }) => {
+          // 匿名行は「本当に未ログインの端末」だけ：セッション復元が終わる前にこの経路が走った時は
+          // ここで落とし、ハッシュの控えも戻す＝me確定後の管理者経路が同じページを取りこぼさない
+          if (data?.session) { lastLoggedHashRef.current = null; return; }
+          return insertRow(row);
+        }, () => {});
     // ★必ずPromiseを返す（2026-08-18 C1.1）。返さないと待ち行列から見て即終了になり、
     //   DBへの挿入が通信中でも次のidle taskへ進んでしまう＝「1本終わってから次」が崩れる
     const flushPending = () => {
@@ -487,8 +500,12 @@ export default function App(){
     const logPageEvent = ({ defer = false } = {}) => {
       const h = window.location.hash || "#/";
       if (h === lastLoggedHashRef.current) return; // 連続同一hashはskip
+      const src = getTrafficSrc();
+      const row = adminSelf
+        ? { auth_id: me.id, page_hash: h, ...(src ? { src } : {}) } // ここで値を固定する
+        : { page_hash: h, anon_key: getAnonKey(), ...(src ? { src } : {}) };
+      if (!adminSelf && !row.anon_key) return; // 匿名キーを保存できない端末（プライベートモード等）は記録しない
       lastLoggedHashRef.current = h;
-      const row = { auth_id: me.id, page_hash: h }; // ここで値を固定する
       // ★保留分の完了を待ってから次を送る（2026-08-18 C1.1）。並行に撃つとDB上で前後が入れ替わる
       if (!defer) { void flushPending().then(() => send(row)); return; }
       pending = row;
