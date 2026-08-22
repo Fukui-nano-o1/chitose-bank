@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ダイコン">
+<defs><clipPath id="dk"><path d="M32 15 C39 15 43.5 19 43.5 26 C43.5 38 38.5 51 33.4 58.6 C32.7 59.6 31.3 59.6 30.6 58.6 C25.5 51 20.5 38 20.5 26 C20.5 19 25 15 32 15 Z"/></clipPath></defs>
+<path d="M31.5 15.5 C26 11.5 21 8.8 13.5 8 C17 13 23 16.5 29.5 17.8 Z" fill="#55A345"/>
+<path d="M32.5 15.5 C38 11.5 43 8.8 50.5 8 C47 13 41 16.5 34.5 17.8 Z" fill="#3F8534"/>
+<path d="M31 15.5 C30.3 9.5 30.8 5.6 32 2.5 C33.4 6 33.5 11 33 15.5 Z" fill="#4E9C3E"/>
+<path d="M32 15 C39 15 43.5 19 43.5 26 C43.5 38 38.5 51 33.4 58.6 C32.7 59.6 31.3 59.6 30.6 58.6 C25.5 51 20.5 38 20.5 26 C20.5 19 25 15 32 15 Z" fill="#FAFAF4"/>
+<g clip-path="url(#dk)">
+<ellipse cx="40" cy="42" rx="14" ry="26" fill="#E9EBE0"/><ellipse cx="28" cy="36" rx="14" ry="23" fill="#FAFAF4"/>
+<path d="M14 12 H50 V22.5 Q32 26 14 22.5 Z" fill="#BFDCA2"/>
+</g>
+<path d="M27 37 Q32 38.5 37 37" stroke="#DCDECE" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M28.5 45 Q32 46.2 35.5 45" stroke="#DCDECE" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>

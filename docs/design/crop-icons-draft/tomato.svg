@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="トマト">
+<defs><clipPath id="tb"><path d="M32 19 C43 19 53 26 53 38 C53 50 43 57.5 32 57.5 C21 57.5 11 50 11 38 C11 26 21 19 32 19 Z"/></clipPath></defs>
+<path d="M32 19 C43 19 53 26 53 38 C53 50 43 57.5 32 57.5 C21 57.5 11 50 11 38 C11 26 21 19 32 19 Z" fill="#E8503A"/>
+<g clip-path="url(#tb)"><ellipse cx="38" cy="46" rx="26" ry="20" fill="#C93E28"/><ellipse cx="30" cy="36" rx="20" ry="16" fill="#E8503A"/></g>
+<ellipse cx="22" cy="29" rx="6" ry="4" fill="#FFFFFF" opacity="0.30" transform="rotate(-24 22 29)"/>
+<polygon points="32.0,29.9 29.2,23.3 19.6,23.4 27.4,19.4 24.4,12.9 32.0,17.0 39.6,12.9 36.6,19.4 44.4,23.4 34.8,23.3" fill="#47913B"/>
+<rect x="30.4" y="8.5" width="3.2" height="9" rx="1.6" fill="#35702B"/>
+</svg>

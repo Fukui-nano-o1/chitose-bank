@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ニンジン">
+<defs><clipPath id="cr"><path d="M32 21 C40.5 21 45 25 44.2 33 C43.2 43 37.8 53 33.4 58.3 C32.6 59.2 31.4 59.2 30.6 58.3 C26.2 53 20.8 43 19.8 33 C19 25 23.5 21 32 21 Z"/></clipPath></defs>
+<path d="M32 21 C28.5 16 25 12 18.5 9.5 C21 15 25 19 30 22.5 Z" fill="#4E9C3E"/>
+<path d="M32 21 C35.5 16 39 12 45.5 9.5 C43 15 39 19 34 22.5 Z" fill="#3F8534"/>
+<path d="M31 21.5 C30.5 14 31 8.5 32.2 4.8 C33.6 9 33.6 15 33 21.5 Z" fill="#55A345"/>
+<path d="M32 21 C40.5 21 45 25 44.2 33 C43.2 43 37.8 53 33.4 58.3 C32.6 59.2 31.4 59.2 30.6 58.3 C26.2 53 20.8 43 19.8 33 C19 25 23.5 21 32 21 Z" fill="#F19236"/>
+<g clip-path="url(#cr)"><ellipse cx="41" cy="42" rx="16" ry="22" fill="#DE7A21"/><ellipse cx="28" cy="36" rx="15" ry="19" fill="#F19236"/></g>
+<path d="M25.5 31.5 Q32 33.2 38.5 31.5" stroke="#C96A16" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M27 39 Q32 40.5 37 39" stroke="#C96A16" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M28.5 46 Q32 47.2 35.5 46" stroke="#C96A16" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>
