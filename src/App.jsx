@@ -824,6 +824,20 @@ export default function App(){
     document.addEventListener("click", onDoc);
     return () => document.removeEventListener("click", onDoc);
   }, [mobileMenuOpen]);
+  // ☰メニューはスクロールで閉じる（2026-08-22たきと報告「展開したままスクロールされる」）。
+  // ☰の浮遊ボタン自体はcb-scroll-hideで下へ格納されるのに、開いた一覧だけ画面に残っていた。
+  // ★captureで拾う＝scrollはバブルしないので、ページ本体でも内側のスクロール領域でも閉じる。
+  //   ただしメニュー自身（max-heightで内側スクロールしうる）から出たスクロールでは閉じない。
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onScroll = (e) => {
+      const t = e.target;
+      if (t && t.closest && t.closest(".app-header-mobile-menu")) return;
+      setMobileMenuOpen(false);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", onScroll, { capture: true });
+  }, [mobileMenuOpen]);
 
   // PWA(ホーム画面アプリ)専用：ページ最上部で下に引っ張ると強制リロード（pull-to-refresh・2026-07-14）。
   // Safari表示には標準のリロード手段があるため対象外。モーダル・フロー等の内部スクロール要素上では発動しない
