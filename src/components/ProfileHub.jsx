@@ -138,7 +138,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
     })();
     return () => { cancelled = true; };
   }, []);
-  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"返事待ち", approved:"きょうの仕事" };
+  // applying の見出しは「返事待ち」→「あなたの応募」（2026-08-22たきと指示・入口カードの名前とも一致）
+  const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"あなたの応募", approved:"きょうの仕事" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
   // 名刺の氏名・アイコンを読み込み前から出す（2026-08-02たきと指示「名刺の氏名が未設定で長時間表示される」）：
   // viewCache（sessionStorage・アプリ終了で消える）に無ければ、snapshot（localStorage・本人の自分用データ・

@@ -154,7 +154,7 @@ export function ApplyConfirmBox({ selectedJob, applyConfirmOpen, setApplyConfirm
             /* 説明も縦中央寄せ＝1面目と同じ高さの枠で空白が上下に割れて意図した見た目になる */
             <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
               <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
-                応募はまだ採用ではありません。承認前であれば、返事待ちページからいつでも取り消せます。
+                応募はまだ採用ではありません。承認前であれば、「あなたの応募」ページからいつでも取り消せます。
               </p>
               {/* 文字18に拡大（2026-08-16たきと指示「2枚目のスクショの文字を大きく」・旧13/#8A8A8A） */}
               <p className="f-sans" style={{ fontSize:18, color:"#555", lineHeight:1.7, margin:"14px 0 0", background:"#F7F7F7", borderRadius:10, padding:"12px 14px" }}>
