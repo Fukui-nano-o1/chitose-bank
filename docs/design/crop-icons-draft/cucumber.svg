@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="キュウリ">
+<defs><clipPath id="cu"><path d="M32 7.5 C36 7.5 38 10 38 14 L38 50 C38 54 36 56.5 32 56.5 C28 56.5 26 54 26 50 L26 14 C26 10 28 7.5 32 7.5 Z"/></clipPath></defs>
+<g transform="rotate(-18 32 32)">
+<path d="M32 7.5 C36 7.5 38 10 38 14 L38 50 C38 54 36 56.5 32 56.5 C28 56.5 26 54 26 50 L26 14 C26 10 28 7.5 32 7.5 Z" fill="#4E9C3E"/>
+<g clip-path="url(#cu)">
+<rect x="32.5" y="4" width="10" height="56" fill="#458B36"/>
+<path d="M26 7.5 H38 V13 Q32 15 26 13 Z" fill="#3A7C30"/>
+<path d="M26 51 Q32 49 38 51 V57 H26 Z" fill="#3A7C30"/>
+<path d="M29.5 14 C29 26 29 38 29.5 50" stroke="#7FBF5E" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+<path d="M34.5 14 C35 26 35 38 34.5 50" stroke="#6FB251" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+</g>
+<circle cx="28.5" cy="20" r="1.1" fill="#2F6E28"/>
+<circle cx="35" cy="26" r="1.1" fill="#2F6E28"/>
+<circle cx="29" cy="33" r="1.1" fill="#2F6E28"/>
+<circle cx="35" cy="40" r="1.1" fill="#2F6E28"/>
+<circle cx="29.5" cy="46" r="1.1" fill="#2F6E28"/>
+<rect x="30.6" y="3.2" width="2.8" height="6" rx="1.4" fill="#6B9A4C"/>
+</g>
+</svg>
