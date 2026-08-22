@@ -6,6 +6,7 @@ import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, FieldHelp } from "./ui";
+import { NavIcon } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -510,7 +511,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           スクロールで格納（cb-float-box の作法をそのまま使う）。ページ先頭の行は無くなった */}
       <button onClick={()=>setShowPreview(true)} className="f-sans cb-float-box"
         style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
-        <span style={{ fontSize:18, lineHeight:1 }}>👀</span>
+        <NavIcon name="views" size={18} />
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
       </button>
 

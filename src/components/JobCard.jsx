@@ -3,6 +3,7 @@ import { useState } from "react";
 import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbonLeft } from "./ui";
 import { CropIcon } from "./CropIcon";
+import { NavIcon } from "./NavIcons";
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
@@ -51,7 +52,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
                      display:"flex", alignItems:"center", gap:4, padding:"0 12px", borderRadius:22,
                      background:"rgba(255,255,255,0.92)", boxShadow:"0 1px 4px rgba(0,0,0,.18)",
                      fontSize:13, fontWeight:700, color:"#555", whiteSpace:"nowrap", pointerEvents:"none" }}>
-            <span style={{ fontSize:15 }}>👀</span>{views}
+            <NavIcon name="views" size={15} />{views}
           </span>
         );
       })()}
@@ -65,7 +66,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
                    boxShadow:"0 1px 4px rgba(0,0,0,.18)", fontSize:24,
                    color: saved ? "#E24B4A" : "#717171" }}>
           {/* グリフだけspanに包む＝ぷるんぷるん（cb-like-heart・スクロール連動）のtransformをボタン円に波及させない */}
-          <span className="cb-like-heart" style={{ display:"inline-block" }}>{saved ? "♥" : "♡"}</span>
+          <span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={saved ? "heartFill" : "heart"} size={22} /></span>
         </button>
       )}
       {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16）。終了中（満員/期間終了）は出さない */}

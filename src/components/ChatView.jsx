@@ -12,6 +12,7 @@ import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
+import { NavIconInline } from "./NavIcons";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -823,7 +824,7 @@ export function ChatView({ applicationId, onBack }) {
                     <span style={{ fontSize:11, color:"#C8C8C8", flexShrink:0 }}>#{jobBox.job.id}</span>
                   </div>
                   {jobBox.job.region && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📍 {jobBox.job.region}</p>}
-                  {jobBox.job.dateLabel && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {jobBox.job.dateLabel}{jobBox.job.workTime ? "　" + jobBox.job.workTime : ""}</p>}
+                  {jobBox.job.dateLabel && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{jobBox.job.dateLabel}{jobBox.job.workTime ? "　" + jobBox.job.workTime : ""}</p>}
                   {jobBox.job.pay > 0 && <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"6px 0 0" }}>{jobBox.job.payType === "daily" ? "日給" : "時給"} {jobBox.job.pay.toLocaleString()}円</p>}
                   {jobBox.job.count && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>👥 募集 {jobBox.job.count}</p>}
                   <button onClick={()=>{ setJobBox(null); try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + jobBox.job_number; }} className="f-sans" style={{ marginTop:14, background:"none", border:"none", padding:"0 0 2px", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>詳細ページで見る →</button>
@@ -940,7 +941,7 @@ export function ChatView({ applicationId, onBack }) {
         <div className="cb-lock-scroll" onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
           <div ref={tmplSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             {/* 質問集タブは廃止（2026-08-17たきと指示）＝このシートは📅日程案の1枚ので、タブとスワイプは置かない */}
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}>📅 日程案</p>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}><NavIconInline name="calendar" size={15} />日程案</p>
             {datesPanel}
           </div>
         </div>

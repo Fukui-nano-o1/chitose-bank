@@ -7,6 +7,7 @@ import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton, Dots, FieldHelp } from "./ui";
+import { NavIcon } from "./NavIcons";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -451,7 +452,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           スクロールで格納（cb-float-box の作法をそのまま使う）。保存は各ボックスのモーダル内 */}
       <button onClick={()=>setShowPreview(true)} className="f-sans cb-float-box"
         style={{ position:"fixed", right:12, bottom:"calc(64px + 12px + env(safe-area-inset-bottom, 0px))", zIndex:1200, display:"flex", alignItems:"center", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"10px 14px", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)" }}>
-        <span style={{ fontSize:18, lineHeight:1 }}>👀</span>
+        <NavIcon name="views" size={18} />
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
       </button>
 

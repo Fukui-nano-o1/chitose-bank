@@ -21,6 +21,7 @@ import { JobCard } from "../../../components/JobCard";
 import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
 import { DayReportSheet } from "../../../components/DayReportSheet";
 import { Celebration } from "../../../components/Celebration";
+import { NavIconInline } from "../../../components/NavIcons";
 
 
 // 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
@@ -108,7 +109,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
                   <div style={{ minWidth:0 }}>
                     <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(e)}</p>
                     <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>#{e.job_number}{e.town ? "　" + e.town : ""}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📅 {dateLabel}{e.work_time ? "　🕒" + e.work_time : ""}</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateLabel}{e.work_time ? "　🕒" + e.work_time : ""}</p>
                     {e.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>相手 {e.partner_name}さん</p>}
                   </div>
                 </div>
@@ -290,7 +291,7 @@ export function HireStagePanel({ items, meId, onHired }) {
                 <div style={{ minWidth:0 }}>
                   <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>{t.partner_name ? t.partner_name + "さん" : "この方"}</p>
                   <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0", overflow:"hidden", textOverflow:"ellipsis" }}>{titleOf(t)} <span style={{ color:"#999" }}>#{t.job_number}</span></p>
-                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>📅 {dateOf(t)}{t.work_time ? "　🕒" + t.work_time : ""}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateOf(t)}{t.work_time ? "　🕒" + t.work_time : ""}</p>
                 </div>
               </div>
               {/* 二重予約の警告（応募者シートと同じ判定＝lib/hire）。下調べ中はその旨を出す＝

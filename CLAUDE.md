@@ -7303,3 +7303,32 @@ NavIconsのtoday。TodayPageのデータ読み込みはTaskBoxesと同じ窓口�
   ★アイコンを足したら見本帳も更新すること（NavIcons.jsx と manifest.json から機械で組み立てている）。
 【この作業でコードは変えていない】＝差し替えの指示を受けてから着手する。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-22 アイコン差し替え第1弾（♥いいね・👀閲覧数・📅日程・🛡保険・⚑報告 → 線画）━━━
+【たきと指示】棚卸しの一覧から「♥いいね・👀閲覧数・📅日程・🛡保険・⚑報告 から。」
+【NavIcons に4つ追加（17→21個）】heart（いいね・輪郭）／heartFill（いいね済み・塗り。★2つは同じ d
+＝押した瞬間に形が変わって見えない。塗りは path 自身の fill="currentColor" で svg の fill:none を上書き）／
+views（目＝閲覧数・プレビュー）／flag（旗＝報告する）。日程と保険は既存の calendar / shield を流用。
+・NavIcon に style prop を追加（display:block に merge）。行の中に置く用の【NavIconInline】を新設
+　（inline-block・verticalAlign:-2px・marginRight:4・size≒fontSize）＝「📅 8/28（金）」のような
+　行内絵文字の置き換えはこれを使う（以後の差し替えも同じ作法）。
+【差し替えた14ファイル】
+・♥/♡＝JobCard（カードの♡ボタン）／JobSearchMapView（詳細の浮遊いいね）／SavedJobsView（解除♥・空状態♡）／
+　LikedJobsCard（見出し♥×2）。cb-like-heart のぷるん animation は span 側そのまま＝中身だけSVG化
+・👀＝JobCard（閲覧数ピル）／EmployerProfileEdit・WorkerProfileEdit（プレビュー浮遊ボタン）
+・📅＝ChatView（求人ボックスの日程行・日程案見出し）／DateChips（働く日）／FarmerDashboard
+　（日付バナー・働く日を決める見出し）／StagePanels×2・TaskBoxes（つぎの予定の日付行）
+・🛡＝FarmerDashboard（保険の準備カード40px・裏面見出し）／TrustCards（保険チップ＝label文字列の
+　"🛡 "前置をやめ icon フィールド化して span 内で NavIconInline 描画）／VisitAndInsurance（#/insurance 見出し）
+・⚑＝JobSearchMapView（この求人を報告する）／PreviewSheets（この人を報告する）
+【意図的に残した絵文字】AdminChatRow の🛡＝運営バッジ（保険ではない・別の意味）／
+OnboardingModal・ProfileModal の📅＝就農歴・入力月数（旧画面の遺物）／LandingFlow 働き手フローの📅
+（devJump専用の非本番・隣が🔍のまま）／プローズ中の「♥しておくと」等の文字（ボタンの説明文）。
+【検証】build成功・eslint 0 error（警告24＝着手前と同数）・対象5種の生きた描画コードの残存ゼロを
+機械走査（コメント・上記の意図的残置を除く）・dist の NavIcons チャンクに新パス包含。
+見本帳（https://claude.ai/code/artifact/25edf265-9a6a-499b-ad1f-f68389286c9d）も21個・
+「まだ絵文字の場所」51か所へ更新済み。
+【実機目視の残り】①カードと詳細の♡→♥の切り替わり（ぷるん動作込み）②閲覧数ピルと
+プレビュー浮遊ボタンの目 ③チャット求人ボックス・働く日チップ・つぎの予定の日付行の行揃え
+④保険の準備カード・信頼カードの保険チップ ⑤報告リンク2箇所
+━━━ ここまで ━━━

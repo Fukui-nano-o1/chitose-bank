@@ -1,12 +1,13 @@
 // 日程チップ（分割・段階2で切り出し・2026-07-24）：応募者カード・返事待ちカード・チャット文脈カード・確認カードで共用。
 import { calFmtDate } from "../lib/utils";
+import { NavIconInline } from "./NavIcons";
 // 働く日（確定）行（応募者カード・返事待ちカード・チャット文脈カード・確認カード共用・2026-07-24）。
 // value＝applications.agreed_dates：["YYYY-MM-DD",...]（農家が確定した働く日・濃い緑）／null（未確定=非表示）
 export function AgreedDatesRow({ value, fs = 12 }) {
   if (!Array.isArray(value) || value.length === 0) return null;
   return (
     <div className="f-sans" style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", margin:"0 0 8px" }}>
-      <span style={{ fontSize:fs, color:"#0B6B4F", fontWeight:700 }}>📅 働く日</span>
+      <span style={{ fontSize:fs, color:"#0B6B4F", fontWeight:700 }}><NavIconInline name="calendar" size={fs} style={{ verticalAlign:"-2px", marginRight:3 }} />働く日</span>
       {value.slice().sort().map(d => (
         <span key={d} style={{ fontSize:fs, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:20, padding:"3px 10px" }}>{calFmtDate(d)}</span>
       ))}

@@ -6,6 +6,7 @@ import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { prefetchSearchJobs } from "../lib/searchJobs";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { Dots } from "./ui";
+import { NavIconInline } from "./NavIcons";
 // 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
 // employer_profiles.insurance_items を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
 export function InsurancePrepPage({ me }) {
@@ -56,7 +57,7 @@ export function InsurancePrepPage({ me }) {
       {/* ← 戻る＝左下の浮遊ボックス（2026-08-03たきと指示。下部バー・☰を消したページの戻り道・経験ページと同型） */}
       <button onClick={()=>{ let fromApp=false; try{ fromApp=sessionStorage.getItem("cb_insFromApp")==="1"; sessionStorage.removeItem("cb_insFromApp"); }catch{} if (fromApp && window.history.length>1) window.history.back(); else window.location.hash="/profile/employer"; }} className="f-sans"
         style={{ position:"fixed", left:12, bottom:"calc(12px + env(safe-area-inset-bottom, 0px))", zIndex:60, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"12px 18px", fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
-      <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>🛡 保険の準備（自己申告）</h1>
+      <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}><NavIconInline name="shield" size={20} style={{ verticalAlign:"-2.5px", marginRight:6 }} />保険の準備（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>当てはまるものを選べます（複数可）。あなたの求人・プロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。選んだ項目には、働き手向けのひとことを添えられます（任意）。</p>
       {loading ? (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>

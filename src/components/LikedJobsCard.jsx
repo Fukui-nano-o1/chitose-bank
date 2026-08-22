@@ -23,6 +23,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { mapJobPublicRow, ROLE_ORANGE } from "../lib/utils";
 import { fetchJobViewCounts } from "../lib/searchJobs";
 import { JobCard } from "./JobCard";
+import { NavIconInline } from "./NavIcons";
 
 const likedOf = (list) => (Array.isArray(list) ? list.filter(r => r.liked) : null);
 
@@ -131,7 +132,7 @@ export function LikedJobsCard({ me }) {
       {/* 「わたしの記録」カテゴリーの中に並ぶ1枚＝専用の見出しは持たない。
           件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す） */}
       <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><span aria-hidden="true" style={{ color:"#E24B4A" }}>♥</span> いいねした求人</span>
+        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NavIconInline name="heartFill" size={15} style={{ color:"#E24B4A" }} />いいねした求人</span>
         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
           {rows === null ? "読み込み中…" : count > 0 ? `${count}件　気になる求人の一覧です。タップで見返せます` : "気になる求人を♥しておくと、ここに並びます"}
         </span>
@@ -144,7 +145,7 @@ export function LikedJobsCard({ me }) {
             {/* 見出し行ごと「？」の当たり判定にする（丸チップだけだと外して黒幕に当たる・2026-08-18の教訓） */}
             <button type="button" onClick={(e) => { e.stopPropagation(); setInfoOpen(v => !v); }} aria-label="説明を見る" aria-expanded={infoOpen}
               style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 12px", padding:"4px 48px 4px 0", background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
-              <span className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222" }}><span aria-hidden="true" style={{ color:"#E24B4A" }}>♥</span> いいねした求人</span>
+              <span className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222" }}><NavIconInline name="heartFill" size={15} style={{ color:"#E24B4A" }} />いいねした求人</span>
               <span className="f-sans" style={{ width:22, height:22, borderRadius:11, background: infoOpen ? ROLE_ORANGE : "#F0F0F0", color: infoOpen ? "#fff" : "#717171", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
             </button>
             {infoOpen && (

@@ -15,6 +15,7 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
+import { NavIcon } from "./NavIcons";
 
 // 隠せる段階（2026-08-19たきと指示「チャットページの絞り込みをステータスページにコピー」）：
 // 見送り／失効／取り消しの3つ。チャット一覧の CHAT_HIDABLE・応募者ページの APP_HIDABLE と対
@@ -412,7 +413,7 @@ export function SavedJobsView({ me }) {
       )}
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
-          <div style={{ fontSize:40, marginBottom:16, color:"#E24B4A" }}>♡</div>
+          <div style={{ marginBottom:16, color:"#E24B4A", display:"flex", justifyContent:"center" }}><NavIcon name="heart" size={40} /></div>
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
         </div>
       ) : shownRows.length === 0 ? (
@@ -489,7 +490,7 @@ export function SavedJobsView({ me }) {
                     応募済みの求人はステータス確認のため一覧に残る（消えるのは「いいねだけ」の求人） */}
                 {r.liked && (
                   <button onClick={()=>handleUnsave(r)} aria-label="いいねを解除" className="f-sans"
-                    style={{ position:"absolute", top:6, right:6, zIndex:1, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:20, lineHeight:1, color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}><span className="cb-like-heart" style={{ display:"inline-block" }}>♥</span></button>
+                    style={{ position:"absolute", top:6, right:6, zIndex:1, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:20, lineHeight:1, color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}><span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name="heartFill" size={20} /></span></button>
                 )}
               </div>
             );

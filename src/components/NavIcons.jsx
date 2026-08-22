@@ -125,6 +125,28 @@ const NAV_ICON_PATHS = {
   star: (
     <path d="M16 4.5l3.4 7 7.7 1.1-5.6 5.4 1.3 7.6L16 22l-6.8 3.6 1.3-7.6-5.6-5.4 7.7-1.1z" />
   ),
+  // いいね（2026-08-22たきと指示「♥👀📅🛡⚑から線画に」）：輪郭＝まだ／heartFill＝いいね済み。
+  // ★2つは同じ d を使うこと（押した瞬間に形が変わって見えないように。fill だけの違い）
+  heart: (
+    <path d="M16 26.6C9.6 21.9 4.8 17.4 4.8 12.4 4.8 8.7 7.7 6 11.2 6c1.9 0 3.7.9 4.8 2.4C17.1 6.9 18.9 6 20.8 6c3.5 0 6.4 2.7 6.4 6.4 0 5-4.8 9.5-11.2 14.2z" />
+  ),
+  heartFill: (
+    <path fill="currentColor" d="M16 26.6C9.6 21.9 4.8 17.4 4.8 12.4 4.8 8.7 7.7 6 11.2 6c1.9 0 3.7.9 4.8 2.4C17.1 6.9 18.9 6 20.8 6c3.5 0 6.4 2.7 6.4 6.4 0 5-4.8 9.5-11.2 14.2z" />
+  ),
+  // 閲覧数（旧👀）：目の輪郭＋瞳
+  views: (
+    <>
+      <path d="M2.8 16C6.3 9.8 10.8 6.8 16 6.8s9.7 3 13.2 9.2C25.7 22.2 21.2 25.2 16 25.2S6.3 22.2 2.8 16z" />
+      <circle cx="16" cy="16" r="4.3" />
+    </>
+  ),
+  // 報告する（旧⚑）：旗ざお＋旗
+  flag: (
+    <>
+      <path d="M8.5 28.5v-24" />
+      <path d="M8.5 5.5H23l-3.2 4.75L23 15H8.5" />
+    </>
+  ),
   // 芽（役割切替オーバーレイ・2026-08-22）：茎＋左右の葉＝旧🌱の線画版（農家＝緑の役割の顔）
   sprout: (
     <>
@@ -135,7 +157,7 @@ const NAV_ICON_PATHS = {
   ),
 };
 
-export function NavIcon({ name, size = 26 }) {
+export function NavIcon({ name, size = 26, style }) {
   const paths = NAV_ICON_PATHS[name];
   if (!paths) return null;
   return (
@@ -148,10 +170,17 @@ export function NavIcon({ name, size = 26 }) {
       strokeWidth={2.4}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ display: "block" }}
+      style={{ display: "block", ...style }}
       aria-hidden="true"
     >
       {paths}
     </svg>
   );
+}
+
+// 文章の行の中に置く用（「📅 8/28（金）」のような行内絵文字の置き換え・2026-08-22）。
+// 既定の display:block だと行が割れるため、inline-block でベースラインに沈める。
+// 大きさは行の文字サイズに合わせて渡す（size≒fontSize）。色は文字色にそのまま染まる。
+export function NavIconInline({ name, size = 13, style }) {
+  return <NavIcon name={name} size={size} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 4, ...style }} />;
 }

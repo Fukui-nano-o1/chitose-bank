@@ -15,7 +15,7 @@ import { ymdLocal, calAddDays, calFmtDate, entryWorkDays, ROLE_ORANGE, ROLE_GREE
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS } from "../../../lib/utils";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile,
   fetchMyEmployerProfile, fetchMyEmergencyContact, fetchMyApplicationTerms } from "../todayApi";
-import { NavIcon } from "../../../components/NavIcons";
+import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { BOX_FACE, BOX_ICON_SIZE } from "../boxFace";
 
 // 今日ページから箱を消した用件（TodayPage の REMOVED_STAGES の写し・対で管理）
@@ -148,7 +148,7 @@ export function TodayTaskBoxes({ role = "worker" }) {
                   className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #F0F0F0", borderLeft:"3px solid " + accent, borderRadius:10, padding:"11px 12px", cursor:"pointer" }}>
                   <span style={{ minWidth:0, overflow:"hidden" }}>
                     <span style={{ display:"block", fontSize:13, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:11 }}>#{e.job_number}</span></span>
-                    <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {label}{e.work_time ? "　" + e.work_time : ""}{role === "farmer" && e.partner_name ? "　" + e.partner_name : ""}</span>
+                    <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}><NavIconInline name="calendar" size={11} style={{ verticalAlign:"-1px", marginRight:3 }} />{label}{e.work_time ? "　" + e.work_time : ""}{role === "farmer" && e.partner_name ? "　" + e.partner_name : ""}</span>
                   </span>
                   <span style={{ color:"#C8C8C8", fontSize:16, flexShrink:0 }}>›</span>
                 </button>

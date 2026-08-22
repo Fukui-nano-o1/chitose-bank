@@ -3,6 +3,7 @@ import { Fragment, useState } from "react";
 import { createPortal } from "react-dom";
 import { WORKER_DECLARATIONS, INSURANCE_ITEMS, ROLE_ORANGE, ROLE_ORANGE_INK, yearMonthLabel, farmHostQa, hostStyleChips, tenureLabel, normalizeInsuranceItems } from "../lib/utils";
 import { ExpandableText, Avatar, QaChat, MaskedText } from "./ui";
+import { NavIconInline } from "./NavIcons";
 
 // アイコンの大画面表示（2026-08-14たきと指示「アイコンタップで大画面表示にしよう」）。
 // createPortalでbody直下へ＝モーダル内（transform祖先）からでもfixedの基準がが画面に保たれる
@@ -297,7 +298,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         // はみ出しは…で省略。色の区別は不変（保険=緑が自己申告の目印）
         const chips = [
           ...styleChips.map((lbl, i) => ({ key:"style-" + i, label:"🤝 " + lbl, bg:"#F7F7F7", color:"#222", isStyle:true })),
-          ...insChips.map(it => ({ key:"ins-" + it.k, label:(black ? "" : "🛡 ") + it.chip, bg: black ? "#EEEEEE" : "#E6F7EF", color: black ? "#111111" : "#0B6B4F" })),
+          ...insChips.map(it => ({ key:"ins-" + it.k, label: it.chip, icon: black ? null : "shield", bg: black ? "#EEEEEE" : "#E6F7EF", color: black ? "#111111" : "#0B6B4F" })),
           ...perks.map(b => ({ key:"perk-" + b, label: black ? String(b).replace(/^\S+\s/, "") : b, bg:"#F7F7F7", color:"#222" })),
         ].sort((a,b) => String(b.label).length - String(a.label).length);
         return (
@@ -305,7 +306,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
               {chips.map(c => (
                 <span key={c.key} {...(c.isStyle ? tap("style") : {})} className="f-sans"
-                  style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:c.color, background:c.bg, borderRadius:999, padding:"6px 12px", ...(c.isStyle ? cur : {}) }}>{c.label}</span>
+                  style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:c.color, background:c.bg, borderRadius:999, padding:"6px 12px", ...(c.isStyle ? cur : {}) }}>{c.icon && <NavIconInline name={c.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{c.label}</span>
               ))}
             </div>
             {insChips.length > 0 && (

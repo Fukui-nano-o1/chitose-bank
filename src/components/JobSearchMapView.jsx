@@ -14,6 +14,7 @@ import { createIdleQueue } from "../lib/idleQueue";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
 import { CropIcon } from "./CropIcon";
+import { NavIcon, NavIconInline } from "./NavIcons";
 import { JobLocationMap } from "./JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "./JobQuestions";
 import { FarmerTrustCard } from "./TrustCards";
@@ -1052,7 +1053,7 @@ export function JobSearchMapView({ onRegister, me }) {
         <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}><span className="cb-like-heart" style={{ display:"inline-block", fontSize:18 }}>{savedIds.has(selectedJob.id) ? "♥" : "♡"}</span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
+        }}><span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={17} /></span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
         )}
         <div className="appear job-detail-body-mobile">
           {/* ページ先頭右の通報リンクは削除（2026-08-19たきと指示「この求人を報告するといいねボタンが
@@ -1129,7 +1130,7 @@ export function JobSearchMapView({ onRegister, me }) {
               <button onClick={()=>setShowReportModal(true)} className="f-sans" style={{
                 background:"none", border:"none", cursor:"pointer", fontFamily:"inherit",
                 fontSize:12, color:"#717171", textDecoration:"underline", padding:4,
-              }}>⚑ この求人を報告する</button>
+              }}><NavIconInline name="flag" size={12} style={{ verticalAlign:"-1px" }} />この求人を報告する</button>
             </div>
           )}
           </>)}

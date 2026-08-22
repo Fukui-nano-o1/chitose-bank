@@ -30,6 +30,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { DayReportSheet } from "./DayReportSheet";
 import { FinalReviewSheet } from "./FinalReviewSheet";
+import { NavIcon, NavIconInline } from "./NavIcons";
 import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
 
 // 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
@@ -1055,7 +1056,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 className={"f-sans" + (insCardAnim ? " " + insCardAnim : "")}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && insCardAnim === "pflip-in") setInsCardAnim(""); }}
                 style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box" }}>
-                <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>🛡</span>
+                <span style={{ flexShrink:0, display:"flex" }}><NavIcon name="shield" size={40} /></span>
                 <span style={{ minWidth:0, paddingRight:28 }}>
                   <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>保険の準備</span>
                   <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>働き手のケガに備える保険の準備方針を、自己申告で表明できます。</span>
@@ -1065,7 +1066,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div className={"f-sans" + (insCardAnim ? " " + insCardAnim : "")}
                 onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && insCardAnim === "pflip-in") setInsCardAnim(""); }}
                 style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box", display:"flex", flexDirection:"column", justifyContent:"center" }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 10px", paddingRight:28 }}>🛡 保険の準備（自己申告・{insItems.length}件）</p>
+                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 10px", paddingRight:28 }}><NavIconInline name="shield" size={11} style={{ verticalAlign:"-1.5px", marginRight:3 }} />保険の準備（自己申告・{insItems.length}件）</p>
                 <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
                   {insOrderedItems.map(it => {
                     const on = insItems.includes(it.k);
@@ -1321,7 +1322,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
             const dayNote = calDay && (
               <div key="app-day-note" style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF6DE", border:"1px solid #E8C77A", borderRadius:12, padding:"10px 14px", marginBottom:4 }}>
-                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}>📅 {calFmtDate(calDay.ymd)} の求人を表示しています</span>
+                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}><NavIconInline name="calendar" size={13} />{calFmtDate(calDay.ymd)} の求人を表示しています</span>
                 <button onClick={()=>setCalDay(null)} className="f-sans" style={{ flexShrink:0, background:"#fff", border:"1px solid #E8C77A", borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#8A6D1D", cursor:"pointer" }}>解除</button>
               </div>
             );
@@ -1584,7 +1585,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         return (
           <div onClick={()=>{ if (!agreeSaving) { setAgreeModal(null); setAgreeSel([]); } }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
             <div onClick={e=>e.stopPropagation()} className="f-sans" style={{ background:"#fff", borderRadius:16, padding:22, maxWidth:440, width:"100%", maxHeight:"85vh", overflowY:"auto" }}>
-              <p style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px" }}>📅 働く日を決める</p>
+              <p style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 4px" }}><NavIconInline name="calendar" size={16} />働く日を決める</p>
               <p style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>
                 {Array.isArray(av) ? "働き手が「来られる日」に選んだ日から確定します。" : "働き手は「期間中いつでもOK」です。働く日を選んで確定します。"}
                 働き手にお知らせが届きます（変更したら再送されます）。

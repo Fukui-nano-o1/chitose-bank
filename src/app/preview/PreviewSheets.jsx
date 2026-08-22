@@ -12,6 +12,7 @@ import { WorkerTrustCard, FarmerTrustCard } from "../../components/TrustCards";
 import { WorkerWorkRecord } from "../../components/WorkerWorkRecord";
 import { ReceivedReviews } from "../../components/ReceivedReviews";
 import { MyReviewsOfWorker } from "../../components/MyReviewsOfWorker";
+import { NavIconInline } from "../../components/NavIcons";
 
 export function EmployerPreviewSheet() {
   const [st, setSt] = useState(null); // {farmer_id, loading, profile, trust}
@@ -89,7 +90,7 @@ const PROFILE_REPORT_ISSUES = ["虚偽・誇大の疑い", "連絡先の直書�
 function ProfileReportButton({ onOpen }) {
   return (
     <button type="button" onClick={onOpen} className="f-sans" style={{ display:"block", width:"100%", marginTop:20, padding:"10px 0", background:"none", border:"none", fontSize:12, color:"#B0B0B0", textDecoration:"underline", cursor:"pointer" }}>
-      ⚑ この人を報告する
+      <NavIconInline name="flag" size={12} style={{ verticalAlign:"-1px" }} />この人を報告する
     </button>
   );
 }
