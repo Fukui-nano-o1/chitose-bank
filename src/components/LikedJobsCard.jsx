@@ -163,22 +163,24 @@ export function LikedJobsCard({ me }) {
                   style={{ marginTop:14, padding:"10px 18px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>求人をさがす →</button>
               </div>
             ) : (
-              /* その他の求人と同じカードを縦一列（仕事の評価ページと同じ適用＝wideを全幅で） */
+              /* その他の求人と同じカードを縦一列（仕事の評価ページと同じ適用＝wideを全幅で）。
+                 ★全件をJobCardで描く（2026-08-22たきと報告「1つだけしかカード化されていない」の修正）：
+                 jobs_public は「open または 満員でclosed」だけのビューので、満員でない終了求人は行が無い。
+                 その場合は my_job_actions の行（写真・作物・日程・町域を持つ）から仮の姿を組む＝
+                 ステータスページの展開ボックス（SavedJobsView boxJob）と同じフォールバック。
+                 報酬は取れないので pay:0（JobCard側が0円を出さず空にする・ダミー禁止）。
+                 closed の帯はフォールバックでも出す（job_status から）＝全カードの見え方が揃う */
               <div style={{ display:"grid", gap:16 }}>
                 {rows.map(r => {
-                  const job = jobs[r.job_number];
-                  if (job) return (
+                  const job = jobs[r.job_number] || {
+                    id: r.job_number, crop: r.crop || "", task: r.task || "", photos: r.photos || [],
+                    region: r.town || "", dateStartRaw: r.date_start || "", dateEndRaw: r.date_end || "",
+                    pay: 0, closed: r.job_status === "closed",
+                  };
+                  return (
                     <JobCard key={r.job_number} job={job} variant="wide"
                       saved={savedIds.has(job.id)} onToggleSave={toggleLike}
                       views={viewCounts[job.id]} onOpen={() => openJob(job.id)} />
-                  );
-                  /* 求人の情報が届くまで／掲載の行が無い時：作物×作業と#No.だけの最小カード（ダミーを出さない） */
-                  return (
-                    <button key={r.job_number} type="button" onClick={() => openJob(r.job_number)} className="f-sans"
-                      style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
-                      <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{[r.crop, r.task].filter(Boolean).join(" ") || "求人"}</span>
-                      <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{r.job_number}</span>
-                    </button>
                   );
                 })}
               </div>
