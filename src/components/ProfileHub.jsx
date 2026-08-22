@@ -18,10 +18,12 @@ import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
 import { RoleSwitchOverlay } from "./RoleSwitchOverlay";
 
 // 役割切替の全画面アニメ（Airbnb「ホストに切り替え」風・2026-08-22）のタイミング。
-// ★時間の正は appStyles.js の cbRs* 群（入り.2s→全開→1.25sからフェードアウト.35s＝計1.6s）。
+// ★時間の正は appStyles.js の cbRs* 群（入り.2s→全開→フェードアウト.35s）。
 //   swap＝幕が全開の間に面を入れ替える時刻／total＝幕が消え切ってアンマウントする時刻。
-//   CSSを変えたらここも必ず合わせる（swapは「0.2s以降〜1.25s以前」に収めること）
-const ROLE_SWITCH_MS = { swap: 500, total: 1600 };
+//   働き手へ＝バッジ（フェードアウト1.25s〜・計1.6s）／農家へ＝畑のシーン（.cb-rs-scene・
+//   フェードアウト1.85s〜・計2.2s＝totalScene）。CSSを変えたらここも必ず合わせる
+//   （swapは「0.2s以降〜フェードアウト開始以前」に収めること）
+const ROLE_SWITCH_MS = { swap: 500, total: 1600, totalScene: 2200 };
 
 // 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
@@ -229,7 +231,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
           const next = pTab === "employer" ? "worker" : "employer";
           setRoleSwitch(next);
           setTimeout(()=>{ window.location.hash = next === "worker" ? "/profile/worker" : "/profile/employer"; }, ROLE_SWITCH_MS.swap);
-          setTimeout(()=>{ setRoleSwitch(null); }, ROLE_SWITCH_MS.total);
+          setTimeout(()=>{ setRoleSwitch(null); }, next === "employer" ? ROLE_SWITCH_MS.totalScene : ROLE_SWITCH_MS.total);
         }} className="profile-employer-fab f-sans" style={{ background: pTab === "employer" ? ROLE_ORANGE : ROLE_GREEN }}>
           {/* 切替先はFAB自体の色で示す（第11弾）：橙=働き手／緑=農家。
               ラベルの色名「（橙）（緑）」は削除した（2026-08-22たきと指示）＝色は見れば分かる */}

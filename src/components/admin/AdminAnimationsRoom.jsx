@@ -35,6 +35,7 @@ const CELEBRATIONS = [
 const EMBEDDED = [
   { l:"採用の押印（文字の印・広がる輪・光の粒）", hash:"/calendar/todo/hire",  where:"採用するページ。採用を実行した時" },
   { l:"委託ページの入場演出（幕・草・太陽・花火）", hash:"/admin/consignment", where:"委託 準備室を開いた時" },
+  { l:"役割切替の白幕（農家へ＝耕す人／トラクターをランダム）", hash:"/profile", where:"プロフィール入口の浮遊トグルで切替えた時" },
 ];
 
 export function AdminAnimationsRoom() {
