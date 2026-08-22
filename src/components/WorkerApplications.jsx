@@ -26,6 +26,10 @@ export function WorkerApplications({ filter, me }) {
   useEffect(() => { if (loading) return; setCache("wapp:apps", allApps); }, [allApps, loading]);
   // 評価済みの応募（自分が書いた評価の行＝記録から導出する。打刻の署名時刻は使わない）
   const [reviewedIds, setReviewedIds] = useState(() => new Set(getCache("wapp:reviewed") ?? []));
+  // jobs_public に行が無い求人（失効・見送りなど。ビューは open または 満員closed だけ・20260807021647）の
+  // カードの顔を補う材料＝my_job_actions（本人の応募＋いいね・写真/作物/日程/町域つき）。
+  // LikedJobsCard・ステータスページと同じRPC・同じキャッシュ "saved:rows" を共用（取得経路を増やさない）
+  const [actionRows, setActionRows] = useState(() => getCache("saved:rows") ?? null);
   // 仮応募（第15弾・2026-07-30）：応募の意思だけ預かった行と、必須項目の残り
   const [pendingApps, setPendingApps] = useState([]);
   const [readyState, setReadyState] = useState(null); // { ready, missing:[...] }
@@ -108,6 +112,15 @@ export function WorkerApplications({ filter, me }) {
             const map = {};
             (jobRes.data || []).forEach(j => { map[j.job_number] = j; });
             setJobDates(map); setCache("wapp:jobs", map);
+            // jobs_public に行が無かった求人（失効・見送りなどの過去の応募に多い）の顔を
+            // my_job_actions で補う（2026-08-22たきと報告「失効ラベルの求人が復元されていない」）。
+            // セッションは上で確認済みなので空配列の再確認は不要。失敗時は手元の値を上書きしない（2026-08-07規則）
+            if (jobNumbers.some(n => !map[n])) {
+              try {
+                const actRes = await supabase.rpc("my_job_actions");
+                if (!actRes.error && Array.isArray(actRes.data)) { setActionRows(actRes.data); setCache("saved:rows", actRes.data); }
+              } catch {}
+            }
           }
           if (respEntries.length > 0) setRespByFarmer(Object.fromEntries(respEntries));
         }
@@ -244,16 +257,26 @@ export function WorkerApplications({ filter, me }) {
           <span onClick={()=>openPhaseInfo(appPhaseKey(a))} role="button" className="f-sans"
             style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:chip.bg, color:chip.fg, cursor:"pointer" }}>{chip.label}</span>
         </div>
-        {raw ? (
-          <JobCard job={mapJobPublicRow(raw)} variant="list" hideEndLabel={approvedTab} onOpen={open} />
-        ) : (
-          // 求人の情報が引けなかった時（掲載の行が無い等）：#No.だけの最小カード＝一覧から落とさない
-          <button onClick={open} className="f-sans"
-            style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer", marginBottom:22 }}>
-            <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>求人</span>
-            <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{a.job_number}</span>
-          </button>
-        )}
+        {(() => {
+          if (raw) return <JobCard job={mapJobPublicRow(raw)} variant="list" hideEndLabel={approvedTab} onOpen={open} />;
+          // jobs_public に行が無い求人（失効・見送りなど）：my_job_actions の行から仮の姿を組む＝
+          // LikedJobsCard・ステータスページの展開ボックスと同じフォールバック。
+          // 報酬は取れないので pay:0（JobCard側が0円を出さず空にする・ダミー禁止）。closed の帯も同じに出す
+          const fb = Array.isArray(actionRows) ? actionRows.find(r => r.job_number === a.job_number) : null;
+          if (fb) return <JobCard variant="list" hideEndLabel={approvedTab} onOpen={open} job={{
+            id: fb.job_number, crop: fb.crop || "", task: fb.task || "", photos: fb.photos || [],
+            region: fb.town || "", dateStartRaw: fb.date_start || "", dateEndRaw: fb.date_end || "",
+            pay: 0, closed: fb.job_status === "closed",
+          }} />;
+          // それでも引けなかった時：#No.だけの最小カード＝一覧から落とさない
+          return (
+            <button onClick={open} className="f-sans"
+              style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer", marginBottom:22 }}>
+              <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>求人</span>
+              <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{a.job_number}</span>
+            </button>
+          );
+        })()}
       </div>
     );
   };
@@ -403,9 +426,12 @@ export function WorkerApplications({ filter, me }) {
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
-      {/* 見出し直下の説明（応募状況／あなたが応募した求人の状況です。）は過去の応募の下へ移植
-          （2026-08-22たきと指示「この説明は過去の応募の下に移植」＝カードが最初に見える）。
+      {/* ラベル「応募状況」は上（2026-08-22たきと指示「応募状況は上に移植」）。
+          説明文（あなたが応募した求人の状況です。）は過去の応募の下のまま（同日の前指示）。
           見出し「あなたの応募」は ProfileHub の WORKER_TAB_TITLES が出す */}
+      {filter !== "approved" && (
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:20 }}>応募状況</p>
+      )}
       {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
           同じ7段は各求人カードの流れバーが出しているので重複 */}
       {/* 読み込み中は仮配置（前回この面が描いた形・2026-07-27たきと指示「1秒以上かかるページに」）。
@@ -427,11 +453,8 @@ export function WorkerApplications({ filter, me }) {
             {apps.length > 0 && <div ref={skelRef}>{apps.map(a => renderJobCardRow(a))}</div>}
             {waitingTodoBox}
             {pastAppsBlock}
-            {/* ページの説明（見出し直下から移植・2026-08-22たきと指示） */}
-            <div style={{ marginTop:24 }}>
-              <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
-            </div>
+            {/* ページの説明（見出し直下から移植・2026-08-22たきと指示。ラベル「応募状況」は上へ戻した） */}
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"24px 0 0", lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
           </>
         )
       ) : apps.length === 0 ? (
