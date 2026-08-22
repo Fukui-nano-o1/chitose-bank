@@ -360,19 +360,24 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
   const cardStyle = (sel) => ({
     display:"flex", flexDirection:"column", alignItems: centered ? "center" : "flex-start",
     justifyContent: centered ? "center" : "flex-start", gap:8,
+    // ★minWidth:0＝カードが列より小さくなれるようにする。付けないと絵の56pxが列の下限を作り、
+    //   狭い画面（内側幅312px未満）でグリッドが親を突き抜けて左に張り付く（2026-08-22に実機で発生）。
+    minWidth:0,
     padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
     borderColor: sel ? "#00A86B" : "#EBEBEB",
     background: sel ? "#E6F7EF" : "#fff",
   });
   return (
     <div style={{ marginBottom:8 }}>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12 }}>
+      {/* minmax(0, 1fr)＝1fr のままだと列は min-content より縮まず、狭い画面で3列が親からはみ出す */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0, 1fr))", gap:12 }}>
         {options.map(c => {
           const sel = value === c.name;
           return (
             <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
               {/* 絵文字が無い作物は既製アイコン（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
-              {!noIcon && <CropIcon crop={c.name} size={56} />}
+              {/* 上限56pxで、カードが狭いときは列幅に合わせて縮む（縦横比は保つ） */}
+              {!noIcon && <CropIcon crop={c.name} size={56} style={{ maxWidth:"100%", height:"auto" }} />}
               <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>{c.name}</span>
             </button>
           );
