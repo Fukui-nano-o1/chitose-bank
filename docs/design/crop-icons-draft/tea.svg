@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="茶">
+<path d="M32 56 C31.5 48 31.5 40 32 33" stroke="#6B9A4C" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M31 33 C25 32.5 20 29 17 23.5 C23.5 22.5 29.5 25.5 32.5 31.5 Z" fill="#3F8534"/>
+<path d="M20.5 25.5 C24.5 26.5 28 28.5 30.5 31.5" stroke="#6FB251" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.8"/>
+<path d="M33 33 C39 32.5 44 29 47 23.5 C40.5 22.5 34.5 25.5 31.5 31.5 Z" fill="#4E9C3E"/>
+<path d="M43.5 25.5 C39.5 26.5 36 28.5 33.5 31.5" stroke="#7FBF5E" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.8"/>
+<path d="M32 30 C29 25.5 28.5 19.5 30.5 13.5 C34.5 17.5 35.5 23.5 33.5 29.5 Z" fill="#7CB342"/>
+<path d="M31 27 C30.5 22.5 30.8 18.5 31.8 15.5" stroke="#A8D08D" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.85"/>
+</svg>

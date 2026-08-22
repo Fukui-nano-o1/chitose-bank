@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="キウイ">
+<circle cx="32" cy="34" r="19" fill="#8F6B45"/>
+<circle cx="32" cy="34" r="16.6" fill="#8CBF4A"/>
+<circle cx="32" cy="34" r="16.6" fill="#7CB03C" opacity="0.35"/>
+<circle cx="32" cy="34" r="13.5" fill="#8CBF4A"/>
+<ellipse cx="32" cy="34" rx="5.2" ry="6" fill="#F2EDD4"/>
+<ellipse cx="32.0" cy="23.5" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(0 32.0 23.5)"/><ellipse cx="38.2" cy="25.5" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(36 38.2 25.5)"/><ellipse cx="42.0" cy="30.8" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(72 42.0 30.8)"/><ellipse cx="42.0" cy="37.2" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(108 42.0 37.2)"/><ellipse cx="38.2" cy="42.5" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(144 38.2 42.5)"/><ellipse cx="32.0" cy="44.5" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(180 32.0 44.5)"/><ellipse cx="25.8" cy="42.5" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(216 25.8 42.5)"/><ellipse cx="22.0" cy="37.2" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(252 22.0 37.2)"/><ellipse cx="22.0" cy="30.8" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(288 22.0 30.8)"/><ellipse cx="25.8" cy="25.5" rx="1" ry="1.7" fill="#3B3B2E" transform="rotate(324 25.8 25.5)"/>
+</svg>

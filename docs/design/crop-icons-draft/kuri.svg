@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="クリ">
+<defs><clipPath id="kr"><path d="M32 13 C33 17.5 36 20.5 40 23 C45.5 26.5 48.5 31 48.5 36.5 C48.5 45 41.5 50.5 32 50.5 C22.5 50.5 15.5 45 15.5 36.5 C15.5 31 18.5 26.5 24 23 C28 20.5 31 17.5 32 13 Z"/></clipPath></defs>
+<path d="M32 13 C33 17.5 36 20.5 40 23 C45.5 26.5 48.5 31 48.5 36.5 C48.5 45 41.5 50.5 32 50.5 C22.5 50.5 15.5 45 15.5 36.5 C15.5 31 18.5 26.5 24 23 C28 20.5 31 17.5 32 13 Z" fill="#8F5A2E"/>
+<g clip-path="url(#kr)">
+<ellipse cx="39" cy="40" rx="18" ry="15" fill="#7C4B24"/><ellipse cx="27" cy="32" rx="14" ry="13" fill="#8F5A2E"/>
+<path d="M14 42.5 Q32 47 50 42.5 L50 54 L14 54 Z" fill="#E8D9B8"/>
+<circle cx="25" cy="47" r="1" fill="#C9B48A"/>
+<circle cx="32" cy="48.5" r="1" fill="#C9B48A"/>
+<circle cx="39" cy="47" r="1" fill="#C9B48A"/>
+</g>
+<ellipse cx="26" cy="27" rx="3.8" ry="2.5" fill="#FFFFFF" opacity="0.2" transform="rotate(-35 26 27)"/>
+</svg>
