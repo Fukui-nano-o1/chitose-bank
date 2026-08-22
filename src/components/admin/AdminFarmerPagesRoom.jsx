@@ -516,7 +516,7 @@ const STEPS = [
     ) },
 
   /* ═══ 仕事の当日 ═══ */
-  { ch:"仕事の当日", name:"今日", url:"#/calendar", act:"やることが並ぶ。空の箱も押せて、説明が出る。",
+  { ch:"仕事の当日", name:"やること（マイページ）", url:"#/profile/employer", act:"やることが並ぶ。空の箱も押せて、説明が出る。今日ページは廃止＝マイページに移った（2026-08-22）。",
     body: () => (
       <div style={{ padding:14 }}>
         <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:SUB, margin:"0 0 8px" }}>やること</p>
@@ -548,7 +548,7 @@ const STEPS = [
         </Card>
       </div>
     ) },
-  { ch:"仕事の当日", name:"きょうの仕事", url:"#/calendar", act:"当日の仕事を見る。開始の記録は作業開始時刻を過ぎると自動で入る（誰も時刻を押さない）。",
+  { ch:"仕事の当日", name:"きょうの仕事（緊急連絡）", url:"#/calendar/todo/t_emergency", act:"当日の仕事を見る入口は緊急連絡ページへ。開始の記録は作業開始時刻を過ぎると自動で入る（誰も時刻を押さない）。",
     body: () => (
       <div style={{ padding:14 }}>
         <Card>

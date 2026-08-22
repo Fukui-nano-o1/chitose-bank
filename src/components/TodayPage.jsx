@@ -1,12 +1,17 @@
-// 📆 今日ページ（分割・段階2で切り出し・2026-07-24）：ナビ4番。やること（my_todo_items）＋きょうの仕事＋つぎの予定＋メモ。
+// 用件の専用ページ（#/calendar/todo/{stage}）の置き場（2026-08-22改造）。
+// 旧「📆 今日ページ」の本体（やること格子・つぎの予定）はマイページ両面へ移植済み
+// （TaskBoxes・2026-08-22たきと指示）＝#/calendar 単体はマイページへリダイレクトする。
+// 残っているのは各用件の専用ページ＝採用する（唯一の採用実行窓口）・仕事の評価・今日の記録・
+// 緊急連絡・保険の報告・求人の質問・修正。DBのメール（#/calendarリンク6箇所）は
+// リダイレクトが受けるのでmigration不要。
 import { useState, useEffect, useRef } from "react";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calAddDays, calFmtDate, ROLE_ORANGE, ROLE_GREEN,
+import { ymdLocal, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS, entryWorkDays } from "../lib/utils";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
-import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
+import { Avatar, Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
 import { BOX_FACE, BOX_ICON_SIZE } from "../features/today/boxFace";
 import ContractPartyName from "./ContractPartyName";
@@ -33,13 +38,7 @@ export function TodayPage({ me, defaultRole }) {
   const [hasWorker, setHasWorker] = useState(() => getCache("today:roles")?.w ?? false);
   const [hasFarmer, setHasFarmer] = useState(() => getCache("today:roles")?.f ?? false);
   const [role, setRole] = useState(defaultRole === "farmer" ? "farmer" : "worker");
-  // 仮配置の骨を測るref：役割で箱の数が違うので鍵も分ける（働き手／農家）
-  const skelRef = useSkeletonProbe("today:" + role);
   const [todos, setTodos] = useState(() => getCache("today:todos") ?? []);     // やることフィード（my_todo_items・状態カードの単一ソース）
-  // jobCount（自分が出した求人の数）のstateは廃止（2026-08-03）：カレンダー箱のタップ可否判定が
-  // 唯一の読み手だったが、タップ不能を全廃したため不要になった。求人の有無は下の f（農家か）の算出で今も使う
-  // プロフィールの未入力数（役割ごと）＝「👤プロフィール入力」ボックスのバッジの数（2026-08-19に常設化）
-  const [profileUnset, setProfileUnset] = useState(() => getCache("today:unset") ?? null);
   const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
   // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
@@ -81,8 +80,9 @@ export function TodayPage({ me, defaultRole }) {
         // プロフィールの未入力数（バッジ用）。状態を持たず毎回いまの行から数える＝
         // 埋めれば0（バッジが消えて薄表示）、後で空にすればまた1以上に戻る
         // 緊急連絡先（別テーブル）は働き手側の応募条件でもあるので両役割に渡す（2026-08-17）
+        // 未入力数はマイページのやること箱（TaskBoxes）が読む＝ここではキャッシュを温めるだけ
         const unset = { w: workerUnsetCount(wp, { hasEmergency: !!emg }).total, f: employerUnsetCount(ep, { hasEmergency: !!emg }).total };
-        setProfileUnset(unset); setCache("today:unset", unset);
+        setCache("today:unset", unset);
         const hired = (apps || [])
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at
                     && !["rejected","expired","completed"].includes(a.status))
@@ -99,7 +99,6 @@ export function TodayPage({ me, defaultRole }) {
   }, [refreshTick]);
 
   const todayYmd = ymdLocal(new Date());
-  const in7Ymd = ymdLocal(calAddDays(7));
   const mine = entries.filter(e => e.my_role === role && e.relation === "application");
   // 当日判定（2026-07-24 追記3／2026-08-11に entryWorkDays へ一本化）：
   // 確定した働く日（agreed_dates）＞働き手が申請した労働希望日（available_dates）＞求人の期間、の順で見る。
@@ -128,9 +127,6 @@ export function TodayPage({ me, defaultRole }) {
     return out;
   })();
   const todayStageItems = (st) => st === "t_emergency" ? tEmergency : null; // t_chat（2026-07-25）・t_card（2026-08-19）は削除
-  const upcoming = mine
-    .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
-    .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
   const dual = hasWorker && hasFarmer;
   // 用件ごとの専用ページ（2026-07-25たきと指示）：#/calendar/todo/{stage}。ボックスタップで遷移・←で今日へ戻る。
   // ★宣言位置：下のスワイプeffectが[pageStage]依存を持つため、effectより前に置く（no-use-before-define対策・2026-08-02）
@@ -260,7 +256,7 @@ export function TodayPage({ me, defaultRole }) {
     question:    { title:"求人の質問",           btn:"回答する →",
                    desc:"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。", nav: e => {
       // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
-      try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
+      try { sessionStorage.setItem("cb_jobBackTo", "/calendar/todo/question"); } catch {}
       return "/work/job/" + e.job_number + "/questions"; // タブ指定つきURL（リロードしても質問タブのまま）
     } },
     // 📨新着の応募・❓面接する の2箱は削除（2026-08-19たきと指示）。
@@ -330,6 +326,14 @@ export function TodayPage({ me, defaultRole }) {
     farmer: ["t_emergency", "revision", "question", "hire", "insurance", "day_report", "complete"],   // approve・interviewは削除（2026-08-19）
     worker: ["t_emergency", "w_revision", "w_day_report", "w_review"],   // w_interviewは削除（2026-08-19）
   };
+  // #/calendar 単体（＝旧・今日ページ本体）と未知のstageはマイページへリダイレクト（2026-08-22）。
+  // メールの #/calendar リンク・古いブックマークの受け皿＝DB側のリンクを書き換えずに済む
+  useEffect(() => {
+    if (pageStage && TODO_META[pageStage]) return;
+    window.location.hash = defaultRole === "farmer" ? "/profile/employer" : "/profile";
+    // TODO_META は毎レンダー再生成のオブジェクトなので依存に入れない（キーの集合は固定）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageStage, defaultRole]);
   // 専用ページを開いたら役割をその用件側へ合わせる（accent・パネルの表示条件が追従）
   useEffect(() => {
     if (!pageStage) return;
@@ -412,7 +416,7 @@ export function TodayPage({ me, defaultRole }) {
                   </div>
                 ) : null}
                 {/* 求人チップはタップで求人ページへ（確認前に内容を見られる） */}
-                {jobChip && <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>{jobChip}</button>}
+                {jobChip && <button onClick={()=>{ if (!t.job_number) return; try { sessionStorage.setItem("cb_jobBackTo", "/calendar/todo/" + stage); } catch {} window.location.hash = "/work/job/" + t.job_number; }} className="f-sans" style={{ flexShrink:1, minWidth:0, fontSize:11, fontWeight:600, color:"#717171", background:"#F7F7F7", border:"none", borderRadius:8, padding:"4px 8px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:2 }}>{jobChip}</button>}
                 <span style={{ flex:1 }} />
                 {/* 副の選択肢（今のところ「来なかった」だけ）。主の隣に控えめに置く */}
                 {m.alt && (
@@ -430,20 +434,6 @@ export function TodayPage({ me, defaultRole }) {
     );
   };
 
-  const UpcomingRow = ({ e }) => {
-    const label = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
-    return (
-      <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }}
-        className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #F0F0F0", borderLeft:"3px solid " + accent, borderRadius:10, padding:"11px 12px", cursor:"pointer" }}>
-        <span style={{ minWidth:0, overflow:"hidden" }}>
-          <span style={{ display:"block", fontSize:13, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:11 }}>#{e.job_number}</span></span>
-          <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {label}{e.work_time ? "　" + e.work_time : ""}{role === "farmer" && e.partner_name ? "　" + e.partner_name : ""}</span>
-        </span>
-        <span style={{ color:"#C8C8C8", fontSize:16, flexShrink:0 }}>›</span>
-      </button>
-    );
-  };
-
   // ── 用件の専用ページ（#/calendar/todo/{stage}）：ボックスタップの行き先。←で今日へ戻る ──
   if (pageStage && TODO_META[pageStage]) {
     const pm = TODO_META[pageStage];
@@ -457,7 +447,8 @@ export function TodayPage({ me, defaultRole }) {
         style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", ...(swipeStage ? { overflowX:"hidden", touchAction:"pan-y" } : {}) }}>
         {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
-          <button onClick={()=>{ window.location.hash = "/calendar"; }} aria-label="今日へ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
+          {/* 戻り先＝マイページの該当の面（今日ページ本体の廃止・2026-08-22）。用件の役割に合わせる */}
+          <button onClick={()=>{ window.location.hash = role === "farmer" ? "/profile/employer" : "/profile"; }} aria-label="マイページへ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
           <h2 className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, color:"#222", margin:0, flex:1, minWidth:0 }}>
             <span style={{ display:"flex", color:"#333", flexShrink:0 }}><NavIcon name={BOX_FACE[pageStage]?.iconName} size={20} /></span>{BOX_FACE[pageStage]?.label || pm.title}
           </h2>
@@ -506,80 +497,8 @@ export function TodayPage({ me, defaultRole }) {
     );
   }
 
-  return (
-    <div ref={rootRef} className="cb-today-page" style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", overflowX:"hidden", touchAction:"pan-y" }}>
-      {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
-      {/* 見出し「📆 今日」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示すため冗長 */}
-      {/* 役割タブ（両役を持つ人だけ・このページの表示だけ切替）。単役は非表示（roleTabsRow＝共通化・2026-08-02） */}
-      {roleTabsRow}
-      {/* 役割コンテンツ：ドラッグ追従はcontentRefへのtransform直書き（再レンダーなし）。切替成立時はkey更新でスライドイン再生 */}
-      <div key={slideKey} ref={contentRef} style={{
-        animation: slideDir ? `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` : undefined,
-      }}>
-      {/* 読み込み中は仮配置（2026-07-27たきと指示）。このページは往復が多い
-          （セッション→カレンダー→やること→プロフィール類）ので待ちが最も長い */}
-      {loading ? (
-        <AutoSkeleton shapeKey={"today:" + role} />
-      ) : (<>
-        {/* 【やること】採配台：状態カードを締切の近い順に。①②⑧=遷移／③〜⑦=直接実行。件数=今日タブのバッジ(todo)と一致 */}
-        {(() => {
-          // 最新順（sort_keyの新しい順・同日なら求人番号の新しい順）
-          // 箱を消した用件（approve・interview）はDBのやること一覧に残るが、ここでは数えも並べもしない
-          //   ＝件数と箱が食い違わない（2026-08-19のバッジのソース一致の規則）
-          const myTodos = todos.filter(t => t.my_role === role && !REMOVED_STAGES.has(t.stage)).sort((a, b) => (b.sort_key || "").localeCompare(a.sort_key || "") || (b.job_number || 0) - (a.job_number || 0));
-          // 用件（stage）ごとに1箱へ集約。該当ありは最新順で上位、該当なしもカタログ順で常時表示（薄表示・タップ不可）
-          const activeOrder = []; const byStage = new Map();
-          [["t_emergency", tEmergency]].forEach(([st, arr]) => { if (arr.length) { byStage.set(st, arr); activeOrder.push(st); } }); // きょうの仕事系は常に先頭（t_chat・t_cardは削除）
-          myTodos.forEach(t => { if (!byStage.has(t.stage)) { byStage.set(t.stage, []); activeOrder.push(t.stage); } byStage.get(t.stage).push(t); });
-          // ★「仕事の評価」（旧・農家を評価→バイトを評価）の先取り点灯は削除（2026-08-19たきと報告）：
-          //   2026-07-27の「採用済みなら常に開ける」で、DBのやること(my_todo_items)ではなく
-          //   採用済み・作業中の応募の数で箱を灯していた。その数はこの箱の専用ページが読む
-          //   my_todo_items には無いので【バッジは1なのに開くと「この用事はいまありません」】になり、
-          //   さらに「いま これだけ」にまで昇格していた。しかも作業が終わる前＝まだ評価できない。
-          //   → w_review は DB の定義（農家が完了を記録した後・未確認・3日以内）だけに従わせる。
-          //   箱そのものはカタログにあるので薄表示で常に並ぶ＝入口は消えない。
-          const catalog = TODO_STAGE_CATALOG[role] || [];
-          const stageOrder = [...activeOrder, ...catalog.filter(st => !byStage.has(st))];
-          // 「いま これだけ」（2026-08-06新設の最優先1枚カード）は廃止（2026-08-21たきと指示
-          // 「催促しているとストレスになる。普通のカードに戻して」）＝昇格せず全用件を格子に並べる
-          // プロフィール入力（2026-08-19たきと指示）：両役割とも常に格子の先頭に置く常設の入口。
-          // ★2026-08-03の「埋まれば非表示・空になればまた表示」は撤回：あの箱は「未入力」という
-          //   お知らせだったが、名前が「プロフィール入力」＝いつでも入力しに行ける入口に変わったため、
-          //   埋まっていても消さない（働き手側が全部埋まっていて箱が無かった＝入口が消えていた）。
-          // バッジは未入力の数（0なら出さない＝薄表示になり「いま用事が無い」を示す）。
-          // カタログには入れない＝常設の入口として自前でunshiftする（下の1行）
-          const unsetN = profileUnset ? (role === "farmer" ? profileUnset.f : profileUnset.w) : 0;
-          stageOrder.unshift("profile");
-          return (
-            <div style={{ marginBottom:24 }}>
-              <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
-              <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
-                {stageOrder.map(st => <TodoStageBox key={st} stage={st} items={byStage.get(st) || []} count={st === "profile" ? unsetN : undefined} />)}
-              </div>
-            </div>
-          );
-        })()}
-        {/* きょうの仕事の独立セクションは廃止（2026-07-25たきと指示）：stage="today"としてやることの箱へ統合。
-            仕事がない日の「求人をさがす」導線だけ残す */}
-        {todayJobs.length === 0 && upcoming.length === 0 && (
-          <div style={{ textAlign:"center", marginBottom:24 }}>
-            <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>求人をさがす →</button>
-          </div>
-        )}
-        {upcoming.length > 0 && (
-          <div style={{ marginBottom:24 }}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 10px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>つぎの予定（7日以内）</p>
-            <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:8 }}>
-              {upcoming.map(e => <UpcomingRow key={e.application_id || e.job_number} e={e} />)}
-            </div>
-          </div>
-        )}
-        {/* 📝メモは削除（2026-08-19たきと指示「必要ない」）。端末内localStorage(cb_todayMemo)だけの
-            私的メモでDBには保存していなかったsoサーバー側の後始末は無い。既に書かれた文字は
-            利用者の端末に残るが、消すと本人の書いたものを黙って壊すことになるso触らない */}
-        {/* 「📅 月の予定を見る」ボタンは削除（2026-07-27たきと指示）：やることのカレンダー箱に統合 */}
-      </>)}
-      </div>
-    </div>
-  );
+  // 本体（やること格子・つぎの予定）はマイページへ移植済み（2026-08-22たきと指示）＝
+  // #/calendar 単体で来た人（メールの「今日の仕事を見る」リンク・古いブックマーク）はマイページへ送る。
+  // 行き先の面は今のモード（defaultRole）に合わせる。描画はしない（リダイレクトまでの一瞬だけnull）
+  return null;
 }

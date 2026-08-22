@@ -124,7 +124,8 @@ export function EmergencyStagePanel({ items, role, meId }) {
                     <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + e.application_id; }} className="f-sans"
                       style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
                   )}
-                  <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {} window.location.hash = "/work/job/" + e.job_number; }} className="f-sans"
+                  {/* 戻り先＝この緊急連絡ページ（旧 "/calendar" は今日ページ廃止でマイページ行きになるため・2026-08-22） */}
+                  <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar/todo/t_emergency"); } catch {} window.location.hash = "/work/job/" + e.job_number; }} className="f-sans"
                     style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#555", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>求人ページを見る</button>
                 </div>
               </div>

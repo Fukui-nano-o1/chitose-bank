@@ -11,7 +11,7 @@
 import { useState, useEffect } from "react";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../../../lib/refreshBus";
-import { ymdLocal, entryWorkDays, ROLE_ORANGE, ROLE_GREEN,
+import { ymdLocal, calAddDays, calFmtDate, entryWorkDays, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS } from "../../../lib/utils";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile,
   fetchMyEmployerProfile, fetchMyEmergencyContact, fetchMyApplicationTerms } from "../todayApi";
@@ -94,6 +94,14 @@ export function TodayTaskBoxes({ role = "worker" }) {
   const unsetN = profileUnset ? (role === "farmer" ? profileUnset.f : profileUnset.w) : 0;
   const accent = role === "worker" ? ROLE_ORANGE : ROLE_GREEN;
 
+  // つぎの予定（7日以内）＝旧・今日ページ本体からの移植（2026-08-22たきと指示「次の予定は移植する」）。
+  // 導出・並び・行の見た目は原本（旧TodayPage本体）のまま。行タップで求人ページへ（戻り先＝この面）
+  const in7Ymd = ymdLocal(calAddDays(7));
+  const upcoming = mine
+    .filter(e => e.date_start && e.date_start > todayYmd && e.date_start <= in7Ymd)
+    .sort((a, b) => (a.date_start || "").localeCompare(b.date_start || "") || (a.work_time || "").localeCompare(b.work_time || ""));
+  const backHash = role === "farmer" ? "/profile/employer" : "/profile";
+
   const onTapBox = (stage) => {
     if (stage === "profile") {
       // 合図（cb_fillProfile）＝着地した編集ページが最初の未入力ボックスをその場で開く（TodayPage と同じ）
@@ -128,6 +136,27 @@ export function TodayTaskBoxes({ role = "worker" }) {
           );
         })}
       </div>
+      {upcoming.length > 0 && (
+        <div style={{ marginTop:16 }}>
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>つぎの予定（7日以内）</p>
+          <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:8 }}>
+            {upcoming.map(e => {
+              const label = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);
+              return (
+                <button key={e.application_id || e.job_number}
+                  onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", backHash); } catch {} window.location.hash = "/work/job/" + e.job_number; }}
+                  className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid #F0F0F0", borderLeft:"3px solid " + accent, borderRadius:10, padding:"11px 12px", cursor:"pointer" }}>
+                  <span style={{ minWidth:0, overflow:"hidden" }}>
+                    <span style={{ display:"block", fontSize:13, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[e.crop, e.task].filter(Boolean).join(" ") || "求人"} <span style={{ color:"#999", fontWeight:700, fontSize:11 }}>#{e.job_number}</span></span>
+                    <span style={{ display:"block", fontSize:11, color:"#999", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📅 {label}{e.work_time ? "　" + e.work_time : ""}{role === "farmer" && e.partner_name ? "　" + e.partner_name : ""}</span>
+                  </span>
+                  <span style={{ color:"#C8C8C8", fontSize:16, flexShrink:0 }}>›</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

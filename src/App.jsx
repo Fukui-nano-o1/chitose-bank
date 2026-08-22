@@ -283,6 +283,9 @@ function CalendarRouter({ me, defaultRole }) {
   useEffect(() => {
     if (window.location.hash.replace(/^#\/?/, "") === "calendar/month") window.location.hash = "/calendar";
   }, []);
+  // TodayPage は用件の専用ページ（#/calendar/todo/{stage}）だけを描く（2026-08-22改造）。
+  // #/calendar 単体（メールの「今日の仕事を見る」リンク・古いブックマーク）は
+  // TodayPage 内のリダイレクトがマイページへ送る＝DBのメール6箇所はmigration不要
   return <TodayPage me={me} defaultRole={defaultRole} />;
 }
 
