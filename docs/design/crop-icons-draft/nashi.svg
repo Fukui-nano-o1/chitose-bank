@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ナシ">
+<defs><clipPath id="nsh"><circle cx="32" cy="37" r="17"/></clipPath></defs>
+<circle cx="32" cy="37" r="17" fill="#C99A52"/>
+<g clip-path="url(#nsh)"><ellipse cx="39" cy="44" rx="17" ry="14" fill="#B8863C"/><ellipse cx="27" cy="34" rx="14" ry="13" fill="#C99A52"/></g>
+<circle cx="25" cy="31" r="1" fill="#A87932"/>
+<circle cx="33" cy="28.5" r="1" fill="#A87932"/>
+<circle cx="22" cy="39" r="1" fill="#A87932"/>
+<circle cx="29.5" cy="44" r="1" fill="#96692A"/>
+<circle cx="39" cy="34" r="1" fill="#A87932"/>
+<circle cx="40.5" cy="43" r="1" fill="#96692A"/>
+<circle cx="34" cy="49" r="1" fill="#96692A"/>
+<path d="M31 21 C30.8 17.5 31.4 14.2 32.8 11.5 L34.6 12.3 C33.6 15 33.2 17.9 33.4 21 Z" fill="#8A6A3B"/>
+</svg>

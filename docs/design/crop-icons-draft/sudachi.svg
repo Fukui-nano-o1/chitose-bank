@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="スダチ">
+<path d="M28.5 24 C30.5 19.5 34.5 17.4 39.5 17.8 C38 22.4 34.3 24.9 29.3 24.9 Z" fill="#55A345"/>
+<circle cx="41.5" cy="31" r="9.6" fill="#3F8534"/>
+<circle cx="40.5" cy="30" r="9.6" fill="#4E9C3E"/>
+<circle cx="40.5" cy="22.6" r="1.5" fill="#2F6E28"/>
+<circle cx="26.5" cy="42.5" r="12.2" fill="#478D38"/>
+<circle cx="25.3" cy="41.2" r="12.2" fill="#55A345"/>
+<circle cx="25.3" cy="31.2" r="1.7" fill="#2F6E28"/>
+<ellipse cx="21" cy="37" rx="3.4" ry="2.2" fill="#FFFFFF" opacity="0.22" transform="rotate(-35 21 37)"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ウメ">
+<defs><clipPath id="umx"><circle cx="32" cy="37.5" r="14.5"/></clipPath></defs>
+<circle cx="32" cy="37.5" r="14.5" fill="#A8C45E"/>
+<g clip-path="url(#umx)"><ellipse cx="38" cy="43" rx="15" ry="13" fill="#97B34E"/><ellipse cx="27" cy="35" rx="12" ry="12" fill="#A8C45E"/></g>
+<path d="M32 23.5 C29.8 28 29 33 29.5 38.5" stroke="#8FAF45" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+<ellipse cx="26" cy="31" rx="3.6" ry="2.3" fill="#FFFFFF" opacity="0.3" transform="rotate(-35 26 31)"/>
+<path d="M32 23 L32 16.5" stroke="#8A6A3B" stroke-width="1.9" stroke-linecap="round" fill="none"/>
+<path d="M33.5 19.5 C35.5 15 39.5 13 44.5 13.4 C43 18 39.3 20.4 34.4 20.4 Z" fill="#55A345"/>
+</svg>

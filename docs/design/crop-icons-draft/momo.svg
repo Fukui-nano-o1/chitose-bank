@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="モモ">
+<defs><clipPath id="mmo"><path d="M32 20.5 C42 20.5 49 27.5 49 37 C49 46.5 41.5 54 32 54 C22.5 54 15 46.5 15 37 C15 27.5 22 20.5 32 20.5 Z"/></clipPath></defs>
+<path d="M32 20.5 C42 20.5 49 27.5 49 37 C49 46.5 41.5 54 32 54 C22.5 54 15 46.5 15 37 C15 27.5 22 20.5 32 20.5 Z" fill="#F2A0AE"/>
+<g clip-path="url(#mmo)"><ellipse cx="40" cy="43" rx="19" ry="17" fill="#E8798F"/><ellipse cx="27" cy="34" rx="15" ry="15" fill="#F2A0AE"/></g>
+<path d="M32 21 C29.3 27 28.3 33.5 29 40.5" stroke="#D96E86" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+<ellipse cx="24" cy="29" rx="4.2" ry="2.7" fill="#FFFFFF" opacity="0.3" transform="rotate(-35 24 29)"/>
+<path d="M30 20 C27.5 15.8 23.8 14 19 14.5 C20.6 18.9 24.2 21 29 20.8 Z" fill="#55A345"/>
+<path d="M34 20 C36 15.5 39.8 13.6 44.5 14 C43 18.5 39.3 20.8 34.6 20.8 Z" fill="#3F8534"/>
+</svg>
