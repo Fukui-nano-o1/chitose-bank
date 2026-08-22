@@ -16,6 +16,23 @@
 import { useEffect, useState } from "react";
 import { CROP_OPTIONS } from "../lib/utils";
 
+// ── 最新の作物アイコン（フルカラー・完全自作）────────────────────────────────
+// 2026-08-22たきと指示「最新のアイコンを常に取得して」＝docs/design/crop-icons-draft を
+// 【最新アイコンの唯一の置き場】として、ビルド時に全SVGを自動で取り込む。
+// ・SVGを描き直す／新しい作物のSVGと manifest.json の行を足す → 次のビルドからアプリが自動追従
+//   （コピーを作らない＝二重の真実を作らない。URLはハッシュ付きなので古いキャッシュも掴まない）
+// ・まだ新アイコンが無い作物は、従来どおり単色アイコン（game-icons）→絵文字の順で埋める
+// ・対応表＝manifest.json（name:作物名 / file:ファイル名）。プレビューは preview.html（運営確認用）
+import cropIconManifest from "../../docs/design/crop-icons-draft/manifest.json";
+// ?no-inline＝data:URIとしてバンドルに焼き込まない（35個で+63KBをuiチャンクに抱えない・実測）。
+// 各SVGはハッシュ付きの独立ファイルになり、カードが描かれた時にだけ読み込まれる（img loading="lazy"）
+const COLOR_ICON_URLS = import.meta.glob("../../docs/design/crop-icons-draft/*.svg", { eager: true, query: "?no-inline", import: "default" });
+const COLOR_ICON_BY_NAME = {};
+cropIconManifest.forEach(m => {
+  const url = COLOR_ICON_URLS[`../../docs/design/crop-icons-draft/${m.file}.svg`];
+  if (url) COLOR_ICON_BY_NAME[m.name] = url;
+});
+
 // 絵のデータは1度だけ読み、以後は使い回す（画面ごとに読み直さない）
 let _art = null;
 let _artPromise = null;
@@ -48,6 +65,12 @@ export function CropIcon({ crop, size = 28, fallback = "🌱", style }) {
   }, []);
 
   const hit = findCropOption(crop);
+  // 最新のフルカラーアイコンがある作物はそれを最優先（上記＝置き場から自動取得）
+  const colorUrl = hit ? COLOR_ICON_BY_NAME[hit.name] : null;
+  if (colorUrl) {
+    return <img src={colorUrl} alt={hit.name} width={size} height={size} loading="lazy"
+      style={{ display:"block", flexShrink:0, width:size, height:size, ...style }} />;
+  }
   const art = hit && _art ? _art[hit.name] : null;
   if (art) {
     // path要素として組み立てる（HTML直挿入＝dangerouslySetInnerHTMLは使わない・CLAUDE.mdの禁止規則）。
