@@ -1,10 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ショウガ">
-<defs><clipPath id="gg"><path d="M15 40 C13 35 16 30.5 20 31 C19.5 26 23 23 26.5 25.5 C27 20.5 31.5 19 33.5 23 C36 19.5 40.5 20.5 41 25 C44.5 24 47.5 27 46.5 30.5 C50.5 32 51 37 47.5 39.5 C48.5 43.5 45 46.5 41 45.5 C39.5 49 34.5 50 31.5 47.5 C28 50 22.5 49 21 45.5 C16.5 45.5 13.5 43 15 40 Z"/></clipPath></defs>
-<path d="M15 40 C13 35 16 30.5 20 31 C19.5 26 23 23 26.5 25.5 C27 20.5 31.5 19 33.5 23 C36 19.5 40.5 20.5 41 25 C44.5 24 47.5 27 46.5 30.5 C50.5 32 51 37 47.5 39.5 C48.5 43.5 45 46.5 41 45.5 C39.5 49 34.5 50 31.5 47.5 C28 50 22.5 49 21 45.5 C16.5 45.5 13.5 43 15 40 Z" fill="#D9B573"/>
-<g clip-path="url(#gg)"><ellipse cx="36" cy="46" rx="22" ry="10" fill="#C9A45E"/><ellipse cx="28" cy="37" rx="18" ry="10" fill="#D9B573"/></g>
-<ellipse cx="32.8" cy="22.5" rx="2.6" ry="1.7" fill="#EFE0B8" transform="rotate(-8 32.8 22.5)"/>
-<path d="M24 31 Q25.5 33 25 35.5" stroke="#B8935A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-<path d="M32.5 28 Q33.5 30.5 33 33" stroke="#B8935A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-<path d="M40 29.5 Q41 31.5 40.5 34" stroke="#B8935A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-<path d="M27 40 Q30 41.5 33.5 41" stroke="#B8935A" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.8"/>
+<path d="M17 42.5 Q30 45.5 45 41.5" stroke="#C9A45E" stroke-width="13" stroke-linecap="round" fill="none"/>
+<path d="M17 41 Q30 44 45 40" stroke="#D9B573" stroke-width="13" stroke-linecap="round" fill="none"/>
+<path d="M23 38 L17.5 26" stroke="#D9B573" stroke-width="10" stroke-linecap="round" fill="none"/>
+<path d="M31 37 L30 20.5" stroke="#D9B573" stroke-width="10" stroke-linecap="round" fill="none"/>
+<path d="M39.5 37 L46 27" stroke="#D9B573" stroke-width="9" stroke-linecap="round" fill="none"/>
+<ellipse cx="30" cy="20.5" rx="4.2" ry="2.8" fill="#EFE0B8"/>
+<ellipse cx="30" cy="20.5" rx="2" ry="1.2" fill="#E3D2A0"/>
+<path d="M16.5 30 Q19.5 31.5 22.5 30.5" stroke="#B8935A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+<path d="M27.5 27.5 Q30.5 29 33.5 28" stroke="#B8935A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+<path d="M41 32 Q43.5 33.5 46 32.2" stroke="#B8935A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+<path d="M24 41 Q28 42.5 32.5 42" stroke="#B8935A" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.75"/>
 </svg>
