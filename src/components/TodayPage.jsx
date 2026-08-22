@@ -8,6 +8,7 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { Avatar, AutoSkeleton, useSkeletonProbe, Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
+import { BOX_FACE, BOX_ICON_SIZE } from "../features/today/boxFace";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
   countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
@@ -235,7 +236,7 @@ export function TodayPage({ me, defaultRole }) {
     // バッジ＝未入力の項目数（0なら出さない）。タップで未入力の欄が開き、保存で次の欄へ進む。
     // 行き先は編集ページ＝専用ページを挟まない（用件の一覧ではなく自分の入力そのものが行き先ので・boxNav）。
     // バッジ＝未入力の項目数＝プロフィール入口の名刺バッジと同じ数（数え方はlib/utilsが唯一のソース）
-    profile:     { iconName:"profile", title:"プロフィール入力", btn:"入力する →",
+    profile:     { title:"プロフィール入力", btn:"入力する →",
                    desc:"タップすると、まだ入力していない欄が開きます。保存すると次の欄へ進みます。相手はプロフィールを見て応募・承認を決めるので、埋まっているほど選ばれやすくなります。",
                    // 合図（cb_fillProfile）＝着地した編集ページが最初の未入力ボックスをその場で開く。
                    // 以後は保存のたびに次の未入力へ進む（編集ページ側の既存の連鎖・2026-07-16）
@@ -248,15 +249,15 @@ export function TodayPage({ me, defaultRole }) {
     //   従来どおりある（横スワイプ or 案内行のタップで開く）。今日ページからの入口だけをやめた。
     //   受け側の合図 cb_openCalendar の読み取り（SavedJobsView・FarmerDashboard）は残置＝
     //   別の入口から開いた状態で着地させたくなった時にそのまま使える
-    t_emergency:{ iconName:"alert", title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id,
+    t_emergency:{ title:"緊急連絡",             btn:"緊急連絡 →",       nav: e => "/emergency/" + e.application_id,
                    desc:"遅刻・欠勤・中止など、作業当日の急な連絡をする窓口です。採用が決まった仕事から使えます。" },
     // t_chat（きょうのチャット）・chat（未読メッセージ）は削除（2026-07-25たきと指示・両役割）：
     // 未読の案内は下部ナビ「チャット」タブのバッジ＋プッシュ通知＋トーストが担い、今日は自分のアクションだけに絞る
-    revision:    { iconName:"edit", title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number,
+    revision:    { title:"求人に修正のお願い",   btn:"修正する →",       nav: e => "/work/edit/" + e.job_number,
                    desc:"運営から求人内容の修正のお願いが届いたとき、ここから直して再申請します。" },
     // 求人への質問（2026-07-27たきと指示）：公開Q&A（job_questions）の未回答＝求人カードの❓Nと同じ母集団。
     // 1行=1質問（質問者のアイコン・名前＋その求人のチップ）。行き先は求人詳細の「質問」タブ
-    question:    { iconName:"question", title:"求人の質問",           btn:"回答する →",
+    question:    { title:"求人の質問",           btn:"回答する →",
                    desc:"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。", nav: e => {
       // 出どころ＝カレンダー（今日）：求人詳細の浮遊「←戻る」ボックスを出さない目印（2026-07-27たきと指示）
       try { sessionStorage.setItem("cb_jobBackTo", "/calendar"); } catch {}
@@ -273,16 +274,16 @@ export function TodayPage({ me, defaultRole }) {
     // 最終確認→OKでその場で採用（2026-08-19たきと指示「採用する枠削除。カードタップで採用する最終確認」）。
     // 2026-08-19に採用の実行窓口はこのページ1箇所に一本化済み（応募者シートの🤝はリンクに変更）。
     // nav は箱から直接押した時の保険＝その応募のシートへ送る（cb_openApplicantId・取り違え防止）
-    hire:        { iconName:"hire", title:"採用する",             btn:"採用する →",
+    hire:        { title:"採用する",             btn:"採用する →",
                    desc:"面接を終えた応募者を採用します。カードをタップすると最終確認が出ます（二重予約の警告つき）。",
                    nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } },
-    insurance:   { iconName:"shield", title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
+    insurance:   { title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
                    desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // バイトの評価（旧・完了して評価する・2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
     // 行タップ（専用ページ経由）でも同じ着地。cb_completeAppId は評価モーダルの自動展開用に併せて渡す
-    complete:    { iconName:"check", title:"バイトの評価",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
+    complete:    { title:"バイトの評価",     btn:"完了・評価 →",     flag:"cb_completeAppId", to:"/profile/employer/applicants",
                    desc:"作業の完了を記録して、働き手を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。",
                    before: () => { try { sessionStorage.setItem("cb_appFilter", "completed"); } catch {} } },
     // 今日の記録（2026-08-19たきと指示「最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する。
@@ -290,7 +291,7 @@ export function TodayPage({ me, defaultRole }) {
     // 専用ページ（DayReportPanel）が一覧と入力を両方持つので、行ボタン用の nav は持たない
     // ★事実記録に徹する（2026-08-20たきと裁定「日次は事故ログ」）：何かあった日だけ使う窓口。
     //   正常な日は何も入力させない（毎日押させると誰も押さなくなる・数字や昇格で急かさない）
-    day_report:  { iconName:"clipboard", title:"今日の記録",         btn:"記録する →",
+    day_report:  { title:"今日の記録",         btn:"記録する →",
                    desc:"働き手の遅刻・欠勤、会えない、作業の中断など、何かあった日だけ記録します。何もなかった日は入力不要です。作業全体の評価は最終日にお願いします。" },
     // w_waiting（返事待ち）は廃止（2026-07-25たきと指示）：やることリストは当人のアクションが前提。
     // 返事待ちは相方（農家）のアクション待ち＝思想が違う。応募状況の確認は応募状況ページが担う
@@ -299,7 +300,7 @@ export function TodayPage({ me, defaultRole }) {
     // 求職の修正（2026-07-27たきと指示・枠のみ先行）：農家側 revision の働き手版。
     // 求職カード（求職一覧＝Phase2b）の実装後に、運営からの修正依頼をmy_todo_itemsが返す想定。
     // 中身（遷移先・実行内容）は未定ので nav/rpc は持たせない＝現状は常に「該当なし」の薄い箱として並ぶ
-    w_revision:  { iconName:"edit", title:"求職に修正のお願い", btn:"修正する →",
+    w_revision:  { title:"求職に修正のお願い", btn:"修正する →",
                    desc:"運営から求職内容の修正のお願いが届いたとき、ここから直します。" },
     // ✍️面接の回答の箱は削除（2026-08-19たきと指示）。★返事ができなくなるわけではない：
     //   農家の【面接の質問】はチャットに届くので、そのままチャットで返事する（同じ相手・同じ証跡）。
@@ -308,10 +309,10 @@ export function TodayPage({ me, defaultRole }) {
     // ここに出るのは「農家が完了を記録した後・自分がまだ終了を確認していない・完了から3日以内」だけ
     // （my_todo_items の w_review の定義）。作業が終わる前は出ない＝まだ評価できない（2026-08-19）
     // 専用ページ（ReviewStagePanel）that一覧と入力を両方持つso、行ボタン用のnavは持たない（2026-08-19）
-    w_review:    { iconName:"star", title:"仕事の評価",         btn:"評価する →",
+    w_review:    { title:"仕事の評価",         btn:"評価する →",
                    desc:"働いた農園を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。" },
     // 今日の記録（働き手側・上の day_report と対）。選択肢が違う（遅れる・休む・会えない・予定と違う・中断）
-    w_day_report:{ iconName:"clipboard", title:"今日の記録",         btn:"記録する →",
+    w_day_report:{ title:"今日の記録",         btn:"記録する →",
                    desc:"遅れる・休む、農家に会えない、予定と違うなど、何かあった日だけ記録します。何もなかった日は入力不要です。仕事全体の評価は最終日にお願いします。" },
   };
   // アクションボックス（2026-07-25・プロフィール入口カードと同型）：用件（stage）ごとに絵文字ボックスを横2列配置。
@@ -322,7 +323,7 @@ export function TodayPage({ me, defaultRole }) {
   // 件数バッジ全廃＋「いま これだけ」廃止で読み手がゼロになった。思想（2026-08-20裁定
   // 「通常は何もしない。異常があったときだけ記録する」）は箱の説明文が引き続き担う
   // answeredDone（送信完了しました。の一時表示）は廃止（2026-08-19）：面接の回答パネル専用だった
-  const TODO_BOX_LABEL = { insurance: "保険の報告", revision: "求人の修正", w_revision: "求職の修正" }; // ボックス用の短縮ラベル（未定義はm.titleのまま。hireはタイトル「採用する」をそのまま表示）
+  // 箱の短縮ラベルは features/today/boxFace.js の BOX_FACE.label が持つ（今日ページとマイページで共有）
   // 役割ごとの全用件カタログ（ボックスは常時表示。該当ありは上位・該当なしは薄く下位に並ぶ。並びは正規フロー順）
   const TODO_STAGE_CATALOG = {
     // day_report（今日の記録）は complete（バイトの評価）の手前に置く＝正規フロー順（中日→最終日）
@@ -385,8 +386,8 @@ export function TodayPage({ me, defaultRole }) {
         {stage === "profile" && n > 0 && (
           <span aria-label={"未入力" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:accent, color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>
         )}
-        <span style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#333" }}><NavIcon name={m.iconName} size={52} /></span>
-        <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{TODO_BOX_LABEL[stage] || m.title}</span>
+        <span style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#333" }}><NavIcon name={BOX_FACE[stage]?.iconName} size={BOX_ICON_SIZE} /></span>
+        <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{BOX_FACE[stage]?.label || m.title}</span>
       </button>
     );
   };
@@ -458,7 +459,7 @@ export function TodayPage({ me, defaultRole }) {
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
           <button onClick={()=>{ window.location.hash = "/calendar"; }} aria-label="今日へ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
           <h2 className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, color:"#222", margin:0, flex:1, minWidth:0 }}>
-            <span style={{ display:"flex", color:"#333", flexShrink:0 }}><NavIcon name={pm.iconName} size={20} /></span>{TODO_BOX_LABEL[pageStage] || pm.title}
+            <span style={{ display:"flex", color:"#333", flexShrink:0 }}><NavIcon name={BOX_FACE[pageStage]?.iconName} size={20} /></span>{BOX_FACE[pageStage]?.label || pm.title}
           </h2>
           {/* 件数バッジは廃止（2026-07-26たきと指示：ページ内で通知は不要。件数は今日ページのボックスが示す） */}
         </div>
@@ -477,7 +478,7 @@ export function TodayPage({ me, defaultRole }) {
           /* 空状態：説明文を明記する（2026-08-03たきと指示）。「いまありません」だけだと
              なぜ空なのか・いつここに何が来るのかが分からないため、用件の説明を本文として大きく出す */
           <div style={{ background:"#F7F7F7", borderRadius:14, padding:"28px 20px", textAlign:"center" }}>
-            <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#717171" }}><NavIcon name={pm.iconName} size={32} /></div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#717171" }}><NavIcon name={BOX_FACE[pageStage]?.iconName} size={32} /></div>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>この用事はいまありません</p>
             {pm.desc && <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 auto", maxWidth:420, textAlign:"left" }}>{pm.desc}</p>}
           </div>

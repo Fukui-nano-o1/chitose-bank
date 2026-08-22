@@ -7207,3 +7207,28 @@ TODO_META に絵文字 icon の残存ゼロを grep 確認。
 ＝本番と同じ枠・同じ大きさで並べたもの。今後アイコンを足す・変える時はここを更新して先に見せると早い
 （本番のデプロイを待たずに判断できる）。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-22(続5) ★取りこぼし事故：マイページのやることが絵文字のままだった（複製の直し忘れ）━━━
+【症状】アイコンを線画に差し替えたのに「変わってない」がスクショつきで3回続いた。
+私はVercelのデプロイ遅れ／キャッシュを疑い、空コミット（edcd31c）まで打ったが、これは【誤診】だった。
+【真因】やることの格子は2箇所が描いている：正本＝components/TodayPage.jsx（TODO_META・TodoStageBox）と、
+複製＝features/today/components/TaskBoxes.jsx（同日に新設された「今日ページのカード群をマイページへ移植」分・
+ProfileHubとFarmerDashboardが使う）。私は正本だけを直し、複製の BOX_META（絵文字）を直し忘れた。
+たきとが見ていたのはマイページ側so、いくらデプロイしても絵文字のままだった。
+★スクショの下端に「退会する」が写っていた＝マイページの目印。これに早く気づけば誤診しなかった。
+【切り分けの教訓（次に同じことを起こさないため）】
+・「変わってない」と言われたら、まず【どの画面か】を確定する。同じ見た目の部品that複数の画面にある。
+・配信（Vercel・キャッシュ）を疑う前に、その画面を描いているファイルをgrepで特定する。
+  今回 grep 'icon:"🤝"' を最初に撃っていれば即座に見つかった（実際それで見つけた）。
+・この環境からは chitose-bank.com もVercel APIも403で見えない＝配信側の仮説は【検証できない仮説】。
+  検証できない方を先に疑わない。
+【修理（再発防止つき）】新設 features/today/boxFace.js＝BOX_FACE（stage→iconName・label）と
+BOX_ICON_SIZE を置く【顔の唯一のソース】。TodayPage と TaskBoxes の両方that参照する。
+・TaskBoxes：BOX_META（絵文字）を廃止しNavIconで描画（52px・#333）＝マイページも線画に
+・TodayPage：TODO_META から iconName を削除・TODO_BOX_LABEL を廃止し、描画3箇所とラベルを BOX_FACE 経由に
+・用件の中身（説明文・行き先・実行するRPC）は従来どおり TODO_META that持つ＝役割で分けた
+★以後「箱の絵柄・ラベルを変える」＝boxFace.js の1箇所だけ。並び（STAGE_CATALOG）と行き先は
+　まだ2箇所にあるso、箱を足し引きするときは両方を直すこと。
+【検証】build成功・eslint 0 error（警告1=既存）・BOX_FACEとTODO_METAのキー11個that完全一致・
+ラベル11件that差し替え前と同一（旧 TODO_BOX_LABEL||title と機械照合）・distに新パス包含。
+━━━ ここまで ━━━

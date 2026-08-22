@@ -1,7 +1,9 @@
 // マイページのやることカード群（2026-08-22たきと指示「今日ページのカード群をマイページの
 // いいねした求人カードの下にコピー。実機確認後、今日ページの削除に移行する」）。
 // ★移行中の複製：正本は components/TodayPage.jsx（TODO_META・TODO_STAGE_CATALOG・TodoStageBox）。
-//   箱の見た目・並び・行き先はそちらと揃えること（変えるときは両方）。
+//   並び・行き先はそちらと揃えること（変えるときは両方）。
+//   ただし【絵柄とラベルは features/today/boxFace.js に集約済み】＝そこを直せば両方に効く
+//   （2026-08-22：アイコン差し替えで正本だけ直し、この複製が絵文字のまま残った事故の再発防止）。
 //   箱の行き先（#/calendar/todo/{stage} の専用ページ）は今日ページ側に残っている＝リンクはそのまま。
 //   今日ページを削除する時は、専用ページごとこちら側へ引っ越して唯一の実装にする。
 // データ源・viewCacheの鍵は今日ページと完全に共用（today:entries/todos/unset/hired）＝
@@ -13,24 +15,12 @@ import { ymdLocal, entryWorkDays, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS } from "../../../lib/utils";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile,
   fetchMyEmployerProfile, fetchMyEmergencyContact, fetchMyApplicationTerms } from "../todayApi";
+import { NavIcon } from "../../../components/NavIcons";
+import { BOX_FACE, BOX_ICON_SIZE } from "../boxFace";
 
 // 今日ページから箱を消した用件（TodayPage の REMOVED_STAGES の写し・対で管理）
 const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
 
-// 格子に出す絵文字とラベル（TodayPage の TODO_META＋TODO_BOX_LABEL の格子ぶんの写し）
-const BOX_META = {
-  profile:      { icon:"👤", label:"プロフィール入力" },
-  t_emergency:  { icon:"⚠️", label:"緊急連絡" },
-  revision:     { icon:"📝", label:"求人の修正" },
-  question:     { icon:"💬", label:"求人の質問" },
-  hire:         { icon:"🤝", label:"採用する" },
-  insurance:    { icon:"🛡", label:"保険の報告" },
-  day_report:   { icon:"📋", label:"今日の記録" },
-  complete:     { icon:"✅", label:"バイトの評価" },
-  w_revision:   { icon:"📝", label:"求職の修正" },
-  w_day_report: { icon:"📋", label:"今日の記録" },
-  w_review:     { icon:"⭐", label:"仕事の評価" },
-};
 
 // 役割ごとの全用件カタログ（並びは正規フロー順・TodayPage の TODO_STAGE_CATALOG の写し）
 const STAGE_CATALOG = {
@@ -119,7 +109,7 @@ export function TodayTaskBoxes({ role = "worker" }) {
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
         {stageOrder.map(stage => {
-          const m = BOX_META[stage]; if (!m) return null;
+          const m = BOX_FACE[stage]; if (!m) return null;
           const n = stage === "profile" ? unsetN : (counts.get(stage) || 0);
           const dim = n === 0;
           return (
@@ -132,7 +122,7 @@ export function TodayTaskBoxes({ role = "worker" }) {
               {stage === "profile" && n > 0 && (
                 <span aria-label={"未入力" + n + "件"} style={{ position:"absolute", top:10, right:10, minWidth:24, height:24, borderRadius:12, background:accent, color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 7px" }}>{n}</span>
               )}
-              <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>{m.icon}</span>
+              <span style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#333" }}><NavIcon name={m.iconName} size={BOX_ICON_SIZE} /></span>
               <span style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>{m.label}</span>
             </button>
           );
