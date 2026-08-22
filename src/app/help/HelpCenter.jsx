@@ -367,15 +367,11 @@ export function HelpCenter({ me, onReportClick }) {
           );
         })}
       </div>
-      {/* 素材の出典（2026-08-08）：作物アイコンに game-icons.net（CC BY 3.0）を使用している。
-          CC BY はクレジット表示が条件なので、この掲示は消さないこと（消すとライセンス違反）。
-          地図の出典（国土地理院）は地図の中に出しているのと同じ考え方で、素材ごとに出典を示す */}
+      {/* 素材の出典：外部の素材を使っているものだけを掲示する（素材ごとに出典を示す考え方）。
+          作物アイコンは2026-08-22に全50種を自作へ差し替えたので掲示から外した（旧＝game-icons.net）。
+          ★地図（国土地理院）の掲示は使い続けている素材so消さないこと */}
       <div className="f-sans" style={{ maxWidth:820, margin:"28px auto 0", padding:"14px 16px", borderTop:"1px solid #EEE", fontSize:11, color:"#B0B0B0", lineHeight:1.9 }}>
         <p style={{ margin:0, fontWeight:700, color:"#999" }}>このサイトについて</p>
-        <p style={{ margin:"4px 0 0" }}>
-          作物のアイコンは <a href="https://game-icons.net/" target="_blank" rel="noopener noreferrer" style={{ color:"#00A86B" }}>game-icons.net</a>（作者：Delapouite、Lorc ほか）の素材を、
-          <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer" style={{ color:"#00A86B" }}>CC BY 3.0</a> のもとで使用しています（色を変更しています）。
-        </p>
         <p style={{ margin:"4px 0 0" }}>
           地図は <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer" style={{ color:"#00A86B" }}>国土地理院</a>のタイルを使用しています。
         </p>

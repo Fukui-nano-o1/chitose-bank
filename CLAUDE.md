@@ -7232,3 +7232,23 @@ BOX_ICON_SIZE を置く【顔の唯一のソース】。TodayPage と TaskBoxes 
 【検証】build成功・eslint 0 error（警告1=既存）・BOX_FACEとTODO_METAのキー11個that完全一致・
 ラベル11件that差し替え前と同一（旧 TODO_BOX_LABEL||title と機械照合）・distに新パス包含。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-22 作物アイコンを自作50種へ差し替え（game-icons.net からの脱却）━━━
+【経緯】たきと指示で試作50種を作り（docs/design/crop-icons-draft/）、1回5〜10種ずつ描いては
+スクリーンショットで自分の目で確認→ダメなものを描き直す、を繰り返して全種を承認。そのうえで差し替えた。
+【絵の正＝docs/design/crop-icons-draft/*.svg】直したら同フォルダで python3 build_crop_art.py を実行して
+src/lib/cropArt.js を作り直す。★cropArt.js は自動生成so手で編集しない（次の生成で消える）。
+見本ページは python3 build_preview.py で再生成（manifest.json が作物名とファイル名の台帳）。
+【データ形式を拡張】旧＝単色の path 配列。新＝{ 作物名: { v: viewBoxの一辺, e: 要素ツリー } }。
+要素ツリー ["タグ", {属性}, [子]] を CropIcon が React 要素へ組み立てる（clipPath・複数色・
+transform・opacity を使うため）。dangerouslySetInnerHTML を使わない規則は不変。
+★clipPath の id は描画ごとに useId でユニーク化する＝同じ画面に同じ作物を複数出しても崩れない
+（付けないと参照が最初の1つに吸われる。実際に同じ作物を並べて確認済み）。
+【出典表示を削除】全種が当方の自作so game-icons.net（CC BY 3.0）のクレジットは不要になった。
+ヘルプ「このサイトについて」から作物アイコンの行だけを削除。★地図（国土地理院）の掲示は
+使い続けている素材so消さないこと。
+【副産物】cropArt.js 100KB→64KB（動的importのまま）。
+【検証】本物の CropIcon を本物のデータで描くページを vite でビルドして目視（全50種・同一作物の並び・
+自由入力「トマト（桃太郎）」の照合・未知作物と空の🌱フォールバック）。build成功・eslint 0 error。
+実機目視は未実施→確認：求人カード・求人詳細・チャット・カレンダー・応募状況・求人フローの作物選択。
+━━━ ここまで ━━━
