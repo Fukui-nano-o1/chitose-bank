@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ハクサイ">
+<defs><clipPath id="hxa"><path d="M32 11 C41 11 46.5 18.5 46.5 29.5 C46.5 43 41 56 32 56 C23 56 17.5 43 17.5 29.5 C17.5 18.5 23 11 32 11 Z"/></clipPath></defs>
+<path d="M32 11 C41 11 46.5 18.5 46.5 29.5 C46.5 43 41 56 32 56 C23 56 17.5 43 17.5 29.5 C17.5 18.5 23 11 32 11 Z" fill="#F5F1DC"/>
+<g clip-path="url(#hxa)">
+<path d="M32 9 C24 10 18.5 15.5 16.5 23 C15.5 27.5 15.5 32 16.5 36.5 C18 30 19.5 25 22.5 20.5 C21 25.5 20.5 30.5 21.5 35.5 C23 29 25 24 28.5 19.5 C27.5 24.5 27.5 29 28.5 33 C29.5 27 30.5 20 32 13 Z" fill="#8FBF5E"/>
+<path d="M32 9 C40 10 45.5 15.5 47.5 23 C48.5 27.5 48.5 32 47.5 36.5 C46 30 44.5 25 41.5 20.5 C43 25.5 43.5 30.5 42.5 35.5 C41 29 39 24 35.5 19.5 C36.5 24.5 36.5 29 35.5 33 C34.5 27 33.5 20 32 13 Z" fill="#7CAF4C"/>
+<path d="M32 8 C30 12.5 29 17 28.8 22 Q32 24 35.2 22 C35 17 34 12.5 32 8 Z" fill="#8FBF5E"/>
+</g>
+<path d="M32 55.5 C31.5 45 31.5 34 32 24" stroke="#FFFDF2" stroke-width="3" stroke-linecap="round" fill="none"/>
+<path d="M24.5 53.5 C23 45 23 36 24.3 27.5" stroke="#FFFDF2" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+<path d="M39.5 53.5 C41 45 41 36 39.7 27.5" stroke="#FFFDF2" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+</svg>
