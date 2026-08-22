@@ -19,6 +19,7 @@
 import { useState, useEffect } from "react";
 import { AdminNav } from "./AdminNav";
 import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon } from "../ui";
+import { NavIcon } from "../NavIcons";
 import { JobCard } from "../JobCard";
 import { Celebration } from "../Celebration";
 import { WorkerTrustCard } from "../TrustCards";
@@ -515,23 +516,20 @@ const STEPS = [
     ) },
 
   /* ═══ 仕事の当日 ═══ */
-  { ch:"仕事の当日", name:"今日", url:"#/calendar", act:"やることが並ぶ。最優先の1件は「いま これだけ」として上に大きく出る。空の箱も押せて、説明が出る。",
+  { ch:"仕事の当日", name:"今日", url:"#/calendar", act:"やることが並ぶ。空の箱も押せて、説明が出る。",
     body: () => (
       <div style={{ padding:14 }}>
-        <Card style={{ borderColor:GREEN, borderWidth:2, marginBottom:16 }}>
-          <span className="f-sans" style={{ display:"block", fontSize:12, fontWeight:800, color:GREEN, letterSpacing:".08em" }}>いま これだけ</span>
-          <p className="f-sans" style={{ fontSize:24, margin:"8px 0 0" }}>✓</p>
-          <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:"6px 0 4px" }}>作業の開始を確認</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, margin:0, lineHeight:1.8 }}>はなこ さんが来ているか確かめて、開始を記録します。</p>
-        </Card>
         <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:SUB, margin:"0 0 8px" }}>やること</p>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          {/* 実物に追従（2026-08-19）：📅カレンダーの箱は削除／👤は「プロフィール入力」に改称し常設 */}
-          {[["👤","プロフィール入力",1],["🤝","採用する"],["🛡","保険の準備の報告",1],["✓","作業の開始を確認",1],["✅","バイトの評価"],["⚠️","緊急連絡"]].map(([e, l, n]) => (
-            <div key={l} style={{ position:"relative", border:`1px solid ${LINE}`, borderRadius:16, padding:"16px 6px 12px", textAlign:"center", background:"#fff", opacity: n ? 1 : 0.45 }}>
-              <div style={{ fontSize:22 }}>{e}</div>
-              <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:INK, margin:"6px 0 0", lineHeight:1.4 }}>{l}</p>
-              {n ? <span className="f-sans" style={{ position:"absolute", top:8, right:8, minWidth:18, padding:"1px 5px", borderRadius:9, background:GREEN, color:"#fff", fontSize:10, fontWeight:800 }}>{n}</span> : null}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
+          {/* 実物に追従（2026-08-22）：「いま これだけ」廃止（2026-08-21）・開始確認の箱廃止（2026-08-18）を反映。
+              並びは TodayPage の TODO_STAGE_CATALOG.farmer＋先頭の常設プロフィール入力。
+              アイコンは実物と同じ NavIcon（絵文字→アウトラインSVG・2026-08-22）。
+              枠＝役割色1.5px・白背景・影＝実物の TodoStageBox と同じ規格（2026-08-21） */}
+          {[["profile","プロフィール入力",1],["alert","緊急連絡"],["edit","求人の修正"],["question","求人の質問"],["handshake","採用する",1],["shield","保険の報告"],["clipboard","今日の記録"],["check","バイトの評価"]].map(([ic, l, on]) => (
+            <div key={l} style={{ position:"relative", border:`1.5px solid ${GREEN}`, borderRadius:18, padding:"20px 6px 14px", textAlign:"center", background:"#fff", boxShadow:"0 3px 10px rgba(0,0,0,0.10)", opacity: on ? 1 : 0.45 }}>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:8, color:"#333" }}><NavIcon name={ic} size={36} /></div>
+              <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:INK, margin:0, lineHeight:1.4 }}>{l}</p>
+              {ic === "profile" ? <span className="f-sans" style={{ position:"absolute", top:8, right:8, minWidth:20, padding:"2px 6px", borderRadius:10, background:GREEN, color:"#fff", fontSize:10, fontWeight:800 }}>1</span> : null}
             </div>
           ))}
         </div>
