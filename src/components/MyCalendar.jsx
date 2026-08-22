@@ -24,7 +24,9 @@ const CAL_OVERLAP = "#E24B4A";
 // 「応募者ページはカレンダーだけ。特定の日程をタップして該当する求人カードのみ表示」）。
 // 渡された置き場所では日付シートを開かず、親that求人カードの絞り込みを行う。
 // 予定のない日は従来どおり（canPostJobなら求人を出すシート）＝絞り込みの解除は親の解除ボタンthat担う
-export function MyCalendar({ backToToday, canPostJob, onDayJobs }) {
+// noDaySheet＝予定のある日をタップしても日付シートを開かない（2026-08-22たきと指示）。
+// ステータスページ用＝カレンダーの下に同じ求人のカードが常に並ぶ置き場所で、シートは二重の表示になるため
+export function MyCalendar({ backToToday, canPostJob, onDayJobs, noDaySheet }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
   // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
   // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
@@ -271,9 +273,13 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs }) {
       const ownJobs = [...new Set(idxs.filter(i => entries[i]?.relation === "own").map(i => entries[i]?.job_number).filter(Boolean))];
       if (ownJobs.length > 0) { onDayJobs(ymd, ownJobs); return; }
     }
-    // 日付タップ＝どの置き場所でも日付シートを開く（2026-08-21たきと指示）。
+    // ★ステータスページ（noDaySheet）は予定のある日のシートを開かない（2026-08-22たきと指示
+    //   「ボックス展開しなくていい。求人カードが表示されるんだから」）＝カレンダーの下に
+    //   同じ求人のカードが常に並んでいるため、シートは二重の表示になる。タップは選択の目印だけ
+    if (noDaySheet) return;
+    // 日付タップ＝日付シートを開く（2026-08-21たきと指示）。
     // 以前は応募者ページ・ステータスページだけ「その日の求人カードへスクロール＋黄色く光らせる」
-    // という別の動きをしており（onDayTapJobs）、そこではシートthat永久に開かなかった。
+    // という別の動きをしており（onDayTapJobs）、そこではシートが永久に開かなかった。
     // シートはその日の予定を一覧で見せ、求人ページへも行けるso、カードへ飛ばす動きは畳んだ
     setDaySheet({ ymd, idxs });
   };
