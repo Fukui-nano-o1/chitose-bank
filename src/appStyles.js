@@ -273,42 +273,10 @@ input:focus { outline: none; }
   animation: cbRsBar .9s cubic-bezier(.4,0,.2,1) .3s forwards;
 }
 @keyframes cbRsBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-
-/* ── 農家への切替＝畑のシーン（耕す人／トラクター・ランダム。2026-08-22たきと指示） ──
-   シーンは絵が読める時間が要るので幕を0.6s延長＝フェードアウトは1.85sから（計2.2s）。
-   ★ProfileHub の ROLE_SWITCH_MS.totalScene(2200) と対＝変えたら必ず両方合わせる。
-   進捗バーも延長した幕に合わせて長く走らせる */
-.cb-roleswitch.cb-rs-scene { animation: cbRsFade .2s ease-out both, cbRsFadeOut .35s ease-in 1.85s both; }
-.cb-rs-scene .cb-roleswitch-bar span { animation-duration: 1.45s; }
-.cb-roleswitch-scene { width: min(320px, 82vw); height: auto; overflow: visible; animation: cbRsFade .25s ease-out .08s both; }
-/* トラクター：走行（外のg）・弾み（内のg）・車輪の回転（さらに内）＝transformを混ぜない入れ子。
-   SVG子要素へのCSS transformのpxはviewBoxのユーザー単位に写る＝translateXの数字は絵の座標系 */
-.cb-rs-drive { animation: cbRsDrive 1.75s linear .1s both; }
-@keyframes cbRsDrive { from { transform: translateX(-130px); } to { transform: translateX(150px); } }
-.cb-rs-bump { animation: cbRsBump .3s ease-in-out infinite alternate; }
-@keyframes cbRsBump { from { transform: translateY(0); } to { transform: translateY(-2px); } }
-.cb-rs-wheel { animation: cbRsSpin .6s linear infinite; }
-@keyframes cbRsSpin { to { transform: rotate(360deg); } }
-.cb-rs-puff { animation: cbRsPuff .8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes cbRsPuff { 0% { opacity: 0; transform: translateY(0) scale(.4); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-14px) scale(1.1); } }
-/* 耕した土の山（両シーン共用・delayはインラインでずらす） */
-.cb-rs-soil { animation: cbRsSoil .25s ease-out both; }
-@keyframes cbRsSoil { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
-/* 耕す人：くわは肩を支点に「ゆっくり振り上げ→速く振り下ろし→ひと呼吸」のループ。
-   土の跳ねは振り下ろしの拍（60%前後）に同期 */
-.cb-rs-hoe-arm { animation: cbRsHoeSwing .9s ease-in-out infinite; }
-@keyframes cbRsHoeSwing { 0% { transform: rotate(-40deg); } 40% { transform: rotate(-46deg); } 60% { transform: rotate(6deg); } 74% { transform: rotate(6deg); } 100% { transform: rotate(-40deg); } }
-.cb-rs-hoe-soil { animation: cbRsHoeSoil .9s linear infinite; }
-@keyframes cbRsHoeSoil { 0%, 56% { opacity: 0; transform: none; } 64% { opacity: 1; } 100% { opacity: 0; transform: translate(-5px, -12px); } }
-.cb-rs-bob { animation: cbRsBobY .9s ease-in-out infinite; }
-@keyframes cbRsBobY { 0%, 100% { transform: translateY(0); } 60% { transform: translateY(2px); } }
-
-/* 動きを減らす設定＝動かさず静止で見せる（幕は不透明のままアンマウントで消える。
-   シーンも止め絵＝トラクターは絵の座標のまま画面内・くわは振り下ろし位置で静止） */
+/* 動きを減らす設定＝動かさず静止で見せる（幕は不透明のままアンマウントで消える） */
 @media (prefers-reduced-motion: reduce) {
   .cb-roleswitch, .cb-roleswitch-badge, .cb-roleswitch-label,
-  .cb-roleswitch-bar, .cb-roleswitch-bar span,
-  .cb-roleswitch-scene, .cb-roleswitch-scene * { animation: none !important; transform: none !important; opacity: 1 !important; }
+  .cb-roleswitch-bar, .cb-roleswitch-bar span { animation: none !important; transform: none !important; opacity: 1 !important; }
 }
 .pulse-slow  { animation: pulse 2s ease infinite; }
 /* 「いま これだけ」（cbNowPulse・cb-now-pulse）は削除（2026-08-21たきと指示「催促しているとストレスになる」） */
