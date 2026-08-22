@@ -235,6 +235,49 @@ input:focus { outline: none; }
 @keyframes pflipIn  { from { transform: perspective(1200px) rotateY(-90deg); opacity:.6; } to { transform: perspective(1200px) rotateY(0deg); opacity:1; } }
 .pflip-out { animation: pflipOut .4s ease-in both; }
 .pflip-in  { animation: pflipIn .4s ease-out; }
+
+/* ── 役割切替の全画面アニメ（2026-08-22・Airbnb「ホストに切り替え」風） ──
+   幕の寿命はここが正：入り .2s → 全開 → 1.25s からフェードアウト .35s ＝ 計1.6s。
+   ハッシュ変更（面の入れ替え）は幕が全開の間に ProfileHub が行う（ROLE_SWITCH_MS）。
+   ★CSSの時間を変えたら ProfileHub の ROLE_SWITCH_MS も必ず合わせる。
+   z-index 11800 ＝ 全オーバーレイ(〜10500)より上・祝祭Celebration(12000)より下 */
+.cb-roleswitch {
+  position: fixed; inset: 0; z-index: 11800;
+  background: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  animation: cbRsFade .2s ease-out both, cbRsFadeOut .35s ease-in 1.25s both;
+}
+@keyframes cbRsFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cbRsFadeOut { from { opacity: 1; } to { opacity: 0; } }
+.cb-roleswitch-badge {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 2.5px solid; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 24px rgba(0,0,0,.10);
+  animation: cbRsFlip .55s cubic-bezier(.2,.9,.3,1.15) .12s both;
+}
+@keyframes cbRsFlip {
+  from { transform: perspective(900px) rotateY(-90deg) scale(.8); opacity: 0; }
+  60%  { transform: perspective(900px) rotateY(12deg) scale(1.03); opacity: 1; }
+  to   { transform: perspective(900px) rotateY(0deg) scale(1); opacity: 1; }
+}
+.cb-roleswitch-label { font-size: 16px; font-weight: 700; color: #222; margin: 0; animation: cbRsUp .4s ease-out .3s both; }
+@keyframes cbRsUp { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+.cb-roleswitch-bar {
+  width: 132px; height: 4px; border-radius: 2px; background: #EBEBEB; overflow: hidden;
+  animation: cbRsUp .4s ease-out .38s both;
+}
+.cb-roleswitch-bar span {
+  display: block; height: 100%; border-radius: 2px;
+  transform-origin: left; transform: scaleX(0);
+  animation: cbRsBar .9s cubic-bezier(.4,0,.2,1) .3s forwards;
+}
+@keyframes cbRsBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* 動きを減らす設定＝動かさず静止で見せる（幕は不透明のままアンマウントで消える） */
+@media (prefers-reduced-motion: reduce) {
+  .cb-roleswitch, .cb-roleswitch-badge, .cb-roleswitch-label,
+  .cb-roleswitch-bar, .cb-roleswitch-bar span { animation: none !important; transform: none !important; opacity: 1 !important; }
+}
 .pulse-slow  { animation: pulse 2s ease infinite; }
 /* 「いま これだけ」（cbNowPulse・cb-now-pulse）は削除（2026-08-21たきと指示「催促しているとストレスになる」） */
 .shake       { animation: shake .4s ease; }

@@ -15,6 +15,13 @@ import { WorkerTrustCard } from "./TrustCards";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { LikedJobsCard } from "./LikedJobsCard";
 import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
+import { RoleSwitchOverlay } from "./RoleSwitchOverlay";
+
+// 役割切替の全画面アニメ（Airbnb「ホストに切り替え」風・2026-08-22）のタイミング。
+// ★時間の正は appStyles.js の cbRs* 群（入り.2s→全開→1.25sからフェードアウト.35s＝計1.6s）。
+//   swap＝幕が全開の間に面を入れ替える時刻／total＝幕が消え切ってアンマウントする時刻。
+//   CSSを変えたらここも必ず合わせる（swapは「0.2s以降〜1.25s以前」に収めること）
+const ROLE_SWITCH_MS = { swap: 500, total: 1600 };
 
 // 退会で削除される情報の一覧（2026-08-07たきと指示）＝process_withdrawal(migration 20260807133659)の
 // 削除対象を利用者の言葉に噛み砕いたもの。★DBの削除対象を増減したらここも合わせること（表示と実処理を揃える）。
@@ -108,7 +115,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   // 雇う/働くトグルは両面の入口(カードメニュー)だけ表示。編集・サブページでは邪魔なので非表示（2026-07-14）
   const isEmployerHome = () => window.location.hash.replace(/^#\/?/,"") === "profile/employer";
   const [eHome, setEHome] = useState(() => { try { return isEmployerHome(); } catch { return false; } });
-  const [pAnim, setPAnim] = useState(""); // 両面切替の反転: pflip-out(退場0.4s)|pflip-in(入場0.4s)＝合計0.8秒。完了後は空に戻す
+  // 両面切替の全画面アニメ（2026-08-22・旧pflip反転を置き換え）：切替先("worker"|"employer")を持つ間だけ
+  // RoleSwitchOverlayが画面を覆う。面の入れ替え（hash変更）は幕が全開の間に行う＝ROLE_SWITCH_MS
+  const [roleSwitch, setRoleSwitch] = useState(null);
   // 下部バー「プロフィール」タップ＝今いる側のトップへ（2026-07-14変更）。
   // 働き手側：wTabをhomeへ（同hash時＝hashchangeが出ない場合の保険）
   useEffect(() => {
@@ -208,14 +217,19 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   // 下余白は0にしてCSS側（body:has(.profile-employer-edge) main）で最下段の空きを15pxに一本化（2026-08-03）
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px 0"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
+      {/* 役割切替の全画面アニメ（Airbnb風・2026-08-22）：幕が出ている間に下で面が入れ替わる */}
+      {roleSwitch && <RoleSwitchOverlay target={roleSwitch} creating={roleSwitch === "employer" && !hasEmployerSide} />}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
           表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14）。
-          切替はフェードアウト(0.16s)→面切替→フェードイン(0.22s)の2段階 */}
+          切替はAirbnb風の全画面アニメ（2026-08-22・旧pflip 0.4s×2を置き換え）：
+          白幕＋役割バッジのフリップ→幕が全開の間にhash変更→幕のフェードアウトで新しい面が現れる */}
       {(pTab === "employer" ? eHome : wTab === "home") && (
         <button onClick={()=>{
-          if (pAnim === "pflip-out") return; // 連打ガード
-          setPAnim("pflip-out");
-          setTimeout(()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; setPAnim("pflip-in"); }, 400);
+          if (roleSwitch) return; // 連打ガード（幕が出ている間は受けない）
+          const next = pTab === "employer" ? "worker" : "employer";
+          setRoleSwitch(next);
+          setTimeout(()=>{ window.location.hash = next === "worker" ? "/profile/worker" : "/profile/employer"; }, ROLE_SWITCH_MS.swap);
+          setTimeout(()=>{ setRoleSwitch(null); }, ROLE_SWITCH_MS.total);
         }} className="profile-employer-fab f-sans" style={{ background: pTab === "employer" ? ROLE_ORANGE : ROLE_GREEN }}>
           {/* 切替先はFAB自体の色で示す（第11弾）：橙=働き手／緑=農家。
               ラベルの色名「（橙）（緑）」は削除した（2026-08-22たきと指示）＝色は見れば分かる */}
@@ -224,8 +238,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
             : (hasEmployerSide ? "⇄ 農家に切替" : "🌱 農家を作る")}
         </button>
       )}
-      {/* 面の中身をkey={pTab}で包む：切替時に再マウント→pflip-in/fade-inが再生される */}
-      <div key={pTab} className={pAnim || "fade-in"} onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && pAnim === "pflip-in") setPAnim(""); }}>
+      {/* 面の中身をkey={pTab}で包む：切替時に再マウント→fade-inが再生される（幕の下で入れ替わり、
+          幕のフェードアウトとfade-inが重なって新しい面が現れる） */}
+      <div key={pTab} className="fade-in">
       {pTab === "worker" ? (
         wTab === "home" ? (
           <>
