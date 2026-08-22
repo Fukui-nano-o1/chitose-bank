@@ -180,9 +180,9 @@ const MENU_ITEMS = [
 // ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理・ログアウト
 // （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
-// アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。農家ナビ（empNav）も同日に追従済み。
+// アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。
+// 農家ナビ（empNav）・訪問者ナビ（visitorNav）も同日に追従＝下部ナビの絵文字アイコンは全廃。
 // 「カレンダー」=カレンダー枠／「今日」=時計 で描き分け＝旧📅📆の取り違え注意は解消。
-// 訪問者ナビ（visitorNav）だけ絵文字のまま＝揃えるときは NavIcon を同じ形で差し込む。
 const MOBILE_TABS = [
   { k:"search",   icon:<NavIcon name="search" />,   label:"さがす" },
   // ラベルは「カレンダー」（2026-08-22たきと指示・旧「♡ステータス」2026-07-27）：
@@ -1550,10 +1550,11 @@ export default function App(){
   // 後半3つ（カレンダー・チャット・プロフィール）は両モード共通。未ログインは現行のまま（empNav=false）
   const empNav = !!(me && empCtx);
   // 訪問者版3タブ（未ログイン・2026-07-24）：さがす／入れ方／登録・ログイン
+  // アイコンは働き手・農家ナビと同じアウトラインSVG（NavIcon・2026-08-22）＝下部ナビの絵文字は全廃
   const visitorNav = [
-    { k:"search",  icon:"🔍", label:"さがす" },
-    { k:"install", icon:"📲", label:"入れ方", hash:"/install" },
-    { k:"login",   icon:"🔑", label:"登録・ログイン", hash:"/login" },
+    { k:"search",  icon:<NavIcon name="search" />,  label:"さがす" },
+    { k:"install", icon:<NavIcon name="install" />, label:"入れ方", hash:"/install" },
+    { k:"login",   icon:<NavIcon name="login" />,   label:"登録・ログイン", hash:"/login" },
   ];
   // 農家：さがす→応募者→チャット(③約束する)→カレンダー(④当日)→プロフィール（第12弾・時系列。働き手と文法統一）
   const navTabs = !me
