@@ -73,5 +73,55 @@
   "name": "スイカ",
   "file": "suika",
   "note": "カットした半月。赤い果肉＋種"
+ },
+ {
+  "name": "メロン",
+  "file": "melon",
+  "note": "網目＋T字の軸"
+ },
+ {
+  "name": "レタス",
+  "file": "lettuce",
+  "note": "うす緑・ふりふりの外葉。キャベツより明るく"
+ },
+ {
+  "name": "ホウレンソウ",
+  "file": "spinach",
+  "note": "葉の束＋赤い根元"
+ },
+ {
+  "name": "ハクサイ",
+  "file": "hakusai",
+  "note": "縦長。下は白・上は緑・白い軸すじ"
+ },
+ {
+  "name": "カリフラワー",
+  "file": "cauliflower",
+  "note": "クリーム色の花蕾＋巻き葉"
+ },
+ {
+  "name": "アスパラガス",
+  "file": "asparagus",
+  "note": "3本の束。はかまの三角"
+ },
+ {
+  "name": "タマネギ",
+  "file": "onion",
+  "note": "黄玉ねぎ。皮のすじ＋首と根"
+ },
+ {
+  "name": "ニンニク",
+  "file": "garlic",
+  "note": "白い鱗片のふくらみ＋芽先"
+ },
+ {
+  "name": "シソ",
+  "file": "shiso",
+  "note": "ギザギザの1枚葉＋葉脈"
+ },
+ {
+  "name": "カブ",
+  "file": "kabu",
+  "note": "丸い白い実＋根の先。ダイコンと形を変えた"
  }
 ]

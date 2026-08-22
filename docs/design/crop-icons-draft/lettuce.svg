@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="レタス">
+<circle cx="32" cy="37" r="20.5" fill="#A9CF6E"/>
+<path d="M32 16.5 C21 17 12 25.5 12 37 C12 47.5 20 56.5 30 57.4 C20.5 52.5 16 44.5 16.3 35.5 C16.6 26.5 22.5 19.5 32 16.5 Z" fill="#8FBF5E"/>
+<path d="M32 16.5 C43 17 52 25.5 52 37 C52 47.5 44 56.5 34 57.4 C43.5 52.5 48 44.5 47.7 35.5 C47.4 26.5 41.5 19.5 32 16.5 Z" fill="#8FBF5E"/>
+<path d="M15 40 Q17.5 33.5 21 37.5 Q22.5 30.5 27 34.5 Q29.5 27.5 33.5 32.5 Q37.5 27.5 40.5 33.5 Q45 30.5 46.5 36.5 Q49.5 34.5 49 40 C48 49.5 41 56.5 32 57.2 C23 56.5 16 49.5 15 40 Z" fill="#C9E4A0"/>
+<path d="M32 52 C31.5 46 31.5 41 32 36.5" stroke="#F2F8E2" stroke-width="1.9" stroke-linecap="round" fill="none"/>
+<path d="M32 47 C28.5 44.5 26.5 42 25.5 38.5" stroke="#F2F8E2" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+<path d="M32 47 C35.5 44.5 37.5 42 38.5 38.5" stroke="#F2F8E2" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+</svg>

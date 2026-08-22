@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ホウレンソウ">
+<g transform="rotate(-38 32 52)"><path d="M32 52 C23.5 38.5 24.35 28.0 32 22 C39.65 28.0 40.5 38.5 32 52 Z" fill="#3F8534"/><path d="M32 50 L32 26" stroke="#8CC46A" stroke-width="1.1" fill="none" opacity="0.8"/></g>
+<g transform="rotate(38 32 52)"><path d="M32 52 C23.5 38.5 24.35 28.0 32 22 C39.65 28.0 40.5 38.5 32 52 Z" fill="#3F8534"/><path d="M32 50 L32 26" stroke="#8CC46A" stroke-width="1.1" fill="none" opacity="0.8"/></g>
+<g transform="rotate(-19 32 52)"><path d="M32 52 C22.5 34.9 23.45 21.599999999999998 32 14 C40.55 21.599999999999998 41.5 34.9 32 52 Z" fill="#4E9C3E"/><path d="M32 50 L32 18" stroke="#8CC46A" stroke-width="1.1" fill="none" opacity="0.8"/></g>
+<g transform="rotate(19 32 52)"><path d="M32 52 C22.5 34.9 23.45 21.599999999999998 32 14 C40.55 21.599999999999998 41.5 34.9 32 52 Z" fill="#4E9C3E"/><path d="M32 50 L32 18" stroke="#8CC46A" stroke-width="1.1" fill="none" opacity="0.8"/></g>
+<g transform="rotate(0 32 52)"><path d="M32 52 C22 32.2 23.0 16.799999999999997 32 8 C41.0 16.799999999999997 42 32.2 32 52 Z" fill="#55A345"/><path d="M32 50 L32 12" stroke="#8CC46A" stroke-width="1.1" fill="none" opacity="0.8"/></g>
+<path d="M28 51 Q32 49 36 51 L34.5 57 Q32 59.5 29.5 57 Z" fill="#D96A8B"/>
+</svg>
