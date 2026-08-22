@@ -12,6 +12,7 @@ import { Celebration } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
+import { NavIcon } from "./components/NavIcons";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { logAppError } from "./app/diagnostics/errorLog";
@@ -179,15 +180,17 @@ const MENU_ITEMS = [
 // ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理・ログアウト
 // （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
+// アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。まず働き手ナビだけ。
+// 「カレンダー」=カレンダー枠／「今日」=時計 で描き分け＝旧📅📆の取り違え注意は解消。
+// 農家ナビ（empNav）・訪問者ナビは絵文字のまま＝揃えるときは NavIcon を同じ形で差し込む。
 const MOBILE_TABS = [
-  { k:"search",   icon:"🔍", label:"さがす" },
-  // ラベルは「カレンダー」・アイコンは📅（2026-08-22たきと指示・旧「♡ステータス」2026-07-27）：
+  { k:"search",   icon:<NavIcon name="search" />,   label:"さがす" },
+  // ラベルは「カレンダー」（2026-08-22たきと指示・旧「♡ステータス」2026-07-27）：
   // この面の上部にカレンダーが常時展開されているため（2026-08-19）。
-  // ★「今日」タブは📆＝絵柄が近いので、変えるときはどちらか片方だけにしない（取り違え注意）
-  { k:"saved",    icon:"📅", label:"カレンダー" },
-  { k:"chats",    icon:"💬", label:"チャット" },
-  { k:"calendar", icon:"📆", label:"今日" },
-  { k:"profile",  icon:"👤", label:"マイページ" },
+  { k:"saved",    icon:<NavIcon name="calendar" />, label:"カレンダー" },
+  { k:"chats",    icon:<NavIcon name="chats" />,    label:"チャット" },
+  { k:"calendar", icon:<NavIcon name="today" />,    label:"今日" },
+  { k:"profile",  icon:<NavIcon name="profile" />,  label:"マイページ" },
 ];
 // モバイル☰メニューの静的リンク項目（求人を探す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
