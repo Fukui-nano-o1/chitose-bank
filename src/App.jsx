@@ -7,6 +7,7 @@ import { chatCache, hydrateChatCache } from "./lib/chatCache";
 import { createIdleQueue } from "./lib/idleQueue";
 import { useSheetDragClose } from "./lib/sheetDrag";
 import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
+import { installFixedRepin } from "./lib/fixedRepin";
 import { Celebration } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
@@ -632,6 +633,9 @@ export default function App(){
     document.addEventListener("click", h, true);
     return () => { document.removeEventListener("pointerdown", unlockAudio, true); document.removeEventListener("click", h, true); };
   }, []);
+  // iOS（WebKit）の fixed 置き去りバグの自己修復（2026-08-22たきと報告「下部バーが画面中央に・
+  // スクロールに追従しない・全ページ」）。中身と発火の節目は lib/fixedRepin.js に集約
+  useEffect(() => installFixedRepin(), []);
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
   const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
