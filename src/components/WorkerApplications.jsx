@@ -37,7 +37,7 @@ export function WorkerApplications({ filter, me }) {
     setPendingApps(prev => prev.filter(x => x.id !== p.id));
   };
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
-  const [pastOpen, setPastOpen] = useState(false); // 過去の応募（見送り・失効）の折りたたみ（第9弾）
+  // 過去の応募の折りたたみ（pastOpen）は廃止＝常に展開（2026-08-22たきと指示「過去の応募は閉じないで」）
   // 評価（Part2）：フォームと保存は共有部品 WorkerReviewSheet が持つ（今日ページの「仕事の評価」と
   // 同じ入力を使う＝2箇所で枝分かれさせない・2026-08-19）。ここが持つのは「どの応募を開いているか」だけ
   const [reviewModalApp, setReviewModalApp] = useState(null);
@@ -381,25 +381,20 @@ export function WorkerApplications({ filter, me }) {
       <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#222", cursor:"pointer", lineHeight:1.6 }}>同じ日の別の求人にも応募できます <span style={{ color:"#00A86B", fontWeight:700 }}>→さがす</span></button>
     </div>
   );
-  // 過去の応募（見送り・失効）の折りたたみ
+  // 過去の応募：折りたたみは廃止し常に展開（2026-08-22たきと指示「過去の応募は閉じないで」）。
+  // さがすと同じ求人カードで並べる。チップは終端の事実（見送り・取り消し・失効）。
+  // 掲載取り下げ（rejected_reason='unpublished'）は見送りと区別（2026-08-08たきと指示・
+  // 選考の結果ではないことを表示でも示す）。
+  // タップはシートでなく求人ページへ（終わった応募に操作は無い＝見るだけ）。終了帯は既定どおり出す
   const pastAppsBlock = pastApps.length > 0 && (
     <div style={{ marginTop:20 }}>
-      <button onClick={()=>setPastOpen(v=>!v)} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:"none", border:"none", padding:"8px 0", cursor:"pointer" }}>
-        <span style={{ fontSize:13, fontWeight:700, color:"#717171" }}>過去の応募（{pastApps.length}）</span>
-        <span style={{ fontSize:12, color:"#B0B0B0" }}>{pastOpen ? "閉じる ▲" : "見る ▼"}</span>
-      </button>
-      {pastOpen && (
-        // 過去の応募もさがすと同じ求人カードで（2026-08-22たきと指摘「カード化されていない」）。
-        // チップは終端の事実（見送り・取り消し・失効）。掲載取り下げ（rejected_reason='unpublished'）は
-        // 見送りと区別（2026-08-08たきと指示・選考の結果ではないことを表示でも示す）。
-        // タップはシートでなく求人ページへ（終わった応募に操作は無い＝見るだけ）。終了帯は既定どおり出す
-        <div style={{ marginTop:12 }}>
-          {pastApps.map(a => renderJobCardRow(a, {
-            chip: { label: a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効", fg:"#999", bg:"#F0F0F0" },
-            onOpen: () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; },
-          }))}
-        </div>
-      )}
+      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#717171", margin:"0 0 12px", padding:"8px 0 0" }}>過去の応募（{pastApps.length}）</p>
+      <div>
+        {pastApps.map(a => renderJobCardRow(a, {
+          chip: { label: a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効", fg:"#999", bg:"#F0F0F0" },
+          onOpen: () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; },
+        }))}
+      </div>
     </div>
   );
   // ─────────────────────────────────────────────────────────────────────────
