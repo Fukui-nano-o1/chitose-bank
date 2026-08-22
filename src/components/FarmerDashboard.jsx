@@ -426,12 +426,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [rosterInfoOpen, setRosterInfoOpen] = useState(false); // また呼びたいリストの説明：?マークタップで展開（既定は閉・情報過多回避・2026-07-19）
   const [appHidden, setAppHidden] = useState(() => {
     try {
-      const raw = sessionStorage.getItem("cb_appHidden");
+      // ★鍵を _v2 に変更（2026-08-22たきと指示「ラベルは貼ったまま表示。アイコンも。」）：
+      //   旧既定＝3つとも非表示が保存済みの端末が残るため、鍵を替えて全員を新既定へ倒す
+      const raw = sessionStorage.getItem("cb_appHidden_v2");
       if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => APP_HIDABLE.includes(k)); }
     } catch {}
-    return [...APP_HIDABLE]; // 既定＝3つとも非表示
+    return []; // 既定＝すべて表示（見送り・失効・取り消しもラベル・アイコンごと出す。隠すのは絞り込みバーの操作）
   });
-  useEffect(() => { try { sessionStorage.setItem("cb_appHidden", JSON.stringify(appHidden)); } catch {} }, [appHidden]);
+  useEffect(() => { try { sessionStorage.setItem("cb_appHidden_v2", JSON.stringify(appHidden)); } catch {} }, [appHidden]);
   // 今日ページ・新着の応募からの着地（2026-07-26／2026-08-18に意味を変更）：
   // 旧＝「この段階だけを表示する」。新＝【行き先の応募that隠れていたら見えるようにする】。
   //   既定で見える段階（応募中・面接中・採用・作業中・完了）なら何もしない＝送り側4箇所は無改修で通る。
