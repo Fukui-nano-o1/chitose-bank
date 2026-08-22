@@ -229,12 +229,15 @@ export function WorkerApplications({ filter, me }) {
   // ★終了帯：返事待ちタブでは出す（募集終了＝応募がまもなく失効する正直な情報）／
   //   きょうの仕事タブでは hideEndLabel（自分が採用された求人に「掲載終了」と出て読み違える
   //   ＝2026-08-17の理由。段階はチップとシート内の流れバーが語る）
-  const renderJobCardRow = (a) => {
+  // opts.chip＝段階チップの上書き（過去の応募＝見送り・取り消し・失効の灰色チップ用）／
+  // opts.onOpen＝カードタップの行き先の上書き（過去の応募＝シートでなく求人ページへ）
+  const renderJobCardRow = (a, opts = {}) => {
     const raw = jobDates[a.job_number];
     const approvedTab = filter === "approved";
-    const chip = approvedTab
+    const chip = opts.chip || (approvedTab
       ? { label: ribbonLabel(a), fg: ribbonColor(a), bg: ribbonColor(a) === "#00A86B" ? "#E6F7EF" : ribbonColor(a) === "#C77700" ? "#FFF4E0" : "#F3F3F3" }
-      : { label: label(a), fg: color(a.status).fg, bg: color(a.status).bg };
+      : { label: label(a), fg: color(a.status).fg, bg: color(a.status).bg });
+    const open = opts.onOpen || (() => setSheetAppId(a.id));
     return (
       <div key={a.id} className={approvedTab && !isAppDone(a) ? "cb-urgent-card" : undefined}>
         <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
@@ -242,10 +245,10 @@ export function WorkerApplications({ filter, me }) {
             style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:chip.bg, color:chip.fg, cursor:"pointer" }}>{chip.label}</span>
         </div>
         {raw ? (
-          <JobCard job={mapJobPublicRow(raw)} variant="list" hideEndLabel={approvedTab} onOpen={()=>setSheetAppId(a.id)} />
+          <JobCard job={mapJobPublicRow(raw)} variant="list" hideEndLabel={approvedTab} onOpen={open} />
         ) : (
           // 求人の情報が引けなかった時（掲載の行が無い等）：#No.だけの最小カード＝一覧から落とさない
-          <button onClick={()=>setSheetAppId(a.id)} className="f-sans"
+          <button onClick={open} className="f-sans"
             style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer", marginBottom:22 }}>
             <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>求人</span>
             <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{a.job_number}</span>
@@ -386,18 +389,15 @@ export function WorkerApplications({ filter, me }) {
         <span style={{ fontSize:12, color:"#B0B0B0" }}>{pastOpen ? "閉じる ▲" : "見る ▼"}</span>
       </button>
       {pastOpen && (
-        <div style={{ display:"grid", gap:8, marginTop:8 }}>
-          {pastApps.map(a => {
-            const job = jobDates[a.job_number] || {};
-            return (
-              <div key={a.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, border:"1px solid #F0F0F0", borderRadius:10, padding:"10px 12px", background:"#FAFAFA" }}>
-                <span className="f-sans" style={{ fontSize:13, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</span>
-                {/* 掲載取り下げ（rejected_reason='unpublished'）は見送りと区別（2026-08-08たきと指示・
-                    選考の結果ではないことを表示でも示す。ステータスページの暗幕と同じ語） */}
-                <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#999", background:"#F0F0F0", borderRadius:20, padding:"2px 10px", flexShrink:0 }}>{a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効"}</span>
-              </div>
-            );
-          })}
+        // 過去の応募もさがすと同じ求人カードで（2026-08-22たきと指摘「カード化されていない」）。
+        // チップは終端の事実（見送り・取り消し・失効）。掲載取り下げ（rejected_reason='unpublished'）は
+        // 見送りと区別（2026-08-08たきと指示・選考の結果ではないことを表示でも示す）。
+        // タップはシートでなく求人ページへ（終わった応募に操作は無い＝見るだけ）。終了帯は既定どおり出す
+        <div style={{ marginTop:12 }}>
+          {pastApps.map(a => renderJobCardRow(a, {
+            chip: { label: a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効", fg:"#999", bg:"#F0F0F0" },
+            onOpen: () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; },
+          }))}
         </div>
       )}
     </div>
