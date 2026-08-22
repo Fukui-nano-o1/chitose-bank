@@ -176,7 +176,8 @@ const MENU_ITEMS = [
 ];
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋5機能タブ。カレンダーが中央に来る並び。
-// ☰の中身：求人を探す・使い方・この画面を報告・管理・ログアウト（2026-08-19 たきと指示で「求人を出す」を削除し「求人を探す」を新設）。
+// ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理・ログアウト
+// （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→いいね→チャット(③約束する)→カレンダー(④当日)→プロフィール
 const MOBILE_TABS = [
   { k:"search",   icon:"🔍", label:"さがす" },
@@ -1793,6 +1794,10 @@ export default function App(){
             {me && (
               <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item">💬 この画面を報告</button>
             )}
+            {/* お問い合わせ（2026-08-22たきと指示）。フッター「サポート」列と同じ宛先＝メールの窓口は1つ。
+                aタグだがメニュー項目のCSSに乗せる（下線を消し文字色を揃える） */}
+            <a href="mailto:t5fki6643qty@gmail.com" onClick={()=>setMobileMenuOpen(false)}
+               className="f-sans app-header-mobile-menu-item" style={{ textDecoration:"none", color:"#222" }}>✉️ お問い合わせ</a>
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
               .map(item => (
