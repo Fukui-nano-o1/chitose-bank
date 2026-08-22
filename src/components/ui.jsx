@@ -354,8 +354,12 @@ export function LFCardBtn({ selected, onClick, children }) {
 //   作物グリッドは従来どおり絵つき＝呼び出し側で切り替える
 export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder, noIcon }) {
   const isOther = value === "__other__";
+  // 絵つきのカード（作物）は絵と名前をカードの中央に置く（2026-08-22たきと指示・あわせて絵を28→56の2倍に）。
+  // 絵なしのカード（作業・noIcon）は文字だけので従来の左寄せのまま。
+  const centered = !noIcon;
   const cardStyle = (sel) => ({
-    display:"flex", flexDirection:"column", alignItems:"flex-start", gap:8,
+    display:"flex", flexDirection:"column", alignItems: centered ? "center" : "flex-start",
+    justifyContent: centered ? "center" : "flex-start", gap:8,
     padding:"16px", borderRadius:12, cursor:"pointer", border:"2px solid",
     borderColor: sel ? "#00A86B" : "#EBEBEB",
     background: sel ? "#E6F7EF" : "#fff",
@@ -368,14 +372,14 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
           return (
             <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
               {/* 絵文字が無い作物は既製アイコン（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
-              {!noIcon && <CropIcon crop={c.name} size={28} />}
-              <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222" }}>{c.name}</span>
+              {!noIcon && <CropIcon crop={c.name} size={56} />}
+              <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>{c.name}</span>
             </button>
           );
         })}
         <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={cardStyle(isOther)}>
-          {!noIcon && <span style={{ fontSize:28 }}>✏️</span>}
-          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222" }}>その他</span>
+          {!noIcon && <span style={{ fontSize:56, lineHeight:1 }}>✏️</span>}
+          <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>その他</span>
         </button>
       </div>
       {isOther && (
