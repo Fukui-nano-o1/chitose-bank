@@ -426,12 +426,13 @@ export function WorkerApplications({ filter, me }) {
   return (
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
-      {/* ラベル「応募状況」は上（2026-08-22たきと指示「応募状況は上に移植」）。
-          説明文（あなたが応募した求人の状況です。）は過去の応募の下のまま（同日の前指示）。
+      {/* ラベル「応募状況」＋説明文は見出し直下（2026-08-22たきと指示で一度 過去の応募の下へ移した後、
+          「あなたが応募した求人の状況です。は応募状況の下に移植」で元の並びに復帰）。
           見出し「あなたの応募」は ProfileHub の WORKER_TAB_TITLES が出す */}
-      {filter !== "approved" && (
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:20 }}>応募状況</p>
-      )}
+      {filter !== "approved" && (<>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+      </>)}
       {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
           同じ7段は各求人カードの流れバーが出しているので重複 */}
       {/* 読み込み中は仮配置（前回この面が描いた形・2026-07-27たきと指示「1秒以上かかるページに」）。
@@ -453,8 +454,6 @@ export function WorkerApplications({ filter, me }) {
             {apps.length > 0 && <div ref={skelRef}>{apps.map(a => renderJobCardRow(a))}</div>}
             {waitingTodoBox}
             {pastAppsBlock}
-            {/* ページの説明（見出し直下から移植・2026-08-22たきと指示。ラベル「応募状況」は上へ戻した） */}
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"24px 0 0", lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
           </>
         )
       ) : apps.length === 0 ? (
