@@ -1,20 +1,28 @@
 // いいねした求人カード（2026-08-22 たきと指示「マイページのわたしの記録グループにいいねした求人カードを新設」）
 // ・マイページ（ProfileHub・働き手ホーム）の「わたしの記録」カテゴリーに並ぶ1枚。
-//   カード＝件数＋説明／タップで一覧ボックス／行タップで求人ページへ（労働条件通知書カードと同じ作法）。
+//   カード＝件数＋説明／タップで一覧ボックス（労働条件通知書と同じ規格）。
+// ・一覧は【その他の求人と同じカード】（2026-08-22たきと指示「その他の求人と同じカード一覧構造にしてほしい」）：
+//   JobCard＝関連求人と同じ「写真に情報を重ねる」型。横スクロール用の related は幅280px固定なので、
+//   縦一列のこの面には全幅版の variant="wide" を使う（仕事の評価ページ ReviewStagePanel と同じ適用）。
+//   ♥（解除⇄再いいね）・👀閲覧数・募集終了の帯もその他の求人と同じ＝JobCardが唯一のソース（独自の顔を作らない）。
 // ・データ源はステータスページ(#/saved)と同じ my_job_actions（SECURITY DEFINER・本人のいいね＋応募だけ）。
 //   liked=true の行だけをこのカードが使う＝いいねの取得経路を増やさない。
 //   キャッシュもステータスページと同じ "saved:rows"（同じRPCの同じ形）を共用＝どちらから開いても互いに温まる。
-// ・★読み取り専用：♥解除・いいね追加はここには置かない。実行の窓口は従来どおり
-//   求人ページ・ステータスページの♥だけ（実行窓口を増やさない＝2026-08-07採用一本化と同じ考え方）。
+// ・♥の実処理は さがす の performSave と同じ作法（楽観更新→失敗時は戻す・saved_jobs は本人スコープRLS）。
+//   解除してもボックスを開いている間はカードを残す（♥を空にするだけ＝タップし直せば戻る＝暗黙の取り消し）。
+//   ボックスを閉じた時に、解除したままの求人を一覧から下ろす。
 // ・取得の規則（SavedJobsViewと同じ・2026-08-07フェイルオープン規則）：
 //   ①res.errorを見る・失敗時は手元の値もキャッシュも上書きしない
 //   ②my_job_actions は auth.uid() が無いと【200で空配列】を返すので、空配列はセッションを確かめてから信じる
-// ・行はJSON安全な型のみ（RPCの返りは日付も文字列）＝viewCacheに入れてよい（2026-08-03の規則）。
+// ・★jobs（mapJobPublicRowの結果）は viewCache に入れない：dateStart/dateEnd が Date オブジェクトで、
+//   JSONで保存→復元すると文字列になり読む側が落ちる（2026-08-03の実害と同じ型）。開いた時に1往復するだけ。
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
-import { photoThumb, dateRangeLabel, ROLE_ORANGE } from "../lib/utils";
+import { mapJobPublicRow, ROLE_ORANGE } from "../lib/utils";
+import { fetchJobViewCounts } from "../lib/searchJobs";
+import { JobCard } from "./JobCard";
 
 const likedOf = (list) => (Array.isArray(list) ? list.filter(r => r.liked) : null);
 
@@ -23,6 +31,11 @@ export function LikedJobsCard({ me }) {
   const [rows, setRows] = useState(() => likedOf(getCache("saved:rows"))); // null=読み込み中
   const [listOpen, setListOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false); // 説明は？ボタンで展開（労働条件通知書と同じ作法）
+  const [jobs, setJobs] = useState({});            // job_number → mapJobPublicRow（★viewCacheに入れない・上記）
+  // 👀閲覧数：さがすと同じキャッシュを共用（search:viewCounts＝数のみ・誰が見たかは持たない）
+  const [viewCounts, setViewCounts] = useState(() => getCache("search:viewCounts") ?? {});
+  // ♥の表示状態（この求人にいまいいねが付いているか）。一覧の行はボックスを閉じるまで動かさない
+  const [savedIds, setSavedIds] = useState(() => new Set((likedOf(getCache("saved:rows")) || []).map(r => r.job_number)));
 
   useEffect(() => {
     if (!me?.id) return;
@@ -42,18 +55,75 @@ export function LikedJobsCard({ me }) {
       }
       if (!Array.isArray(list)) return; // ①失敗時は手元の値（キャッシュ）のまま
       setCache("saved:rows", list); // 全体をステータスページと同じ形で保存（形を変えない）
-      setRows(likedOf(list));
+      const liked = likedOf(list);
+      setRows(liked);
+      setSavedIds(new Set(liked.map(r => r.job_number)));
     })();
     return () => { live = false; };
   }, [me?.id]);
 
+  // ボックスを開いたら、カードの材料（jobs_public・その他の求人と同じ全体像）と閲覧数を読み足す。
+  // 取得済みの求人は読み直さない。失敗時は手元の値を上書きしない（最小カードのまま出す）
+  const numsKey = (rows || []).map(r => r.job_number).join(",");
+  useEffect(() => {
+    if (!listOpen || !numsKey) return;
+    let live = true;
+    const nums = numsKey.split(",").map(Number).filter(n => Number.isFinite(n) && !(n in jobs));
+    if (!nums.length) return;
+    (async () => {
+      try {
+        const [jobRes, vc] = await Promise.all([
+          supabase.from("jobs_public").select("*").in("job_number", nums),
+          fetchJobViewCounts(nums),
+        ]);
+        if (!live) return;
+        if (!jobRes.error && jobRes.data) {
+          setJobs(prev => {
+            const nx = { ...prev };
+            jobRes.data.forEach(r => { nx[r.job_number] = mapJobPublicRow(r); });
+            return nx;
+          });
+        }
+        if (vc) { // null＝失敗（手元の値を残す・2026-08-07規則）
+          setViewCounts(prev => {
+            const merged = { ...prev, ...vc };
+            setCache("search:viewCounts", merged);
+            return merged;
+          });
+        }
+      } catch { /* 取得できなくても最小カードで出す */ }
+    })();
+    return () => { live = false; };
+  }, [listOpen, numsKey]); // eslint-disable-line react-hooks/exhaustive-deps -- jobsは取得済み判定のみ（依存に入れると再取得ループ）
+
+  // ♥の解除⇄再いいね（さがすの performSave と同じ：楽観更新→失敗時は戻す）。
+  // 自分の求人は my_job_actions が最初から返さない（farmer_id <> auth.uid()）ので canLike 判定は不要
+  const toggleLike = async (job) => {
+    const jn = job.id;
+    const isSaved = savedIds.has(jn);
+    setSavedIds(prev => { const nx = new Set(prev); isSaved ? nx.delete(jn) : nx.add(jn); return nx; });
+    const { error } = isSaved
+      ? await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", jn)
+      : await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: jn });
+    if (error) { setSavedIds(prev => { const nx = new Set(prev); isSaved ? nx.add(jn) : nx.delete(jn); return nx; }); return; }
+    // ステータスページと共用のキャッシュにも liked を写す（次に開いた画面が古い♥を出さない）
+    const full = getCache("saved:rows");
+    if (Array.isArray(full)) setCache("saved:rows", full.map(x => x.job_number === jn ? { ...x, liked: !isSaved } : x));
+  };
+
+  // 閉じる時に、解除したままの求人を一覧から下ろす（開いている間は♥を空にして残す＝暗黙の取り消し）
+  const closeList = () => {
+    setListOpen(false);
+    setRows(prev => (prev || []).filter(r => savedIds.has(r.job_number)));
+  };
+
   const count = rows ? rows.length : 0;
 
   // 求人ページへ（戻り先＝いまのマイページ。WorkerApplicationsの求人リンクと同じ作法）
-  const openJob = (r) => {
-    setListOpen(false); // ポータルごとアンマウントされる前に閉じておく（cb-lock-scrollの残骸を作らない）
+  const openJob = (jn) => {
+    closeList(); // ポータルごとアンマウントされる前に閉じておく（cb-lock-scrollの残骸を作らない）
     try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {}
-    window.location.hash = "/work/job/" + r.job_number;
+    window.location.hash = "/work/job/" + jn;
   };
 
   return (
@@ -69,7 +139,7 @@ export function LikedJobsCard({ me }) {
 
       {/* 一覧ボックス（労働条件通知書の一覧と同じ規格：中央・上下40px余白・外タップで閉じる・✕なし） */}
       {listOpen && createPortal(
-        <div onClick={(e) => { if (e.target === e.currentTarget) setListOpen(false); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000, padding:"40px 16px" }}>
+        <div onClick={(e) => { if (e.target === e.currentTarget) closeList(); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000, padding:"40px 16px" }}>
           <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
             {/* 見出し行ごと「？」の当たり判定にする（丸チップだけだと外して黒幕に当たる・2026-08-18の教訓） */}
             <button type="button" onClick={(e) => { e.stopPropagation(); setInfoOpen(v => !v); }} aria-label="説明を見る" aria-expanded={infoOpen}
@@ -79,7 +149,7 @@ export function LikedJobsCard({ me }) {
             </button>
             {infoOpen && (
               <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 12px" }}>
-                求人ページで♥した求人の一覧です。タップすると求人ページが開きます。♥の解除は求人ページ、またはステータスページでできます。
+                求人ページで♥した求人の一覧です。カードをタップすると求人ページが開きます。♥をタップすると解除できます（もう一度タップで戻せます）。
               </p>
             )}
             {rows === null ? (
@@ -89,34 +159,25 @@ export function LikedJobsCard({ me }) {
                 <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, margin:0 }}>
                   まだ♥した求人はありません。<br />気になる求人を♥しておくと、ここに並びます。
                 </p>
-                <button type="button" onClick={() => { setListOpen(false); window.location.hash = "/search"; }} className="f-sans"
+                <button type="button" onClick={() => { closeList(); window.location.hash = "/search"; }} className="f-sans"
                   style={{ marginTop:14, padding:"10px 18px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>求人をさがす →</button>
               </div>
             ) : (
-              <div style={{ display:"grid", gap:8 }}>
+              /* その他の求人と同じカードを縦一列（仕事の評価ページと同じ適用＝wideを全幅で） */
+              <div style={{ display:"grid", gap:16 }}>
                 {rows.map(r => {
-                  const photo = photoThumb(r.photos?.[0]);
-                  const title = [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
-                  const dates = dateRangeLabel(r.date_start, r.date_end);
-                  const ended = r.job_status !== "open"; // 掲載が終わった求人（行は残す＝記録。JobCardの「募集終了」と同じ語）
+                  const job = jobs[r.job_number];
+                  if (job) return (
+                    <JobCard key={r.job_number} job={job} variant="wide"
+                      saved={savedIds.has(job.id)} onToggleSave={toggleLike}
+                      views={viewCounts[job.id]} onOpen={() => openJob(job.id)} />
+                  );
+                  /* 求人の情報が届くまで／掲載の行が無い時：作物×作業と#No.だけの最小カード（ダミーを出さない） */
                   return (
-                    <button key={r.job_number} type="button" onClick={() => openJob(r)} className="f-sans"
-                      style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 12px", background:"#fff", cursor:"pointer" }}>
-                      <span style={{ width:52, height:52, borderRadius:10, background:"#F7F7F7", flexShrink:0, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
-                        {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(70%)" : "none" }} /> : "🌱"}
-                      </span>
-                      <span style={{ flex:1, minWidth:0 }}>
-                        <span style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-                          <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
-                          <span className="f-sans" style={{ fontSize:11, color:"#C8C8C8", flexShrink:0 }}>#{r.job_number}</span>
-                        </span>
-                        <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                          {[dates, r.town].filter(Boolean).join("　") || "　"}
-                        </span>
-                        {ended
-                          ? <span className="f-sans" style={{ display:"inline-block", fontSize:10, fontWeight:700, color:"#757575", background:"#F0F0F0", borderRadius:20, padding:"1px 8px", marginTop:3 }}>募集終了</span>
-                          : <span className="f-sans" style={{ display:"block", fontSize:11, color:ROLE_ORANGE, marginTop:3 }}>求人ページを見る →</span>}
-                      </span>
+                    <button key={r.job_number} type="button" onClick={() => openJob(r.job_number)} className="f-sans"
+                      style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
+                      <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{[r.crop, r.task].filter(Boolean).join(" ") || "求人"}</span>
+                      <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{r.job_number}</span>
                     </button>
                   );
                 })}
