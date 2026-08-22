@@ -262,11 +262,14 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs }) {
     }
     setFlashNoPlan(false);
     // 予定のある日のタップを親へ渡す置き場所（応募者ページ・2026-08-21たきと指示）：
-    // シートは開かず、その日の求人番号を親に知らせて求人カードの絞り込みをさせる
+    // シートは開かず、その日の求人番号を親に知らせて求人カードの絞り込みをさせる。
+    // ★親へ渡すのは【自分が出した求人（relation='own'）】だけ（2026-08-22たきと報告「まだ表示されない」の修理）。
+    //   このカレンダーには働き手として応募した仕事・いいね（'application'/'liked'）も載るため、
+    //   そういう日を渡すと応募者ページには出すカードが無く「求人はありません」の空絞り込みになっていた。
+    //   自分の求人が無い日は通常の日付シートへフォールスルー＝応募の予定も「求人ページを見る」で確認できる
     if (onDayJobs) {
-      const jobs = [...new Set(idxs.map(i => entries[i]?.job_number).filter(Boolean))];
-      onDayJobs(ymd, jobs);
-      return;
+      const ownJobs = [...new Set(idxs.filter(i => entries[i]?.relation === "own").map(i => entries[i]?.job_number).filter(Boolean))];
+      if (ownJobs.length > 0) { onDayJobs(ymd, ownJobs); return; }
     }
     // 日付タップ＝どの置き場所でも日付シートを開く（2026-08-21たきと指示）。
     // 以前は応募者ページ・ステータスページだけ「その日の求人カードへスクロール＋黄色く光らせる」
