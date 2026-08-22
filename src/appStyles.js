@@ -649,7 +649,9 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
     border: none;
     border-radius: 24px;
     padding: 12px 28px;
-    font-size: 15px;
+    /* 15px→17px（2026-08-22たきと指示「文字の大きさを1段上げて」）。
+       同時にラベルの色名（橙）（緑）を外したので、幅は増えていない */
+    font-size: 17px;
     font-weight: 700;
     font-family: 'Noto Sans JP', sans-serif;
     box-shadow: 0 4px 12px rgba(0,0,0,.15);

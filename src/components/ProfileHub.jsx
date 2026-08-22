@@ -217,10 +217,11 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
           setPAnim("pflip-out");
           setTimeout(()=>{ window.location.hash = pTab === "employer" ? "/profile/worker" : "/profile/employer"; setPAnim("pflip-in"); }, 400);
         }} className="profile-employer-fab f-sans" style={{ background: pTab === "employer" ? ROLE_ORANGE : ROLE_GREEN }}>
-          {/* 切替先の役割の色名を予告表示（第11弾）：橙=働き手／緑=農家。FAB自体も切替先の色に灯す */}
+          {/* 切替先はFAB自体の色で示す（第11弾）：橙=働き手／緑=農家。
+              ラベルの色名「（橙）（緑）」は削除した（2026-08-22たきと指示）＝色は見れば分かる */}
           {pTab === "employer"
-            ? "⇄ 働き手（橙）に切替"
-            : (hasEmployerSide ? "⇄ 農家（緑）に切替" : "🌱 農家（緑）を作る")}
+            ? "⇄ 働き手に切替"
+            : (hasEmployerSide ? "⇄ 農家に切替" : "🌱 農家を作る")}
         </button>
       )}
       {/* 面の中身をkey={pTab}で包む：切替時に再マウント→pflip-in/fade-inが再生される */}

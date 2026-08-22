@@ -190,7 +190,7 @@ const STEPS = [
     ) },
   /* 旧「役割をえらぶ（#/role）」は実装から消えているので置かない（2026-08-11たきと指摘・コードで確認）。
      いまは、認証は役割を聞かず、どのプロフィールを作ったかで役割が決まる（骨格⑥）＝この画面が実物 */
-  { ch:"準備", name:"農家をはじめる", url:"#/profile/worker → #/profile/employer", act:"プロフィール入口の浮遊ボタン「🌱 農家（緑）を作る」で、雇い手の顔に切り替える。登録の時点では役割を聞かれない。",
+  { ch:"準備", name:"農家をはじめる", url:"#/profile/worker → #/profile/employer", act:"プロフィール入口の浮遊ボタン「🌱 農家を作る」で、雇い手の顔に切り替える。登録の時点では役割を聞かれない。",
     body: () => (
       <div style={{ padding:14, position:"relative", minHeight:260 }}>
         <Card style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, borderColor:ROLE_ORANGE }}>
@@ -210,7 +210,7 @@ const STEPS = [
         </div>
         {/* 本番の浮遊トグル（.profile-employer-fab）の見た目・文言そのまま */}
         <div style={{ position:"absolute", right:14, bottom:14 }}>
-          <span className="f-sans" style={{ display:"inline-block", padding:"12px 24px", borderRadius:24, background:ROLE_GREEN, color:"#fff", fontSize:15, fontWeight:700, boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}>🌱 農家（緑）を作る</span>
+          <span className="f-sans" style={{ display:"inline-block", padding:"12px 24px", borderRadius:24, background:ROLE_GREEN, color:"#fff", fontSize:17, fontWeight:700, boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}>🌱 農家を作る</span>
         </div>
       </div>
     ) },
