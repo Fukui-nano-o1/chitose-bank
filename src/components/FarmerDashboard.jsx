@@ -1469,7 +1469,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                                   <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={52} ring={appRibbonColor(phaseA)} />
                                 </span>
                                 <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
-                                <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(phaseA)); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:appRibbonColor(phaseA), marginTop:1, cursor:"pointer" }}>{appRibbonLabel(phaseA)}</span>
+                                {/* 段階は貼るラベル（チップ）で出す（2026-08-22たきと指示「ラベル貼れていない」）：
+                                    文字色だけだと貼った感が無い＝凡例の帯と同じ 段階色の下地＋白文字 に統一 */}
+                                <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(phaseA)); }} role="button" style={{ display:"inline-block", fontSize:9, fontWeight:700, background:appRibbonColor(phaseA), color:"#fff", borderRadius:6, padding:"2px 7px", marginTop:3, cursor:"pointer", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{appRibbonLabel(phaseA)}</span>
                               </button>
                             );
                           })}
