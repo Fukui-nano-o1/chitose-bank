@@ -116,7 +116,7 @@ export function TodayTaskBoxes({ role = "worker" }) {
 
   return (
     <div style={{ marginTop:16 }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること</p>
+      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + accent, paddingLeft:8 }}>やること（{myTodos.length}）</p>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:12 }}>
         {stageOrder.map(stage => {
           const m = BOX_META[stage]; if (!m) return null;
