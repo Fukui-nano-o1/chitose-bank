@@ -5,10 +5,11 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, photoThumb, isFinalWorkDone, appWorkDates } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
+import { JobCard } from "./JobCard";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
@@ -90,8 +91,11 @@ export function WorkerApplications({ filter, me }) {
           // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
           const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
           const [jobRes, respEntries] = await Promise.all([
+            // 全列で引く（2026-08-22たきと指示「さがすページと同じ求人カード一覧構造に」＝
+            // JobCardの材料 mapJobPublicRow が全列を前提にするため）。キャッシュ(wapp:jobs)には
+            // この生の行（JSON安全）だけを置き、Dateを含む整形後は描画のたびに作る（2026-08-03の実害の型）
             jobNumbers.length > 0
-              ? supabase.from("jobs_public").select("job_number,date_start,date_end,holidays,crop,task,photos,work_time,pay_type,hourly_wage,daily_wage,city,town").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
+              ? supabase.from("jobs_public").select("*").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
               : Promise.resolve({ data: [] }),
             waitFarmerIds.length > 0
               ? Promise.all(waitFarmerIds.map(async fid => {
@@ -214,6 +218,39 @@ export function WorkerApplications({ filter, me }) {
                     {cancelingId===a.id ? <>取り消し中<Dots /></> : "応募を取り消す"}
                   </button>
                 )}
+      </div>
+    );
+  };
+  // 応募した求人の一覧カード（2026-08-22たきと指示「さがすページと同じ求人カード一覧構造に」）：
+  // さがすと同じ JobCard variant="list" ＝顔を独自に描かない（JobCardが唯一のソース）。
+  // カードの上に段階チップ（応募中／評価待ち等）だけ添え、タップで従来の詳細カード
+  // （3段プログレス・期限の約束・評価・チャット・取り消し）をボトムシートに展開＝
+  // 仕事の評価ページ・ステータスページと同じ「カード一覧＋タップで展開」の作法。
+  // ★終了帯：返事待ちタブでは出す（募集終了＝応募がまもなく失効する正直な情報）／
+  //   きょうの仕事タブでは hideEndLabel（自分が採用された求人に「掲載終了」と出て読み違える
+  //   ＝2026-08-17の理由。段階はチップとシート内の流れバーが語る）
+  const renderJobCardRow = (a) => {
+    const raw = jobDates[a.job_number];
+    const approvedTab = filter === "approved";
+    const chip = approvedTab
+      ? { label: ribbonLabel(a), fg: ribbonColor(a), bg: ribbonColor(a) === "#00A86B" ? "#E6F7EF" : ribbonColor(a) === "#C77700" ? "#FFF4E0" : "#F3F3F3" }
+      : { label: label(a), fg: color(a.status).fg, bg: color(a.status).bg };
+    return (
+      <div key={a.id} className={approvedTab && !isAppDone(a) ? "cb-urgent-card" : undefined}>
+        <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
+          <span onClick={()=>openPhaseInfo(appPhaseKey(a))} role="button" className="f-sans"
+            style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:chip.bg, color:chip.fg, cursor:"pointer" }}>{chip.label}</span>
+        </div>
+        {raw ? (
+          <JobCard job={mapJobPublicRow(raw)} variant="list" hideEndLabel={approvedTab} onOpen={()=>setSheetAppId(a.id)} />
+        ) : (
+          // 求人の情報が引けなかった時（掲載の行が無い等）：#No.だけの最小カード＝一覧から落とさない
+          <button onClick={()=>setSheetAppId(a.id)} className="f-sans"
+            style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer", marginBottom:22 }}>
+            <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>求人</span>
+            <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{a.job_number}</span>
+          </button>
+        )}
       </div>
     );
   };
@@ -393,7 +430,8 @@ export function WorkerApplications({ filter, me }) {
         ) : (
           <>
             {pendingBlock}
-            {apps.length > 0 && <div ref={skelRef} style={{ display:"grid", gap:12 }}>{apps.map(a => renderWaitingCard(a))}</div>}
+            {/* さがすと同じ求人カード一覧（2026-08-22）。詳細（3段プログレス・期限・取り消し）はタップでシート展開 */}
+            {apps.length > 0 && <div ref={skelRef}>{apps.map(a => renderJobCardRow(a))}</div>}
             {waitingTodoBox}
             {pastAppsBlock}
           </>
@@ -405,33 +443,16 @@ export function WorkerApplications({ filter, me }) {
           <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>農家が承認すると、ここに表示されます。</p>
         </div>
       ) : (
-        // フロー可視化のため1列リスト（2026-07-19）：写真＋タイトル＋状態＋進捗ステッパー。タップでボトムシート
-        <div ref={skelRef} style={{ display:"grid", gap:12 }}>
-          {apps.map(a => {
-            const job = jobDates[a.job_number] || {};
-            const photo = photoThumb(job.photos?.[0]);
-            return (
-              <button key={a.id} onClick={()=>setSheetAppId(a.id)}
-                className={"f-sans" + (isAppDone(a) ? "" : " cb-urgent-card")}
-                style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px 14px", cursor:"pointer" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                  <div style={{ width:52, height:52, borderRadius:10, background:"#F7F7F7", flexShrink:0, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24 }}>
-                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌾"}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[job.crop, job.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number)}</p>
-                    <span className="f-sans" style={{ display:"inline-block", marginTop:4, fontSize:11, fontWeight:700, padding:"2px 10px", borderRadius:20, background: ribbonColor(a) === "#00A86B" ? "#E6F7EF" : ribbonColor(a) === "#C77700" ? "#FFF4E0" : "#F3F3F3", color: ribbonColor(a) }}>{ribbonLabel(a)}</span>
-                  </div>
-                </div>
-                <FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} />
-              </button>
-            );
-          })}
+        // さがすと同じ求人カード一覧（2026-08-22たきと指示・旧52pxサムネ行＋FlowBarはシートの中の応募カードが担う）。
+        // タップでボトムシート（従来どおり）
+        <div ref={skelRef}>
+          {apps.map(a => renderJobCardRow(a))}
         </div>
       )}
 
-      {/* 承認済みカードのボトムシート（タップで展開・中身は従来の応募カード＝操作ボタン込み） */}
-      {filter === "approved" && (() => {
+      {/* 応募カードのボトムシート（タップで展開・中身は従来の詳細カード＝操作ボタン込み。
+          きょうの仕事＝応募カード（流れバー・評価・チャット）／返事待ち＝待機カード（3段プログレス・期限・取り消し） */}
+      {(() => {
         const live = apps.find(x => x.id === sheetAppId);
         if (!live) return null;
         return (
@@ -440,7 +461,7 @@ export function WorkerApplications({ filter, me }) {
               <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               </div>
               <div ref={appSheetScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
-                {renderAppCard(live)}
+                {filter === "approved" ? renderAppCard(live) : renderWaitingCard(live)}
               </div>
             </div>
           </div>
