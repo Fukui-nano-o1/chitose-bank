@@ -169,7 +169,7 @@ const bootIdleQueue = createIdleQueue();
 const MENU_ITEMS = [
   { key:"chats",    label:"💬 チャット",   hash:"/chats",    auth:true  },
   { key:"calendar", label:"📆 今日", hash:"/calendar", auth:true  },
-  { key:"profile",  label:"プロフィール",  hash:"/profile",  auth:true  },
+  { key:"profile",  label:"マイページ",  hash:"/profile",  auth:true  },
   { key:"login",    label:"ログイン",      hash:"/login",    auth:false, guestOnly:true },
 ];
 
@@ -183,7 +183,7 @@ const MOBILE_TABS = [
   { k:"saved",    icon:"♡",  label:"ステータス" },
   { k:"chats",    icon:"💬", label:"チャット" },
   { k:"calendar", icon:"📆", label:"今日" },
-  { k:"profile",  icon:"👤", label:"プロフィール" },
+  { k:"profile",  icon:"👤", label:"マイページ" },
 ];
 // モバイル☰メニューの静的リンク項目（求人を探す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
@@ -1494,7 +1494,7 @@ export default function App(){
 
   const ALL_TABS=[
     {k:"search",l:"さがす",modes:["farmer","worker"]},
-    {k:"profile",l:"プロフィール",modes:["farmer","worker"]},
+    {k:"profile",l:"マイページ",modes:["farmer","worker"]},
     ...(isAdmin(me)?[{k:"admin",l:"管理",badge:badgeCnt,modes:["farmer","worker"]}]:[]),
   ];
   const TABS = ALL_TABS;
@@ -1529,7 +1529,7 @@ export default function App(){
           match: h => h.startsWith("profile/employer/applicants") },
         { k:"chats",          icon:"💬", label:"チャット" },
         { k:"calendar",       icon:"📆", label:"今日" },
-        { k:"profile",        icon:"👤", label:"プロフィール",
+        { k:"profile",        icon:"👤", label:"マイページ",
           match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ]
     : MOBILE_TABS;
