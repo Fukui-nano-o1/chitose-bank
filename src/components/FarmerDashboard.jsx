@@ -1317,7 +1317,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
           <>
             {jobTab==="calendar" && calendarTop}
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-              <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><NavIcon name="envelope" size={40} /></div>
+              <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><NavIcon name="inbox" size={40} /></div>
               <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
               <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
             </div>

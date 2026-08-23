@@ -150,7 +150,7 @@ export function NewApplicantsPage() {
       {state && typeof state === "object" && (apps.length === 0 ? (
         // 空でも説明を明記する（2026-08-03たきと指示「なにもなければ説明文を明記」）
         <div style={{ textAlign:"center", padding:"56px 8px" }}>
-          <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="envelope" size={40} /></div>
+          <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="inbox" size={40} /></div>
           <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 8px" }}>いま新しい応募はありません</p>
           <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 auto", maxWidth:420 }}>
             あなたの求人に応募が届くと、このページが最初に開きます。ここで応募者を見て、承認するか見送るかを決めます。
