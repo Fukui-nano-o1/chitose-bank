@@ -318,6 +318,18 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     setTimeout(() => setUndoJob(prev => (prev && prev.job_number === r.job_number) ? null : prev), 10000);
     await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", r.job_number);
   };
+  // いいねを付ける（2026-08-23たきと指示「いいねボタン設置。現状は外せるがいいねを付けられない」）。
+  // 応募済みの求人でいいねを外した後、この一覧から付け直す道が無かった（♥は liked の時だけ出ていた）。
+  // 楽観更新→失敗したら戻す（さがす一覧の performSave と同じ作法）
+  const handleLike = async (r) => {
+    setRows(prev => (prev || []).map(x => x.job_number === r.job_number ? { ...x, liked: true } : x));
+    const { error } = await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: r.job_number });
+    // 23505＝既に同じ行がある（＝もういいね済み）＝成功扱い。それ以外の失敗だけ元に戻す
+    if (error && error.code !== "23505") {
+      setRows(prev => (prev || []).map(x => x.job_number === r.job_number ? { ...x, liked: false } : x));
+      alert("いいねできませんでした：" + error.message);
+    }
+  };
   const handleUndo = async () => {
     const r = undoJob; if (!r) return;
     setUndoJob(null);
@@ -663,12 +675,15 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     </div>
                   );
                 })()}
-                {/* いいね解除（求人カードの♥と同じ役割・色も赤で統一・2026-07-27たきと指示）。
-                    応募済みの求人はステータス確認のため一覧に残る（消えるのは「いいねだけ」の求人） */}
-                {r.liked && (
-                  <button onClick={()=>handleUnsave(r)} aria-label="いいねを解除" className="f-sans"
-                    style={{ position:"absolute", top:6, right:6, zIndex:1, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:20, lineHeight:1, color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}><span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name="heartFill" size={20} /></span></button>
-                )}
+                {/* いいね（付ける⇄外すのトグル・2026-08-23たきと指示「いいねボタン設置。現状は外せるが
+                    いいねを付けられない」）。以前は liked の時だけ出ており、外した後に付け直せなかった。
+                    ★いいねだけの求人を外すとカードが一覧から下りる（応募のある求人は残る）＝従来どおり。
+                      その時の付け直しは下の「元に戻す」（10秒）が担う */}
+                <button onClick={()=> r.liked ? handleUnsave(r) : handleLike(r)}
+                  aria-label={r.liked ? "いいねを解除" : "いいね"} className="f-sans"
+                  style={{ position:"absolute", top:6, right:6, zIndex:1, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:20, lineHeight:1, color: r.liked ? "#E24B4A" : "#717171", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
+                  <span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={r.liked ? "heartFill" : "heart"} size={20} /></span>
+                </button>
               </div>
             );
           })}
