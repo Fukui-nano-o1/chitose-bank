@@ -22,10 +22,6 @@ import LaborConditionsNotice from "./LaborConditionsNotice";
 import { DayReportSheet } from "./DayReportSheet";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
 
-// 隠せる段階（2026-08-19たきと指示「チャットページの絞り込みをステータスページにコピー」）：
-// 見送り／失効／取り消しの3つ。チャット一覧の CHAT_HIDABLE・応募者ページの APP_HIDABLE と対
-// （段階の物差しは appPhaseKey で共通）。既定は3つとも非表示＝終わった取引が日常の一覧を埋めない
-const SAVED_HIDABLE = ["rejected", "expired", "canceled"];
 
 // ── SavedJobsView（ステータス一覧・#/saved） ──
 // embedded（2026-08-23たきと指示「農家であっても働き手の求人カードを表示して」）：
@@ -209,17 +205,10 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   const calDay = embedded ? (calDayProp || null) : calDayOwn;
   const setCalDay = embedded ? (() => {}) : setCalDayOwn;
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
-  // 非表示の選択（2026-08-19たきと指示・チャット一覧からのコピー）：ピルは【隠すもの】3つだけ。
-  // 選ぶとその段階の求人が一覧から消える（複数選択）。隠すのは表示だけ＝記録・並び・取得は不変
-  // （行動記録の憲法：記録は消さない）。既定は3つとも選んだ状態
-  const [savedHidden, setSavedHidden] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem("cb_savedHidden_v1");
-      if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => SAVED_HIDABLE.includes(k)); }
-    } catch {}
-    return [...SAVED_HIDABLE];
-  });
-  useEffect(() => { try { sessionStorage.setItem("cb_savedHidden_v1", JSON.stringify(savedHidden)); } catch {} }, [savedHidden]);
+  // ★見送り・失効・取り消しも表示する（2026-08-23たきと指示「見送り・失効・取り消しであっても表示して」）＝
+  //   段階での非表示（旧 savedHidden／cb_savedHidden_v1）は撤去した。終わった取引も記録として一覧に残す
+  //   （行動記録の憲法：記録は消さない。終わった事実はカードの暗幕＋ラベルが語る）。
+  //   雇い手側は2026-08-22に既に「すべて表示」が既定so、これで両方揃った
   // カレンダー（2026-07-27たきと指示）：働き手のカレンダーページを廃止し、この面の上部へ移植。
   // ★2026-08-19たきと指示「カレンダーは展開がデフォルトで、非表示できないようにして」＝常時展開。
   //   開閉（横スワイプ・案内行のタップ・畳むアニメ・今日ページからの合図 cb_openCalendar）は全部撤去した。
@@ -436,7 +425,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     terms_confirmed_worker_at: r.terms_confirmed_worker_at,
     terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
   } : null; return a ? appPhaseKey(a) : null; };
-  const shownRows = rows.filter(r => { const k = truePhaseOf(r); return !k || !savedHidden.includes(k); });
+  const shownRows = rows;
   // 並びの順（2026-08-19たきと指示「上からラベルなしカード、完了、見送り、失効、取り消しの順」）。
   // ★下の描画のラベル（covered / coverLabel）と同じ式・同じ優先順で判定する（片方だけ変えない）＝
   //   並びと貼られたラベルthat食い違わない。掲載取り下げは見送りの一種so見送りと同じ組に入る
@@ -463,9 +452,8 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     // 自分の求人カードが直近1枚なのと同じ静かさに揃える
     .slice(0, (embedded && !calDay) ? 1 : undefined);
   // 絞り込みのピル（見送り・失効・取り消し）はこのページから削除（2026-08-23たきと指示・
-  // カレンダーの上に浮いて「応募の進み具合」と重なっていた）。既定の非表示（SAVED_HIDABLE）は
-  // そのまま＝終わった取引は日常の一覧を埋めない。全部隠れて0件になった時だけ、下の空状態に
-  // 「すべて表示する」を残してある（＝行き止まりにしない）
+  // カレンダーの上に浮いて「応募の進み具合」と重なっていた）。段階での非表示も撤去済み（2026-08-23）＝
+  // 見送り・失効・取り消しも含めて全部並ぶ
   const photoOf = (r) => photoThumb(r.photos?.[0]);
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
   // 応募行の形（appPhaseKeyは status＋terms_confirmed_* から段階を導く。帯の唯一のソース）
@@ -511,24 +499,14 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
           <div style={{ marginBottom:16, color:"#E24B4A", display:"flex", justifyContent:"center" }}><NavIcon name="heart" size={40} /></div>
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を<NavIconInline name="heartFill" size={13} style={{ color:"#E24B4A", marginRight:0 }} />しておくと、ここに並びます</p>
         </div>
-      ) : shownRows.length === 0 ? (
-        /* 非表示で0件（求人自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
-        <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-          <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>
-            表示できる求人はありません。<br />
-            {savedHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。
-          </p>
-          <button onClick={()=>setSavedHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
-        </div>
       ) : (
         <div ref={skelRef} style={{ display:"grid", gap:10 }}>
-          {/* 日を選んで0件＝その日の求人が既定の非表示（見送り・失効・取り消し）に入っている時。
+          {/* 日を選んで0件＝この一覧に無い求人の日（自分の求人の日など）。
               空のまま黙らせない（空ボックスに説明の原則・2026-08-03） */}
           {calDay && orderedRows.length === 0 && (
             <div className="f-sans" style={{ textAlign:"center", padding:"36px 20px", color:"#999" }}>
               <p style={{ fontSize:13, margin:0, lineHeight:1.8 }}>
-                この日に表示できる求人はありません。<br />
-                {savedHidden.map(k => APP_PHASE_LABEL[k]).join("・")}は表示していません。
+                この日に表示できる求人はありません。
               </p>
               <button onClick={()=>setCalDay(null)} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C", borderRadius:10, cursor:"pointer" }}>すべての求人を見る</button>
             </div>
