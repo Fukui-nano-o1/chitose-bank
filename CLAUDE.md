@@ -7989,3 +7989,32 @@ git log -S"cb_openApply" -- <file> で消したコミットが一発で出る。
 【修理】onPick の配線を復旧（合図＝cb_jobBackTo＋cb_openApply →#/work/job/{No.}）。
 build成功・eslint 0 error。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-23(続) あなたの求人：グループごとに横にスライド ━━━
+【たきと指示】「グループごとに横にスライド」＝カードを JobCard に揃えた続き。並べ方も
+「その他の求人」と同じにした。
+【並べ方】作成中／公開間近／公開中／一時非公開／終了／期限切れ の各グループを、その他の求人と同じ
+Carousel（横一列・‹ › は隣の1枚を画面中央へ）に。縦一列（wide）→ 横並び（related・幅80vw/最大280px）。
+グループthatが縦に積み上がらないso、求人thatが増えてもページthatが伸びない。
+【★取り合いの解消（ここthatが本体）】
+・親の作成中⇄公開中ページャーは touch-action:pan-y so、ブラウザの横スクロールthat子孫まで丸ごと止まる
+　（保険カード・2026-08-19と同じ理由）。指の追従は lib/hDrag の useHorizontalDrag
+　（scrollLeft を自前で書く）thatが担う
+・ページャー側は onPagerStart で「はみ出している .carousel-scroll の中で始まったタッチ」を掴まない
+　＝同じ横スワイプでカードの送りとタブ切替thatが喧嘩しない。
+　★1枚だけ（はみ出していない）のグループでは従来どおりタブ切替thatが効く＝送る余地の無い所で
+　タブ切替を殺さない（この「はみ出している時だけ譲る」はContentQSwipeAreaのinHScrollと同じ考え方）
+【部品】JobRow を components/ui.jsx に置いた（Carousel＋useHorizontalDrag）。本番（FarmerDashboardの
+6箇所）と見本帳（AdminFarmerPagesRoom）thatが同じ部品を使う＝見本帳の写経を増やさない。
+グリッドの列は minmax(0, 1fr)（横並びの中身thatはみ出しても列thatが広がらない・2026-08-16の
+子minWidth:0と同じ理屈）。
+【検証】build成功（途中 MISSING_EXPORT＝移した関数に export を付け忘れたのを build ゲートthat検出。
+★lintの no-undef / jsx-no-undef は「importの行thatある」だけで通るso、部品を別ファイルへ移す時は
+build まで通すこと）／eslint 0 error・warning 24（着手前と同数）／onPagerStart を実ソースから
+抜き出して node で6項目を機械検算（送れるグループの中では掴まない・1枚だけのグループでは
+タブ切替thatが生きる・グループの外では従来どおり・1pxの誤差で止めない・closest thatが無い対象で落ちない）／
+dist：JobRow thatが ui チャンクに1つだけあり、本番と見本帳の両方thatそこから取り込んでいることを確認。
+【実機目視の残り】①各グループのカードthatが指に付いて横に送れるか ②送っている最中に
+作成中⇄公開中のタブthatが切り替わらないか ③1枚だけのグループの上では従来どおりタブ切替thatできるか
+④‹ › でカードthatが中央に止まるか ⑤縦スクロールthat奪われないか ⑥期限切れタブも同じに並ぶか
+━━━ ここまで ━━━
