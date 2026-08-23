@@ -7,6 +7,7 @@
 //   {ok:false, reason:'not_contracted', message}（採用前）／not_party・not_found は何も出さない。
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { NavIconInline } from "./NavIcons";
 
 // 採用成立後の値だけキャッシュする（相手が後から登録・修正することがあるので empty はキャッシュしない）
 const CACHE = new Map(); // applicationId -> {ok:true, empty:false, ...}
@@ -31,7 +32,7 @@ export default function ContractEmergencyContact({ applicationId, showPending = 
   if (res.ok && res.empty === false) {
     return (
       <div className="f-sans" style={{ background:"#FFF4F4", border:"1px solid #F3C9C9", borderRadius:10, padding:"8px 10px", margin:"6px 0 0", ...style }}>
-        <p style={{ fontSize:11, fontWeight:700, color:"#B03A3A", margin:"0 0 2px" }}>🆘 緊急連絡先（採用が決まったため表示）</p>
+        <p style={{ fontSize:11, fontWeight:700, color:"#B03A3A", margin:"0 0 2px" }}><NavIconInline name="phone" size={11} style={{ verticalAlign:"-1.5px" }} />緊急連絡先（採用が決まったため表示）</p>
         <p style={{ fontSize:13, color:"#222", margin:0, lineHeight:1.6 }}>
           {res.name}{res.relation ? `（${res.relation}）` : ""}
           {res.phone && <>　<a href={`tel:${String(res.phone).replace(/[^0-9+]/g, "")}`} style={{ color:"#B03A3A", fontWeight:700 }}>{res.phone}</a></>}

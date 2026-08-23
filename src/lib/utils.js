@@ -235,7 +235,7 @@ export const PUBLISH_CHECKS = [
 export const INSURANCE_ITEMS = [
   // これから準備する＝先頭・排他（2026-07-25たきと指示）。選ぶと他の保険の選択・ひとことはリセットされる
   // iconName＝NavIcons の線画（2026-08-23採用）。icon（絵文字）は旧フィールド＝読み手ゼロの残置
-  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱", iconName:"sprout" },
+  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱", iconName:"prepSign" },
   { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険",   icon:"🗓", iconName:"insDay" },
   { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険",     icon:"☂️", iconName:"umbrella" },
   { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険",           icon:"🏥", iconName:"firstAid" },

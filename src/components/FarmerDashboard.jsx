@@ -1230,9 +1230,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div key={d.job_number} onClick={()=> armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
                 : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? "🍂" : "🌾")}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="ended" size={36} /></span> : "🌾")}
                   {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
-                      区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋🍂で十分伝わる） */}
+                      区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋終了アイコンで十分伝わる） */}
                   {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "公開間近"} color={d.status==="draft" ? "#757575" : "#0E8A6B"} />}
                   {qUnansweredMap[d.job_number] > 0 && (
                     // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
@@ -1498,7 +1498,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       ) : jobTab==="expired" ? (
         dbExpired.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-            <div style={{ fontSize:40, marginBottom:12 }}>🍂</div>
+            <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><NavIcon name="ended" size={40} /></div>
             <p style={{ fontSize:14, margin:0 }}>期限切れの求人はありません</p>
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>作業日程が過ぎた求人がここに入ります。</p>
           </div>
@@ -1509,7 +1509,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
               className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : "🍂"}
+                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="ended" size={36} /></span>}
                 <StatusRibbon label="期限切れ" color="#9E9E9E" />
               </div>
               <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
