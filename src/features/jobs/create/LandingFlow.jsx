@@ -1116,7 +1116,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* ── FARMER FLOW ── */}
           {isFarmer && step === 1 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>作物を選んでください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>募集する求人の作物を選びます。一覧にない場合は「その他」から入力できます。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>募集する作物を選びます。一覧になければ「その他」から入力できます。</p>
             <LFCropGrid
               options={CROP_OPTIONS}
               value={farmerCropPill}
@@ -1132,7 +1132,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
           {isFarmer && step === 2 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>作業内容を選んでください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>募集する作業を選びます。一覧にない場合は「その他」から入力できます。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>募集する作業と、期間の途中で作業が変わる可能性（変更の範囲）を選びます。</p>
             <LFCropGrid
               options={TASK_OPTIONS}
               noIcon
@@ -1184,7 +1184,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               </div>
             )}
             <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。最寄り駅や場所の変更の範囲もここで選べます。</p>
             {/* 説明の一本化（2026-08-08たきと指示）：欄ごとに散らばっていた注記（自動入力・町域まで公開・
                 番地は会員のみ・プライバシー）をこの1箇所に集約。「初心者大歓迎とは？」と同じ〜とは？形式。
                 開示の実態はDBが正（jobs_public：町域・番地はanonマスク・2026-08-03） */}
@@ -1325,7 +1325,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     {/* ── 農家 Step3: 詳細入力 ── */}
           {isFarmer && step === 4 && farmerPurpose === "post" && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>採用人数と作業日程を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>何人募集するか、いつ作業を行うかを入力します。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>採用する人数と作業日程を入力します。期間の中の休日もここで設定できます。</p>
             <LFWizCard>
               {/* 5. 採用人数 */}
               <div style={{ marginBottom:14 }}>
@@ -1411,7 +1411,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* ── 農家 step5: 採用人数（骨格・中身は段階Bで移植） ── */}
           {isFarmer && step === 5 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>勤務条件を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>働く時間と報酬を入力します。金額に迷ったら、表示される地域の相場を参考にできます。無理のない範囲で、働き手に選ばれやすい条件を整えましょう。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>勤務時間・休憩・時間外労働と報酬を入力します。相場を参考にできます。</p>
             <LFWizCard>
               {/* 4. 勤務時間（input type=time・iPhoneタイマー型） */}
               {(() => {

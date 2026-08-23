@@ -8,7 +8,8 @@ import { photoThumb } from "../../../../lib/utils";
 export function StepDescription({ jobDescription, setJobDescription, jobPhotos, setJobPhotos, selectedPhotoIndex, setSelectedPhotoIndex, photoCaptionsOpen, setPhotoCaptionsOpen, captionTextareaRef }) {
   return (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>どんな作業をするか、自由に書けます。空欄のままでも、作業内容に応じた説明が自動で入ります。思いつくことから書いてみましょう。</p>
+            {/* 「空欄なら定型文が自動で入る」の説明はJT_MAP廃止（2026-08-09）で事実でなくなったため書かない */}
+            <p className="f-sans" style={lfStyles.subtitle}>どんな作業をするか、働き手に伝わるよう自由に書けます（任意）。</p>
             {jobPhotos.length > 0 && (
               <button onClick={()=>setPhotoCaptionsOpen(true)} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:6, background:"none", border:"none", padding:0, margin:"-8px 0 16px", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
                 写真の説明 →

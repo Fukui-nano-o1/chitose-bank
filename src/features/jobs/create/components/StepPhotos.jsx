@@ -9,7 +9,7 @@ import { uploadPhoto } from "../jobCreateApi";
 export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUploading }) {
   return (<>
     <h2 className="f-sans" style={lfStyles.stepTitle}>写真</h2>
-    <p className="f-sans" style={lfStyles.subtitle}>最初の1枚が、働き手が最初に目にする「顔」になります。畑の全景・作業の様子・収穫物が伝わる写真ほど、応募が増えます。（最大10枚・1枚目がカバー写真になります）</p>
+    <p className="f-sans" style={lfStyles.subtitle}>写真は最大10枚。1枚目が求人の顔になります。畑や作業の様子が伝わると応募が増えます。</p>
     <LFWizCard>
           {/* アップロードボタン（multiple・残り枠まで直列処理） */}
           <div style={{ marginBottom: jobPhotos.length > 0 ? 16 : 0 }}>
