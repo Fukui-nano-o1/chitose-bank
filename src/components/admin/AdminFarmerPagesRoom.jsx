@@ -453,7 +453,7 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#999", textAlign:"center", textDecoration:"underline", marginTop:18 }}>あとで見る</p>
       </div>
     ) },
-  { ch:"応募がくる", name:"応募者", url:"#/profile/employer/applicants", act:"応募者の信頼カードを見て、承認するか見送るかを決める。上の帯で段階を絞り込める。",
+  { ch:"応募がくる", name:"応募者一覧", url:"#/profile/employer/applicants", act:"マイページの「応募者一覧」カードから開く。応募者の信頼カードを見て、承認するか見送るかを決める。上の帯で段階を絞り込める。",
     body: () => (
       <div style={{ padding:14 }}>
         <div style={{ display:"flex", gap:6, marginBottom:12 }}>
@@ -633,7 +633,7 @@ const STEPS = [
     ) },
 
   /* ═══ ふだんの道具 ═══ */
-  { ch:"ふだんの道具", name:"カレンダー", url:"#/profile/employer/calendar", act:"自分の求人と、決まった働き手の予定を月で見る。役割で色が分かれる。",
+  { ch:"ふだんの道具", name:"カレンダー", url:"#/profile/employer/calendar", act:"下部ナビのカレンダータブ。自分の求人と予定を月で見て、日付をタップするとその日の求人と応募者が出る。",
     body: () => (
       <div style={{ padding:14 }}>
         <Card style={{ padding:12, marginBottom:12 }}>

@@ -181,6 +181,8 @@ const MENU_ITEMS = [
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→カレンダー→チャット(③約束する)→マイページ
 // アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。
 // 農家ナビ（empNav）・訪問者ナビ（visitorNav）も同日に追従＝下部ナビの絵文字アイコンは全廃。
+// ★2026-08-23：農家ナビも【さがす・カレンダー・チャット・マイページ】の同じ4タブに統一
+//   （旧「応募者」タブは廃止・応募者一覧はマイページの入口カードへ）。定義は下の navTabs 側。
 // ★「今日」タブは下部バー・PC☰・農家ナビの3箇所から削除（2026-08-22たきと指示「今日ページを
 //   下部ヘッダーから切り離して」）＝やることカード群をマイページ両面へ移した後の段。
 //   ページ自体（#/calendar・用件の専用ページ #/calendar/todo/*）は生きている＝マイページの
@@ -424,8 +426,10 @@ export default function App(){
     return () => window.removeEventListener("hashchange", on);
   }, []);
   const [empCtx, setEmpCtx] = useState(() => { try { const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
-  // 「🤝応募者」バッジは navBadges.applicants_pending（未対応の応募＝跳ねるアイコンと同数）に一本化（2026-07-26）。
-  // 旧・独自の status='applied' 件数カウントは廃止＝バッジとアイコンで数が食い違う原因だった
+  // 応募者バッジは navBadges.applicants_pending（未対応の応募＝跳ねるアイコンと同数）に一本化（2026-07-26）。
+  // 旧・独自の status='applied' 件数カウントは廃止＝バッジとアイコンで数が食い違う原因だった。
+  // ★表示場所は旧「応募者」ナビタブ→マイページ農家面の「応募者一覧」入口カードへ移植
+  //   （2026-08-23・ProfileHub→FarmerDashboard に applicantsBadge としてprop渡し）
 
   // 下部ナビの宿題バッジ（第12弾・2026-07-23）：チャット未読スレッド／きょうの契約済み仕事／評価締切内未実施／差し戻し有無。
   // 1本のRPC(my_nav_badges)で取得。再計算＝起動・ページ遷移・既読等(cb:unreadRefresh)・モード切替。
@@ -1550,9 +1554,12 @@ export default function App(){
     ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience" || tab === "new-applicants") && !me) ? "search" : tab)
     : "search";
 
-  // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）は「いいね」を「🤝応募者」に差し替え。
-  // 「📣求人」は2026-08-21たきと指示で「🔍さがす」に戻した（両モードとも先頭はさがす）。
-  // 後半3つ（カレンダー・チャット・プロフィール）は両モード共通。未ログインは現行のまま（empNav=false）
+  // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）はカレンダーの行き先だけ差し替え。
+  // ★両役割とも【さがす・カレンダー・チャット・マイページ】の4タブ（2026-08-23たきと指示
+  //   「働き手のカレンダーと農家の応募者を統合」）：旧「応募者」タブは廃止し、行き先の
+  //   #/profile/employer/calendar がカレンダー＋日タップで応募者、の統合面になった。
+  //   全件の応募者一覧はマイページの入口カード（#/profile/employer/applicants）へ移植。
+  //   未ログインは現行のまま（empNav=false）
   const empNav = !!(me && empCtx);
   // 訪問者版3タブ（未ログイン・2026-07-24）：さがす／入れ方／登録・ログイン
   // アイコンは働き手・農家ナビと同じアウトラインSVG（NavIcon・2026-08-22）＝下部ナビの絵文字は全廃
@@ -1561,7 +1568,7 @@ export default function App(){
     { k:"install", icon:<NavIcon name="install" />, label:"入れ方", hash:"/install" },
     { k:"login",   icon:<NavIcon name="login" />,   label:"登録・ログイン", hash:"/login" },
   ];
-  // 農家：さがす→応募者→チャット(③約束する)→カレンダー(④当日)→プロフィール（第12弾・時系列。働き手と文法統一）
+  // 農家：さがす→カレンダー→チャット→マイページ（2026-08-23・働き手と同じ4タブに統一）
   const navTabs = !me
     ? visitorNav
     : empNav
@@ -1569,12 +1576,13 @@ export default function App(){
         // matchは「そのタブの領域に居るか」を明示する（2026-07-27）。hashのstartsWithだけだと
         // 雇い手プロフィール等で どのタブも点かない穴があった
         // 「求人」(emp-jobs→/profile/employer/active)は「さがす」に差し替え（2026-08-21たきと指示）。
-        // 自分の求人ページへはプロフィール入口のカード（作成中/公開中/期限切れ）から従来どおり行ける
-        // アイコンは働き手ナビと同じアウトラインSVG（NavIcon・2026-08-22）。応募者=2人の人物
-        { k:"search",         icon:<NavIcon name="search" />,     label:"さがす" },
-        { k:"emp-applicants", icon:<NavIcon name="applicants" />, label:"応募者", hash:"/profile/employer/applicants", badge: navBadges.applicants_pending,
-          match: h => h.startsWith("profile/employer/applicants") },
-        { k:"chats",          icon:<NavIcon name="chats" />,      label:"チャット" },
+        // 自分の求人ページへは名刺カードの「あなたの求人」から従来どおり行ける
+        // 旧「応募者」タブ（emp-applicants→/profile/employer/applicants・赤バッジ付き）は
+        // 2026-08-23に「カレンダー」へ差し替え＝バッジはマイページの応募者一覧カードへ移った
+        { k:"search",       icon:<NavIcon name="search" />,   label:"さがす" },
+        { k:"emp-calendar", icon:<NavIcon name="calendar" />, label:"カレンダー", hash:"/profile/employer/calendar",
+          match: h => h.startsWith("profile/employer/calendar") },
+        { k:"chats",        icon:<NavIcon name="chats" />,    label:"チャット" },
         { k:"profile",        icon:<NavIcon name="profile" />,    label:"マイページ",
           match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ]
@@ -1960,6 +1968,7 @@ export default function App(){
             約1秒、プロフィールの働き手面が露出し「働き手に切り替わった」ように見える＝オーバーレイ描画の鉄則 */}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&!showJobPost&&safeTab==="profile"&&(me
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
+              applicantsBadge={navBadges.applicants_pending}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} /></Suspense>

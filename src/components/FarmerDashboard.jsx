@@ -74,7 +74,7 @@ const FARMER_TRAIT_TAGS = {
   ],
 };
 
-export function FarmerDashboard({ onNewJob, onResume, me }) {
+export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer/profile") return "profile";
@@ -178,7 +178,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 「Cannot access ... before initialization」で応募者ページが真っ白になる・2026-07-29修理）
   const appGridRef = useRef(null);
   // 応募者ページの一覧はappGridRef（スワイプ判定用）と共用なので、ref付き要素を測る版を使う
-  useSkeletonProbeOn(appGridRef, (jobTab === "applicants" && !appsLoading) ? "farmList:applicants" : null);
+  useSkeletonProbeOn(appGridRef, ((jobTab === "applicants" || jobTab === "calendar") && !appsLoading) ? "farmList:applicants" : null);
   const skelActiveRef = useSkeletonProbe("farmActive");
   // 名刺の氏名・アイコンを読み込み前から出す（2026-08-02たきと指示）：viewCacheに無ければsnapshot
   // （localStorage・本人の自分用データ・ログアウトで全消去）から前回値を即表示→裏で最新に差し替え
@@ -294,7 +294,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 【求人】作成中・公開中・期限切れ・応募者（求人名の表示に要る）を開いた時に一度だけ
   const jobsLoadedRef = useRef(false);
   useEffect(() => {
-    if (!["draft","active","expired","applicants"].includes(jobTab)) return;
+    if (!["draft","active","expired","applicants","calendar"].includes(jobTab)) return;
     // 一度きりガード（面を行き来しても取り直さない）は維持しつつ、再取得の合図が来た時だけ破る。
     // 初回は false !== 0 で通り、以後は同じ数字の間だけ止まる（2026-08-18 Speed-1B）
     if (jobsLoadedRef.current === jobsRefreshTick) return;
@@ -334,7 +334,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     { k:"profile", l:"雇い手プロフィール" },
     { k:"draft",   l:"作成中" },
     { k:"active",  l:"公開中" },
-    { k:"applicants", l:"応募者" },
+    // 応募者＝全件の一覧（2026-08-23たきと指示「応募者一覧としてマイページに移植」）。
+    // カレンダー＝カレンダー＋日タップでその日の求人と応募者（旧・応募者ページの姿＝下部ナビのカレンダータブ）
+    { k:"applicants", l:"応募者一覧" },
     { k:"expired", l:"期限切れ" },
     { k:"calendar", l:"カレンダー" },
   ];
@@ -441,27 +443,29 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   //   既定で見える段階（応募中・面接中・採用・作業中・完了）なら何もしない＝送り側4箇所は無改修で通る。
   //   隠している段階（見送り等）を指してきた時だけ、その1つを非表示から外す
   useEffect(() => {
-    if (jobTab !== "applicants") return;
+    if (jobTab !== "applicants" && jobTab !== "calendar") return; // 応募者一覧・カレンダーのどちらに着地しても効く
     try {
       const f = sessionStorage.getItem("cb_appFilter");
       if (f) { sessionStorage.removeItem("cb_appFilter"); if (APP_HIDABLE.includes(f)) setAppHidden(prev => prev.filter(k => k !== f)); }
     } catch {}
   }, [jobTab]);
-  const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者ページ下部「帯の意味」の説明ボックス開閉
-  // 応募者ページのカレンダー（2026-08-19たきと指示「カレンダーは常時展開。ステータスページと同じ設計を」）
+  const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者一覧・カレンダー下部「帯の意味」の説明ボックス開閉
+  // カレンダータブのカレンダー（2026-08-19たきと指示「カレンダーは常時展開。ステータスページと同じ設計を」）
   // ＝ステータスページ（SavedJobsView）と同じ形にした：常に展開・畳む道は無い。
   //   開閉の状態（calOnTop/calClosing）・畳むアニメ（CAL_CLOSE_MS）・案内行のタップ・横スワイプの開閉は全廃。
   //   今日ページからの合図（cb_openCalendar）はもう「開く材料」ではないので、着いた時点で捨てるだけにする
   useEffect(() => {
-    if (jobTab !== "applicants") return;
+    if (jobTab !== "calendar") return;
     try { sessionStorage.removeItem("cb_openCalendar"); } catch {}
   }, [jobTab]);
-  // 応募者ページ＝カレンダーだけ（2026-08-21たきと指示「応募者ページはカレンダーだけにしてみて。
-  // 求人カードは非表示。カレンダーの特定の日程をタップして該当する求人カードのみ表示」）：
+  // カレンダータブ＝カレンダーが主役（2026-08-21たきと指示「応募者ページはカレンダーだけにしてみて。
+  // 求人カードは非表示。カレンダーの特定の日程をタップして該当する求人カードのみ表示」。
+  // 2026-08-23の統合で、この姿は #/profile/employer/calendar＝下部ナビのカレンダータブに移った。
+  // #/profile/employer/applicants は全件の応募者一覧＝マイページの入口カードから）：
   // calDay＝選んだ日 { ymd, jobs:[job_number] } | null。null＝カレンダーのみ／選ぶとその日の求人カードだけ出す。
   // 同じ日をもう一度タップ＝解除（カレンダーのみへ戻る）。ページを離れたら解除
   const [calDay, setCalDay] = useState(null);
-  useEffect(() => { if (jobTab !== "applicants") setCalDay(null); }, [jobTab]);
+  useEffect(() => { if (jobTab !== "calendar") setCalDay(null); }, [jobTab]);
   // 常時展開のカレンダー（ステータスページの calendarTop と同じ作法）。
   // ページ側の横スワイプ（求人一覧⇄応募者などの面送り）にカレンダーの月送りを食われないよう、
   // タッチはここで止める（開閉が無くなった今も、月送りを守るために必要）
@@ -647,7 +651,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 初回マウント時の1回だけだと、働き手側の操作（評価等）が進んでも
   // カードの帯が古いまま（契約のまま）になるため
   useEffect(() => {
-    if (jobTab !== "applicants") return;
+    if (jobTab !== "applicants" && jobTab !== "calendar") return; // 応募者一覧・カレンダーの両面が同じ応募データを使う
     (async () => {
       try {
         // 1往復に集約（2026-08-02たきと指示「応募者ページの復元も遅い」）：従来は getSession→
@@ -960,7 +964,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
     // サブページの上空白は15px固定（2026-07-25応募者→2026-07-26求人タブも・たきと指示で全サブページ統一）
     // 応募者ページは下余白もCSS側(20px)へ一本化するので、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
-    <div className={jobTab === "applicants" ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : jobTab === "applicants" ? "15px 0 0" : "15px 0 80px" }}>
+    <div className={(jobTab === "applicants" || jobTab === "calendar") ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : (jobTab === "applicants" || jobTab === "calendar") ? "15px 0 0" : "15px 0 80px" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
       {/* その日の記録（最終の作業日より前の作業日・2026-08-19）。祝祭は出さない（祝う場面ではない） */}
       <DayReportSheet app={dayReportApp && { id: dayReportApp.id }} meId={me?.id} role="farmer"
@@ -1026,8 +1030,23 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               )}
             </div>
           </div>
-          {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は削除（2026-07-25たきと指示）。
-              各ページへの入口は下部フッター（応募者タブ・求人タブ）に一本化。URL直打ち(/profile/employer/*)は従来どおり生きている */}
+          {/* 応募者一覧の入口カード（2026-08-23たきと指示「応募者一覧としてマイページに移植」）：
+              下部ナビの「応募者」タブはカレンダー（#/profile/employer/calendar）に差し替えたため、
+              全件の応募者一覧はこのカードが入口。赤バッジ＝未対応の応募（my_nav_badges.applicants_pending
+              ＝旧ナビタブのバッジと同じ数・Appからprop渡し）。承認・見送りの実行は従来どおり応募者シートが唯一の窓口 */}
+          <button onClick={()=>{ window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ position:"relative", width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+            <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="applicants" size={40} /></span>
+            <span style={{ minWidth:0 }}>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>応募者一覧</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>求人ごとの応募者と、いまの段階をまとめて確認できます。</span>
+            </span>
+            {(applicantsBadge || 0) > 0 && (
+              <span style={{ position:"absolute", top:-8, right:-8, minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{applicantsBadge}</span>
+            )}
+          </button>
+          {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は2026-07-25に一度削除→
+              2026-08-23に応募者一覧だけ復活（上のカード）。作成中・公開中への入口は名刺カードの
+              「あなたの求人」ボタンとURL直打ち(/profile/employer/*)が従来どおり生きている */}
           <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 箱ジャンプ(cb-jump)→タイトル文字の順ジャンプに変更（NoticeJumpText・2026-07-25たきと指示） */}
             <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
             <span>
@@ -1153,7 +1172,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
           ))}
         </div>
-      ) : (jobTab==="calendar" || jobTab==="applicants" || jobTab==="profile") ? null : (
+      ) : (jobTab==="calendar" || jobTab==="profile") ? null : (
         /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す。
            「雇い手プロフィール」の見出しも削除（2026-08-03たきと指示・名刺カードから開けば現在地は明らか） */
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
@@ -1274,20 +1293,24 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       </div>
       ) : (
       <div ref={appGridRef}
-        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="calendar"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="calendar"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
-      ) : jobTab==="applicants" ? (
+      ) : (jobTab==="applicants" || jobTab==="calendar") ? (
+        /* 統合（2026-08-23たきと指示「働き手のカレンダーと農家の応募者を統合」）：
+           カレンダータブ（jobTab==="calendar"）＝カレンダー＋日タップでその日の求人と応募者（旧・応募者ページの姿）。
+           応募者一覧（jobTab==="applicants"）＝カレンダー無しで全件の求人×応募者カード（マイページの入口カードから）。
+           応募データ・カード・シート・絞り込みは全部共有＝二重実装しない */
         appsLoading ? (
           /* 読み込み中もカレンダーは出す（ステータスページと同じ設計＝この面に来れば必ず予定が見える） */
           <>
-            {calendarTop}
+            {jobTab==="calendar" && calendarTop}
             <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmList:applicants" /></div>
           </>
         ) : dbApplicants.length === 0 ? (
           <>
-            {calendarTop}
+            {jobTab==="calendar" && calendarTop}
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
               <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><NavIcon name="envelope" size={40} /></div>
               <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
@@ -1300,19 +1323,22 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             const shown = dbApplicants.filter(a => !appHidden.includes(appPhaseKey(a)));
             const order = []; const byJob = {};
             shown.forEach(a => { const jn = a.job_number; if (!jobInfoMap[jn]) return; if (!byJob[jn]) { byJob[jn] = []; order.push(jn); } byJob[jn].push(a); });
-            // ── カレンダー＋直近の求人カード（2026-08-21たきと指示）──
-            // 「応募者ページはカレンダーだけ。日付タップで該当する求人カードのみ表示」に、
-            // 同日の追い指示「1番直近の求人カードはデフォルトで表示しておこう」を重ねた形：
+            // ── 面の出し分け（2026-08-23たきと指示「働き手のカレンダーと農家の応募者を統合」）──
+            // calMode（カレンダータブ）＝2026-08-21の姿そのまま：
             //   日を選んでいない間＝カレンダー＋1番直近の求人カード1枚（絞り込みバー・凡例は出さない）
             //   日を選ぶと＝その日の求人カードだけ（従来どおり絞り込みバー・凡例つき）
+            // 応募者一覧（applicants）＝カレンダー無しで全件（2026-08-21以前の一覧の復元・絞り込みバー・凡例つき）
             // ★order は my_farm_applicants（created_at降順）の初出順ので order[0]＝一番新しい応募の求人。
             // 日付タップの受け口は calendarTop の onDayJobs（同じ日をもう一度タップ＝解除）
+            const calMode = jobTab === "calendar";
             const dayJobs = calDay ? new Set(calDay.jobs) : null;
             // ★その日の自分の求人は【応募者ゼロでも出す】（2026-08-21たきと報告「タップしてもカードが出てこない」の修理）。
             //   order＝応募者がいる求人だけので、それだけで絞ると応募の無い求人・絞り込みで全員隠れた求人のカードが消える。
             //   応募者ありを先（order順＝新しい応募の順）・無しを後ろに。jobInfoMap に無い番号＝自分の求人でない
             //   （働き手として応募した求人・いいね）ので出さない
-            const dayOrder = calDay
+            const dayOrder = !calMode
+              ? order
+              : calDay
               ? [...order.filter(jn => dayJobs.has(jn)), ...calDay.jobs.filter(jn => jobInfoMap[jn] && !byJob[jn])]
               : order.slice(0, 1);
             const calHint = (
@@ -1488,9 +1514,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     </div>
                   );
                 });
-            // 日を選んでいない時は静かな面＝カレンダー・案内・直近カード1枚だけ
-            //（絞り込みバー・凡例は日を選んだ時だけ＝従来どおり）
-            return calDay
+            // カレンダータブ：日を選んでいない時は静かな面＝カレンダー・案内・直近カード1枚だけ
+            //（絞り込みバー・凡例は日を選んだ時だけ＝従来どおり）。
+            // 応募者一覧：カレンダーは出さず、全件＋絞り込みバー・凡例
+            return !calMode
+              ? [tabBar, floatingFilterBar, ...body, legend]
+              : calDay
               ? [calendarTop, dayNote, tabBar, floatingFilterBar, ...body, legend]
               : [calendarTop, calHint, ...body];
           })()
@@ -1517,8 +1546,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             );
           })
         )
-      ) : jobTab==="calendar" ? (
-        <div style={{ gridColumn:"1/-1" }}><MyCalendar canPostJob /></div>
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ marginBottom:14, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={44} /></div>
