@@ -1060,7 +1060,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
           <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 箱ジャンプ(cb-jump)→タイトル文字の順ジャンプに変更（NoticeJumpText・2026-07-25たきと指示） */}
             <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
             <span>
-              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NoticeJumpText text="新しく求人を出す" /></span>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NoticeJumpText text="求人の掲載" /></span>
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
             </span>
           </button>
@@ -1167,7 +1167,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       ) : (
       <>
       {/* 浮遊の「← 農家プロ」「＋ 求人を出す」ボックスは削除（2026-07-25たきと指示）。
-          戻りは下部ナビのプロフィールタブ、求人作成は入口カードの「📝新しく求人を出す」が担う
+          戻りは下部ナビのプロフィールタブ、求人作成は入口カードの「求人の掲載」が担う
           （☰メニュー・PCヘッダー・フッターの「求人を出す」は2026-08-19たきと指示で削除） */}
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       {/* 作成中⇄公開中は上部タブで行き来できる（2026-07-16）。入口ボックスはそれぞれ自分のページ（hash）を開く */}
@@ -1201,7 +1201,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
             <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={40} /></div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
-            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
+            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 求人の掲載</button>
           </div>
         ) : (
           (() => {
@@ -1248,7 +1248,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
             <div style={{ display:"flex", justifyContent:"center", marginBottom:12, color:"#C8C8C8" }}><NavIcon name="image" size={40} /></div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>
-            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
+            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 求人の掲載</button>
           </div>
         ) : (
           (() => {
@@ -1631,7 +1631,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
           <div style={{ marginBottom:14, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={44} /></div>
           <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:6 }}>まだ求人がありません</p>
           <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:22 }}>最初の求人を出して、働き手を募集しましょう。</p>
-          <button onClick={onNewJob} className="btn-primary" style={{ padding:"14px 32px", fontSize:14 }}>＋ 新しく求人を出す</button>
+          <button onClick={onNewJob} className="btn-primary" style={{ padding:"14px 32px", fontSize:14 }}>＋ 求人の掲載</button>
         </div>
       ) : jobList.map(job => (
         <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" }}>
