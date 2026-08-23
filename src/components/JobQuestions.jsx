@@ -6,6 +6,7 @@ import { isAdmin, fmtJstShort } from "../lib/utils";
 import { openLoginBox } from "../lib/previewBus";
 import { Dots } from "./ui";
 import { armLoginReturn, stashLoginDraft, takeLoginDraft } from "../lib/loginReturn";
+import { NavIconInline } from "./NavIcons";
 
 // タブ中身の横スワイプ切替（2026-07-27たきと指示）：仕事の内容⇄質問を左右スワイプで移動。
 // 指に連動（2026-08-03たきと指示）：今日ページの役割スワイプと同一の機構に揃えた＝
@@ -223,7 +224,7 @@ export function JobQuestions({ jobNumber, me }) {
     <div className="f-sans">
       {/* 質問の説明（2026-07-24たきと指示）：タブを開いた時に仕組みを先に伝える。農家本人と働き手で文面を出し分け */}
       <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
-        <p style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>💬 この求人の公開Q&A</p>
+        <p style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}><NavIconInline name="question" size={13} style={{ verticalAlign:"-2px" }} />この求人の公開Q&A</p>
         <p style={{ fontSize:12, color:"#5B7B6D", margin:0, lineHeight:1.7 }}>
           {isOwner
             ? "働き手からの質問がここに届きます。回答はこの求人を見る全員に公開され、同じ質問を減らせます。"

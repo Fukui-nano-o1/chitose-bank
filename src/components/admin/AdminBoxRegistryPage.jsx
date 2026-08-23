@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { NoticeJumpText } from "../ui";
 import { AdminNav } from "./AdminNav";
+import { NavIcon } from "../NavIcons";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（ボックス台帳 ⇄ お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
@@ -11,11 +12,11 @@ import { AdminNav } from "./AdminNav";
 // 段階お祝いボックスの本番見た目プレビュー（ボックス一覧の preview_key='stage:...' から参照）。
 // 文面は App 内の実定義(defs・17555付近)をサンプル題名で写したもの。実定義を変えたらここも合わせる
 const STAGE_BOX_PREVIEWS = {
-  "w:approved": { emoji:"🎉", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。打ち合わせ・面接をチャットで進めましょう。", link:"チャットを開く →" },
-  "w:worked":   { emoji:"🌾", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。最後に、お互いを評価しましょう。", link:"評価する →" },
-  "w:reviewed": { emoji:"⭐", head:"評価を送りました",         body:"ありがとうございました。「ブロッコリー 収穫」の実績が、あなたのプロフィールに反映されます。", link:"実績を見る →" },
-  "f:applied":  { emoji:"📩", head:"新しい応募が届きました",   body:"「ブロッコリー 収穫」に新しい応募があります。プロフィールを見て、承認するか決めましょう。", link:"応募者を見る →" },
-  "f:worked":   { emoji:"🌾", head:"作業が完了しました",       body:"「ブロッコリー 収穫」の作業が完了しました。働き手を評価しましょう。", link:"応募者を見る →" },
+  "w:approved": { iconName:"party", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。打ち合わせ・面接をチャットで進めましょう。", link:"チャットを開く →" },
+  "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。最後に、お互いを評価しましょう。", link:"評価する →" },
+  "w:reviewed": { iconName:"star", head:"評価を送りました",         body:"ありがとうございました。「ブロッコリー 収穫」の実績が、あなたのプロフィールに反映されます。", link:"実績を見る →" },
+  "f:applied":  { iconName:"envelope", head:"新しい応募が届きました",   body:"「ブロッコリー 収穫」に新しい応募があります。プロフィールを見て、承認するか決めましょう。", link:"応募者を見る →" },
+  "f:worked":   { iconName:"check", head:"作業が完了しました",       body:"「ブロッコリー 収穫」の作業が完了しました。働き手を評価しましょう。", link:"応募者を見る →" },
 };
 
 export function AdminBoxRegistryPage() {
@@ -162,7 +163,7 @@ export function AdminBoxRegistryPage() {
                   <div style={{ marginBottom:18 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 8px" }}>本番の見た目（サンプル題名）</p>
                     <div className="f-sans" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"24px 20px 20px", boxShadow:"0 6px 24px rgba(0,0,0,0.12)", textAlign:"left" }}>
-                      <div style={{ fontSize:34, marginBottom:8 }}>{sb.emoji}</div>
+                      <div style={{ marginBottom:8, color:"#00A86B" }}><NavIcon name={sb.iconName} size={34} /></div>
                       <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={sb.head} /></p>
                       <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
                       <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{sb.body}</p>

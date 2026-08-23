@@ -649,7 +649,7 @@ export function SavedJobsView({ me }) {
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10, marginTop:12 }}>
                   <button onClick={()=>{ setBoxJob(null); window.location.hash = "/chat/" + r.application_id; }} className="f-sans"
                     style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"20px 10px 16px", textAlign:"center", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-                    <span style={{ display:"block", fontSize:40, lineHeight:1, marginBottom:10 }}>💬</span>
+                    <span style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="chats" size={40} /></span>
                     <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:800, color:"#222" }}>チャットを開く</span>
                     <span className="f-sans" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.6 }}>農家さんとのやり取り・面接はここで行います</span>
                   </button>

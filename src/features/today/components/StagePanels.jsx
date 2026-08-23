@@ -123,7 +123,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
                     style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⚠️ 緊急連絡をする</button>
                   {chatOk && (
                     <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + e.application_id; }} className="f-sans"
-                      style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                      style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}><NavIconInline name="chats" size={13} style={{ verticalAlign:"-2px" }} />チャットを開く</button>
                   )}
                   {/* 戻り先＝この緊急連絡ページ（旧 "/calendar" は今日ページ廃止でマイページ行きになるため・2026-08-22） */}
                   <button onClick={()=>{ setBoxItem(null); try { sessionStorage.setItem("cb_jobBackTo", "/calendar/todo/t_emergency"); } catch {} window.location.hash = "/work/job/" + e.job_number; }} className="f-sans"

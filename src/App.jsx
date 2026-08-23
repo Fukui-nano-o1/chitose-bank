@@ -12,7 +12,7 @@ import { Celebration } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
-import { NavIcon } from "./components/NavIcons";
+import { NavIcon, NavIconInline } from "./components/NavIcons";
 import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { logAppError } from "./app/diagnostics/errorLog";
@@ -170,7 +170,7 @@ const bootIdleQueue = createIdleQueue();
 // auth: true=ログイン時のみ / false=常時 / guestOnly: true=未ログイン時のみ
 // 運営憲章・利用規約・プライバシーはフッター3列に常設のため☰からは削除（二重掲載の解消・2026-07-14）
 const MENU_ITEMS = [
-  { key:"chats",    label:"💬 チャット",   hash:"/chats",    auth:true  },
+  { key:"chats",    label:<><NavIconInline name="chats" size={14} />チャット</>, hash:"/chats", auth:true },
   { key:"profile",  label:"マイページ",  hash:"/profile",  auth:true  },
   { key:"login",    label:"ログイン",      hash:"/login",    auth:false, guestOnly:true },
 ];
@@ -1361,11 +1361,11 @@ export default function App(){
         const title = jobRow ? ([jobRow.crop, jobRow.task].filter(Boolean).join(" ") || `求人 #${fresh.a.job_number}`) : `求人 #${fresh.a.job_number}`;
         try { localStorage.setItem("cb_stageShown", JSON.stringify([...new Set([...shown, `${fresh.a.id}:${fresh.stage}:${fresh.role}`])])); } catch {}
         const defs = {
-          "w:approved": { emoji:"🎉", head:"承認されました！", body:`「${title}」に承認されました。打ち合わせ・面接をチャットで進めましょう。`, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
-          "w:worked":   { emoji:"🌾", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
-          "w:reviewed": { emoji:"⭐", head:"評価を送りました", body:`ありがとうございました。「${title}」の実績が、あなたのプロフィールに反映されます。`, link:"実績を見る →", hash:"/profile/worker" },
-          "f:applied":  { emoji:"📩", head:"新しい応募が届きました", body:`「${title}」に新しい応募があります。プロフィールを見て、承認するか決めましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
-          "f:worked":   { emoji:"🌾", head:"作業が完了しました", body:`「${title}」の作業が完了しました。働き手を評価しましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
+          "w:approved": { iconName:"party", head:"承認されました！", body:`「${title}」に承認されました。打ち合わせ・面接をチャットで進めましょう。`, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
+          "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
+          "w:reviewed": { iconName:"star", head:"評価を送りました", body:`ありがとうございました。「${title}」の実績が、あなたのプロフィールに反映されます。`, link:"実績を見る →", hash:"/profile/worker" },
+          "f:applied":  { iconName:"envelope", head:"新しい応募が届きました", body:`「${title}」に新しい応募があります。プロフィールを見て、承認するか決めましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
+          "f:worked":   { iconName:"check", head:"作業が完了しました", body:`「${title}」の作業が完了しました。働き手を評価しましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
         };
         const d = defs[`${fresh.role}:${fresh.stage}`];
         if (d && !cancelled) setStageBox(d);
@@ -1598,7 +1598,7 @@ export default function App(){
       {!consignRoom && stageBox && (
         <div className="cb-lock-scroll" onClick={()=>setStageBox(null)} style={{ position:"fixed", inset:0, zIndex:9630, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 22px", maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", textAlign:"left", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <div style={{ fontSize:34, marginBottom:8 }}>{stageBox.emoji}</div>
+            <div style={{ marginBottom:8, color:"#00A86B" }}><NavIcon name={stageBox.iconName} size={34} /></div>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={stageBox.head} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{stageBox.body}</p>
@@ -1609,7 +1609,7 @@ export default function App(){
       {!consignRoom && hiredBox && (
         <div className="cb-lock-scroll" onClick={()=>setHiredBox(null)} style={{ position:"fixed", inset:0, zIndex:9640, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease", overflow:"hidden" }}>
           {Array.from({ length: 14 }).map((_, i) => (
-            <span key={i} className="cb-petal" style={{ left: `${(i * 7.3 + 3) % 100}%`, fontSize: 14 + (i % 4) * 5, animationDuration: `${4 + (i % 5)}s`, animationDelay: `${(i % 7) * 0.6}s` }}>🌸</span>
+            <span key={i} className="cb-petal" style={{ left: `${(i * 7.3 + 3) % 100}%`, color:"#F2A8C4", animationDuration: `${4 + (i % 5)}s`, animationDelay: `${(i % 7) * 0.6}s` }}><NavIcon name="sakura" size={14 + (i % 4) * 5} /></span>
           ))}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 20px", maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", textAlign:"left", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text="採用されました！" /></p>
@@ -1641,7 +1641,7 @@ export default function App(){
           style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 12px)", left:12, right:12, zIndex:11000, maxWidth:460, margin:"0 auto",
                    display:"flex", alignItems:"center", gap:12, background:"#222", color:"#fff", border:"none", borderRadius:14,
                    padding:"14px 16px", cursor:"pointer", boxShadow:"0 8px 28px rgba(0,0,0,0.28)", textAlign:"left", animation:"cbToastIn .28s cubic-bezier(.2,.9,.3,1) both" }}>
-          <span style={{ fontSize:22, lineHeight:1, flexShrink:0 }}>💬</span>
+          <span style={{ flexShrink:0, display:"flex" }}><NavIcon name="chats" size={22} /></span>
           <span style={{ flex:1, minWidth:0 }}>
             <span style={{ display:"block", fontSize:14, fontWeight:700 }}>{msgToast.title}</span>
             <span style={{ display:"block", fontSize:12, color:"#B8B8B8", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{msgToast.text || "タップして開く"}</span>
@@ -1687,7 +1687,7 @@ export default function App(){
       {!consignRoom && welcomeApproved && (
         <div className="cb-lock-scroll" onClick={()=>confirmWelcomeApproved()} style={{ position:"fixed", inset:0, zIndex:11000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
-            <div style={{ fontSize:44, lineHeight:1, marginBottom:12 }}>🎉</div>
+            <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#00A86B" }}><NavIcon name="party" size={44} /></div>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>お帰りなさい{welcomeApproved.name ? "、" + welcomeApproved.name + "さん" : ""}</p>
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 4px" }}>プロフィールが承認されました！</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px" }}>さっそく確認してみましょう！</p>
@@ -1782,7 +1782,7 @@ export default function App(){
                   style={{ display:"block", width:"100%", textAlign:"left", background:"none",
                            border:"none", cursor:"pointer", fontFamily:"inherit",
                            fontSize:14, color:"#222", padding:"10px 16px" }}>
-                  💬 この画面を報告
+                  <NavIconInline name="flag" size={13} />この画面を報告
                 </button>
               )}
               {isAdmin(me) && (
@@ -1824,7 +1824,7 @@ export default function App(){
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/search"; }} className="f-sans app-header-mobile-menu-item">🔍 求人を探す</button>
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
             {me && (
-              <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item">💬 この画面を報告</button>
+              <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="flag" size={13} />この画面を報告</button>
             )}
             {/* お問い合わせ（2026-08-22たきと指示）。フッター「サポート」列と同じ宛先＝メールの窓口は1つ。
                 aタグだがメニュー項目のCSSに乗せる（下線を消し文字色を揃える） */}

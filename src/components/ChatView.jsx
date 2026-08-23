@@ -12,7 +12,7 @@ import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
-import { NavIconInline } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
@@ -551,7 +551,7 @@ export function ChatView({ applicationId, onBack }) {
         <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
         {partner ? (<>
           <p onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{partner.nickname || "名前未設定"}さん</p>
-          <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : "🚩 報告する"}</button>
+          <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : <><NavIconInline name="flag" size={12} style={{ verticalAlign:"-1.5px" }} />報告する</>}</button>
         </>) : <span style={{ flex:1 }} />}
       </div>
       {/* 求人No.の帯（横スワイプ）。右端に固定していた採用ボックスは削除（2026-08-19たきと指示） */}
@@ -785,13 +785,13 @@ export function ChatView({ applicationId, onBack }) {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             {reportDone ? (
               <div style={{ textAlign:"center", padding:"16px 0" }}>
-                <div style={{ fontSize:40, marginBottom:12 }}>🚩</div>
+                <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#E24B4A" }}><NavIcon name="flag" size={40} /></div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 6px" }}>報告を受け付けました</p>
                 <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>運営が内容を確認します。コメントは記録として保存されました。</p>
               </div>
             ) : (
               <>
-                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}>🚩 コメントを報告する</p>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}><NavIconInline name="flag" size={14} style={{ verticalAlign:"-2px" }} />コメントを報告する</p>
                 <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#222", lineHeight:1.7, marginBottom:14, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", maxHeight:"20vh", overflowY:"auto" }}>{reportTarget.body}</div>
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>このコメントは、どう問題ですか？</p>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>

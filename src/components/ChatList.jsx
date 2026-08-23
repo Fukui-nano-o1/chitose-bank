@@ -8,6 +8,7 @@ import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
 import { Avatar } from "./ui";
 import { AdminChatRow } from "./AdminChatRow";
+import { NavIcon } from "./NavIcons";
 
 // 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
 // モジュールレベル定義＝毎描画で作り直さない（effectの依存にも安全に使える）
@@ -254,7 +255,7 @@ export function ChatList() {
       {/* 通知をオンにする案内（2026-07-19）：未許可かつ対応環境のみ。granted/denied/未対応では出さない */}
       {!pushDismissed && (pushSt === "default" || pushSt === "need-standalone") && (
         <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
-          <span style={{ fontSize:22, flexShrink:0 }}>🔔</span>
+          <span style={{ flexShrink:0, display:"flex", color:"#0B6B4F" }}><NavIcon name="bell" size={22} /></span>
           <div style={{ flex:1, minWidth:0 }}>
             <p style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>メッセージの通知を受け取る</p>
             <p style={{ fontSize:12, color:"#5B7B6D", margin:"2px 0 0", lineHeight:1.6 }}>{pushSt === "need-standalone" ? "「ホーム画面に追加」したアイコンから開くと、通知をオンにできます。" : "新しいメッセージが届いたら、スマホの通知でお知らせします。"}</p>
@@ -277,7 +278,7 @@ export function ChatList() {
         <AutoSkeleton shapeKey="chats" />
       ) : rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
-          <div style={{ fontSize:40, marginBottom:12 }}>💬</div>
+          <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="chats" size={40} /></div>
           <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
         </div>
       ) : shownRows.length === 0 ? (

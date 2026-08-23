@@ -8,7 +8,7 @@ import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel
 import { getCache, setCache } from "../../../lib/viewCache";
 import { snapGet } from "../../../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "../../../components/ui";
-import { NavIconInline } from "../../../components/NavIcons";
+import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { CalendarView } from "../../../components/CalendarView";
 import { JobLocationMap } from "../../../components/JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "../../../components/JobQuestions";
@@ -2171,7 +2171,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* ── 農家 Step3: 完了 ── */}
           {isFarmer && step === 12 && (<>
             <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:400, margin:"0 auto", padding:"0 20px" }}>
-              <div style={{ fontSize:56, marginBottom:16 }}>{publishedOpen ? "🎉" : "🌱"}</div>
+              <div style={{ marginBottom:16, display:"flex", justifyContent:"center", color:"#00A86B" }}><NavIcon name={publishedOpen ? "party" : "sprout"} size={56} /></div>
               <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}>{publishedOpen ? "公開しました！" : "求人ができました！"}</h2>
               <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:28 }}>
                 {publishedOpen ? (<>働き手に公開されました。<br/>「さがす」に並んでいます。</>)

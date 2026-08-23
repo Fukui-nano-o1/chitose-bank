@@ -18,6 +18,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { Dots, NoticeJumpText } from "./ui";
 import { AvailDatesChips } from "./DateChips";
 import { WorkerTrustCard } from "./TrustCards";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 // 応募者シートを開くための着地フラグ（応募者ページ側 FarmerDashboard が cb_openApplicantId を消費する）。
 // 今日ページの cb_completeAppId / cb_agreeAppId と同じ作法＝どの応募のシートを開くかだけを渡す
@@ -48,7 +49,7 @@ function Petals({ ids }) {
     <div aria-hidden style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none" }}>
       <style>{`@keyframes cbPetalFall{0%{transform:translateY(0) rotate(0deg);opacity:0}12%{opacity:1}100%{transform:translateY(360px) rotate(230deg);opacity:0}}`}</style>
       {Array.from({ length: 14 }).map((_, i) => (
-        <span key={i} style={{ position:"absolute", top:-24, left: ((i * 29 + 7) % 96) + "%", fontSize: 13 + (i % 3) * 4, opacity:0, animation: `cbPetalFall ${1.9 + (i % 5) * 0.25}s ease-in ${(i % 7) * 0.13}s forwards` }}>🌸</span>
+        <span key={i} style={{ position:"absolute", top:-24, left: ((i * 29 + 7) % 96) + "%", color:"#F2A8C4", opacity:0, animation: `cbPetalFall ${1.9 + (i % 5) * 0.25}s ease-in ${(i % 7) * 0.13}s forwards` }}><NavIcon name="sakura" size={13 + (i % 3) * 4} /></span>
       ))}
     </div>
   );
@@ -149,7 +150,7 @@ export function NewApplicantsPage() {
       {state && typeof state === "object" && (apps.length === 0 ? (
         // 空でも説明を明記する（2026-08-03たきと指示「なにもなければ説明文を明記」）
         <div style={{ textAlign:"center", padding:"56px 8px" }}>
-          <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
+          <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="envelope" size={40} /></div>
           <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 8px" }}>いま新しい応募はありません</p>
           <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 auto", maxWidth:420 }}>
             あなたの求人に応募が届くと、このページが最初に開きます。ここで応募者を見て、承認するか見送るかを決めます。
@@ -164,7 +165,7 @@ export function NewApplicantsPage() {
           <div style={{ position:"relative", padding:"6px 0 18px" }}>
             <Petals ids={apps.map(a => a.id)} />
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 6px" }}>
-              <NoticeJumpText text={`🎉 ${apps.length}件の応募が届きました`} />
+              <NavIconInline name="party" size={19} style={{ verticalAlign:"-3px", marginRight:6, color:"#00A86B" }} /><NoticeJumpText text={`${apps.length}件の応募が届きました`} />
             </p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.8, margin:0 }}>
               応募者を見て、承認するか見送るかを決めてください。<br />承認すると、チャットで面接に進めます。

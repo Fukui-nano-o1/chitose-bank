@@ -14,6 +14,7 @@ import { CropIcon } from "./CropIcon";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
+import { NavIconInline } from "./NavIcons";
 
 export function WorkerApplications({ filter, me }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（2026-07-27たきと指示）
@@ -258,7 +259,7 @@ export function WorkerApplications({ filter, me }) {
                   ) : reviewedIds.has(a.id) ? (
                     <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 評価済み</p>
                   ) : (
-                    <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}>⭐ 仕事の評価</button>
+                    <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />仕事の評価</button>
                   )
                 )}
                 {/* 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照） */}
@@ -430,7 +431,7 @@ export function WorkerApplications({ filter, me }) {
         ) : null}
         {/* 農家の返答傾向（信頼カードの返答速度を転用・データ不足時は非表示） */}
         {bucket && (
-          <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", margin:"0 0 2px" }}>💬 この農家さんの返答：これまで おおむね{bucket}</p>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#0B6B4F", margin:"0 0 2px" }}><NavIconInline name="chats" size={12} style={{ verticalAlign:"-1.5px" }} />この農家さんの返答：これまで おおむね{bucket}</p>
         )}
         {/* 応募を取り消す（小さくグレーで最下部へ降格） */}
         <button onClick={()=>cancelApplication(a)} disabled={cancelingId===a.id} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:10, background:"none", border:"none", cursor:"pointer", fontSize:11, color:"#B0B0B0", textDecoration:"underline" }}>
@@ -470,8 +471,8 @@ export function WorkerApplications({ filter, me }) {
   );
   const waitingTodoBox = (
     <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:14, padding:"14px 16px", marginTop:16 }}>
-      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 10px" }}>📎 待っている間にできること</p>
-      <button onClick={()=>{ window.location.hash = "/profile/worker/profile"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, fontWeight:700, color:"#00A86B", cursor:"pointer", marginBottom:8 }}>⭐農家がよく見る質問に答える →</button>
+      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 10px" }}><NavIconInline name="clip" size={13} style={{ verticalAlign:"-2px" }} />待っている間にできること</p>
+      <button onClick={()=>{ window.location.hash = "/profile/worker/profile"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, fontWeight:700, color:"#00A86B", cursor:"pointer", marginBottom:8 }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />農家がよく見る質問に答える →</button>
       <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#222", cursor:"pointer", lineHeight:1.6 }}>同じ日の別の求人にも応募できます <span style={{ color:"#00A86B", fontWeight:700 }}>→さがす</span></button>
     </div>
   );
