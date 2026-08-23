@@ -298,8 +298,8 @@ export function JobReviews({ job, sort, onSort, showAll, onShowAll }) {
             <div className="review-header-profile" style={{ display:"flex", alignItems:"center", gap:8 }}>
               <div style={{
                 width:32, height:32, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                display:"flex", alignItems:"center", justifyContent:"center", fontSize:16,
-              }}>🧑‍🌾</div>
+                display:"flex", alignItems:"center", justifyContent:"center", color:"#00A86B",
+              }}><NavIcon name="farmer" size={18} /></div>
               <div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{job.farmerName}</p>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:0 }}>{job.farmerBadge}・{job.farmerYears}</p>
