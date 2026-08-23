@@ -172,10 +172,23 @@ export default function LaborConditionsNotice({ me, role = "worker", application
   // 押した瞬間に html/body へ .cb-print-doc を付ける。効くのは @media print の中だけなので画面は変わらない。
   // ★:has() に頼らない＝素のクラスセレクタで確実に当てる。afterprint は iOS で発火しないことが
   //   あるため時間でも外す（外し忘れても画面には影響しない）。
-  const printNotice = () => {
+  // PDFは「印刷」からブラウザ・OSの「PDFとして保存」で作る（2026-08-19たきと指示）。
+  // 外部ライブラリでPDFを組み立てない＝日本語フォントの埋め込み（数MB）も、文字を画像に焼く劣化も避ける。
+  // 印刷と同じ出力＝紙とPDFで体裁が食い違わない。docTitle は保存時の既定のファイル名になる
+  // （ブラウザは document.title をPDFの名前に使う）。押した後は必ず元のタイトルへ戻す。
+  const printNotice = (r) => {
+    const s = r?.terms_snapshot || {};
+    const label = [s.crop, s.task].filter(Boolean).join(" ");
+    const docTitle = ["労働条件通知書", r?.job_number ? "No" + r.job_number : "", label].filter(Boolean).join("_");
+    const prevTitle = document.title;
     const el = [document.documentElement, document.body];
     el.forEach(n => n && n.classList.add("cb-print-doc"));
-    const off = () => { el.forEach(n => n && n.classList.remove("cb-print-doc")); window.removeEventListener("afterprint", off); };
+    document.title = docTitle;
+    const off = () => {
+      el.forEach(n => n && n.classList.remove("cb-print-doc"));
+      document.title = prevTitle;
+      window.removeEventListener("afterprint", off);
+    };
     window.addEventListener("afterprint", off);
     setTimeout(off, 60000);
     try { window.print(); } catch { off(); }
@@ -267,10 +280,18 @@ export default function LaborConditionsNotice({ me, role = "worker", application
           const sections = buildSections(s, r);
           // 印刷する／とじるは2箇所に置く（当事者欄の直下と、いちばん下）。
           // 長い通知書でも最後までスクロールせずに押せる。className="no-print" ＝紙には出ない
-          const actionRow = (style) => (
-            <div className="no-print" style={{ display:"flex", gap:10, ...style }}>
-              <button onClick={printNotice} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
-              <button onClick={closeNotice} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
+          const actionRow = (style, hint) => (
+            <div className="no-print" style={{ ...style }}>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={() => printNotice(r)} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
+                <button onClick={() => printNotice(r)} className="f-sans" style={{ flex:1, background:"#fff", color:accent, border:"1.5px solid " + accent, borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>PDFで保存</button>
+                <button onClick={closeNotice} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 14px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
+              </div>
+              {hint && (
+                <p className="f-sans" style={{ fontSize:11, color:"#909090", lineHeight:1.7, margin:"8px 0 0" }}>
+                  PDFは、開いた画面で「PDFとして保存」を選ぶと保存できます（iPhoneは共有ボタン →「&quot;ファイル&quot;に保存」）。
+                </p>
+              )}
             </div>
           );
           return (
@@ -325,7 +346,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
                     chitose-bank（https://chitose-bank.com）
                   </p>
                 </div>
-                {actionRow({ marginTop:16 })}
+                {actionRow({ marginTop:16 }, true)}
               </div>
             </div>
           );
