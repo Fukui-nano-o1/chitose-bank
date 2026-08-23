@@ -563,10 +563,11 @@ export function SavedJobsView({ me }) {
                     </button>
                   )}
                 </div>
-                {/* 労働条件通知書／記録する（最終の作業日からは評価する）＝雇い手の求人カードと同じ並び
-                    （2026-08-23たきと指示）。採用が決まった応募だけ＝採用前は通知書が無く、記録するものも無い。
-                    ★実行の窓口は増やしていない：記録＝DayReportSheet／評価＝WorkerReviewSheet
-                      ＝応募状況ページ・仕事の評価ページと同じ部品を、ここから呼ぶだけ */}
+                {/* ボタンの並び（2026-08-23たきと指示）＝雇い手の求人カードと同じ構成：
+                    上段＝チャット／記録する（最終の作業日からは評価する）、下段＝労働条件通知書を全幅で大きく。
+                    採用が決まった応募だけ＝採用前は通知書が無く、記録するものも無い。
+                    ★実行の窓口は増やしていない：チャット＝#/chat/{応募ID}／記録＝DayReportSheet／
+                      評価＝WorkerReviewSheet＝応募状況ページ・仕事の評価ページと同じ部品 */}
                 {(() => {
                   const a = appOf(r);
                   const k = a ? appPhaseKey(a) : null;
@@ -583,17 +584,24 @@ export function SavedJobsView({ me }) {
                     ? { label:"評価する", green:true, on:()=>openReview(a.id) }
                     : { label:"記録する", green:false, on:()=>setDayReportApp({ id: a.id }) };
                   return (
-                    <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"flex", alignItems:"center", gap:8 }}>
-                      <button onClick={()=>setNoticeAppId(a.id)} className="f-sans" style={btn({ background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C" })}>労働条件通知書</button>
-                      {rec ? (
-                        <button onClick={rec.on} className="f-sans" style={btn(rec.green
-                          ? { background:"#F76B1C", color:"#fff", border:"none" }
-                          : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
-                          <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
+                    <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={btn({ background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C" })}>
+                          <NavIconInline name="chats" size={12} style={{ verticalAlign:"-2px" }} />チャット
                         </button>
-                      ) : (
-                        <span className="f-sans" style={{ flex:1, textAlign:"center", fontSize:12, fontWeight:700, color:"#F76B1C" }}>評価済み</span>
-                      )}
+                        {rec ? (
+                          <button onClick={rec.on} className="f-sans" style={btn(rec.green
+                            ? { background:"#F76B1C", color:"#fff", border:"none" }
+                            : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
+                            <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
+                          </button>
+                        ) : (
+                          <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color:"#F76B1C" }}>評価済み</span>
+                        )}
+                      </div>
+                      {/* 労働条件通知書＝全幅で大きく（たきと指示） */}
+                      <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
+                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C" }}>労働条件通知書</button>
                     </div>
                   );
                 })()}
