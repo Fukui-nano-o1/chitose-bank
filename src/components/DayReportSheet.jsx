@@ -27,6 +27,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { dayReportKinds, ymdLocal } from "../lib/utils";
+import { NavIcon } from "./NavIcons";
 
 // app＝{ id }（応募のID）。meId＝自分のauth_id。role＝"farmer" | "worker"（選択肢が変わる）。
 // workDate＝この記録が指す作業日（"YYYY-MM-DD"／省略時は今日）。
@@ -235,7 +236,11 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
       {/* 説明の図の大画面表示（応募の承認の流れ図と同じパン方式・2026-08-16の作法）：
           画面に収める表示だと文字が小さく、読むにはピンチ拡大が要る。このサイトのviewportは
           ピンチでページ全体が拡大され、閉じた後も倍率が残る＝最初から読める大きさで描き、
-          指でずらして見る。余白タップで閉じる（画像タップでは閉じない＝ずらす途中で誤って閉じないため）。
+          指でずらして見る。画像タップでは閉じない（ずらす途中で誤って閉じないため）。
+          ★閉じるのは右上の✕（2026-08-23たきと指示「余白タップで閉じないから右上に✕ボタン設置」）。
+            ✕を置かない規約の例外＝画像タップで閉じられないこの画面には、確実な出口が要る。
+            あわせて余白タップも本当に効くように直した：56pxの余白を【画像のpadding】に持たせていたため、
+            見た目は黒い余白でも実体は画像＝stopPropagationで閉じなかった。余白は容器のpaddingへ移した。
           ★createPortalでbody直下へ：面の帯は transform を持つので、その中の position:fixed は
           画面ではなく帯を基準にしてしまう（TrustCardsのAvatarLightboxと同じ理由） */}
       {imgZoom && createPortal(
@@ -245,13 +250,17 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
         <div onClick={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", animation:"fadeIn .2s ease" }}>
           <div onClick={()=>setImgZoom(false)}
             ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}
-            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex" }}>
+            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex", padding:"64px 0" }}>
             {/* margin:auto＝小さければ中央・はみ出せば端から全部見える（flex中央寄せだと左端が切れる） */}
             <img onClick={e=>e.stopPropagation()} src="/day-report-guide.jpg" alt=""
               width={1200} height={800}
-              style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1200 / 800", height:"auto", padding:"56px 0" }} />
+              style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1200 / 800", height:"auto" }} />
           </div>
-          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／余白をタップで閉じます</p>
+          <button onClick={()=>setImgZoom(false)} aria-label="閉じる"
+            style={{ position:"absolute", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.18)", border:"none", color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <NavIcon name="close" size={18} />
+          </button>
+          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／右上の✕で閉じます</p>
         </div>,
         document.body
       )}

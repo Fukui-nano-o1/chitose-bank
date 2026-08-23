@@ -1199,18 +1199,25 @@ export function JobSearchMapView({ onRegister, me }) {
           このサイトのviewportはピンチでページ全体が拡大される＝閉じた後も倍率が残り「一部しか見えない」
           事故になった（2026-08-16たきと報告）。ので 最初から読める大きさ（幅min(200vw,1200px)）で描き、
           指でずらして見るパン方式に変更＝ピンチ不要。✕と余白タップで閉じる（画像タップでは閉じない
-          ＝ずらす操作の途中で誤って閉じないため。✕なし規約の例外・理由はこれ） */}
+          ＝ずらす操作の途中で誤って閉じないため。✕なし規約の例外・理由はこれ）。
+          ★2026-08-23：この2つが実装されていなかったのを直した＝①✕ボタンが無かった（コメントだけ先行）
+            ②56pxの余白が【画像のpadding】＝見た目は黒い余白でも実体は画像なので、stopPropagationで閉じなかった
+            （たきと報告「余白タップで閉じない」・その日の記録の図の大画面と同型なので揃えた）。余白は容器のpaddingへ */}
       {applyImgZoom && (
         <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", animation:"fadeIn .2s ease" }}>
           <div onClick={()=>setApplyImgZoom(false)}
             ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}
-            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex" }}>
+            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex", padding:"64px 0" }}>
             {/* margin:auto＝小さければ中央・はみ出せば端から全部見える（flex中央寄せだと左端が切れる）。
                 aspectRatio＝読み込み前から高さが確定し、中央スクロール初期化がズレない */}
             <img onClick={e=>e.stopPropagation()} src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
-              width={1000} height={750} style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1000 / 750", height:"auto", padding:"56px 0" }} />
+              width={1000} height={750} style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1000 / 750", height:"auto" }} />
           </div>
-          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／余白をタップで閉じます</p>
+          <button onClick={()=>setApplyImgZoom(false)} aria-label="閉じる"
+            style={{ position:"absolute", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.18)", border:"none", color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <NavIcon name="close" size={18} />
+          </button>
+          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／右上の✕で閉じます</p>
         </div>
       )}
 
