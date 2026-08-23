@@ -5,12 +5,11 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow, photoThumb } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
-import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots, StatusRibbon } from "./ui";
-import { JobCard } from "./JobCard";
-import { CropIcon } from "./CropIcon";
+import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots, StatusRibbon, JobRow } from "./ui";
+import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
@@ -53,6 +52,11 @@ export function WorkerApplications({ filter, me }) {
   const pagerDrag = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
   const pagerBasePct = () => (wapTab === "now" ? 0 : -50);
   const onPagerStart = (e) => {
+    // グループの横スライド（.carousel-scroll）の中で始まったタッチは掴まない（2026-08-23・
+    // あなたの求人ページと同じ守り）＝カードを送る指theタブ切替に取られない。
+    // はみ出していない（1枚だけの）グループは従来どおりページャーに譲る
+    const hs = e.target.closest && e.target.closest(".carousel-scroll");
+    if (hs && hs.scrollWidth > hs.clientWidth + 1) { pagerDrag.current = null; return; }
     pagerDrag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
   };
   const onPagerMove = (e) => {
@@ -285,8 +289,22 @@ export function WorkerApplications({ filter, me }) {
   //   ＝2026-08-17の理由。段階はチップとシート内の流れバーが語る）
   // opts.chip＝段階チップの上書き（過去の応募＝見送り・取り消し・失効の灰色チップ用）／
   // opts.onOpen＝カードタップの行き先の上書き（過去の応募＝シートでなく求人ページへ）
-  const renderJobCardRow = (a, opts = {}) => {
+  // 応募thatが指す求人の姿（2026-08-23に1箇所へ）：jobs_public の行 → my_job_actions の行 → null。
+  // ★2段のフォールバックthat要る理由：失効・見送りの求人は jobs_public から落ちる（公開中でない）so、
+  //   一覧から消さないために my_job_actions の記録で仮の姿を組む。報酬は取れないso pay:0
+  //   （JobCardthat0円を出さず空にする・ダミー禁止）。どちらも無い時だけ #No. の最小カードに落とす
+  const appJob = (a) => {
     const raw = jobDates[a.job_number];
+    if (raw) return mapJobPublicRow(raw);
+    const fb = Array.isArray(actionRows) ? actionRows.find(r => r.job_number === a.job_number) : null;
+    if (!fb) return null;
+    return {
+      id: fb.job_number, crop: fb.crop || "", task: fb.task || "", photos: fb.photos || [],
+      region: fb.town || "", dateStartRaw: fb.date_start || "", dateEndRaw: fb.date_end || "",
+      pay: 0, closed: fb.job_status === "closed",
+    };
+  };
+  const renderJobCardRow = (a, opts = {}) => {
     const approvedTab = filter === "approved";
     const chip = opts.chip || (approvedTab
       ? { label: ribbonLabel(a), fg: ribbonColor(a), bg: ribbonColor(a) === "#00A86B" ? "#E6F7EF" : ribbonColor(a) === "#C77700" ? "#FFF4E0" : "#F3F3F3" }
@@ -299,17 +317,9 @@ export function WorkerApplications({ filter, me }) {
             style={{ display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background:chip.bg, color:chip.fg, cursor:"pointer" }}>{chip.label}</span>
         </div>
         {(() => {
-          if (raw) return <JobCard job={mapJobPublicRow(raw)} variant="list" hideEndLabel={approvedTab} onOpen={open} />;
-          // jobs_public に行が無い求人（失効・見送りなど）：my_job_actions の行から仮の姿を組む＝
-          // LikedJobsCard・ステータスページの展開ボックスと同じフォールバック。
-          // 報酬は取れないので pay:0（JobCard側が0円を出さず空にする・ダミー禁止）。closed の帯も同じに出す
-          const fb = Array.isArray(actionRows) ? actionRows.find(r => r.job_number === a.job_number) : null;
-          if (fb) return <JobCard variant="list" hideEndLabel={approvedTab} onOpen={open} job={{
-            id: fb.job_number, crop: fb.crop || "", task: fb.task || "", photos: fb.photos || [],
-            region: fb.town || "", dateStartRaw: fb.date_start || "", dateEndRaw: fb.date_end || "",
-            pay: 0, closed: fb.job_status === "closed",
-          }} />;
-          // それでも引けなかった時：#No.だけの最小カード＝一覧から落とさない
+          const j = appJob(a);
+          if (j) return <JobCard job={j} variant="list" hideEndLabel={approvedTab} onOpen={open} />;
+          // 求人の姿thatどこからも引けなかった時：#No.だけの最小カード＝一覧から落とさない
           return (
             <button onClick={open} className="f-sans"
               style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer", marginBottom:22 }}>
@@ -321,18 +331,16 @@ export function WorkerApplications({ filter, me }) {
       </div>
     );
   };
-  // 正方形カード（あなたの求人ページの作成中/公開中カードの写し・横3列グリッド用・2026-08-22）。
-  // ・応募中面＝タブ名と同じ帯は出さない（重複排除＝求人ページと同じ規則）
-  // ・過去面＝終端の事実を帯で（見送り・取り消し・失効・掲載取り下げ＝従来のチップと同じ語）＋写真グレースケール
-  //   （求人ページの終了カードと同じ見せ方）
+  // 応募のカード（応募中／過去の応募）＝「その他の求人」と同じ設計（2026-08-23たきと指示
+  // 「あなたの応募ページも同じ構造に」）。あなたの求人ページ（renderOwnJobCard）と同じ組み立て：
+  // 本物の JobCard（related）を、グループごとの横スライド（JobRow）に並べる。
+  // ・応募中面＝タブ名と同じ帯は出さない（重複排除＝求人ページと同じ規則）。
+  //   終了帯（募集終了・満員）はJobCardthat出す＝応募thatまもなく失効する正直な情報（2026-08-22の判断を維持）
+  // ・過去面＝終端の事実を帯で（見送り・取り消し・失効・掲載取り下げ＝従来のチップと同じ語）。
+  //   JobCardの終了帯は出さない（hideEndLabel）＝帯thatが二重にならない
   // ・タップ＝応募中はボトムシート（詳細・操作）／過去は求人ページへ（終わった応募に操作は無い）
-  // ・写真が無い求人は作物アイコン（最新のフルカラー・CropIcon）
-  const renderSquareCard = (a, opts = {}) => {
-    const raw = jobDates[a.job_number];
-    const fb = !raw && Array.isArray(actionRows) ? actionRows.find(r => r.job_number === a.job_number) : null;
-    const src = raw || fb || {};
-    const photo = photoThumb(src.photos?.[0]);
-    const title = [src.crop, src.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number);
+  const renderAppJobCard = (a, opts = {}) => {
+    const j = appJob(a);
     const open = opts.past
       ? () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; }
       : () => setSheetAppId(a.id);
@@ -340,16 +348,23 @@ export function WorkerApplications({ filter, me }) {
       ? { label: a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効", color:"#757575" }
       : null;
     return (
-      <button key={a.id} onClick={open} className="f-sans"
-        style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-        <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-          {photo
-            ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: opts.past ? "grayscale(40%)" : "none" }} />
-            : <CropIcon crop={src.crop} size={36} fallback="🌱" />}
-          {ribbon && <StatusRibbon label={ribbon.label} color={ribbon.color} />}
-        </div>
-        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
-      </button>
+      // 包む側にもカードと同じ幅を持たせる（JOB_CARD_RELATED_SIZE）＝横並び（JobRow）で潰れない
+      <div key={a.id} style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
+        {j ? <JobCard job={j} variant="related" hideEndLabel={!!opts.past} onOpen={open} /> : (
+          // 求人の姿thatどこからも引けなかった時：#No.だけの最小カード＝一覧から落とさない
+          <button onClick={open} className="f-sans"
+            style={{ display:"block", width:"100%", height:220, textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
+            <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>求人</span>
+            <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{a.job_number}</span>
+          </button>
+        )}
+        {ribbon && (
+          // カードの角丸(16)で切り抜いて写真の中に収める（あなたの求人ページと同じ作法）
+          <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
+            <StatusRibbon label={ribbon.label} color={ribbon.color} />
+          </div>
+        )}
+      </div>
     );
   };
   // ── 返事待ちページの役割強化（第9弾・2026-07-22）───────────────────────────
@@ -540,15 +555,15 @@ export function WorkerApplications({ filter, me }) {
                       <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
                     </div>
                   ) : (
-                    apps.length > 0 && <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{apps.map(a => renderSquareCard(a))}</div>
+                    apps.length > 0 && <div ref={skelRef}><JobRow count={apps.length}>{apps.map(a => renderAppJobCard(a))}</JobRow></div>
                   )}
                   {waitingTodoBox}
                 </div>
                 <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>{/* 過去の応募パネル */}
                   {pastApps.length > 0 && (
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
-                      {pastApps.map(a => renderSquareCard(a, { past: true }))}
-                    </div>
+                    <JobRow count={pastApps.length}>
+                      {pastApps.map(a => renderAppJobCard(a, { past: true }))}
+                    </JobRow>
                   )}
                 </div>
               </div>
