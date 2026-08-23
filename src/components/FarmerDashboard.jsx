@@ -1587,7 +1587,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             return !calMode
               ? [tabBar, floatingFilterBar, ...body, legend]
               : calDay
-              ? [calendarTop, dayNote, tabBar, floatingFilterBar, ...body, legend]
+              // カレンダータブでは絞り込みのピルを出さない（2026-08-23たきと指示・浮遊バーが
+              // カードの「応募の進み具合」と重なっていた）。応募者一覧では従来どおり出す
+              ? [calendarTop, dayNote, ...body, legend]
               : [calendarTop, ...body];
           })()
         )

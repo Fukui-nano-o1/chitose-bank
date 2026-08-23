@@ -428,18 +428,10 @@ export function SavedJobsView({ me }) {
   };
   // 安定ソートso、同じ組の中の並び（求人番号の新しい順）はそのまま保たれる
   const orderedRows = [...shownRows].sort((a, b) => rowRank(a) - rowRank(b));
-  // ピルの見た目・作法はチャット一覧／応募者ページと同一（同じCSSクラスを共用＝
-  // モバイルは下部の浮遊バー・PCは本文中の並び。格納・オーバーレイ中の非表示も同じ）
-  const filterButtons = SAVED_HIDABLE.map(k => ({
-    k, label: APP_PHASE_LABEL[k], on: savedHidden.includes(k),
-    onTap: () => setSavedHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
-  })).map(b => (
-    <button key={b.k} onClick={b.onTap} aria-pressed={b.on} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: b.on ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: b.on?800:600, color: b.on?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
-      <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />
-      <span style={{ textDecoration: b.on ? "line-through" : "none" }}>{b.label}</span>
-    </button>
-  ));
-
+  // 絞り込みのピル（見送り・失効・取り消し）はこのページから削除（2026-08-23たきと指示・
+  // カレンダーの上に浮いて「応募の進み具合」と重なっていた）。既定の非表示（SAVED_HIDABLE）は
+  // そのまま＝終わった取引は日常の一覧を埋めない。全部隠れて0件になった時だけ、下の空状態に
+  // 「すべて表示する」を残してある（＝行き止まりにしない）
   const photoOf = (r) => photoThumb(r.photos?.[0]);
   const titleOf = (r) => [r.crop, r.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
   // 応募行の形（appPhaseKeyは status＋terms_confirmed_* から段階を導く。帯の唯一のソース）
@@ -471,12 +463,6 @@ export function SavedJobsView({ me }) {
         </div>
       )}
       {calendarTop}
-      {rows.length > 0 && (
-        <>
-          <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:10, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
-          <div className="cb-applicant-filter-bar">{filterButtons}</div>
-        </>
-      )}
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ marginBottom:16, color:"#E24B4A", display:"flex", justifyContent:"center" }}><NavIcon name="heart" size={40} /></div>
