@@ -1441,6 +1441,13 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。
                   // 既存の .cb-urgent-card（赤影＋3.5秒の浮遊ループ）をそのまま使う。終わった求人は静かにする
                   const cardUrgent = !jobPast && apps.some(a => todoAppIds.has(a.id));
+                  // 見送り・取り消しも失効と同じ扱い（2026-08-23たきと指示「見送りと取り消しも同様」）＝
+                  // 表示している応募が全員その状態で終わっている求人に、最前線のラベルを出す。
+                  // ★ただしタップは殺さない（暗幕を pointerEvents:none にする）：失効・完了と違い、
+                  //   求人自体はまだ生きていて新しい応募が来ることがあるため、開けなくしてはいけない
+                  const endedAll = !jobPast && apps.length > 0 && apps.every(a => a.status === "rejected" || a.status === "canceled");
+                  const endedLabel = !endedAll ? null : (apps.some(a => a.status === "rejected") ? "見送り" : "取り消し");
+                  const endedColor = endedLabel === "見送り" ? (APP_PHASE_COLOR.rejected || "#9E9E9E") : (APP_PHASE_COLOR.canceled || "#9E9E9E");
                   return (
                     <div key={`job-${jn}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
@@ -1450,6 +1457,13 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                         //   タイトル帯（写真の下部のグラデ）が勝ち、「失効」の文字が求人名の裏に潜っていた
                         <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
+                        </div>
+                      )}
+                      {endedLabel && (
+                        // 見送り・取り消し（2026-08-23）：失効・完了と同じ最前線のラベル。
+                        // pointerEvents:none＝暗幕が乗ってもカードは従来どおりタップできる
+                        <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+                          <span className="f-sans" style={{ background: endedColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{endedLabel}</span>
                         </div>
                       )}
                       {/* 上：求人のトップ写真（2026-08-23たきと指示「求人カードを縦に」＝旧・左104pxの横並びから
@@ -1462,13 +1476,13 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                             （2026-08-06「縦幅が求人ごとに違う。統一しろ」の狙いはそのまま） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
                         style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                        {photo && <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} />}
+                        {photo && <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }} />}
                         {/* 写真の真ん中に求人者のアイコン（2026-08-23たきと指示「真ん中に求人者のアイコン」）。
                             写真の有無に関わらず必ず置く＝旧は「写真が1枚も無い求人だけ代わりに出す」だった。
                             この面の求人はすべて自分が出したものので求人者＝自分＝empMini。アイコン未設定なら
                             Avatar が農園名の頭文字の丸（雇い手の緑）を出す＝これも実データ（ダミー写真で水増ししない・憲法3条）。
                             写真の上に乗る時は白枠＋影で写真から浮かせる（写真がない時は枠なし＝灰色の下地に丸がひとつ） */}
-                        <span style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:1, display:"block", lineHeight:0, borderRadius:"50%", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: jobPast ? "grayscale(70%)" : "none" }}>
+                        <span style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:1, display:"block", lineHeight:0, borderRadius:"50%", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }}>
                           <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={72} ring={photo ? "#fff" : undefined} bg={ROLE_GREEN} />
                         </span>
                         {/* タイトルと#No.は同じ行に（2026-08-23たきと指示「タイトルの横にナンバー」）。
