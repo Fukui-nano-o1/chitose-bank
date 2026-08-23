@@ -1437,22 +1437,22 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                   const cardUrgent = !jobPast && apps.some(a => todoAppIds.has(a.id));
                   return (
                     <div key={`job-${jn}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
-                      style={{ gridColumn:"1/-1", position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
+                      style={{ gridColumn:"1/-1", position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
                       {jobPast && (
                         <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}
-                      {/* 左：求人のトップ写真。タイトル・No.は写真の下部に重ね、暗いグラデーション越しに
+                      {/* 上：求人のトップ写真（2026-08-23たきと指示「求人カードを縦に」＝旧・左104pxの横並びから
+                          カード幅いっぱいの上下積みに）。タイトル・No.は写真の下部に重ね、暗いグラデーション越しに
                           写真が透ける（2026-07-26たきと指示・求人カードのカバー写真と同じ作法）。
                           No.は必ず明記＝タイトルだけ「…」で省略し、#No.は別行で常時表示。タップで求人を見る。
-                          ★枠は3:4固定（2026-08-06たきと指示「縦幅が求人ごとに違う。統一しろ」）：
-                            高さを決めずに置くと、中の<img>のheight:100%が高さ未定の親では実質autoになり、
-                            写真そのものの縦横比＝求人ごとの高さになっていた。3:4に固定すれば
-                            objectFit:coverが切り取る側に回り、どの求人でも 104×139 で揃う
-                            （新着の応募ページ・採用するページのカードと同じ作法） */}
+                          ★高さは180px固定（旧・3:4の縦横比指定からの置き換え）：全幅で縦横比を指定すると、
+                            画面幅に比例して高さが伸び、PC（グリッドは1/-1＝全幅）では写真だけで数百pxになる。
+                            高さを決めて objectFit:cover に切り取らせれば、どの画面幅・どの求人でも同じ高さで揃う
+                            （2026-08-06「縦幅が求人ごとに違う。統一しろ」の狙いはそのまま） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
-                        style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                        style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
                         {/* 写真が1枚も無い求人は、絵文字でなく求人者のアイコンを出す（2026-08-06たきと指示・
                             求人詳細のJobPhotoFallbackと同じ考え方＝ダミー写真で水増ししない・憲法3条）。
                             この面の求人はすべて自分が出したものので求人者＝自分＝empMini。
@@ -1460,15 +1460,15 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                         {photo
                           ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} />
                           : <span style={{ display:"block", lineHeight:0, filter: jobPast ? "grayscale(70%)" : "none" }}>
-                              <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={56} />
+                              <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={72} />
                             </span>}
-                        <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
-                          <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
-                          <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
+                        <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"22px 14px 10px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
+                          <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
+                          <span style={{ display:"block", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:2, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
                         </span>
                       </button>
-                      {/* 右：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
-                      <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center" }}>
+                      {/* 下：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
+                      <div style={{ width:"100%", minWidth:0, padding:"10px 12px 12px", display:"flex", alignItems:"center", boxSizing:"border-box" }}>
                         {/* 応募者ゼロでもカードは出す（2026-08-21）：右側は理由の一言。
                             全員が絞り込みで隠れている時と、まだ応募が無い時を区別する */}
                         {apps.length === 0 ? (
