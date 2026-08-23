@@ -485,8 +485,10 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
         </div>
       )}
       {calendarTop}
-      {/* いま何を見ているか（農家のカレンダータブと同じ黄色い帯）。解除で全件に戻る */}
-      {calDay && (
+      {/* いま何を見ているか（農家のカレンダータブと同じ黄色い帯）。解除で全件に戻る。
+          ★埋め込み（農家のカレンダータブ）では出さない＝外側のページが同じ帯を出しており二重になる
+          （2026-08-23たきと報告「2重に表示されている」）。解除も外側の帯が担う */}
+      {!embedded && calDay && (
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF6DE", border:"1px solid #E8C77A", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
           <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}><NavIconInline name="calendar" size={13} />{calFmtDate(calDay.ymd)} の求人を表示しています</span>
           <button onClick={()=>setCalDay(null)} className="f-sans" style={{ flexShrink:0, background:"#fff", border:"1px solid #E8C77A", borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#8A6D1D", cursor:"pointer" }}>解除</button>
