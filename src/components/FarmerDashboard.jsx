@@ -17,6 +17,7 @@ import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
+import { SavedJobsView } from "./SavedJobsView";
 import { WorkDaysStrip } from "./WorkDaysStrip";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
@@ -476,7 +477,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
   const calendarTop = (
     <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
       style={{ gridColumn:"1/-1", marginBottom:14 }}>
-      <MyCalendar canPostJob onDayJobs={(ymd, jobs) => setCalDay(prev => (prev && prev.ymd === ymd) ? null : { ymd, jobs })} />
+      {/* dayJobsAll＝関係を問わずその日の求人番号を受け取る（2026-08-23たきと指示
+          「農家であっても働き手の求人カードを表示して」）。自分の求人のカードは jobInfoMap で
+          絞るので混ざらず、働き手として応募した求人は下の埋め込み一覧が受け持つ */}
+      <MyCalendar canPostJob dayJobsAll onDayJobs={(ymd, jobs) => setCalDay(prev => (prev && prev.ymd === ymd) ? null : { ymd, jobs })} />
     </div>
   );
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
@@ -1584,13 +1588,20 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             // カレンダータブ：日を選んでいない時は静かな面＝カレンダー・案内・直近カード1枚だけ
             //（絞り込みバー・凡例は日を選んだ時だけ＝従来どおり）。
             // 応募者一覧：カレンダーは出さず、全件＋絞り込みバー・凡例
+            // 働き手として応募した求人のカード（2026-08-23たきと指示）＝働き手のカレンダーページと
+            // 同じ部品をそのまま埋め込む（見た目・操作を二重に作らない）。カードGA1枚も無ければ何も出ない
+            const workerCards = (
+              <div key="worker-cards" style={{ gridColumn:"1/-1" }}>
+                <SavedJobsView me={me} embedded calDay={calDay} />
+              </div>
+            );
             return !calMode
               ? [tabBar, floatingFilterBar, ...body, legend]
               : calDay
               // カレンダータブでは絞り込みのピルを出さない（2026-08-23たきと指示・浮遊バーが
               // カードの「応募の進み具合」と重なっていた）。応募者一覧では従来どおり出す
-              ? [calendarTop, dayNote, ...body, legend]
-              : [calendarTop, ...body];
+              ? [calendarTop, dayNote, ...body, workerCards, legend]
+              : [calendarTop, ...body, workerCards];
           })()
         )
       ) : jobTab==="expired" ? (

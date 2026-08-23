@@ -28,7 +28,12 @@ import { WorkerReviewSheet } from "./WorkerReviewSheet";
 const SAVED_HIDABLE = ["rejected", "expired", "canceled"];
 
 // ── SavedJobsView（ステータス一覧・#/saved） ──
-export function SavedJobsView({ me }) {
+// embedded（2026-08-23たきと指示「農家であっても働き手の求人カードを表示して」）：
+//   農家のカレンダータブの中に、この人が【働き手として】応募した求人のカードを並べるための埋め込み表示。
+//   ・カレンダー・凡例・♥の空状態は出さない（外側のページが持っているため）
+//   ・絞り込む日は外から渡す（calDay＝農家のカレンダーで選んだ日）。日を選んでいない時は直近の1枚だけ
+//   ★カードそのものは同じ部品をそのまま使う＝働き手ページと農家のカレンダーで見た目・操作が枝分かれしない
+export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   // 前回の内容が残っていればまず出す→裏で最新に差し替える（2026-07-27たきと指示・遷移の待ち時間対策）。
   // ★空配列のキャッシュは「0件」として信じない（2026-08-17）：この日の修理前は取得の失敗が [] として
   //   永続キャッシュ（localStorage）に焼き付いたため、その残りを空状態として出さない＝取得で確かめてから
@@ -199,7 +204,10 @@ export function SavedJobsView({ me }) {
     })();
     return () => { dead = true; };
   }, [boxJob]); // eslint-disable-line react-hooks/exhaustive-deps -- boxFullは取得済み判定のみ（依存に入れると再取得ループ）
-  const [calDay, setCalDay] = useState(null); // カレンダーで選んだ日（{ymd, jobs}）＝その日の求人だけを出す
+  const [calDayOwn, setCalDayOwn] = useState(null); // カレンダーで選んだ日（{ymd, jobs}）＝その日の求人だけを出す
+  // 埋め込み表示では外から渡された日を使う（農家のカレンダーと同じ日を見る）
+  const calDay = embedded ? (calDayProp || null) : calDayOwn;
+  const setCalDay = embedded ? (() => {}) : setCalDayOwn;
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // 非表示の選択（2026-08-19たきと指示・チャット一覧からのコピー）：ピルは【隠すもの】3つだけ。
   // 選ぶとその段階の求人が一覧から消える（複数選択）。隠すのは表示だけ＝記録・並び・取得は不変
@@ -217,7 +225,7 @@ export function SavedJobsView({ me }) {
   //   開閉（横スワイプ・案内行のタップ・畳むアニメ・今日ページからの合図 cb_openCalendar）は全部撤去した。
   //   読み込み中・いいねが0件の時も出す＝この面に来れば必ず予定が見える（隠れる道を残さない）。
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
-  const skelRef = useSkeletonProbe("saved");
+  const skelRef = useSkeletonProbe(embedded ? "farmCal:worker" : "saved");
   // 今日ページのカレンダー箱から来た時の合図は、もう開くための材料ではない（常時展開ので）。
   // 置きっぱなしにしないためここで捨てる（合図を立てる側＝TodayPage は農家側でも使うので残す）
   useEffect(() => {
@@ -233,7 +241,7 @@ export function SavedJobsView({ me }) {
   // 農家のカレンダータブと同じ作法：シートは開かず（noDaySheet）、その日の求人番号を受け取って
   // 下の一覧を絞り込む。同じ日をもう一度タップすると解除。dayJobsAll＝関係を問わず渡す
   // （このページには応募した求人・いいねした求人が並ぶため。'own' だけでは渡すものが無い）
-  const calendarTop = (
+  const calendarTop = embedded ? null : (
     <div style={{ marginBottom:14 }}>
       <MyCalendar noDaySheet dayJobsAll
         onDayJobs={(ymd, jobs) => setCalDay(prev => (prev && prev.ymd === ymd) ? null : { ymd, jobs })} />
@@ -398,6 +406,7 @@ export function SavedJobsView({ me }) {
   // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる。
   // ★読み込めなかった時は仮の箱を出し続けない（永久に読み込み中に見える）／♡の空状態も出さない
   //   （「0件」と嘘をつかない・憲法3条）＝失敗を正直に出し、もう一度読み込む道を置く
+  if (rows === null && embedded) return null;
   if (rows === null) return <div>{calendarTop}{loadFailed ? (
     <div style={{ textAlign:"center", padding:"64px 24px" }}>
       <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color:"#B0B0B0" }}><NavIcon name="offline" size={34} /></div>
@@ -437,7 +446,10 @@ export function SavedJobsView({ me }) {
   // 安定ソートso、同じ組の中の並び（求人番号の新しい順）はそのまま保たれる
   const orderedRows = [...shownRows].sort((a, b) => rowRank(a) - rowRank(b))
     // カレンダーで日を選んでいる間は、その日の求人だけ（選んでいなければ全件）
-    .filter(r => !calDay || calDay.jobs.includes(r.job_number));
+    .filter(r => !calDay || calDay.jobs.includes(r.job_number))
+    // 埋め込み（農家のカレンダータブ）で日を選んでいない時は直近の1枚だけ＝
+    // 自分の求人カードが直近1枚なのと同じ静かさに揃える
+    .slice(0, (embedded && !calDay) ? 1 : undefined);
   // 絞り込みのピル（見送り・失効・取り消し）はこのページから削除（2026-08-23たきと指示・
   // カレンダーの上に浮いて「応募の進み具合」と重なっていた）。既定の非表示（SAVED_HIDABLE）は
   // そのまま＝終わった取引は日常の一覧を埋めない。全部隠れて0件になった時だけ、下の空状態に
@@ -480,7 +492,7 @@ export function SavedJobsView({ me }) {
           <button onClick={()=>setCalDay(null)} className="f-sans" style={{ flexShrink:0, background:"#fff", border:"1px solid #E8C77A", borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#8A6D1D", cursor:"pointer" }}>解除</button>
         </div>
       )}
-      {rows.length === 0 ? (
+      {embedded && orderedRows.length === 0 ? null : rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ marginBottom:16, color:"#E24B4A", display:"flex", justifyContent:"center" }}><NavIcon name="heart" size={40} /></div>
           <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を<NavIconInline name="heartFill" size={13} style={{ color:"#E24B4A", marginRight:0 }} />しておくと、ここに並びます</p>
@@ -657,7 +669,7 @@ export function SavedJobsView({ me }) {
 
       {/* ステータスの意味（2026-07-27たきと指示・応募者ページ下部の凡例と同じ）。
           並び・ラベル・色・説明はすべて APP_PHASE_* から引く＝雇い手側と文言が枝分かれしない */}
-      {rows.length > 0 && (
+      {!embedded && rows.length > 0 && (
         <div style={{ marginTop:14 }}>
           <button onClick={()=>setLegendOpen(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <span style={{ fontSize:13, fontWeight:700, color:"#555" }}>ステータスの意味</span>
