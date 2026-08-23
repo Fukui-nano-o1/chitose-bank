@@ -7,7 +7,7 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
@@ -15,6 +15,7 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
+import { WorkDaysStrip } from "./WorkDaysStrip";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { DayReportSheet } from "./DayReportSheet";
@@ -602,6 +603,17 @@ export function SavedJobsView({ me }) {
                       {/* 労働条件通知書＝全幅で大きく（たきと指示） */}
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                         style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C" }}>労働条件通知書</button>
+                      {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
+                          日の集合は appWorkDates（agreed_dates ＞ 求人の期間）＝カレンダー・最終日の判定と
+                          同じソース。進み具合はボックスの中と同じ共有部品 FlowBar＝段の点き方が枝分かれしない */}
+                      <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" />
+                      <div>
+                        <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
+                        <FlowBar a={{ status: r.application_status,
+                          terms_confirmed_worker_at: r.terms_confirmed_worker_at,
+                          terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
+                          _reviewed: reviewed }} />
+                      </div>
                     </div>
                   );
                 })()}

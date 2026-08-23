@@ -17,6 +17,7 @@ import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
+import { WorkDaysStrip } from "./WorkDaysStrip";
 import { EmployerProfileEdit } from "./EmployerProfileEdit";
 import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
@@ -1557,6 +1558,15 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示） */}
                                   <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                                     style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B" }}>労働条件通知書</button>
+                                  {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
+                                      日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
+                                      カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
+                                      お仕事の流れバー（renderEmpFlowBar）＝段の点き方が枝分かれしない */}
+                                  <WorkDaysStrip days={[...appWorkDates(a, jinfo)].sort()} accent="#00A86B" />
+                                  <div>
+                                    <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
+                                    {renderEmpFlowBar(a)}
+                                  </div>
                                 </div>
                               );
                             })}
