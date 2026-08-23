@@ -587,12 +587,20 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                       <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColorNow(phase, r), marginTop:1, cursor:"pointer" }}>{phaseLabelNow(phase, r) || ""}</span>
                     </button>
                   ) : (
-                    <button onClick={()=>setBoxJob(r)} className="f-sans" style={{ background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center" }}>
-                      <span style={{ display:"block", fontSize:11, color:"#B0B0B0" }}>まだ応募していません</span>
-                      <span style={{ display:"block", fontSize:12, fontWeight:700, color:"#00A86B", marginTop:4 }}>求人を見る →</span>
-                    </button>
+                    <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>まだ応募していません</span>
                   )}
                 </div>
+                {/* 未応募（いいねだけ）の求人＝日程の確認と「求人を見る」（2026-08-23たきと指示）。
+                    採用済みの求人と同じ位置・同じ体裁の箱に、日程（求人の期間）と入口を置く。
+                    日の出し方は採用済みと同じ appWorkDates＝ここで独自に日を作らない。
+                    「求人を見る」は従来と同じ窓口＝カードのボックス（内容の確認・求人詳細へのスライド） */}
+                {!appOf(r) && (
+                  <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
+                    <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" label="日程" />
+                    <button onClick={()=>setBoxJob(r)} className="f-sans"
+                      style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C" }}>求人を見る</button>
+                  </div>
+                )}
                 {/* ボタンの並び（2026-08-23たきと指示）＝雇い手の求人カードと同じ構成：
                     上段＝チャット／記録する（最終の作業日からは評価する）、下段＝労働条件通知書を全幅で大きく。
                     採用が決まった応募だけ＝採用前は通知書が無く、記録するものも無い。
