@@ -19,9 +19,11 @@
 //   rAFで1フレーム1回だけ描く（will-change＋transition:none の滑らか3点セット）。
 // ★シートの高さは2面とも固定：面ごとに高さが変わるとボタンが動き、続けてタップした指が
 //   黒幕に落ちて閉じる（2026-08-16の誤タップと同型）。中身だけ面の内側でスクロールさせる。
+//   高さは1枚目の図がちょうど収まり、2枚目の選択肢が読める妥協点（min(66vh,470px)）。
 // ★モジュールレベル定義を維持すること：親の中で定義すると再レンダーごとに再マウントされ、
 //   textarea のフォーカス・入力中の下書きが消える（LandingFlowのフォーカス消失バグと同族）。
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { dayReportKinds, ymdLocal } from "../lib/utils";
@@ -35,11 +37,12 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [page, setPage] = useState(0);        // 0=説明 / 1=選択肢
+  const [imgZoom, setImgZoom] = useState(false); // 説明の図の大画面表示（タップで拡大）
   const viewRef = useRef(null);               // 面の窓（ここでタッチを拾う）
   const trackRef = useRef(null);              // 2面を並べた帯（これを動かす）
   const pageRef = useRef(0); pageRef.current = page;
   // 開き直したら前回の選択を持ち越さない（別の日・別の相手の記録に前の入力が残らないように）
-  useEffect(() => { setKind(""); setDetail(""); setReason(""); setPage(0); }, [app?.id]);
+  useEffect(() => { setKind(""); setDetail(""); setReason(""); setPage(0); setImgZoom(false); }, [app?.id]);
   const kinds = dayReportKinds(role);
   const day = workDate || ymdLocal(new Date());
   const selKind = kinds.find(k => k.v === kind);
@@ -122,14 +125,17 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
     return isNaN(d) ? day : `${d.getMonth() + 1}/${d.getDate()}`;
   })();
   const ready = !!kind && (!needsDetail || !!detail);
-  const paneStyle = { width:"50%", boxSizing:"border-box", padding:"0 24px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" };
+  // ★面には左右のパディングを持たせない：説明の図を枠いっぱい（フルブリード）に出すため。
+  //   負マージンでのフルブリードは、スクロール領域の左端で切れる（2026-08-16の見切れ修理と同じ罠）なので
+  //   「パディングは中身側に持たせる」形にした。文字の面（2枚目）は内側の箱で24pxを取る
+  const paneStyle = { width:"50%", boxSizing:"border-box", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" };
 
   return (
     <div onClick={()=>{ if (!submitting) onClose(); }} className="cb-lock-scroll"
       style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
       <div onClick={ev=>ev.stopPropagation()}
         style={{ background:"#fff", borderRadius:16, maxWidth:420, width:"100%",
-          height:"min(76vh, 560px)", maxHeight:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          height:"min(66vh, 470px)", maxHeight:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
         {/* 見出し（面をまたいで動かさない＝いまどの記録の話かを見失わせない） */}
         <div style={{ padding:"20px 24px 10px", flexShrink:0 }}>
           <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{dayLabel} の記録</p>
@@ -139,22 +145,21 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
         <div ref={viewRef} style={{ flex:1, overflow:"hidden", minHeight:0 }}>
           <div ref={trackRef}
             style={{ display:"flex", width:"200%", height:"100%", transform:`translateX(-${page * 50}%)`, transition:"transform .28s ease" }}>
-            {/* ── 1枚目：説明だけ ── */}
+            {/* ── 1枚目：説明（図）── 文字で説明せず1枚の図で見せる（2026-08-23たきと指示・
+                 赤ちゃん前提＝文字に頼らない）。読めるように、タップで大画面（パン方式）も置く */}
             <div style={paneStyle}>
-              <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:"0 0 14px" }}>
-                その日に起きたことを記録します。相手にお知らせが届き、記録として残ります。
-              </p>
-              <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:"0 0 14px" }}>
-                何もなかった日は、記録しなくて大丈夫です。
-              </p>
-              <p className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin:"0 0 18px" }}>
-                作業全体の評価は、最終の作業日にお願いします。
-              </p>
-              <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:0 }}>指で横にスライドしても、次に進めます</p>
+              <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                <img loading="lazy" src="/day-report-guide.jpg"
+                  alt="その日の記録：記録すると相手にお知らせが届き、記録として残ります。何もなかった日は記録しなくて大丈夫です。作業全体の評価は、最終の作業日にお願いします。"
+                  onClick={()=>setImgZoom(true)}
+                  width={1200} height={800}
+                  style={{ display:"block", width:"100%", height:"auto", aspectRatio:"1200 / 800", background:"#F7F7F7", cursor:"zoom-in" }} />
+                <p className="f-sans" style={{ fontSize:12, color:"#8A8A8A", textAlign:"center", margin:"12px 24px 0" }}>画像はタップで大きく表示できます</p>
+              </div>
             </div>
 
             {/* ── 2枚目：選択肢と送信 ── */}
-            <div style={paneStyle}>
+            <div style={{ ...paneStyle, padding:"0 24px" }}>
               <div style={{ display:"grid", gap:8, marginBottom:14 }}>
                 {kinds.map(k => {
                   const on = kind === k.v;
@@ -226,6 +231,30 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
           )}
         </div>
       </div>
+
+      {/* 説明の図の大画面表示（応募の承認の流れ図と同じパン方式・2026-08-16の作法）：
+          画面に収める表示だと文字が小さく、読むにはピンチ拡大が要る。このサイトのviewportは
+          ピンチでページ全体が拡大され、閉じた後も倍率が残る＝最初から読める大きさで描き、
+          指でずらして見る。余白タップで閉じる（画像タップでは閉じない＝ずらす途中で誤って閉じないため）。
+          ★createPortalでbody直下へ：面の帯は transform を持つので、その中の position:fixed は
+          画面ではなく帯を基準にしてしまう（TrustCardsのAvatarLightboxと同じ理由） */}
+      {imgZoom && createPortal(
+        /* ★stopPropagation必須：createPortalはDOMをbody直下へ出すが、Reactのイベントは
+           【Reactの木】をたどって親へ上がる＝ここで止めないと、大画面のタップがシートの黒幕の
+           onClick（＝シートを閉じる）にまで届いてしまう */
+        <div onClick={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", animation:"fadeIn .2s ease" }}>
+          <div onClick={()=>setImgZoom(false)}
+            ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}
+            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex" }}>
+            {/* margin:auto＝小さければ中央・はみ出せば端から全部見える（flex中央寄せだと左端が切れる） */}
+            <img onClick={e=>e.stopPropagation()} src="/day-report-guide.jpg" alt=""
+              width={1200} height={800}
+              style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1200 / 800", height:"auto", padding:"56px 0" }} />
+          </div>
+          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／余白をタップで閉じます</p>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
