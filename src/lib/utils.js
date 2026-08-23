@@ -947,7 +947,8 @@ export const farmIntroTopics = (e) => [
 // 待遇バッジ（タイトル下用・2026-07-16）：employer_profilesのONの項目だけ短いラベルで返す。
 // 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）。
 // 2026-08-23：文字列 → {icon|emoji, label} に構造化（絵文字→線画の差し替え・たきと採用）。
-// icon＝NavIcons のパス名（NavIconInline で描く）。★作業用品だけは却下＝絵文字（emoji）のまま。
+// icon＝NavIcons のパス名（NavIconInline で描く）。emoji は予備の口（現在使い手なし・作業用品も
+// 2026-08-23の描き直し「グローブ考えて」で glove に採用済み）。
 // 描き手は4箇所（FarmerDashboard・JobSearchMapView・EmployerProfileEdit・LandingFlow）＋
 // TrustCards の extraBadges＝形を変えたら全部そろえること
 export function perkBadges(ep) {
@@ -962,7 +963,7 @@ export function perkBadges(ep) {
     ep.has_severance_pay && { icon:"briefcase", label:"退職手当" },
     // 「作業用品」＝労基法89条5号・労基則5条1項6号の語（食費、作業用品その他の負担）。
     // 法令は「労働者に負担させるもの」を書かせる向きなので、値は必ず誰が負担するかまで書く（2026-08-19）
-    ep.employer_pays_supplies && { emoji:"🧤", label:"作業用品は募集主負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "") },
+    ep.employer_pays_supplies && { icon:"glove", label:"作業用品は募集主負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "") },
     ep.accessory_ok && { icon:"ring", label:"アクセサリーOK" },
   ].filter(Boolean);
 }

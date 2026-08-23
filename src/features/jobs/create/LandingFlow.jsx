@@ -1871,7 +1871,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             { k:"has_bonus", iconName:"gift", l:"賞与", tk:"bonus_detail", tp:"時期・金額など（例：年2回（夏・冬））" },
                             { k:"has_raise", iconName:"raise", l:"昇給", tk:"raise_detail", tp:"時期・金額など（例：年1回（4月））" },
                             { k:"has_severance_pay", iconName:"briefcase", l:"退職手当", tk:"severance_detail", tp:"対象・計算・支払時期など" },
-                            { k:"employer_pays_supplies", l:"🧤 作業用品は募集主の負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
+                            { k:"employer_pays_supplies", iconName:"glove", l:"作業用品は募集主の負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
                             { k:"accessory_ok", iconName:"ring", l:"アクセサリーOK" },
                           ].map(row => (
                             <div key={row.k} style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
