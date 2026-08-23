@@ -783,7 +783,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const actionButtons = (() => {
                 const phase = appPhaseKey(a);
                 const chatBtn = (
-                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>💬 チャットを開く</button>
+                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}><NavIconInline name="chats" size={13} style={{ verticalAlign:"-2px" }} />チャットを開く</button>
                 );
                 if (phase === "applied") {
                   // 4択（承認・見送り・保留・対応済み）＝督促メールの文面と同じ選択肢を画面にも置く。
@@ -855,7 +855,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 if (phase === "interview") return (
                   <div style={{ display:"flex", gap:8 }}>
                     {chatBtn}
-                    <button onClick={goHirePage} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>🤝 採用する →</button>
+                    <button onClick={goHirePage} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="hire" size={13} style={{ verticalAlign:"-2px" }} />採用する →</button>
                   </div>
                 );
                 // 採用〜作業中（＝作業日が来ている／来る応募）に「完了・欠勤を記録」を置く（2026-07-30たきと指摘
@@ -874,13 +874,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   if (!isFinalWorkDone(a, jinfo)) return (
                     <div style={{ display:"flex", gap:8 }}>
                       {chatBtn}
-                      <button onClick={()=>setDayReportApp(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>📋 今日の記録</button>
+                      <button onClick={()=>setDayReportApp(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}><NavIconInline name="clipboard" size={13} style={{ verticalAlign:"-2px" }} />今日の記録</button>
                     </div>
                   );
                   return (
                     <div style={{ display:"flex", gap:8 }}>
                       {chatBtn}
-                      <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>✅ 完了・欠勤を記録</button>
+                      <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="check" size={13} style={{ verticalAlign:"-2px" }} />完了・欠勤を記録</button>
                     </div>
                   );
                 }
@@ -889,7 +889,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)) return (
                   <div style={{ display:"flex", gap:8 }}>
                     {chatBtn}
-                    <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⭐ 評価する</button>
+                    <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />評価する</button>
                   </div>
                 );
                 return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
@@ -1029,7 +1029,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は削除（2026-07-25たきと指示）。
               各ページへの入口は下部フッター（応募者タブ・求人タブ）に一本化。URL直打ち(/profile/employer/*)は従来どおり生きている */}
           <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 箱ジャンプ(cb-jump)→タイトル文字の順ジャンプに変更（NoticeJumpText・2026-07-25たきと指示） */}
-            <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
+            <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
             <span>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NoticeJumpText text="新しく求人を出す" /></span>
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
@@ -1108,13 +1108,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               setInsOpenKey(null);                     // 開いていた入力ボックスは畳んでから返す
               setInsCardAnim("pflip-out");
               setTimeout(()=>{ setInsCardBack(v=>{ const nv = !v; try { localStorage.setItem("cb_insCardBack", nv ? "1" : "0"); } catch {} return nv; }); setInsCardAnim("pflip-in"); }, 400);
-            }} aria-label="表示を切り替える" className={insCardAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>⇄</button>
+            }} aria-label="表示を切り替える" className={insCardAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}><NavIcon name="swap" size={16} /></button>
           </div>
           <div style={{ marginTop:16 }}>
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>記録</p>
             <div className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
-                <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>❤️ また呼びたいリスト</p>
+                <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="heartFill" size={14} style={{ verticalAlign:"-2px", color:"#E24B4A" }} />また呼びたいリスト</p>
                 <button onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? "#00A86B" : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
               </div>
               {rosterInfoOpen && (
@@ -1169,7 +1169,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmDrafts" /></div>
         ) : dbDrafts.length === 0 ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
-            <div style={{ fontSize:40, marginBottom:12 }}>🌱</div>
+            <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={40} /></div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
             <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
           </div>
@@ -1187,7 +1187,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   : setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
                 className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : (nearPublish ? "🌱" : "📝")}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name={nearPublish ? "sprout" : "postJob"} size={36} /></span>}
                   {/* タブ名（作成中）と同じ帯は出さない（重複排除）。公開間近だけ帯を出す＝「審査中」ではなく前向きな色（2026-08-07） */}
                   {nearPublish && <StatusRibbon label="公開間近" color="#0E8A6B" />}
                 </div>
@@ -1246,7 +1246,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                     }) : undefined}
                       role={(d.status === "open" && !ended) ? "button" : undefined}
                       aria-label={(d.status === "open" && !ended) ? "未回答の質問を見る" : undefined}
-                      className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", cursor:(d.status === "open" && !ended) ? "pointer" : undefined }}>❓{qUnansweredMap[d.job_number]}</span>
+                      className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", cursor:(d.status === "open" && !ended) ? "pointer" : undefined }}>?{qUnansweredMap[d.job_number]}</span>
                   )}
                 </div>
                 <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
@@ -1289,7 +1289,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           <>
             {calendarTop}
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-              <div style={{ fontSize:40, marginBottom:12 }}>📩</div>
+              <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><NavIcon name="envelope" size={40} /></div>
               <p style={{ fontSize:14, margin:0 }}>まだ応募はありません</p>
               <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>求人が公開されると、働き手が応募できます。</p>
             </div>
@@ -1521,7 +1521,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         <div style={{ gridColumn:"1/-1" }}><MyCalendar canPostJob /></div>
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
-          <div style={{ fontSize:44, marginBottom:14 }}>🌱</div>
+          <div style={{ marginBottom:14, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={44} /></div>
           <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:6 }}>まだ求人がありません</p>
           <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:22 }}>最初の求人を出して、働き手を募集しましょう。</p>
           <button onClick={onNewJob} className="btn-primary" style={{ padding:"14px 32px", fontSize:14 }}>＋ 新しく求人を出す</button>
@@ -1654,7 +1654,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <div style={{ marginBottom:16 }}>
               <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer" }}>
                 <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
-                ❤️ お気に入り登録する
+                <NavIconInline name="heartFill" size={14} style={{ verticalAlign:"-2px", color:"#E24B4A" }} />お気に入り登録する
               </label>
               <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"4px 0 0 26px" }}>
                 登録すると、新しい求人のお知らせが届きます。「また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
@@ -1664,7 +1664,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           confirmNote="送信すると、あとから直すことはできません。肯定的な答えと良かった点のタグだけが働き手のページに表示されます（否定的な答えは公開されませんが、記録には残ります）。"
           confirmExtra={wantAgain ? (
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"9px 0" }}>
-              <span className="f-sans" style={{ fontSize:13, color:"#222" }}>❤️ お気に入り登録</span>
+              <span className="f-sans" style={{ fontSize:13, color:"#222" }}><NavIconInline name="heartFill" size={13} style={{ verticalAlign:"-2px", color:"#E24B4A" }} />お気に入り登録</span>
               <span className="f-sans" style={{ fontSize:13, fontWeight:800, flexShrink:0, color: completeNotifyNext ? "#00A86B" : "#B0B0B0" }}>{completeNotifyNext ? "する" : "しない"}</span>
             </div>
           ) : null}
@@ -1736,7 +1736,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       {nearPublishInfo && (
         <div onClick={()=>{ setNearPublishInfo(false); setNearPubDetail(false); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
-            <div style={{ fontSize:48, marginBottom:10 }}>🌱</div>
+            <div style={{ marginBottom:10, display:"flex", justifyContent:"center", color:"#0E8A6B" }}><NavIcon name="sprout" size={48} /></div>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 16px" }}>もうすぐ公開されます</p>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備が整いしだい、働き手に公開されます。</p>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>公開されると「さがす」に並び、応募が届くようになります。</p>
@@ -1760,7 +1760,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 18px" }}>お気に入り登録しました！</p>
             <div onClick={()=>openWorkerPreview(favDone.workerId)} role="button" style={{ position:"relative", width:88, height:88, margin:"0 auto 16px", cursor:"pointer" }}>
               <Avatar url={favDone.avatar_url} name={favDone.nickname || "？"} size={88} />
-              <span className="cb-heart-pop" style={{ position:"absolute", right:-8, bottom:-4, fontSize:32, lineHeight:1, filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}>❤️</span>
+              <span className="cb-heart-pop" style={{ position:"absolute", right:-8, bottom:-4, fontSize:32, lineHeight:1, filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}><NavIcon name="heartFill" size={32} style={{ color:"#E24B4A" }} /></span>
             </div>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:"0 0 6px" }}>「また呼びたい」と思った方を、あなたのお気に入りに登録しました。</p>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:0 }}>リピート即決ONのあなたの求人にこの方が応募すると、自動で承認されます。</p>
@@ -1768,7 +1768,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <div className="f-sans fade-in" style={{ marginTop:14, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", textAlign:"left", fontSize:12, color:"#555", lineHeight:1.8 }}>
                 ・新しい求人を出すと、この方にお知らせが届きます<br/>
                 ・効果はあなた自身の求人だけに働き、ほかの農家の求人には影響しません<br/>
-                ・登録した方は農家プロフィールの「❤️ また呼びたいリスト」に表示されます<br/>
+                ・登録した方は農家プロフィールの「また呼びたいリスト」に表示されます<br/>
                 ・解除はいつでも：リストのアイコンをタップ→「お気に入りを解除する」
               </div>
             ) : (

@@ -27,7 +27,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
     : (profile.avatar_url ? { onClick: () => setAvatarZoom(true), role: "button", "aria-label": "アイコンを大きく表示" } : {});
   // 移動手段・経験区分は本人申告なので📋自己申告ブロックへ集約（2026-07-23）。バッジ列は希望条件（作業の強さ）のみ
   const badges = [
-    profile.physical_level && { icon:"💪", text: profile.physical_level, k:"intensity" },
+    profile.physical_level && { iconName:"dumbbell", text: profile.physical_level, k:"intensity" },
   ].filter(Boolean);
   const tags = [
     ...(profile.interests || []).map(t => ({ t, k:"interests" })),
@@ -39,7 +39,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
     ...((Array.isArray(profile.experience_entries) ? profile.experience_entries : []).filter(e => e && (e.crop || "").trim()).map(e => ({ text: `${e.crop}×${e.task || ""}${e.duration ? `（${e.duration}）` : ""}`, k:"declared" }))),
     ...(profile.farm_experience ? [{ text:"🌾 " + profile.farm_experience, k:"exp" }] : []),
     ...((Array.isArray(profile.experienced_tasks) ? profile.experienced_tasks : []).filter(Boolean).map(t => ({ text: t, k:"declared" }))),
-    ...(profile.transport ? [{ text:"🚗 " + profile.transport, k:"transport" }] : []),
+    ...(profile.transport ? [{ iconName:"car", text: profile.transport, k:"transport" }] : []),
     ...((Array.isArray(profile.self_declared) ? profile.self_declared : []).map(key => { const it = WORKER_DECLARATIONS.find(x => x.k === key); return it ? { text: it.chip, k:"declared" } : null; }).filter(Boolean)),
   ];
   return (
@@ -52,7 +52,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
         <div style={{ minWidth:0 }}>
           <p {...tap("nickname")} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, ...(onEditItem ? { cursor:"pointer" } : {}) }}>{profile.nickname || "名前未設定"}</p>
           {profile.residence_city && (
-            <p {...tap("residence")} className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", ...(onEditItem ? { cursor:"pointer" } : {}) }}>📍{profile.residence_city}</p>
+            <p {...tap("residence")} className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", ...(onEditItem ? { cursor:"pointer" } : {}) }}><NavIconInline name="pin" size={12} style={{ verticalAlign:"-1.5px", marginRight:2 }} />{profile.residence_city}</p>
           )}
         </div>
       </div>
@@ -71,7 +71,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
       {onEditItem && badges.length > 0 && (
         <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
           {badges.map((b,i) => (
-            <span key={i} {...tap(b.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", cursor:"pointer" }}>{b.icon} {b.text}</span>
+            <span key={i} {...tap(b.k)} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"4px 10px", cursor:"pointer" }}>{b.iconName ? <NavIconInline name={b.iconName} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} /> : null}{b.text}</span>
           ))}
         </div>
       )}
@@ -95,7 +95,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
         <div style={{ marginBottom:10 }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
             {[...declItems].sort((a,b) => String(b.text).length - String(a.text).length).map((it, i) => (
-              <span key={i} {...tap(it.k)} className="f-sans" style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:999, padding:"6px 12px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.text}</span>
+              <span key={i} {...tap(it.k)} className="f-sans" style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:"#3A5570", background:"#E8EEF7", borderRadius:999, padding:"6px 12px", ...(onEditItem ? { cursor:"pointer" } : {}) }}>{it.iconName ? <NavIconInline name={it.iconName} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} /> : null}{it.text}</span>
             ))}
           </div>
           {/* 自己申告であることの明示は残す（実績と混同させない・法務上の一言） */}
@@ -297,7 +297,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         // 各チップが行の余りを均等に吸収（flexGrow）＝右端まで揃った段組み。長い順で行を詰め、
         // はみ出しは…で省略。色の区別は不変（保険=緑が自己申告の目印）
         const chips = [
-          ...styleChips.map((lbl, i) => ({ key:"style-" + i, label:"🤝 " + lbl, bg:"#F7F7F7", color:"#222", isStyle:true })),
+          ...styleChips.map((lbl, i) => ({ key:"style-" + i, label: lbl, icon: black ? null : "applicants", bg:"#F7F7F7", color:"#222", isStyle:true })),
           ...insChips.map(it => ({ key:"ins-" + it.k, label: it.chip, icon: black ? null : "shield", bg: black ? "#EEEEEE" : "#E6F7EF", color: black ? "#111111" : "#0B6B4F" })),
           ...perks.map(b => ({ key:"perk-" + b.label, label: b.label, icon: black ? null : (b.icon || null), emoji: black ? null : (b.emoji || null), bg:"#F7F7F7", color:"#222" })),
         ].sort((a,b) => String(b.label).length - String(a.label).length);

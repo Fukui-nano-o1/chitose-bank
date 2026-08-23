@@ -6,6 +6,7 @@ import { snapGet, snapSet } from "../lib/snapshot";
 import { peekApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { ROLE_ORANGE, ROLE_GREEN, workerQaItems, workerUnsetCount } from "../lib/utils";
 import { Avatar, QaChat, Dots, SwipeTabPages } from "./ui";
+import { NavIcon, NavIconInline } from "./NavIcons";
 import { WorkerWorkRecord } from "./WorkerWorkRecord";
 import { ReceivedReviews } from "./ReceivedReviews";
 import { FarmerDashboard } from "./FarmerDashboard";
@@ -234,8 +235,9 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
           {/* 切替先はFAB自体の色で示す（第11弾）：橙=働き手／緑=農家。
               ラベルの色名「（橙）（緑）」は削除した（2026-08-22たきと指示）＝色は見れば分かる */}
           {pTab === "employer"
-            ? "⇄ 働き手に切替"
-            : (hasEmployerSide ? "⇄ 農家に切替" : "🌱 農家を作る")}
+            ? <><NavIconInline name="swap" size={13} style={{ verticalAlign:"-2px" }} />働き手に切替</>
+            : (hasEmployerSide ? <><NavIconInline name="swap" size={13} style={{ verticalAlign:"-2px" }} />農家に切替</>
+                               : <><NavIconInline name="sprout" size={13} style={{ verticalAlign:"-2px" }} />農家を作る</>)}
         </button>
       )}
       {/* 面の中身をkey={pTab}で包む：切替時に再マウント→fade-inが再生される（幕の下で入れ替わり、
@@ -327,7 +329,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                   }}>
                     {/* 表面 */}
                     <span style={{ display:"flex", alignItems:"center", gap:14, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
-                      <span style={{ fontSize:40, lineHeight:1, flexShrink:0 }}>📝</span>
+                      <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
                       <span>
                         <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>新しく求職を出す</span>
                         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>働ける日や得意な作業を載せて、農家からの声かけを待てます。</span>

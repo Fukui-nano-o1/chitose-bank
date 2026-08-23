@@ -7,7 +7,7 @@ import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton, Dots, FieldHelp } from "./ui";
-import { NavIcon } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -512,7 +512,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           return (
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid " + ROLE_ORANGE, borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
             {revFlagged && (
-              <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}>⚠️ 修正のお願い</span>
+              <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}><NavIconInline name="alert" size={11} style={{ verticalAlign:"-1.5px" }} />修正のお願い</span>
             )}
             {/* アイコンのカードだけ1行まるごと＋アイコン本体を大きく（2026-08-14たきと指示・雇い手編集ページと同型） */}
             {b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} ring={ROLE_ORANGE} />}
@@ -781,7 +781,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                                border:"1px solid " + (revFlaggedQ ? "#E24B4A" : on ? ROLE_ORANGE : ans.trim() ? ROLE_ORANGE + "66" : "#EBEBEB"),
                                background: revFlaggedQ ? "#FDECEC" : on ? ROLE_ORANGE : "#fff",
                                color: revFlaggedQ ? "#E24B4A" : on ? "#fff" : ans.trim() ? ROLE_ORANGE : "#717171" }}>
-                      {revFlaggedQ ? "⚠️ " : ans.trim() ? "✓ " : ""}{q}
+                      {revFlaggedQ ? <NavIconInline name="alert" size={12} style={{ verticalAlign:"-1.5px", marginRight:3 }} /> : ans.trim() ? "✓ " : ""}{q}
                     </button>
                   );
                 })}
