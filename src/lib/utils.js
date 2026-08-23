@@ -234,12 +234,13 @@ export const PUBLISH_CHECKS = [
 // considering=これから準備する は、表示チップでは「これから準備予定」にする。employer_profiles.insurance_items に key配列で保存。
 export const INSURANCE_ITEMS = [
   // これから準備する＝先頭・排他（2026-07-25たきと指示）。選ぶと他の保険の選択・ひとことはリセットされる
-  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱" },
-  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険",   icon:"🗓" },
-  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険",     icon:"☂️" },
-  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険",           icon:"🏥" },
-  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険", icon:"🏠" },
-  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険",           icon:"🚗" },
+  // iconName＝NavIcons の線画（2026-08-23採用）。icon（絵文字）は旧フィールド＝読み手ゼロの残置
+  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱", iconName:"sprout" },
+  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険",   icon:"🗓", iconName:"insDay" },
+  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険",     icon:"☂️", iconName:"umbrella" },
+  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険",           icon:"🏥", iconName:"firstAid" },
+  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険", icon:"🏠", iconName:"barn" },
+  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険",           icon:"🚗", iconName:"truck" },
 ];
 
 // 保険申告の排他ガード（2026-07-25たきと指示）：「これから準備する(considering)」は実際の保険と両立しない。

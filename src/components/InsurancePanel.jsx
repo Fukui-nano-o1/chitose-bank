@@ -10,6 +10,7 @@
 import { useRef, useState } from "react";
 import { INSURANCE_ITEMS, INSURANCE_DESC, normalizeInsuranceItems } from "../lib/utils";
 import { useHorizontalDrag } from "../lib/hDrag";
+import { NavIcon } from "./NavIcons";
 
 export function InsurancePanel({ employer, swipe = false }) {
   const [flip, setFlip] = useState(null); // 裏返し中の項目キー（同時に1枚だけ）
@@ -50,7 +51,7 @@ export function InsurancePanel({ employer, swipe = false }) {
             {desc}{note ? "\n\n農家より：" + note : ""}
           </span>
         ) : (<>
-          <span style={{ fontSize:44, lineHeight:1 }}>{it.icon}</span>
+          <span style={{ display:"flex", color:"#333" }}><NavIcon name={it.iconName} size={44} /></span>
           <span style={{ fontSize:15, fontWeight:700, color: muted ? "#717171" : "#222", textAlign:"center" }}>{it.chip}</span>
         </>)}
       </button>
