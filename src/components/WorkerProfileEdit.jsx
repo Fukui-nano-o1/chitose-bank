@@ -883,7 +883,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>応募したとき、農家にこのように表示されます。</p>
       {isEmpty ? (
         <div style={{ textAlign:"center", padding:"40px 20px", border:"1px solid #EBEBEB", borderRadius:16 }} className="f-sans">
-          <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color:"#717171" }}><NavIcon name="farmer" size={32} /></div>
+          <div style={{ fontSize:32, marginBottom:14 }}>🧑‍🌾</div>
           <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 8px" }}>プロフィールを完成させましょう</p>
           <p style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
           <button onClick={onEdit} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12, background:ROLE_ORANGE }}>はじめる</button>
