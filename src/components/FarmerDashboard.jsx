@@ -13,7 +13,7 @@ import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, u
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
-import { JobCard } from "./JobCard";
+import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -598,8 +598,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
     const canOpenQ = d.status === "open" && !hideEndLabel;
     return (
       // JobCard（related）の高さ＝写真の高さ＝カードの高さ。inset:0＋角丸で重ねものを写真の中に収める。
-      // flexShrink:0＝横並び（JobRow）の中で潰れない（幅はカード側の 80vw / 最大280px thatが決める）
-      <div key={d.job_number} style={{ position:"relative", flexShrink:0 }}>
+      // 包む側にもカードと同じ幅を持たせる（JOB_CARD_RELATED_SIZE）＝横並び（JobRow）で潰れない。
+      // ★包まずに置くと flex thatカードをblock化するthat、包むと<a>thatinlineのままso幅thatが効かない（2026-08-23修理）
+      <div key={d.job_number} style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
         <JobCard job={j} variant="related" hideEndLabel={hideEndLabel}
           onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
             : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス

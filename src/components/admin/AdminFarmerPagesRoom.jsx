@@ -20,7 +20,7 @@ import { useState, useEffect } from "react";
 import { AdminNav } from "./AdminNav";
 import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon, JobRow } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
-import { JobCard } from "../JobCard";
+import { JobCard, JOB_CARD_RELATED_SIZE } from "../JobCard";
 import { Celebration } from "../Celebration";
 import { WorkerTrustCard } from "../TrustCards";
 import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
@@ -87,7 +87,7 @@ function Btn({ children, kind = "primary" }) {
    状態の帯（公開間近／一時非公開）はカードの外側に重ねる＝本番と同じ */
 function JobTile({ job, ribbon }) {
   return (
-    <div style={{ position:"relative", flexShrink:0 }}>
+    <div style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
       <JobCard job={job} variant="related" onOpen={noop} />
       {ribbon && (
         <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>

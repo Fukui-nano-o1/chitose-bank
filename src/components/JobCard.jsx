@@ -5,6 +5,10 @@ import { Avatar, StatusRibbonLeft } from "./ui";
 import { CropIcon } from "./CropIcon";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
+// 関連（横並び）カードの寸法。カードの外側に何かを重ねる時（自分の求人の状態の帯・未回答の❓）は
+// 包む側も同じ幅を持たせる＝ここを変えれば包む側も一緒に変わる（幅の値を2箇所に書かない）
+export const JOB_CARD_RELATED_SIZE = { width:"80vw", maxWidth:280 };
+
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
 // variant="wide"（2026-08-07）：関連カードと同じ「写真に情報を重ねる」型を全幅で。
@@ -32,7 +36,11 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
     ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", marginBottom:22, position:"relative" }
     : isWide
     ? { display:"block", width:"100%", padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", border:"none", position:"relative" }
-    : { flexShrink:0, width:"80vw", maxWidth:280, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
+    // ★display:"block" は必須（2026-08-23修理）：<a>の既定は inline so、width/maxWidth thatが効かない。
+    //   さがす・関連求人ではカードthat flex コンテナの【直接の子】so自動でblock化され、たまたま効いていた。
+    //   カードを<div>で包む使い方（自分の求人＝帯や❓を重ねる）では inline のまま潰れ、
+    //   絶対配置の概要（金額・バッジ）thatが1文字ずつ折り返して縦書きに見える不具合になった
+    : { display:"block", flexShrink:0, ...JOB_CARD_RELATED_SIZE, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
       href={"#/work/job/" + job.id}
