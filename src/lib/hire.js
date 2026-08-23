@@ -42,5 +42,5 @@ export async function findDoubleBookingJob(farmerId, workerId, jobNumber) {
 
 // 二重予約の警告文（重なりが無ければ空文字）。表示の形（confirm／画面内の確認）は呼び出し側の自由
 export const doubleBookingWarning = (dup) => dup
-  ? `⚠️ この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。同じ日に別の仕事（二重予約）になっていないか確認してください。`
+  ? `この働き手さんは、日程が重なる別の求人 #${dup} にも進んでいます。同じ日に別の仕事（二重予約）になっていないか確認してください。`
   : "";

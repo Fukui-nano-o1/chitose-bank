@@ -4,6 +4,7 @@
 import { lfStyles } from "../lfStyles";
 import { LFWizCard } from "../../../../components/ui";
 import { uploadPhoto } from "../jobCreateApi";
+import { NavIcon } from "../../../../components/NavIcons";
 
 export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks, setJobDangerTasks, showPlace2, setShowPlace2, showTask2, setShowTask2 }) {
   return (<>
@@ -27,7 +28,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
                       </div>
                     ) : (
                       <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
-                        <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
+                        <NavIcon name="camera" size={22} style={{ opacity:0.6 }} />
                         <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
                         <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={async e => {
                           const files = Array.from(e.target.files || []);
@@ -71,7 +72,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
                       </div>
                     ) : (
                       <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
-                        <span style={{ fontSize:22, lineHeight:1, opacity:0.6 }}>📷</span>
+                        <NavIcon name="camera" size={22} style={{ opacity:0.6 }} />
                         <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
                         <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={async e => {
                           const files = Array.from(e.target.files || []);

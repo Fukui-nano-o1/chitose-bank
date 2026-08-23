@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { NoticeJumpText } from "../ui";
 import { AdminNav } from "./AdminNav";
 import { NavIcon } from "../NavIcons";
+import { NavIconInline } from "../NavIcons";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（ボックス台帳 ⇄ お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
@@ -189,7 +190,7 @@ export function AdminBoxRegistryPage() {
         return (
         <div onClick={()=>setNPreview(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}><NavIconInline name="megaphone" size={19} />お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={nPreview.name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {nPreview.image_url

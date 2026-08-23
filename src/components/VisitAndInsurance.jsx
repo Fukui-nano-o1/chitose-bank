@@ -133,7 +133,7 @@ export function VisitorQRPage() {
         <p className="f-sans qr-print-only" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"26px 0 4px" }}>chitose-bank</p>
         <p className="f-sans qr-print-only" style={{ fontSize:14, color:"#555", margin:0 }}>農家と働き手が直接つながる、農作業の求人サイトです。</p>
       </div>
-      <button onClick={()=>window.print()} className="btn-primary f-sans qr-noprint" style={{ marginTop:26, padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:12 }}>🖨 印刷</button>
+      <button onClick={()=>window.print()} className="btn-primary f-sans qr-noprint" style={{ marginTop:26, padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:12 }}><NavIconInline name="printer" size={15} />印刷</button>
     </div>
   );
 }

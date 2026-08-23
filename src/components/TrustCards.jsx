@@ -222,7 +222,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         ) : null; })}
       </div>
       {okTrust && trust.want_again_workers > 0 && (
-        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{black ? "" : "🌟"}また働きたい×{trust.want_again_workers}</p>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{!black && <NavIconInline name="star" size={13} />}また働きたい×{trust.want_again_workers}</p>
       )}
       {/* 求人内容との一致（2026-08-20たきと裁定）：働き手の最終評価 match_level を1契約1票で集計。
           ★％では出さない＝母数を消さない（8/10件）。5件未満は数字を出さない（MVPの最低ゲート＝

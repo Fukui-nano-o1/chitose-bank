@@ -15,6 +15,7 @@ import { Dots } from "../ui";
 import { AdminNav } from "./AdminNav";
 import { openWorkerPreview } from "../../lib/previewBus";
 import { getCache, setCache } from "../../lib/viewCache";
+import { NavIconInline } from "../NavIcons";
 
 const KINDS = [
   { k: "all",     l: "すべて" },
@@ -120,7 +121,7 @@ export function AdminReportsRoom() {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <span className="f-sans" style={chipStyle}>{kindLabel(r.kind)}</span>
         <p className="f-sans" style={{ fontSize: 14, fontWeight: 700, color: r.kind === "screen" ? "#222" : "#E24B4A", margin: 0, flex: 1, minWidth: 0 }}>
-          {r.kind === "pay" && <>💰 未払いの申告　求人 #{r.job_number}</>}
+          {r.kind === "pay" && <><NavIconInline name="flag" size={12} />未払いの申告　求人 #{r.job_number}</>}
           {r.kind === "job" && <>求人 #{r.job_number}　{r.issue_type}</>}
           {r.kind === "comment" && r.reason}
           {r.kind === "person" && r.issue_type}

@@ -134,7 +134,7 @@ export function LikedJobsCard({ me }) {
       <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
         <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NavIconInline name="heartFill" size={15} style={{ color:"#E24B4A" }} />いいねした求人</span>
         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
-          {rows === null ? "読み込み中…" : count > 0 ? `${count}件　気になる求人の一覧です。タップで見返せます` : "気になる求人を♥しておくと、ここに並びます"}
+          {rows === null ? "読み込み中…" : count > 0 ? `${count}件　気になる求人の一覧です。タップで見返せます` : "気になる求人をいいねしておくと、ここに並びます"}
         </span>
       </button>
 
@@ -150,7 +150,7 @@ export function LikedJobsCard({ me }) {
             </button>
             {infoOpen && (
               <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 12px" }}>
-                求人ページで♥した求人の一覧です。カードをタップすると求人ページが開きます。♥をタップすると解除できます（もう一度タップで戻せます）。
+                求人ページでいいねした求人の一覧です。カードをタップすると求人ページが開きます。ハートをタップすると解除できます（もう一度タップで戻せます）。
               </p>
             )}
             {rows === null ? (
@@ -158,7 +158,7 @@ export function LikedJobsCard({ me }) {
             ) : count === 0 ? (
               <div style={{ textAlign:"center", padding:"24px 8px" }}>
                 <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, margin:0 }}>
-                  まだ♥した求人はありません。<br />気になる求人を♥しておくと、ここに並びます。
+                  まだいいねした求人はありません。<br />気になる求人をいいねしておくと、ここに並びます。
                 </p>
                 <button type="button" onClick={() => { closeList(); window.location.hash = "/search"; }} className="f-sans"
                   style={{ marginTop:14, padding:"10px 18px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>求人をさがす →</button>

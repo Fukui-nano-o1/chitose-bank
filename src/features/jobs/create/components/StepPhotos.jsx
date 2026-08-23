@@ -5,6 +5,7 @@ import { lfStyles } from "../lfStyles";
 import { LFWizCard, Dots } from "../../../../components/ui";
 import { photoThumb } from "../../../../lib/utils";
 import { uploadPhoto } from "../jobCreateApi";
+import { NavIcon } from "../../../../components/NavIcons";
 
 export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUploading }) {
   return (<>
@@ -40,7 +41,7 @@ export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUp
           {/* 空状態：大タップゾーン */}
           {jobPhotos.length === 0 && (
             <label className="f-sans" style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"48px 24px", border:"2px dashed #D8D8D8", borderRadius:16, cursor: photoUploading ? "wait" : "pointer", background:"#FAFAFA", textAlign:"center" }}>
-              <span style={{ fontSize:44, lineHeight:1 }}>📷</span>
+              <NavIcon name="camera" size={44} />
               <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>写真をドロップ、またはタップして追加</span>
               <span className="f-sans" style={{ fontSize:14, color:"#B0B0B0", maxWidth:280, lineHeight:1.6 }}>畑の全景・作業の様子・収穫物が伝わる写真ほど、応募が増えます。1枚目がカバー写真になります。</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} disabled={photoUploading} onChange={async e => {

@@ -235,12 +235,12 @@ export const PUBLISH_CHECKS = [
 export const INSURANCE_ITEMS = [
   // これから準備する＝先頭・排他（2026-07-25たきと指示）。選ぶと他の保険の選択・ひとことはリセットされる
   // iconName＝NavIcons の線画（2026-08-23採用）。icon（絵文字）は旧フィールド＝読み手ゼロの残置
-  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   icon:"🌱", iconName:"prepSign" },
-  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険",   icon:"🗓", iconName:"insDay" },
-  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険",     icon:"☂️", iconName:"umbrella" },
-  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険",           icon:"🏥", iconName:"firstAid" },
-  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険", icon:"🏠", iconName:"barn" },
-  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険",           icon:"🚗", iconName:"truck" },
+  { k:"considering",     label:"これから準備する",               chip:"これから準備予定",   iconName:"prepSign" },
+  { k:"day_accident",    label:"1日単位の傷害保険（作業日ごと）", chip:"1日単位の傷害保険",   iconName:"insDay" },
+  { k:"annual_accident", label:"年間の傷害保険",                 chip:"年間の傷害保険",     iconName:"umbrella" },
+  { k:"rosai",           label:"労災保険（特別加入など）",        chip:"労災保険",           iconName:"firstAid" },
+  { k:"facility",        label:"農業施設・賠償責任保険",          chip:"施設・賠償責任保険", iconName:"barn" },
+  { k:"vehicle",         label:"移動中の車両保険",               chip:"車両保険",           iconName:"truck" },
 ];
 
 // 保険申告の排他ガード（2026-07-25たきと指示）：「これから準備する(considering)」は実際の保険と両立しない。
@@ -384,7 +384,6 @@ export function mapJobPublicRow(j) {
     // ログイン後・管理者プレビューは空配列＝マスクなし。番地だけは従来どおり hasWorkAddress が担当
     maskedFields: Array.isArray(j.masked_fields) ? j.masked_fields : [],
     experience: j.job_exp || "", // 必要経験の選択式は撤回（2026-07-18）。旧求人の保存値のみ表示・未入力はdispで「ー」
-    icon: "🌾",
     lat:    j.lat != null ? Number(j.lat) : null,
     lng:    j.lng != null ? Number(j.lng) : null,
     radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
@@ -574,7 +573,7 @@ export const qaShort = (q) => {
 // ★追加3問（作業中の雰囲気・教わり方の希望・希望する働き方）は公開許可リストへの追加＝2026-08-14たきと裁定。
 //   判断理由：いずれも労働条件の希望／業務上の意思疎通に必要な情報（身体属性・年代等の禁止項目に非該当）
 export const WORKER_STYLE_QUESTIONS = [
-  { k:"physical_level", label:"希望する作業の強さ", q:"希望する作業の強さは？", emoji:"💪",
+  { k:"physical_level", label:"希望する作業の強さ", q:"希望する作業の強さは？",
     options:["軽めの作業がうれしい","どちらでもOK","力仕事も歓迎"] },
   { k:"work_mood", label:"作業中の雰囲気", q:"作業中の雰囲気は？",
     options:["おしゃべり歓迎","ほどよく会話","黙々と集中"] },

@@ -317,7 +317,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           </div>
           {/* 写真ギャラリー */}
           {(() => {
-            const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
+            const photos = job.photos.length > 0 ? job.photos : [null, null, null];
             const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
             return (
               <div style={{ position:"relative", borderRadius:12, ...revOutline("写真"), marginBottom:8 }}>
@@ -340,7 +340,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                       }}>
                         {job.photos.length > 0
                           ? <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                          : photo}
+                          : <NavIcon name="image" size={72} style={{ color:"#C8C8C8" }} />}
                         {cap && (
                           <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
                         )}
@@ -426,7 +426,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                   ? (
                     <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
                       {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                        <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                        <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
                       ))}
                     </div>
                   )

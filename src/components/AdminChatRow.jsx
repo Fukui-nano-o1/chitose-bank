@@ -8,6 +8,7 @@ import { closeReadNotifications } from "../lib/push";
 import { supabase } from "../lib/supabase";
 import { fmtJstShort } from "../lib/utils";
 import { LinkifiedText } from "./ui";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 export function AdminChatRow() {
   const [dmOpen, setDmOpen] = useState(false);
@@ -61,14 +62,14 @@ export function AdminChatRow() {
   };
   // 一覧に出す1行ぶんの下書き（プレビュー＝最後のメッセージ。無ければ使い方の一言）
   const last = dmMsgs.length ? dmMsgs[dmMsgs.length - 1] : null;
-  const preview = last ? (last.from_admin ? "🛡 " : "") + String(last.body || "").replace(/\s+/g, " ") : "運営への連絡もここから送れます。";
+  const preview = last ? (last.from_admin ? "運営: " : "") + String(last.body || "").replace(/\s+/g, " ") : "運営への連絡もここから送れます。";
   return (<>
     {/* 一覧の最上部の行（他のスレッド行と同じ形：アイコン40px・名前・未読バッジ・下に1行の要約） */}
     <button onClick={()=>{ setDmOpen(true); loadDm(true); }}
       className={"f-sans" + (dmUnread > 0 ? " cb-urgent-card" : "")}
       style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
         border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
-      <span style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, lineHeight:1 }}>🛡</span>
+      <span style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", display:"flex", alignItems:"center", justifyContent:"center", color:"#00A86B" }}><NavIcon name="shield" size={20} /></span>
       <div style={{ minWidth:0, flex:1 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
           <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>chitose-bank運営</p>
@@ -84,14 +85,14 @@ export function AdminChatRow() {
       <div className="cb-lock-scroll" onClick={()=>setDmOpen(false)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
         <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-            <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>🛡 chitose-bank運営</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="shield" size={14} />chitose-bank運営</p>
           </div>
           <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16, display:"flex", flexDirection:"column", gap:10 }}>
             {dmMsgs.length === 0 ? (
               <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>まだメッセージはありません。運営への連絡もここから送れます。</p>
             ) : dmMsgs.map(m => (
               <div key={m.id} style={{ alignSelf: m.from_admin ? "flex-start" : "flex-end", maxWidth:"85%" }}>
-                {m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}>🛡 運営</p>}
+                {m.from_admin && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}><NavIconInline name="shield" size={10} />運営</p>}
                 <div className="f-sans" style={{ background: m.from_admin ? "#F5F5F5" : "#00A86B", color: m.from_admin ? "#222" : "#fff", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} onNavigate={()=>setDmOpen(false)} /></div>
                 <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: m.from_admin ? "left" : "right" }}>{fmtJstShort(m.created_at)}</p>
               </div>

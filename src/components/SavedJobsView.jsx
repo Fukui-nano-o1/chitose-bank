@@ -390,7 +390,7 @@ export function SavedJobsView({ me }) {
   //   （「0件」と嘘をつかない・憲法3条）＝失敗を正直に出し、もう一度読み込む道を置く
   if (rows === null) return <div>{calendarTop}{loadFailed ? (
     <div style={{ textAlign:"center", padding:"64px 24px" }}>
-      <div style={{ fontSize:34, marginBottom:14 }}>📡</div>
+      <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color:"#B0B0B0" }}><NavIcon name="offline" size={34} /></div>
       <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, margin:0 }}>
         いまの状況を読み込めませんでした。<br />通信の状態を確かめて、もう一度お試しください。
       </p>
@@ -478,7 +478,7 @@ export function SavedJobsView({ me }) {
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ marginBottom:16, color:"#E24B4A", display:"flex", justifyContent:"center" }}><NavIcon name="heart" size={40} /></div>
-          <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を♥しておくと、ここに並びます</p>
+          <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.7 }}>気になる求人を<NavIconInline name="heartFill" size={13} style={{ color:"#E24B4A", marginRight:0 }} />しておくと、ここに並びます</p>
         </div>
       ) : shownRows.length === 0 ? (
         /* 非表示で0件（求人自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
@@ -531,7 +531,7 @@ export function SavedJobsView({ me }) {
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
                 <button onClick={()=>setBoxJob(r)} aria-label="この求人の状況を開く" className="f-sans"
                   style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : (!emp && "🌱")}
+                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : (!emp && <NavIcon name="image" size={30} style={{ color:"#C8C8C8" }} />)}
                   {/* 写真の真ん中に募集主（農家）のアイコン＝雇い手カードの「求人者のアイコン」と対。
                       公開情報（jobs_public の employer_nickname / avatar）だけを使い、掲載が終わって
                       ビューに無い求人では出さない（分からないものを丸で埋めない） */}
@@ -761,7 +761,7 @@ export function SavedJobsView({ me }) {
                     終端前（応募中〜作業中）だけ＝statusとterms確認時刻だけで各段は正しく点灯する */}
                 {r.application_id && (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:18, padding:"14px 16px 12px", marginTop:12, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-                    <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#717171", margin:0 }}>📋 応募の進み具合</p>
+                    <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:"#717171", margin:0 }}><NavIconInline name="clipboard" size={12} />応募の進み具合</p>
                     <FlowBar a={{ status: r.application_status,
                       terms_confirmed_worker_at: r.terms_confirmed_worker_at,
                       terms_confirmed_farmer_at: r.terms_confirmed_farmer_at }} />

@@ -1,9 +1,9 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。プロフィールモーダル（自分の看板＋道具箱）。
-import { NavIconInline } from "./NavIcons";
 
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 const CROP_EMOJIS = ['🥦','🍅','🍆','🥕','🌽','🥬','🍓','🥒','🧅','🥔','🍈','🌶️','🥜','🫛','🧄'];
 function getDefaultAvatar(farmerId) {
@@ -123,8 +123,8 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
               width:34, height:34, borderRadius:"50%",
               background:"#222", border:"2px solid #fff", color:"#fff",
               display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:15, cursor:"pointer",
-            }}>📷</button>
+              cursor:"pointer",
+            }}><NavIcon name="camera" size={15} /></button>
           </div>
           <h1 className="f-sans" style={{ fontSize:26, fontWeight:700, color:"#222", margin:"0 0 4px", textAlign:"center" }}>{me.name}</h1>
           <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", margin:0 }}>{me.email}</p>
@@ -140,7 +140,7 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
             <span style={{
               padding:"5px 14px", borderRadius:20, fontSize:11, fontWeight:600,
               background:"#F7F7F7", color:"#717171",
-            }}>📧 メール認証済み</span>
+            }}><NavIconInline name="mail" size={11} />メール認証済み</span>
           </div>
         </div>
 
@@ -149,15 +149,15 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
           display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10, marginBottom:24,
         }}>
           {[
-            { label:"入力データ", value:recCount + "件", icon:"📋" },
-            { label:"入力月数", value:uniqueMonths + "ヶ月", icon:"📅" },
-            { label:"出荷先数", value:uniqueDests + "件", icon:"🚚" },
-            { label:"最終入力日", value:lastDate, icon:"🕐" },
+            { label:"入力データ", value:recCount + "件", icon:"clipboard" },
+            { label:"入力月数", value:uniqueMonths + "ヶ月", icon:"calendar" },
+            { label:"出荷先数", value:uniqueDests + "件", icon:"truck" },
+            { label:"最終入力日", value:lastDate, icon:"clock" },
           ].map(stat => (
             <div key={stat.label} style={{
               padding:"16px", background:"#F7F7F7", borderRadius:16, textAlign:"center",
             }}>
-              <div style={{ fontSize:22, marginBottom:6 }}>{stat.icon}</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:6, color:"#717171" }}><NavIcon name={stat.icon} size={22} /></div>
               <p className="f-mono" style={{ fontSize:18, fontWeight:700, color:"#222", margin:"0 0 2px" }}>{stat.value}</p>
               <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:0 }}>{stat.label}</p>
             </div>
@@ -169,17 +169,17 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
           <h2 className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:12 }}>基本情報</h2>
           <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, overflow:"hidden" }}>
             {[
-              { icon:"🗾", label:"地域", value:(me.prefecture || "") + (me.municipality ? " " + me.municipality : "") || "未設定" },
-              { icon:"📅", label:"就農歴", value:TIER_LABELS[me.experience_tier] || "未設定" },
-              { icon:"🏠", label:"専業/兼業", value:farmType === "fulltime" ? "専業農家" : farmType === "parttime" ? "兼業農家" : "未設定" },
-              { icon:"📐", label:"経営面積", value:areaTan ? areaTan + " 反" : "未設定" },
+              { icon:"pin", label:"地域", value:(me.prefecture || "") + (me.municipality ? " " + me.municipality : "") || "未設定" },
+              { icon:"calendar", label:"就農歴", value:TIER_LABELS[me.experience_tier] || "未設定" },
+              { icon:"barn", label:"専業/兼業", value:farmType === "fulltime" ? "専業農家" : farmType === "parttime" ? "兼業農家" : "未設定" },
+              { icon:"ruler", label:"経営面積", value:areaTan ? areaTan + " 反" : "未設定" },
             ].map((item, i, arr) => (
               <div key={item.label} style={{
                 display:"flex", alignItems:"center", gap:12,
                 padding:"14px 18px",
                 borderBottom: i < arr.length - 1 ? "1px solid #F7F7F7" : "none",
               }}>
-                <span style={{ fontSize:18, width:24, textAlign:"center", flexShrink:0 }}>{item.icon}</span>
+                <span style={{ width:24, flexShrink:0, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name={item.icon} size={18} /></span>
                 <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{item.label}</span>
                 <span className="f-sans" style={{ fontSize:14, color:"#222", fontWeight:500 }}>{item.value}</span>
               </div>

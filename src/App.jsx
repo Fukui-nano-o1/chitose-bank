@@ -67,7 +67,7 @@ function ApplyDoneNote({ promoted = 0, already = false, pending = false, worker 
   return (
     <div onClick={()=>onClose?.()} style={{ position:"fixed", left:0, right:0, bottom:0, zIndex:9500, display:"flex", justifyContent:"center", padding:"0 12px calc(12px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .25s ease" }}>
       <div className="cb-sheet-up" style={{ maxWidth:460, width:"100%", background:"#111", color:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)", cursor:"pointer" }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}>{worker ? "🌱" : pending ? "⏳" : "📩"} {head}</p>
+        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}><NavIconInline name={worker ? "sprout" : pending ? "hourglass" : "inbox"} size={14} />{head}</p>
         {worker ? (
           <>
             {/* 職安法配慮の明示（旧・働き手フロー完了ページstep8から移設）：構想段階＝稼働していないことを消さない */}
@@ -888,7 +888,7 @@ export default function App(){
         const inkColor = document.querySelector(".cb-consign-page") ? "#111111" : "#00A86B";
         ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:'Noto Sans JP',sans-serif";
         ov.style.color = inkColor;
-        ov.textContent = "↻ 更新しています…";
+        ov.textContent = "更新しています…";
         document.body.appendChild(ov);
         setTimeout(() => window.location.reload(), 150);
       }
@@ -1704,7 +1704,7 @@ export default function App(){
         <div onClick={dismissNotices} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10900 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             {/* ✕ボタンは置かない（2026-07-27たきと指示）：ボックス外タップで閉じられる（＝既読化も同じdismissNotices）ので重複 */}
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}>📢 お知らせ</p>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"0 0 14px" }}><NavIconInline name="megaphone" size={19} />お知らせ</p>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {activeNotices[0].image_url
@@ -1916,10 +1916,10 @@ export default function App(){
            不要と判断できたら後日A群としてこのブロックごと削除する ── */}
       {TABS.length>1&&<div className="bottom-tab-bar">
         {TABS.map(({k,badge,l})=>{
-          const icons={search:"🔍",work:"🤝",profile:"👤",admin:"⚙️",labor:"🤝"};
+          const icons={search:"search",work:"hire",profile:"profile",admin:"gear",labor:"hire"};
           return(
             <button key={k} onClick={()=>setTab(k)} className={safeTab===k?"active":""}>
-              <span className="icon">{icons[k]}</span>
+              <span className="icon"><NavIcon name={icons[k]} size={20} /></span>
               {l}
               {badge>0&&<span style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{badge}</span>}
             </button>

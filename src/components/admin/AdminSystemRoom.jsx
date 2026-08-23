@@ -11,6 +11,7 @@ import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, buildErrorReport } from "../../lib/errorCatalog";
 import { Dots } from "../ui";
 import { AdminNav } from "./AdminNav";
+import { NavIconInline } from "../NavIcons";
 
 // ── 画像一括処理のバックグラウンド実行（2026-08-03たきと指示「一括軽量化は一瞬で終了させろ。
 // 何分も画面に張り付かなくてはならない」・AdminTabから移設）：進捗・結果を【モジュールレベル】に
@@ -213,7 +214,7 @@ export function AdminSystemRoom() {
                 padding:"4px 12px", border:"1px solid #DDD", borderRadius:8, background:"#fff",
                 fontSize:10, fontWeight:700, color: copiedSig === g.sig ? "#00A86B" : "#555",
                 cursor:"pointer", flexShrink:0,
-              }}>{copiedSig === g.sig ? "✓ コピー済" : "📋 コピー"}</button>
+              }}>{copiedSig === g.sig ? <><NavIconInline name="tick" size={12} />コピー済</> : <><NavIconInline name="clipboard" size={12} />コピー</>}</button>
           </div>
           {ex && (
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:4 }}>{ex.title}</p>

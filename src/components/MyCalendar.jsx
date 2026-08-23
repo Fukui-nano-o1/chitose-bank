@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { fbSuccess, fbError } from "../lib/feedback";
+import { NavIcon } from "./NavIcons";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）の予定を月グリッドに塗る。
@@ -388,7 +389,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, noDaySheet }) {
                     {chips.length > 2 && (
                       <span className="f-sans" style={{ fontSize:8, fontWeight:700, color:"#717171", lineHeight:1.4 }}>＋{chips.length - 2}</span>
                     )}
-                    {liked && <span aria-hidden="true" style={{ position:"absolute", top:1, right:2, fontSize:8, lineHeight:1 }}>❤️</span>}
+                    {liked && <span aria-hidden="true" style={{ position:"absolute", top:1, right:2, display:"flex", color:"#E24B4A" }}><NavIcon name="heartFill" size={8} /></span>}
                   </button>
                 );
               })}

@@ -345,7 +345,7 @@ export function WorkerApplications({ filter, me }) {
         <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
           {photo
             ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: opts.past ? "grayscale(40%)" : "none" }} />
-            : <CropIcon crop={src.crop} size={36} fallback="🌾" />}
+            : <CropIcon crop={src.crop} size={36} fallback="🌱" />}
           {ribbon && <StatusRibbon label={ribbon.label} color={ribbon.color} />}
         </div>
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
@@ -509,7 +509,7 @@ export function WorkerApplications({ filter, me }) {
         // 返事待ちタブ（第9弾）：仮応募＋応募中カード（再設計）＋待っている間にできること＋過去の応募
         (apps.length === 0 && pastApps.length === 0 && pendingApps.length === 0) ? (
           <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-            <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
             <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
           </div>
@@ -534,7 +534,7 @@ export function WorkerApplications({ filter, me }) {
                   {pendingBlock}
                   {(apps.length === 0 && pendingApps.length === 0) ? (
                     <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-                      <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
+                      <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
                       <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
                       <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
                     </div>
@@ -556,7 +556,7 @@ export function WorkerApplications({ filter, me }) {
         )
       ) : apps.length === 0 ? (
         <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-          <div style={{ fontSize:36, marginBottom:10 }}>🌱</div>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
           <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>仕事が決まると、ここに当日やることが出ます</p>
           <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>農家が承認すると、ここに表示されます。</p>
         </div>

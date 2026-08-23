@@ -11,7 +11,7 @@ import { NavIcon } from "../../../../components/NavIcons";
 export function SearchFab({ active, summary, count, onOpen, onClear }) {
   return (<>
     <button onClick={onOpen} className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 4px 16px rgba(0,0,0,0.18)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
-      <span style={{ fontSize:17, flexShrink:0 }}>🔍</span>
+      <span style={{ flexShrink:0, display:"flex", color:"#717171" }}><NavIcon name="search" size={17} /></span>
       <span style={{ minWidth:0, flex:1 }}>
         <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
           {active ? summary : "仕事をさがす"}

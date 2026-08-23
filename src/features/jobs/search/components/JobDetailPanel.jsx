@@ -4,7 +4,6 @@
 //   子が「承認済みだからチャットへ」のような判断を始めた時点で第二のコントローラーになる。
 //   この層はそれを作らないための境界。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
-import { NavIcon } from "../../../../components/NavIcons";
 
 import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
@@ -12,6 +11,7 @@ import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPho
 import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { EMPTY_MARK, disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate } from "../../../../lib/utils";
+import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 // 求人の主要情報（日程・勤務時間・休憩・人数・最寄り駅・報酬・支払条件・時間外）
 export function JobKeyFacts({ job }) {
   return (<>
@@ -75,7 +75,7 @@ export function JobDescription({ job }) {
             ? (
               <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
                 {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                  <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                  <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
                 ))}
               </div>
             )
@@ -298,8 +298,8 @@ export function JobReviews({ job, sort, onSort, showAll, onShowAll }) {
             <div className="review-header-profile" style={{ display:"flex", alignItems:"center", gap:8 }}>
               <div style={{
                 width:32, height:32, borderRadius:"50%", background:"#E6F7EF", flexShrink:0,
-                display:"flex", alignItems:"center", justifyContent:"center", fontSize:16,
-              }}>🧑‍🌾</div>
+                display:"flex", alignItems:"center", justifyContent:"center", color:"#00A86B",
+              }}><NavIcon name="farmer" size={18} /></div>
               <div>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0 }}>{job.farmerName}</p>
                 <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:0 }}>{job.farmerBadge}・{job.farmerYears}</p>

@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { C, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION } from "../lib/utils";
 import { Dots } from "./ui";
+import { NavIcon } from "./NavIcons";
 
 // ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
 // 送信は届出完了までADMIN_EMAIL限定。一般ユーザーはボタン無効「準備中」表示（RLS側もadmin限定で二重ゲート）
@@ -126,7 +127,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
     <div className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
       <div style={{ width:"100%", maxWidth:"100%", margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
-          <div style={{ fontSize:36, marginBottom:12 }}>📝</div>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:12, color:"#717171" }}><NavIcon name="edit" size={36} /></div>
           <div className="f-sans" style={{ fontSize:20, fontWeight:700, color:C.ink }}>新規登録：本人情報の入力</div>
           <p className="f-sans" style={{ fontSize:11, color:C.dim, marginTop:6 }}>ご利用のために、登録情報をご入力ください</p>
         </div>

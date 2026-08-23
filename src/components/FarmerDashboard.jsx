@@ -1240,7 +1240,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
           <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmActive" /></div>
         ) : (dbActive.length === 0 && dbExpired.length === 0) ? (
           <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
-            <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:12, color:"#C8C8C8" }}><NavIcon name="image" size={40} /></div>
             <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>
             <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 新しく求人を出す</button>
           </div>
@@ -1254,7 +1254,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               <div key={d.job_number} onClick={()=> armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
                 : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="ended" size={36} /></span> : "🌾")}
+                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="ended" size={36} /></span> : <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="image" size={36} /></span>)}
                   {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
                       区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋終了アイコンで十分伝わる） */}
                   {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "公開間近"} color={d.status==="draft" ? "#757575" : "#0E8A6B"} />}
@@ -1607,7 +1607,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
         </div>
       ) : jobList.map(job => (
         <div key={job.id} style={{ display:"block", width:"100%", background:"#fff", border:"1px solid #EEE", borderRadius:12, overflow:"hidden" }}>
-          <div style={{ width:"100%", height:220, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:72 }}>{job.icon}</div>
+          <div style={{ width:"100%", height:220, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}><NavIcon name="image" size={72} /></div>
           <div style={{ padding:"12px 16px 16px" }}>
             <p className="f-sans" style={{ fontSize:16, fontWeight:600, color:"#222", margin:0, marginBottom:4 }}>{job.crop} {job.task}</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, marginBottom:6 }}>{job.dateLabel}　{job.region}</p>

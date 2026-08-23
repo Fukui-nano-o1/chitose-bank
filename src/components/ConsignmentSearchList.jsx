@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
+import { NavIcon } from "./NavIcons";
 
 // 募集の状態（準備室と同じ語彙・色）
 const recruitState = (status) => {
@@ -50,7 +51,7 @@ export function ConsignmentSearchList() {
   if (deals.length === 0) {
     return (
       <div style={{ textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
-        <div style={{ fontSize:40, marginBottom:12 }}>📄</div>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}><NavIcon name="clipboard" size={40} /></div>
         <p style={{ fontSize:16, margin:0, lineHeight:1.6 }}>現在、募集中の委託はありません</p>
       </div>
     );

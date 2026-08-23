@@ -8,6 +8,7 @@
 import { useState, useEffect } from "react";
 import { fetchWorkerReady, promotePendingApplications } from "../lib/workerReady";
 import { NoticeJumpText, Dots } from "./ui";
+import { NavIcon } from "./NavIcons";
 
 export function ApplyPending() {
   const [state, setState] = useState(null); // { ready, missing }
@@ -28,7 +29,7 @@ export function ApplyPending() {
   };
   return (
     <div style={{ minHeight:"70vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", maxWidth:420, margin:"0 auto", padding:"0 20px" }}>
-      <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
+      <div style={{ display:"flex", justifyContent:"center", marginBottom:16, color:"#00A86B" }}><NavIcon name="check" size={56} /></div>
       <h2 className="f-sans" style={{ fontSize:22, fontWeight:700, color:"#222", marginBottom:12 }}><NoticeJumpText text="仮応募をお預かりしました" /></h2>
       <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, marginBottom:20 }}>
         プロフィールがそろうと、農家さんに応募が届きます。

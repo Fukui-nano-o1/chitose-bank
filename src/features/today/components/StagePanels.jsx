@@ -21,7 +21,7 @@ import { JobCard } from "../../../components/JobCard";
 import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
 import { DayReportSheet } from "../../../components/DayReportSheet";
 import { Celebration } from "../../../components/Celebration";
-import { NavIconInline } from "../../../components/NavIcons";
+import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 
 
 // 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
@@ -57,7 +57,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
               {/* 左：求人のトップ写真。タイトル・#No.を写真下部に重ねる（ステータスページと同じ作法・枠は3:4固定） */}
               <button onClick={()=>setBoxItem(e)} aria-label="この仕事の緊急連絡を開く" className="f-sans"
                 style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                 <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(e)}</span>
                   <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{e.job_number}</span>
@@ -104,7 +104,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
                 {/* 求人の要約（写真・タイトル・#No.・地域・日程・勤務時間・相手） */}
                 <div style={{ display:"flex", gap:12, alignItems:"center", marginBottom:12 }}>
                   <div style={{ flexShrink:0, width:88, height:88, borderRadius:12, overflow:"hidden", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                    {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                   </div>
                   <div style={{ minWidth:0 }}>
                     <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(e)}</p>
@@ -256,7 +256,7 @@ export function HireStagePanel({ items, meId, onHired }) {
               {/* ①求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
               <button onClick={()=>openConfirm(t)} aria-label="この応募者を採用する" className="f-sans"
                 style={{ flex:"1 1 0", minWidth:0, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : "🌱"}
+                {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                 <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
                   <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{titleOf(t)}</span>
                   <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{t.job_number}</span>

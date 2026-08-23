@@ -384,7 +384,7 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
           );
         })}
         <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={cardStyle(isOther)}>
-          {!noIcon && <span style={{ fontSize:56, lineHeight:1 }}>✏️</span>}
+          {!noIcon && <span style={{ display:"flex", color:"#717171" }}><NavIcon name="edit" size={52} /></span>}
           <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>その他</span>
         </button>
       </div>
@@ -451,7 +451,7 @@ export function MaskedText({ label, chars = 4 }) {
           style={{ position:"fixed", inset:0, zIndex:10400, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={(e)=>e.stopPropagation()} className="f-sans"
             style={{ background:"#fff", borderRadius:18, padding:"22px 20px", maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", textAlign:"center", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
-            <p style={{ fontSize:26, margin:"0 0 10px" }} aria-hidden="true">🔒</p>
+            <p style={{ margin:"0 0 10px", display:"flex", justifyContent:"center", color:"#717171" }} aria-hidden="true"><NavIcon name="lock" size={26} /></p>
             <p style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{label}は、ログインすると表示されます</p>
             <p style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 0 18px" }}>
               ここにはこの求人の{label}が入っています。ぼかしているのは表示だけの話ではなく、

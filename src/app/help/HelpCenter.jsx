@@ -6,6 +6,7 @@ import { isAdmin } from "../../lib/utils";
 import { Dots } from "../../components/ui";
 import { isIOS } from "../../lib/push";
 import { compressImage } from "../../lib/image";
+import { NavIconInline } from "../../components/NavIcons";
 
 // ── ヘルプセンター（#/help・#/help/{chapter}） ──────────────────
 // HELP_CONTENT: 章キー→{num,title,items:[{label,body}]}。
@@ -47,7 +48,7 @@ const HELP_CONTENT = {
       { key:"worker-approveMail", label: "⑤ 承認メール", body: "農家が承認すると、メールで知らされます。" },
       { key:"worker-chatMeet",    label: "⑥ チャット・確認カード", body: "チャットと確認カードで、日程や集合場所などを打ち合わせます。" },
       { key:"worker-startAuto",   label: "⑦ 当日", body: "作業の開始時刻を過ぎると、自動で「作業中」になります。開始の記録のために押すものはありません。" },
-      { key:"worker-endReview",   label: "⑧ 作業後「⭐ 仕事の評価」", body: "作業が終わったら、3タップで仕事を評価します。" },
+      { key:"worker-endReview",   label: "⑧ 作業後「仕事の評価」", body: "作業が終わったら、3タップで仕事を評価します。" },
     ],
   },
   mails: {
@@ -73,15 +74,15 @@ const HELP_CONTENT = {
       { key:"mails-allDone",           label: "M42　全日程が終了しました", body: "いつ：最終の作業日の終了予定時刻／誰に：農家・働き手の双方／内容：働き手＝「農家を評価する」、農家＝「完了して評価する」。※すでに評価・完了を記録していれば、その相手には送りません。作業後の繰り返しのお知らせはありません（M12・M13が担います）" },
       { key:"mails-doneCheck",         label: "M12　作業は終わりましたか", body: "いつ：作業日翌朝9時（最大2回）／誰に：農家" },
       { key:"mails-reviewRequest",     label: "M13　評価のお願い", body: "いつ：作業が完了した時／誰に：働き手" },
-      { key:"mails-reviewArrived",     label: "M19　🌟評価が届きました", body: "いつ：相手からの評価が公開された時／誰に：農家・働き手の双方／内容：お互いの評価が揃うか、3日たつと公開されます（3日ルール）" },
+      { key:"mails-reviewArrived",     label: "M19　評価が届きました", body: "いつ：相手からの評価が公開された時／誰に：農家・働き手の双方／内容：お互いの評価が揃うか、3日たつと公開されます（3日ルール）" },
       { key:"mails-noShow",            label: "M14　欠勤の記録", body: "いつ：農家が欠勤を記録した時／誰に：働き手／内容：72時間以内に異議申立ができます" },
       { key:"mails-emergency",         label: "M11　緊急連絡", body: "いつ：遅刻・欠勤・中止・延期・欠勤記録への異議の連絡があった時／誰に：相手方（即時）\n現地で会えない時の連絡も、ここから送れます（日時が記録され、話し合いの資料になります）" },
-      { key:"mails-repeatNewJob",      label: "M16　🌟また呼びたい農家さんの新求人", body: "いつ：あなたを「また呼びたい」に登録した農家さんが新しい求人を公開した時／誰に：指名リストの働き手" },
-      { key:"mails-repeatInstant",       label: "M17　🌟即決で承認されました", body: "いつ：以前「また呼びたい」と評価してくれた農家さんの求人に応募し、選考なしで確定した時／誰に：働き手" },
-      { key:"mails-repeatInstantFarmer", label: "M18　🌟リピート即決のお知らせ", body: "いつ：自分の求人の設定（また呼びたい即決）に基づいて自動承認が実行された時／誰に：農家" },
+      { key:"mails-repeatNewJob",      label: "M16　また呼びたい農家さんの新求人", body: "いつ：あなたを「また呼びたい」に登録した農家さんが新しい求人を公開した時／誰に：指名リストの働き手" },
+      { key:"mails-repeatInstant",       label: "M17　即決で承認されました", body: "いつ：以前「また呼びたい」と評価してくれた農家さんの求人に応募し、選考なしで確定した時／誰に：働き手" },
+      { key:"mails-repeatInstantFarmer", label: "M18　リピート即決のお知らせ", body: "いつ：自分の求人の設定（また呼びたい即決）に基づいて自動承認が実行された時／誰に：農家" },
       { key:"mails-jobQuestion",       label: "M22　求人に質問が届きました", body: "いつ：働き手があなたの求人に質問した時／誰に：農家／内容：回答は求人ページの「質問」タブからできます。回答は他の閲覧者にも公開され、同じ質問を減らせます" },
       { key:"mails-jobQuestionAnswered", label: "M23　質問に回答がつきました", body: "いつ：あなたがした求人への質問に、農家が回答した時／誰に：質問した働き手／内容：回答は求人ページの「質問」タブで、その求人を見る全員に公開されます" },
-      { key:"mails-emergencyContact",  label: "M30　緊急連絡先のご登録のお願い", body: "いつ：運営からのお願い（不定期）／誰に：緊急連絡先が未登録の方／内容：プロフィール編集ページの「🆘 緊急連絡先」への案内。登録した連絡先は、採用が決まった相手にだけ表示されます" },
+      { key:"mails-emergencyContact",  label: "M30　緊急連絡先のご登録のお願い", body: "いつ：運営からのお願い（不定期）／誰に：緊急連絡先が未登録の方／内容：プロフィール編集ページの「緊急連絡先」への案内。登録した連絡先は、採用が決まった相手にだけ表示されます" },
       { key:"mails-policyUpdate",      label: "M40・M41　規約・プライバシーポリシーの改訂のお知らせ", body: "いつ：プライバシーポリシー（M40）や利用規約（M41）を改訂した時／誰に：ご利用中の方全員／内容：何を変えたかの要点と、全文へのリンク。同じ版のお知らせが二度届くことはありません" },
     ],
   },
@@ -90,7 +91,7 @@ const HELP_CONTENT = {
     items: [
       { key:"info-personalData", label: "氏名・住所・生年月日", body: "運営のみが保管します。画面には「連絡先確認済み」バッジだけが表示されます（お名前などの値は相手にも表示されません）。" },
       { key:"info-profileData",  label: "ニックネーム・写真・自己紹介・Q&A・タグ", body: "応募先の農家に表示されます。自由記述は保存するとすぐ公開されます（電話番号・メールアドレス・URLは記載できません。公開後に運営が確認します）。" },
-      { key:"info-externalRecord", label: "他のサービスでの実績について", body: "他サービスでの経験は、ご本人の自己申告として表示されます。運営が確認したものではありません。\nchitose-bankの実績（🌟・完了数・作業時間）は、このサイトでの働きの記録からだけ作られ、自己申告では増えません。" },
+      { key:"info-externalRecord", label: "他のサービスでの実績について", body: "他サービスでの経験は、ご本人の自己申告として表示されます。運営が確認したものではありません。\nchitose-bankの実績（また呼びたい・完了数・作業時間）は、このサイトでの働きの記録からだけ作られ、自己申告では増えません。" },
       { key:"info-address",      label: "集合場所の番地", body: "承認された働き手にだけ表示されます。" },
       { key:"info-chat",         label: "チャット", body: "当事者だけが読めます。" },
       { key:"info-reviews",      label: "評価", body: "良い評価のみ公開されます。お互いの評価が揃うか、3日たつまでは相手に見えません。メモは自分だけが見られます。" },
@@ -105,7 +106,7 @@ const HELP_CONTENT = {
       { key:"faq-cancelApply",     label: "応募を取り消したい", body: "マイページの「あなたの応募」から取り消せます。承認された後は、緊急連絡からご相談ください。" },
       { key:"faq-noContact",       label: "承認されたのに連絡がない", body: "承認後の連絡はチャットで届きます。チャットを確認しても連絡がない場合は、お問い合わせ窓口までご連絡ください。" },
       { key:"faq-cantGo",          label: "当日行けなくなった", body: "チャット画面の「緊急連絡」ボタンから、遅れる・欠勤の連絡ができます。相手にすぐに通知されます。" },
-      { key:"faq-noShowOrDiffer",  label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。通報した人が誰かは相手に伝わりません。" },
+      { key:"faq-noShowOrDiffer",  label: "農家が来ない・話が違う", body: "求人詳細ページ最下部の「報告する」から通報できます。通報した人が誰かは相手に伝わりません。" },
       // 募集主の法定表示（2026-07-30・第14弾）：なぜ書くのかを一言で答える
       { key:"faq-whyRecruiterInfo", label: "なぜ住所や連絡先を書くのですか", body: "求人広告には、募集主の氏名（名称）・住所・連絡先の表示が法律で義務づけられているためです（職業安定法）。業務内容・就業場所・賃金と合わせた6項目が、求人ページに必ず表示されます。ニックネームとは別に、正式な情報をプロフィールの「募集者の情報」にご記入ください。" },
       { key:"faq-payWho",          label: "報酬はいつ誰からもらえますか", body: "報酬は農家から直接受け取ります。運営は報酬のやり取りに関与しません。" },
@@ -114,7 +115,7 @@ const HELP_CONTENT = {
       { key:"faq-profileHidden",   label: "自己紹介が表示されない", body: "自己紹介は保存するとすぐ公開されます。表示されない時は、画面を引き下げて更新してみてください。電話番号・メールアドレス・URLが含まれていると保存できません。" },
       { key:"faq-withdraw",        label: "退会したい", body: "お問い合わせ窓口までご連絡ください。" },
       { key:"faq-insuranceWho",    label: "保険は誰が掛けますか", body: "保険の準備は農家にお願いしています（1日傷害保険など・多くは前日までの加入が必要です）。農家が「保険を準備した」と報告すると、働き手にお知らせが届きます。お知らせは農家からの報告に基づくもので、運営が証書を確認するものではありません。気になる時は、チャットで保険の内容を気軽に確認してください。働き手自身が1日数百円の傷害保険に入ることもできます。農家プロフィールで、保険の準備の方針を表明できます（自己申告）。" },
-      { key:"faq-howToReport",     label: "通報のしかた", body: "求人詳細ページ最下部の「⚑ 報告する」から通報できます。" },
+      { key:"faq-howToReport",     label: "通報のしかた", body: "求人詳細ページ最下部の「報告する」から通報できます。" },
       { key:"faq-howToDispute",    label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。" },
       { key:"faq-contact",         label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。" },
     ],
@@ -329,7 +330,7 @@ export function HelpCenter({ me, onReportClick }) {
                     <button onClick={onReportClick} className="f-sans" style={{
                       justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
-                    }}>💬 この画面を報告</button>
+                    }}><NavIconInline name="flag" size={12} />この画面を報告</button>
                   )}
                   {ch.items.map((it, i) => {
                     const slotKey = it.key;

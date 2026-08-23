@@ -22,6 +22,7 @@ import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { JobInsuranceSection } from "./InsurancePanel";
 import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
+import { NavIconInline } from "./NavIcons";
 
 export function JobDetailBody({ job, me, onBack }) {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -93,7 +94,7 @@ export function JobDetailBody({ job, me, onBack }) {
     <div ref={rootRef}>
       {/* 写真ギャラリー（原寸＝詳細・審査プレビューと同じ扱い。カード用サムネにしない・2026-08-02規則） */}
       {(() => {
-        const photos = job.photos.length > 0 ? job.photos : [job.icon, job.icon, job.icon];
+        const photos = job.photos.length > 0 ? job.photos : [null, null, null];
         const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
         // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側（詳細ページと同型）
         const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
@@ -118,7 +119,7 @@ export function JobDetailBody({ job, me, onBack }) {
                   }}>
                     {job.photos.length > 0
                       ? <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                      : photo}
+                      : <NavIcon name="image" size={72} style={{ color:"#C8C8C8" }} />}
                     {cap && (
                       <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
                     )}
@@ -256,7 +257,7 @@ export function JobDetailBody({ job, me, onBack }) {
               ? (
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
                   {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                    <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                    <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
                   ))}
                 </div>
               )

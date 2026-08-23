@@ -171,7 +171,7 @@ export function WorkerExperiencePage() {
       {/* ← 戻る＝左下の浮遊ボックス（2026-08-03たきと指示。下部バー・☰を消したページの戻り道） */}
       <button onClick={()=>{ let fromApp=false; try{ fromApp=sessionStorage.getItem("cb_expFromApp")==="1"; sessionStorage.removeItem("cb_expFromApp"); }catch{} if (fromApp && window.history.length>1) window.history.back(); else window.location.hash="/profile/worker/profile"; }} className="f-sans"
         style={{ position:"fixed", left:12, bottom:"calc(12px + env(safe-area-inset-bottom, 0px))", zIndex:60, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"12px 18px", fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", boxShadow:"0 4px 16px rgba(0,0,0,0.15)", display:"inline-flex", alignItems:"center", gap:6 }}>← 戻る</button>
-      <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>📋 経験・できること（自己申告）</h1>
+      <h1 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}><NavIconInline name="clipboard" size={22} />経験・できること（自己申告）</h1>
       <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
       {loading ? (
         <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */

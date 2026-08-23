@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { Dots } from "./ui";
+import { NavIconInline } from "./NavIcons";
 
 // 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順。
 // ★入力の設問（農家→働き手＝FarmerDashboard の FARMER_FINAL_QUESTIONS＋FARMER_TRAIT_TAGS／
@@ -15,7 +16,7 @@ const BADGE_DEFS = {
   // 2026-08-20に3問×3択＋特記タグへ再設計。trait_*＝肯定タグの集計（否定タグは公開されない）。
   // entrust/on_time/followed_instructions は旧データ用に残す（>0の時だけ出る）
   farmer_to_worker: [
-    { k: "want_again", label: "🌟 また呼びたい" },
+    { k: "want_again", label: "また呼びたい", icon:"star" },
     { k: "completed_work", label: "予定どおり完了" },
     { k: "trait_careful", label: "丁寧だった" },
     { k: "trait_fast", label: "作業が早かった" },
@@ -29,7 +30,7 @@ const BADGE_DEFS = {
   // 2026-08-20に3問×3択へ再設計（求人と一致・報酬は約束どおり・また働きたい）。
   // safety_care/on_time/instructions_clear は旧データ用に残す（>0の時だけ出る）
   worker_to_farmer: [
-    { k: "want_again", label: "🌟 また働きたい" },
+    { k: "want_again", label: "また働きたい", icon:"star" },
     { k: "as_described", label: "求人のとおりだった" },
     { k: "paid_as_posted", label: "報酬は約束どおり" },
     { k: "safety_care", label: "安全に配慮" },
@@ -75,7 +76,7 @@ export function ReceivedReviews({ userId, direction }) {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: comments.length > 0 ? 12 : 0 }}>
               {shown.map(d => (
                 <span key={d.k} className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "#222", background: "#F0F7F4", border: "1px solid #CDE9DD", borderRadius: 20, padding: "4px 11px" }}>
-                  {d.label} <b style={{ color: AC }}>{badges[d.k]}</b>
+                  {d.icon && <NavIconInline name={d.icon} size={12} />}{d.label} <b style={{ color: AC }}>{badges[d.k]}</b>
                 </span>
               ))}
             </div>

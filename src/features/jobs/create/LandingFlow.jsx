@@ -1160,7 +1160,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               <div className="cb-lock-scroll" onClick={()=>setPlaceBoxOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                 <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>📍 作業場所（農家プロフィール）</p>
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="pin" size={14} />作業場所（農家プロフィール）</p>
                   </div>
                   <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16 }}>
                     <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>プロフィールに作業場所が未設定です。保存すると、農家プロフィールとこの求人の集合場所の両方に入ります。</p>
@@ -1389,7 +1389,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             ].map((c, i) => (
               <div key={i} style={{ padding:"14px 16px", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, marginBottom:10 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                  <div style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>👤</div>
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:"#E6F7EF", display:"flex", alignItems:"center", justifyContent:"center", color:"#00A86B", flexShrink:0 }}><NavIcon name="profile" size={18} /></div>
                   <div style={{ flex:1 }}>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{c.name}</p>
                     <p className="f-sans" style={{ fontSize:11, color:"#717171" }}>{c.exp}</p>
@@ -1700,7 +1700,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     <div style={{ position:"relative", maxWidth:870, margin:"0 auto" }}>
                       {/* 白落ち対策（2026-07-16）：iOS Safariでtransformアニメ中の親内のスナップスクロール画像が
                           白く描画されない事象への対処。translateZ(0)で各スライドを独立レイヤーに昇格（☰固定バグと同じ処方）。
-                          画像URLが読めない場合は📷プレースホルダーが出る（真っ白のまま原因不明、を防ぐ） */}
+                          画像URLが読めない場合はカメラのプレースホルダーが出る（真っ白のまま原因不明、を防ぐ） */}
                       {/* overflowY:hidden（2026-07-16）：スクローラー自身が縦にバウンスせず、縦ドラッグは親（ページ）のスクロールへ渡る */}
                       <div ref={confScrollRef} onScroll={handleConfPhotoScroll} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x pan-y", overscrollBehaviorX:"contain" }}>
                         {jobPhotos.length > 0
@@ -1713,7 +1713,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                               const hasTh = th && th !== p.url;
                               return (
                               <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background: hasTh ? `#F0F0F0 url(${th}) center/cover no-repeat` : "#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
-                                {!hasTh && <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>📷</span>}
+                                {!hasTh && <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="camera" size={48} /></span>}
                                 <img loading="lazy" src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
                                 {p.caption && (
                                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
@@ -1871,7 +1871,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   })() : (
                     <div onClick={()=>{ rememberFlowScroll(); setConfProfileOpen(true); }} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, cursor:"pointer" }}>{/* 未入力＝タップで農家プロの入力項目を展開（2026-07-16） */}
                       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-                        <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, marginBottom:8 }}>🧑‍🌾</div>
+                        <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#717171", marginBottom:8 }}><NavIcon name="farmer" size={24} /></div>
                         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
                         <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
                         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"8px 0 0" }}>タップして農園プロフィールを入力 →</p>
@@ -1955,7 +1955,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     <div onClick={()=>setConfProfileOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>🧑‍🌾 農園プロフィール</p>
+                          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="farmer" size={14} />農園プロフィール</p>
                         </div>
                         <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"4px 12px 16px" }}>
                           <EmployerProfileEdit />
@@ -2007,7 +2007,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             ? (
                               <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
                                 {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                                  <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin ? "📌 " : ""}{c}</span>
+                                  <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
                                 ))}
                               </div>
                             )
@@ -2124,7 +2124,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 <div onClick={() => setPublishModal(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                   <div onClick={(e) => e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>📋 掲載前の確認</p>
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="clipboard" size={14} />掲載前の確認</p>
                     </div>
                     <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
                       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
@@ -2202,11 +2202,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             <h2 className="f-sans" style={lfStyles.stepTitle}>何をしたいですか？</h2>
             <p className="f-sans" style={lfStyles.subtitle}>あとから変更できます</p>
             <LFCardBtn selected={workerPurpose==="open"} onClick={() => selectAndNext(setWorkerPurpose, "open")}>
-              <div className="f-sans" style={lfStyles.cardTitle}>📅 働ける日を公開する</div>
+              <div className="f-sans" style={lfStyles.cardTitle}><NavIconInline name="calendar" size={15} />働ける日を公開する</div>
               <div className="f-sans" style={lfStyles.cardDesc}>農家からオファーを受けたい</div>
             </LFCardBtn>
             <LFCardBtn selected={workerPurpose==="search"} onClick={() => selectAndNext(setWorkerPurpose, "search")}>
-              <div className="f-sans" style={lfStyles.cardTitle}>🔍 募集中の仕事を探す</div>
+              <div className="f-sans" style={lfStyles.cardTitle}><NavIconInline name="search" size={15} />募集中の仕事を探す</div>
               <div className="f-sans" style={lfStyles.cardDesc}>自分から応募したい</div>
             </LFCardBtn>
           </>)}
@@ -2325,7 +2325,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* ③（2026-08-07）：onWorkerDone があれば親がアニメーションに置換するのでこのページは出さない */}
           {isWorker && step === 8 && typeof onWorkerDone !== "function" && (<>
             <div style={{ textAlign:"center", paddingTop:20 }}>
-              <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:16, color:"#00A86B" }}><NavIcon name="check" size={56} /></div>
               <h2 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", marginBottom:10 }}>ありがとうございます</h2>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, marginBottom:24 }}>
                 この機能は現在構想段階です。<br/>

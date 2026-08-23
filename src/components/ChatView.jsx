@@ -602,7 +602,7 @@ export function ChatView({ applicationId, onBack }) {
       {confirmJob && isWorkerSide && !workerConfirmed && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
           <button onClick={()=>{ setConfirmStep(0); setConfirmBoxOpen(true); }} className="f-sans cb-urgent-still"
             style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#FFF8E7", border:"1px solid #F5D98F", borderRadius:12, padding:"12px 14px", cursor:"pointer", margin:"10px 0" }}>
-            <span style={{ fontSize:20, flexShrink:0 }}>📋</span>
+            <span style={{ flexShrink:0, color:"#717171" }}><NavIcon name="clipboard" size={20} /></span>
             <span style={{ flex:1, minWidth:0 }}>
               <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#8A6D1D" }}>はじめる前に、求人内容を確認しましょう</span>
               <span style={{ display:"block", fontSize:12, color:"#B08A2E", marginTop:2 }}>日程・集合場所・持ち物・報酬など{chatJobNumber != null ? `（求人 #${chatJobNumber}）` : ""}</span>
@@ -644,7 +644,7 @@ export function ChatView({ applicationId, onBack }) {
                   <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 4px" }}>{rows[confirmStep].label}</p>
                   <p className="f-sans" style={{ fontSize:16, color:"#222", fontWeight:700, lineHeight:1.7, margin:"0 0 6px", overflowWrap:"break-word", wordBreak:"break-word" }}>{rows[confirmStep].value}</p>
                   {rows[confirmStep].mapUrl && (
-                    <a href={rows[confirmStep].mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ display:"inline-block", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", marginBottom:6 }}>📍 Googleマップで開く →</a>
+                    <a href={rows[confirmStep].mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ display:"inline-block", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", marginBottom:6 }}><NavIconInline name="pin" size={13} />Googleマップで開く →</a>
                   )}
                   <div style={{ height:12 }} />
                   <div style={{ display:"flex", gap:8 }}>
@@ -820,17 +820,17 @@ export function ChatView({ applicationId, onBack }) {
                   const src = photoThumb(p0);
                   return src
                     ? <img loading="lazy" src={src} alt="" style={{ width:"100%", height:170, objectFit:"cover", display:"block", borderRadius:"16px 16px 0 0" }} />
-                    : <div style={{ width:"100%", height:170, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, borderRadius:"16px 16px 0 0" }}>🌾</div>;
+                    : <div style={{ width:"100%", height:170, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8", borderRadius:"16px 16px 0 0" }}><NavIcon name="image" size={48} /></div>;
                 })()}
                 <div style={{ padding:"14px 18px 18px" }} className="f-sans">
                   <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
                     <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, flex:1, minWidth:0 }}>{[jobBox.job.crop, jobBox.job.task].filter(Boolean).join(" ") || "求人"}</p>
                     <span style={{ fontSize:11, color:"#C8C8C8", flexShrink:0 }}>#{jobBox.job.id}</span>
                   </div>
-                  {jobBox.job.region && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>📍 {jobBox.job.region}</p>}
+                  {jobBox.job.region && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="pin" size={12} />{jobBox.job.region}</p>}
                   {jobBox.job.dateLabel && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{jobBox.job.dateLabel}{jobBox.job.workTime ? "　" + jobBox.job.workTime : ""}</p>}
                   {jobBox.job.pay > 0 && <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"6px 0 0" }}>{jobBox.job.payType === "daily" ? "日給" : "時給"} {jobBox.job.pay.toLocaleString()}円</p>}
-                  {jobBox.job.count && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>👥 募集 {jobBox.job.count}</p>}
+                  {jobBox.job.count && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="applicants" size={12} />募集 {jobBox.job.count}</p>}
                   <button onClick={()=>{ setJobBox(null); try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + jobBox.job_number; }} className="f-sans" style={{ marginTop:14, background:"none", border:"none", padding:"0 0 2px", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>詳細ページで見る →</button>
                 </div>
               </>

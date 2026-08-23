@@ -19,7 +19,7 @@ const PR_PROMPTS = [
 ];
 // 働き手プロフィールQ&A：20問メニュー（4グループ）。答えた問いだけがpr_qaに残る＝義務ではない
 const WORKER_QA_QUESTIONS = [
-  { group:"⭐農家がよく見る質問", questions:[
+  { group:"農家がよく見る質問", questions:[
     "これまでの農作業の経験を教えてください",
     "自分の強みはなんですか？",
     "どのくらいの頻度で働きたいですか？",
@@ -883,7 +883,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
       <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>応募したとき、農家にこのように表示されます。</p>
       {isEmpty ? (
         <div style={{ textAlign:"center", padding:"40px 20px", border:"1px solid #EBEBEB", borderRadius:16 }} className="f-sans">
-          <div style={{ fontSize:32, marginBottom:14 }}>🧑‍🌾</div>
+          <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color:"#717171" }}><NavIcon name="farmer" size={32} /></div>
           <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:"0 0 8px" }}>プロフィールを完成させましょう</p>
           <p style={{ fontSize:13, color:"#717171", margin:"0 0 20px", lineHeight:1.7 }}>自己紹介があると、農家に安心して承認してもらえます。</p>
           <button onClick={onEdit} className="btn-primary f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, borderRadius:12, background:ROLE_ORANGE }}>はじめる</button>
@@ -931,7 +931,7 @@ function WorkerProfilePreview({ me, onEdit, onEditItem }) {
             まだ勤務実績はありません。初回勤務後から、労働時間・作業・出勤状況が記録されます。
           </p>
           {wantAgainCount > 0 && (
-            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:ROLE_ORANGE, margin:"10px 0 0" }}>🌟また呼びたい ×{wantAgainCount}</p>
+            <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:ROLE_ORANGE, margin:"10px 0 0" }}><NavIconInline name="star" size={14} />また呼びたい ×{wantAgainCount}</p>
           )}
         </div>
       )}

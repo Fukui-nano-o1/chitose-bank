@@ -376,7 +376,7 @@ export function JobSearchMapView({ onRegister, me }) {
   //   パネルは「選ばせて見せる」だけ。どの求人が残るかは上の filteredList が決める
   const searchSections = [
     { k:"what",   q:"なにを", title:"なにをする？", opts: searchWhatOpts,   sel: selWhats,   tog: togSel(setSelWhats),   label: v => v },
-    { k:"region", q:"どこで", title:"どこでする？", opts: searchRegionOpts, sel: selRegions, tog: togSel(setSelRegions), label: v => "📍 " + v },
+    { k:"region", q:"どこで", title:"どこでする？", opts: searchRegionOpts, sel: selRegions, tog: togSel(setSelRegions), label: v => v },
     { k:"month",  q:"いつ",   title:"いつする？",   opts: searchMonthOpts,  sel: selMonths,  tog: togSel(setSelMonths),  label: v => v + "月" },
   ];
 
@@ -940,13 +940,13 @@ export function JobSearchMapView({ onRegister, me }) {
           {dbJobs === null && <AutoSkeleton shapeKey="search" />}
           {dbJobs !== null && jobList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
-              <div style={{ fontSize:40, marginBottom:12 }}>🌾</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}><NavIcon name="image" size={40} /></div>
               <p style={{ fontSize:16, margin:0, lineHeight:1.6 }}>現在、募集中の求人はありません</p>
             </div>
           )}
           {jobList.length > 0 && filteredList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
-              <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}><NavIcon name="search" size={40} /></div>
               <p style={{ fontSize:16, margin:"0 0 16px", lineHeight:1.6 }}>条件に合う求人が見つかりませんでした</p>
               <button onClick={clearSearch} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#00A86B", cursor:"pointer" }}>条件をクリア</button>
             </div>
@@ -1011,7 +1011,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {pendingInfo && (
         <div onClick={()=>setPendingInfo(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
-            <div style={{ fontSize:48, marginBottom:10 }}>🌱</div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={48} /></div>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 16px" }}>まもなく公開されます</p>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 6px" }}>この求人は、公開の準備が整いしだい、ここに並びます。</p>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>公開されると、内容を見て応募できるようになります。</p>
@@ -1253,7 +1253,7 @@ export function JobSearchMapView({ onRegister, me }) {
                   {likeDone.region && <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>{likeDone.region}</p>}
                 </div>
               </div>
-              <span className="cb-heart-pop" style={{ position:"absolute", top:8, right:8, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, boxShadow:"0 1px 4px rgba(0,0,0,0.18)" }}>❤️</span>
+              <span className="cb-heart-pop" style={{ position:"absolute", top:8, right:8, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", color:"#E24B4A", boxShadow:"0 1px 4px rgba(0,0,0,0.18)" }}><NavIcon name="heartFill" size={20} /></span>
             </div>
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>
               いいねした求人は、いつでも一覧から見返せます。
@@ -1365,7 +1365,7 @@ export function JobSearchMapView({ onRegister, me }) {
                               <div key={r.job_number} style={{ gridColumn:"1 / -1", position:"relative", background:"#F7F7F7", borderRadius:12, padding:10, display:"flex", gap:10, alignItems:"flex-start" }}>
                                 <button onClick={()=>setPastJobsFocus(null)} aria-label="閉じる" style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:"50%", background:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><NavIcon name="close" size={12} /></button>
                                 <div style={{ width:84, height:84, borderRadius:10, overflow:"hidden", flexShrink:0, background:"#EBEBEB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
+                                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                                 </div>
                                 <div style={{ flex:1, minWidth:0, paddingRight:24 }}>
                                   <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -1386,7 +1386,7 @@ export function JobSearchMapView({ onRegister, me }) {
                           return (
                             <button key={r.job_number} onClick={()=>setPastJobsFocus(r.job_number)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7F7F7", border:"none", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
-                                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : "🌾"}
+                                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                                 {/* 状態帯は「すべて」タブでのみ表示。公開中/過去の実績タブは絞り込み済みで帯が冗長（2026-07-24） */}
                                 {pastJobsTab === "all" && <StatusRibbon label={ended ? "終了" : "公開中"} color={ended ? "#9E9E9E" : "#00A86B"} />}
                                 {/* 概要は写真の上に重ねる。黒の半透明グラデで写真の明暗を問わず白文字を読ませる（2026-07-23） */}

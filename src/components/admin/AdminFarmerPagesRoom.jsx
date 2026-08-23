@@ -19,7 +19,7 @@
 import { useState, useEffect } from "react";
 import { AdminNav } from "./AdminNav";
 import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon } from "../ui";
-import { NavIcon } from "../NavIcons";
+import { NavIcon, NavIconInline } from "../NavIcons";
 import { JobCard } from "../JobCard";
 import { Celebration } from "../Celebration";
 import { WorkerTrustCard } from "../TrustCards";
@@ -81,12 +81,12 @@ function Btn({ children, kind = "primary" }) {
     : { background:"#fff", color:"#444", border:"1px solid #DDD" };
   return <span className="f-sans" style={{ display:"block", flex:1, textAlign:"center", padding:"12px 16px", borderRadius:14, fontSize:14, fontWeight:800, ...s }}>{children}</span>;
 }
-/* 本番の求人カード（作成中・公開中パネル）の正方形カードを写経＝写真が無ければ 📝／🌱 */
-function JobTile({ label, icon, ribbon }) {
+/* 本番の求人カード（作成中・公開中パネル）の正方形カードを写経＝写真が無ければ線画（postJob／sprout） */
+function JobTile({ label, icon, ribbon }) {  // icon＝NavIconの名前
   return (
     <div style={{ background:"#fff", border:`1px solid ${LINE}`, borderRadius:12, overflow:"hidden" }}>
-      <div style={{ position:"relative", aspectRatio:"1 / 1", background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36 }}>
-        {icon}
+      <div style={{ position:"relative", aspectRatio:"1 / 1", background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}>
+        <NavIcon name={icon} size={36} />
         {ribbon && <StatusRibbon label={ribbon} color="#0E8A6B" />}
       </div>
       <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:INK, margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</p>
@@ -185,13 +185,13 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"6px 0 8px" }}>送達先</p>
         <LFField label="郵便番号" value="776-0010" />
         <LFField label="番地・建物名" value="字前川 12-3" />
-        <p className="f-sans" style={{ fontSize:13, color:INK, lineHeight:1.9, margin:"4px 0 12px" }}>☑ 利用規約・プライバシーポリシーに同意します</p>
+        <p className="f-sans" style={{ fontSize:13, color:INK, lineHeight:1.9, margin:"4px 0 12px" }}><NavIconInline name="tick" size={13} />利用規約・プライバシーポリシーに同意します</p>
         <span className="btn-primary f-sans" style={{ display:"block", textAlign:"center", padding:14, fontSize:15, fontWeight:700, borderRadius:14 }}>登録する</span>
       </div>
     ) },
   /* 旧「役割をえらぶ（#/role）」は実装から消えているので置かない（2026-08-11たきと指摘・コードで確認）。
      いまは、認証は役割を聞かず、どのプロフィールを作ったかで役割が決まる（骨格⑥）＝この画面が実物 */
-  { ch:"準備", name:"農家をはじめる", url:"#/profile/worker → #/profile/employer", act:"プロフィール入口の浮遊ボタン「🌱 農家を作る」で、雇い手の顔に切り替える。登録の時点では役割を聞かれない。",
+  { ch:"準備", name:"農家をはじめる", url:"#/profile/worker → #/profile/employer", act:"プロフィール入口の浮遊ボタン「農家を作る」で、雇い手の顔に切り替える。登録の時点では役割を聞かれない。",
     body: () => (
       <div style={{ padding:14, position:"relative", minHeight:260 }}>
         <Card style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, borderColor:ROLE_ORANGE }}>
@@ -202,16 +202,16 @@ const STEPS = [
           </div>
         </Card>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          {[["🔍","さがす"],["📮","応募中"],["❤️","いいね"]].map(([e, l]) => (
+          {[["search","さがす"],["inbox","応募中"],["heartFill","いいね"]].map(([e, l]) => (
             <div key={l} style={{ border:`1px solid ${LINE}`, borderRadius:16, padding:"16px 6px 12px", textAlign:"center", background:"#fff" }}>
-              <div style={{ fontSize:22 }}>{e}</div>
+              <div style={{ display:"flex", justifyContent:"center", color:"#333" }}><NavIcon name={e} size={22} /></div>
               <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:INK, margin:"6px 0 0" }}>{l}</p>
             </div>
           ))}
         </div>
         {/* 本番の浮遊トグル（.profile-employer-fab）の見た目・文言そのまま */}
         <div style={{ position:"absolute", right:14, bottom:14 }}>
-          <span className="f-sans" style={{ display:"inline-block", padding:"12px 24px", borderRadius:24, background:ROLE_GREEN, color:"#fff", fontSize:17, fontWeight:700, boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}>🌱 農家を作る</span>
+          <span className="f-sans" style={{ display:"inline-block", padding:"12px 24px", borderRadius:24, background:ROLE_GREEN, color:"#fff", fontSize:17, fontWeight:700, boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}><NavIconInline name="sprout" size={17} />農家を作る</span>
         </div>
       </div>
     ) },
@@ -225,7 +225,7 @@ const STEPS = [
             <p className="f-sans" style={{ fontSize:11, color:SUB, margin:"3px 0 0" }}>吉野川市 ・ 就農16年目</p>
           </div>
         </Card>
-        {[["👤 氏名・農園名","入力済み"],["📍 所在地","入力済み"],["📞 連絡先","入力済み"],["🎁 待遇","あと1つ"],["🛡 保険","入力済み"],["🆘 緊急連絡先","未入力"]].map(([l, r]) => (
+        {[["氏名・農園名","入力済み"],["所在地","入力済み"],["連絡先","入力済み"],["待遇","あと1つ"],["保険","入力済み"],["緊急連絡先","未入力"]].map(([l, r]) => (
           <div key={l} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 2px", borderBottom:`1px solid ${SOFT}` }}>
             <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:INK }}>{l}</span>
             <Chip bg={r === "入力済み" ? "#E6F7EF" : "#FFF4E0"} fg={r === "入力済み" ? GREEN : "#C77700"}>{r}</Chip>
@@ -328,7 +328,7 @@ const STEPS = [
         <p className="f-sans" style={lfStyles.subtitle}>1枚目が、さがす一覧に大きく出ます。あとから足すこともできます。</p>
         <LFWizCard>
           <div style={{ height:150, borderRadius:12, border:"1.5px dashed #CCC", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6 }}>
-            <span style={{ fontSize:30 }}>📷</span>
+            <NavIcon name="camera" size={30} style={{ color:"#B0B0B0" }} />
             <span className="f-sans" style={{ fontSize:13, color:SUB, fontWeight:700 }}>＋ 写真を追加</span>
           </div>
           <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"10px 0 0" }}>0 / 10枚</p>
@@ -377,7 +377,7 @@ const STEPS = [
   { ch:"求人をつくる", name:"確認", url:"#/work/new/11", act:"働き手に見える姿をそのまま確かめる。行ごとに直せる。写真は横スワイプで見る。",
     body: () => (
       <div style={{ padding:0 }}>
-        <div style={{ height:150, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", fontSize:48 }}>🥦</div>
+        <div style={{ height:150, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}><NavIcon name="image" size={48} /></div>
         <div style={{ padding:16 }}>
           <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, textAlign:"center", margin:"0 0 14px" }}>掲載イメージを確認してください</p>
           <p className="f-sans" style={{ fontSize:17, fontWeight:600, color:INK, margin:0 }}>ブロッコリー 収穫</p>
@@ -400,7 +400,7 @@ const STEPS = [
         <div className="cb-sheet-up" style={{ position:"absolute", left:10, right:10, bottom:10, background:"#fff", borderRadius:20, padding:16, boxShadow:"0 -6px 24px rgba(0,0,0,0.18)" }}>
           <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:"0 0 12px" }}>掲載する前に、ご確認ください</p>
           {["書いた条件で、そのとおりに働いてもらいます","最低賃金を下回っていません","危ないところは正直に書きました","働き手の安全に配慮します"].map(t => (
-            <p key={t} className="f-sans" style={{ fontSize:13, color:INK, lineHeight:1.9, margin:"0 0 6px" }}>☑ {t}</p>
+            <p key={t} className="f-sans" style={{ fontSize:13, color:INK, lineHeight:1.9, margin:"0 0 6px" }}><NavIconInline name="tick" size={13} />{t}</p>
           ))}
           <div style={{ marginTop:12 }}><Btn kind="green">同意して掲載する</Btn></div>
         </div>
@@ -414,7 +414,7 @@ const STEPS = [
         </p>
         <PlayBtn onClick={() => api.play("公開しました！")}>▶ 掲載の祝祭を再生する</PlayBtn>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>
-          即公開（運営本人の自己募集）は「🎉 公開しました！」、一般農家は「🌱 求人ができました！」になります。
+          即公開（運営本人の自己募集）は「公開しました！」、一般農家は「求人ができました！」になります。
         </p>
       </div>
     ) },
@@ -426,9 +426,9 @@ const STEPS = [
           <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`1px solid ${LINE}`, background:"#fff", fontSize:14, fontWeight:600, color:"#999" }}>公開中（1）</span>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          <JobTile label="ブロッコリー 収穫" icon="🌱" ribbon="公開間近" />
-          <JobTile label="レタス 定植" icon="📝" />
-          <JobTile label="無題の求人" icon="📝" />
+          <JobTile label="ブロッコリー 収穫" icon="sprout" ribbon="公開間近" />
+          <JobTile label="レタス 定植" icon="postJob" />
+          <JobTile label="無題の求人" icon="postJob" />
         </div>
       </div>
     ) },
@@ -437,15 +437,15 @@ const STEPS = [
   { ch:"応募がくる", name:"新着の応募", url:"#/new-applicants", act:"応募が届くと、サイトを開いた最初にこの画面に着地する。花びらが舞う。",
     body: () => (
       <div style={{ padding:14 }}>
-        <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:INK, textAlign:"center", margin:"0 0 6px" }}>🎉 1件の応募が届きました</p>
+        <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:INK, textAlign:"center", margin:"0 0 6px" }}>1件の応募が届きました</p>
         <p className="f-sans" style={{ fontSize:13, color:SUB, textAlign:"center", lineHeight:1.8, margin:"0 0 16px" }}>応募者を見て、承認するか見送るかを決めてください。<br />承認すると、チャットで面接に進めます。</p>
         <Card style={{ padding:10 }}>
           <div style={{ display:"flex", gap:10 }}>
-            <div style={{ width:66, height:88, borderRadius:10, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0 }}>🥦</div>
+            <div style={{ width:66, height:88, borderRadius:10, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8", flexShrink:0 }}><NavIcon name="image" size={26} /></div>
             <div style={{ flex:1, display:"flex", flexDirection:"column", gap:5 }}>
               <PhaseChip k="applied" />
               <span className="f-sans" style={{ fontSize:11, color:"#999" }}>9/8 10:24 に届きました</span>
-              <span className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.6 }}>📅 9/10・9/11・9/12<br />🕒 8:00〜16:00</span>
+              <span className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.6 }}><NavIconInline name="calendar" size={12} />9/10・9/11・9/12<br /><NavIconInline name="clock" size={12} />8:00〜16:00</span>
             </div>
           </div>
           <div style={{ display:"flex", gap:8, marginTop:10 }}><Btn>内容を見て決める</Btn></div>
@@ -494,17 +494,17 @@ const STEPS = [
         </div>
       </div>
     ) },
-  { ch:"応募がくる", name:"採用する（祝祭）", url:"#/calendar/todo/hire", act:"🤝で最終確認。日程が重なると警告が出る。OKで採用が決まり、契約の内容が記録に凍結される。",
+  { ch:"応募がくる", name:"採用する（祝祭）", url:"#/calendar/todo/hire", act:"握手のボタンで最終確認。日程が重なると警告が出る。OKで採用が決まり、契約の内容が記録に凍結される。",
     body: (api) => (
       <div style={{ padding:14 }}>
         <Card style={{ display:"flex", padding:0, overflow:"hidden", marginBottom:12 }}>
-          <div style={{ flex:1, height:92, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30 }}>🥦</div>
+          <div style={{ flex:1, height:92, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}><NavIcon name="image" size={30} /></div>
           <div style={{ flex:1, padding:"12px 6px", textAlign:"center" }}>
             <Avatar url={null} name="はなこ" size={36} ring={ROLE_ORANGE} />
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:INK, margin:"6px 0 3px" }}>はなこ さん</p>
             <PhaseChip k="interview" />
           </div>
-          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", borderLeft:`1px solid ${LINE}`, fontSize:26 }}>🤝</div>
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", borderLeft:`1px solid ${LINE}`, color:"#333" }}><NavIcon name="hire" size={26} /></div>
         </Card>
         <Card style={{ borderColor:INK, borderWidth:2, marginBottom:12 }}>
           <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:INK, margin:"0 0 8px" }}>はなこ さんを採用しますか？</p>
@@ -543,7 +543,7 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。働き手にも「準備できました」と伝わります。</p>
         <Card>
           <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 8px" }}>はなこ さん ・ 9月10日〜</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}>🛡 農作業中の傷害保険に加入しています</p>
+          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}><NavIconInline name="shield" size={12} />農作業中の傷害保険に加入しています</p>
           <div style={{ display:"flex" }}><Btn kind="green">準備したと報告</Btn></div>
         </Card>
       </div>
@@ -569,14 +569,14 @@ const STEPS = [
     body: () => (
       <div style={{ padding:14 }}>
         <Card style={{ display:"flex", padding:0, overflow:"hidden", marginBottom:12 }}>
-          <div style={{ flex:1, height:98, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30 }}>🥦</div>
+          <div style={{ flex:1, height:98, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}><NavIcon name="image" size={30} /></div>
           <div style={{ flex:1, padding:"14px 6px", textAlign:"center" }}>
             <Avatar url={null} name="はなこ" size={38} ring={ROLE_ORANGE} />
             <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:INK, margin:"6px 0 3px" }}>はなこ さん</p>
             <PhaseChip k="working" />
           </div>
         </Card>
-        <div style={{ display:"flex" }}><Btn kind="danger">⚠️ 緊急連絡</Btn></div>
+        <div style={{ display:"flex" }}><Btn kind="danger"><NavIconInline name="alert" size={13} />緊急連絡</Btn></div>
         <p className="f-sans" style={{ fontSize:11, color:SUB, lineHeight:1.8, marginTop:10 }}>相手の緊急連絡先は、採用が決まったあとにだけ表示されます。</p>
       </div>
     ) },
@@ -604,7 +604,7 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>点数はつけません。あてはまるものを選ぶだけです。</p>
         {["時間どおりに来てくれた","説明したとおりにできた","安全に気をつけていた","また呼びたい"].map(t => (
           <div key={t} style={{ display:"flex", gap:9, padding:"10px 0", borderBottom:`1px solid ${SOFT}` }}>
-            <span className="f-sans" style={{ fontSize:13, color:GREEN }}>☑</span>
+            <span style={{ color:GREEN, display:"flex" }}><NavIcon name="tick" size={13} /></span>
             <span className="f-sans" style={{ fontSize:13, color:INK }}>{t}</span>
           </div>
         ))}
@@ -659,7 +659,7 @@ const STEPS = [
     body: () => (
       <div style={{ padding:14 }}>
         <Card style={{ marginBottom:12, borderColor:ROLE_ORANGE }}>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 4px" }}>🤝 働き手プロフィールを作る</p>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 4px" }}><NavIconInline name="swap" size={13} />働き手プロフィールを作る</p>
           <p className="f-sans" style={{ fontSize:11, color:SUB, lineHeight:1.8, margin:0 }}>農閑期に、他の農園を手伝うこともできます。</p>
         </Card>
         {["アカウントの設定","通知の設定","利用規約","プライバシーポリシー","ログアウト","退会の申し出"].map(t => (

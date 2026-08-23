@@ -297,19 +297,19 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
     // 8: 確認画面
     <div style={{ maxWidth:400, margin:"0 auto", padding:24, background:"#F7F7F7", borderRadius:20 }}>
       <div style={{ textAlign:"center", marginBottom:20 }}>
-        <div style={{ width:80, height:80, borderRadius:"50%", background:"#00A86B22", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", fontSize:36 }}>🌾</div>
+        <div style={{ width:80, height:80, borderRadius:"50%", background:"#00A86B22", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", color:"#00A86B" }}><NavIcon name="farmer" size={36} /></div>
         <p className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222" }}>{obName}</p>
       </div>
       <div style={{ display:"grid", gap:12 }}>
         {[
-          { icon:"📍", label:"都道府県", value: obPrefecture },
-          { icon:"📍", label:"市区町村", value: obMunicipality },
-          { icon:"📅", label:"就農歴", value: obTier },
-          { icon:"🌾", label:"専業/兼業", value: obFarmingType === "fulltime" ? "専業農家" : "兼業農家" },
-          { icon:"📐", label:"経営面積", value: obArea + " 反" },
+          { icon:"pin", label:"都道府県", value: obPrefecture },
+          { icon:"pin", label:"市区町村", value: obMunicipality },
+          { icon:"calendar", label:"就農歴", value: obTier },
+          { icon:"farmer", label:"専業/兼業", value: obFarmingType === "fulltime" ? "専業農家" : "兼業農家" },
+          { icon:"ruler", label:"経営面積", value: obArea + " 反" },
         ].map(item => (
           <div key={item.label} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#fff", borderRadius:10 }}>
-            <span style={{ fontSize:18 }}>{item.icon}</span>
+            <span style={{ display:"flex", color:"#717171" }}><NavIcon name={item.icon} size={18} /></span>
             <span className="f-sans" style={{ fontSize:12, color:"#717171", width:80 }}>{item.label}</span>
             <span className="f-sans" style={{ fontSize:14, fontWeight:600, color:"#222" }}>{item.value}</span>
           </div>
