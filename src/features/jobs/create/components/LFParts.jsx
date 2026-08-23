@@ -4,6 +4,8 @@
 //   フォーカスが失われる（既知のバグ）。移設でもこの性質は変わらない＝1ファイル1モジュール定義。
 // ★LFPhotoReorderStrip のタッチ挙動（長押し350ms・10px判定・native touchmove・passive:false）は
 //   実機で何度も踏んだ末の形。触らないこと。
+import { NavIconInline } from "../../../../components/NavIcons";
+
 import { useState, useEffect, useRef } from "react";
 import { photoThumb } from "../../../../lib/utils";
 
@@ -175,7 +177,7 @@ export function LFMultiPill({ options, values, onToggle }) {
 export function LFWageNote() {
   return (
     <div style={{ padding:"8px 12px", background:"#FEF3E2", borderRadius:8, border:"1px solid #F5A62333", marginTop:8 }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#F5A623" }}>⚠ 報酬は最低賃金を下回らないように設定してください</p>
+      <p className="f-sans" style={{ fontSize:11, color:"#F5A623" }}><NavIconInline name="alert" size={11} style={{ verticalAlign:"-1.5px" }} />報酬は最低賃金を下回らないように設定してください</p>
     </div>
   );
 }

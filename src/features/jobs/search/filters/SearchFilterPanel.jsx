@@ -6,6 +6,8 @@
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 
 // 下部バー直上の浮遊ピル。適用中は条件の要約＋件数＋✕クリアを出す
+import { NavIcon } from "../../../../components/NavIcons";
+
 export function SearchFab({ active, summary, count, onOpen, onClear }) {
   return (<>
     <button onClick={onOpen} className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 4px 16px rgba(0,0,0,0.18)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
@@ -19,7 +21,7 @@ export function SearchFab({ active, summary, count, onOpen, onClear }) {
         </span>
       </span>
       {active && (
-        <span role="button" aria-label="条件をクリア" onClick={(e)=>{ e.stopPropagation(); onClear(); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:"#555" }}>✕</span>
+        <span role="button" aria-label="条件をクリア" onClick={(e)=>{ e.stopPropagation(); onClear(); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#555" }}><NavIcon name="close" size={13} /></span>
       )}
     </button>
   </>);

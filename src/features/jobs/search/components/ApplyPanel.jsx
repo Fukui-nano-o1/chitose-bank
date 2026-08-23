@@ -7,6 +7,8 @@
 // ★props名は親の識別子名と同一にしてある（改名しない）。名前を変えると、抽出先の
 //   ローカル変数と衝突して静かに壊れる事故が起きる（2026-08-18・RelatedJobsで実際に踏んだ）。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
+import { NavIconInline } from "../../../../components/NavIcons";
+
 import { Dots, NoticeJumpText } from "../../../../components/ui";
 import { payLabel, payTermsLine, calFmtDate } from "../../../../lib/utils";
 // 右カラムの応募パネル（給与・最高額・CTA・支払条件・補足文）
@@ -169,7 +171,7 @@ export function ApplyConfirmBox({ selectedJob, applyConfirmOpen, setApplyConfirm
             <div>
               <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>来られる日を選んでください</p>
               <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>この求人は期間募集です。来られる日を農家に伝えてから応募します。</p>
-              <button onClick={()=>{ setApplyChoice("any"); setApplyConfirmStep(3); }} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:16, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:14, cursor:"pointer", marginBottom:16 }}>⭕ 期間中いつでもOK</button>
+              <button onClick={()=>{ setApplyChoice("any"); setApplyConfirmStep(3); }} className="f-sans" style={{ width:"100%", padding:"16px", fontSize:16, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:14, cursor:"pointer", marginBottom:16 }}><NavIconInline name="circleO" size={16} style={{ verticalAlign:"-2.5px" }} />期間中いつでもOK</button>
               <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"0 0 12px" }}>または、来られる日を選ぶ</p>
               <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                 {periodDays.map(d => {
@@ -192,7 +194,7 @@ export function ApplyConfirmBox({ selectedJob, applyConfirmOpen, setApplyConfirm
             <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
               <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}>応募の最終確認</p>
               <div className="f-sans" style={{ fontSize:18, color:"#222", lineHeight:1.7, background:"#F7F7F7", borderRadius:10, padding:"12px 14px" }}>
-                来られる日：{applyChoice === "any" ? "⭕ 期間中いつでもOK" : `${[...applyDates].sort().map(calFmtDate).join("・")}（${applyDates.length}日）`}
+                来られる日：{applyChoice === "any" ? <><NavIconInline name="circleO" size={17} style={{ verticalAlign:"-3px" }} />期間中いつでもOK</> : `${[...applyDates].sort().map(calFmtDate).join("・")}（${applyDates.length}日）`}
               </div>
               <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:"14px 0 0" }}>
                 「応募する」を押すと、この内容で農家に応募が届きます。

@@ -1361,7 +1361,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 {showCalendar && jobDateStart && jobDateEnd && ymdLocal(jobDateStart) !== ymdLocal(jobDateEnd) && (
                   <div style={{ marginTop:8 }}>
                     <button onClick={() => setHolidayMode(v => !v)} className="f-sans" style={{ width:"100%", padding:"11px", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer", border:"1px solid #00A86B", background: holidayMode ? "#00A86B" : "#fff", color: holidayMode ? "#fff" : "#00A86B" }}>
-                      {holidayMode ? "✓ 休日の設定を完了する" : "休日を設定する"}
+                      {holidayMode ? <><NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px" }} />休日の設定を完了する</> : "休日を設定する"}
                     </button>
                     {holidayMode && (
                       <p className="f-sans" style={{ fontSize:12, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"8px 10px", marginTop:6, lineHeight:1.6 }}>
@@ -1901,7 +1901,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                           ].map(row => (
                             <div key={row.k} style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
                               <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, [row.k]: !p[row.k] }))} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:"2px solid", borderColor: perkDraft[row.k] ? "#00A86B" : "#EBEBEB", background: perkDraft[row.k] ? "#E6F7EF" : "#fff", cursor:"pointer", fontSize:14, fontWeight:700, color: perkDraft[row.k] ? "#00A86B" : "#222" }}>
-                                {row.iconName && <NavIconInline name={row.iconName} size={14} style={{ verticalAlign:"-2.5px" }} />}{row.l}{perkDraft[row.k] ? "　✓" : ""}
+                                {row.iconName && <NavIconInline name={row.iconName} size={14} style={{ verticalAlign:"-2.5px" }} />}{row.l}{perkDraft[row.k] ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginLeft:6, marginRight:0 }} /> : ""}
                               </button>
                               {row.tk && perkDraft[row.k] && (
                                 // 台数(parking_capacity)はinteger列ので数字のみ入力させる（「3台」等を弾く・2026-07-19）
@@ -1920,7 +1920,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             return (
                           <div style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
                             <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, smoking_policy: p.smoking_policy === "喫煙場所あり" ? "禁煙（喫煙場所なし）" : "喫煙場所あり" }))} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:"2px solid", borderColor: smokeOn ? "#00A86B" : "#EBEBEB", background: smokeOn ? "#E6F7EF" : "#fff", cursor:"pointer", fontSize:14, fontWeight:700, color: smokeOn ? "#00A86B" : "#222" }}>
-                              <NavIconInline name="noSmoke" size={14} style={{ verticalAlign:"-2.5px" }} />喫煙場所あり{smokeOn ? "　✓" : ""}
+                              <NavIconInline name="noSmoke" size={14} style={{ verticalAlign:"-2.5px" }} />喫煙場所あり{smokeOn ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginLeft:6, marginRight:0 }} /> : ""}
                             </button>
                             {smokeOn && (
                               <input value={perkDraft.smoking_area} onChange={e=>setPerkDraft(p=>({ ...p, smoking_area: e.target.value }))} placeholder="喫煙場所（例：屋外の休憩小屋の横）" maxLength={100} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />
@@ -2021,7 +2021,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
                   <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
                     <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-                      <span style={{ fontSize:18 }}>⚠️</span>
+                      <span style={{ display:"flex", color:"#E8A33D" }}><NavIcon name="alert" size={18} /></span>
                       <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
                       <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ position:"absolute", right:0, background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>

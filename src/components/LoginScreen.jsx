@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { C } from "../lib/utils";
 import { Dots } from "./ui";
+import { NavIcon } from "./NavIcons";
 
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
 export function LoginScreen({ farmers, onLogin, onGoRegister }) {
@@ -47,8 +48,8 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const eyeBtn = (
     <button type="button" onClick={()=>setShowPw(v=>!v)} tabIndex={-1}
       aria-label={showPw ? "パスワードを隠す" : "パスワードを表示する"}
-      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", fontSize:16, cursor:"pointer", padding:4, lineHeight:1 }}>
-      {showPw ? "🙈" : "👁"}
+      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4, lineHeight:1, color:"#717171", display:"flex" }}>
+      <NavIcon name={showPw ? "eyeOff" : "views"} size={18} />
     </button>
   );
 

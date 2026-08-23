@@ -263,7 +263,7 @@ export function ChatList() {
           {pushSt === "default" && (
             <button onClick={doEnablePush} disabled={pushBusy} className="f-sans" style={{ flexShrink:0, padding:"9px 14px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{pushBusy ? "..." : "オンにする"}</button>
           )}
-          <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", fontSize:12, cursor:"pointer", color:"#5B7B6D" }}>✕</button>
+          <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", cursor:"pointer", color:"#5B7B6D", display:"flex", alignItems:"center", justifyContent:"center" }}><NavIcon name="close" size={12} /></button>
         </div>
       )}
       {/* ステータス絞り込みバー（2026-08-07たきと指示）：応募者ページと同じCSSクラスを共用＝

@@ -1,5 +1,7 @@
 // 審査プレビュー兼オーナープレビュー（分割・大物①・2026-07-24）：働き手視点の求人詳細を全画面表示。
 // 管理タブの審査（掲載/差し戻し）・農家自身の下書き/公開中プレビュー（閲覧のみ）の二役。
+import { NavIcon, NavIconInline } from "./NavIcons";
+
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
@@ -294,7 +296,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                 <>
                   <button onClick={()=>setPubOpen(v=>!v)} className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"left" }}>
                     <span style={{ fontSize:12, fontWeight:700, color: all ? "#00A86B" : "#C77700" }}>
-                      掲載前の確認：{okN}/{items.length} {all ? "✓" : "⚠️"}
+                      掲載前の確認：{okN}/{items.length} {all ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginRight:0 }} /> : <NavIconInline name="alert" size={13} style={{ verticalAlign:"-2px", marginRight:0 }} />}
                       <span style={{ color:"#B0B0B0", fontWeight:400 }}>　{fmtJstShort(pubChecks.agreed_at)}</span>
                     </span>
                     <span style={{ fontSize:11, color:"#B0B0B0" }}>{pubOpen ? "閉じる ▲" : "内容を見る ▼"}</span>
@@ -303,7 +305,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
                     <div style={{ display:"grid", gap:6, marginTop:10 }}>
                       {items.map((x, i) => (
                         <p key={i} className="f-sans" style={{ fontSize:12, color: x.checked ? "#222" : "#C77700", margin:0, lineHeight:1.6 }}>
-                          {x.checked ? "✓ " : "× "}{x.text}
+                          {x.checked ? <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px" }} /> : <NavIconInline name="close" size={12} style={{ verticalAlign:"-1.5px" }} />}{x.text}
                         </p>
                       ))}
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"4px 0 0", lineHeight:1.6 }}>この記録は変更・削除できません（追記のみの台帳）。</p>
@@ -438,7 +440,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20, ...revOutline("危険箇所") }}>
             {revChip("危険箇所")}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-              <span style={{ fontSize:18 }}>⚠️</span>
+              <span style={{ display:"flex", color:"#E8A33D" }}><NavIcon name="alert" size={18} /></span>
               <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
             </div>
 

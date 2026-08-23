@@ -109,7 +109,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
                   <div style={{ minWidth:0 }}>
                     <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{titleOf(e)}</p>
                     <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"2px 0 0" }}>#{e.job_number}{e.town ? "　" + e.town : ""}</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateLabel}{e.work_time ? "　🕒" + e.work_time : ""}</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateLabel}{e.work_time ? <>　<NavIconInline name="clock" size={12} style={{ verticalAlign:"-1px", marginRight:2 }} />{e.work_time}</> : ""}</p>
                     {e.partner_name && <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>相手 {e.partner_name}さん</p>}
                   </div>
                 </div>
@@ -120,7 +120,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
                 {/* 操作（ステータスページのボタン群と同じ位置づけ。主役＝緊急連絡） */}
                 <div style={{ display:"grid", gap:8 }}>
                   <button onClick={()=>{ setBoxItem(null); setReportApp({ id: e.application_id }); }} className="f-sans"
-                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>⚠️ 緊急連絡をする</button>
+                    style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="alert" size={14} style={{ verticalAlign:"-2.5px" }} />緊急連絡をする</button>
                   {chatOk && (
                     <button onClick={()=>{ setBoxItem(null); window.location.hash = "/chat/" + e.application_id; }} className="f-sans"
                       style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}><NavIconInline name="chats" size={13} style={{ verticalAlign:"-2px" }} />チャットを開く</button>
@@ -291,7 +291,7 @@ export function HireStagePanel({ items, meId, onHired }) {
                 <div style={{ minWidth:0 }}>
                   <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>{t.partner_name ? t.partner_name + "さん" : "この方"}</p>
                   <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0", overflow:"hidden", textOverflow:"ellipsis" }}>{titleOf(t)} <span style={{ color:"#999" }}>#{t.job_number}</span></p>
-                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateOf(t)}{t.work_time ? "　🕒" + t.work_time : ""}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateOf(t)}{t.work_time ? <>　<NavIconInline name="clock" size={12} style={{ verticalAlign:"-1px", marginRight:2 }} />{t.work_time}</> : ""}</p>
                 </div>
               </div>
               {/* 二重予約の警告（応募者シートと同じ判定＝lib/hire）。下調べ中はその旨を出す＝

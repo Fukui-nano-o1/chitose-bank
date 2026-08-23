@@ -404,7 +404,7 @@ export function TodayPage({ me, defaultRole }) {
         <div style={{ display:"grid", gap:8 }}>
           {items.map(t => {
             const busy = confirming === (t.application_id || t.job_number) + t.stage;
-            const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage.startsWith("t_") && t.work_time) ? "🕒" + t.work_time : ""].filter(Boolean).join(" ");
+            const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage.startsWith("t_") && t.work_time) ? t.work_time : ""].filter(Boolean).join(" ");
             return (
               <div key={todoKey(t)} style={{ display:"grid", gap:6, minWidth:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>

@@ -549,7 +549,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         ))}
       </div>
       {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:AC, textAlign:"center", marginTop:14 }}>保存しました ✓</p>
+        <p className="f-sans" style={{ fontSize:12, color:AC, textAlign:"center", marginTop:14 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>
       )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>

@@ -6,7 +6,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
-import { NavIconInline } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/公開間近/公開中）
 export function StatusRibbon({ label, color }) {
@@ -625,7 +625,7 @@ export const FlowBar = ({ a }) => {
             <div className={isNow ? "cb-flow-now" : undefined}
               style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
               background: (isDone || isNow) ? "#00A86B" : "#fff", border: (isDone || isNow) ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
-              {isDone ? "✓" : ""}
+              {isDone ? <NavIcon name="tick" size={10} /> : ""}
             </div>
             <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
           </div>

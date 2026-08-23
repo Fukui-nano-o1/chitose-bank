@@ -475,7 +475,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             <div style={{ display:"grid", gap:8 }}>
               {steps.map(s => (
                 <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?ROLE_ORANGE:"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
-                  <span style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, background: s.done?ROLE_ORANGE:"#F0F0F0", color: s.done?"#fff":"#B0B0B0" }}>{s.done?"✓":""}</span>
+                  <span style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, background: s.done?ROLE_ORANGE:"#F0F0F0", color: s.done?"#fff":"#B0B0B0" }}>{s.done ? <NavIcon name="tick" size={13} /> : ""}</span>
                   <span style={{ fontSize:14, fontWeight:700, color: s.done?ROLE_ORANGE:"#222", flex:1 }}>{s.l}</span>
                   {!s.done && <span style={{ fontSize:12, color:ROLE_ORANGE, fontWeight:700, flexShrink:0 }}>入力する →</span>}
                 </button>
@@ -523,7 +523,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         })}
       </div>
       {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:14 }}>{savedInReview ? "保存しました ✓　自己紹介も公開されました" : "保存しました ✓"}</p>
+        <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:14 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} />{savedInReview ? "　自己紹介も公開されました" : ""}</p>
       )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>

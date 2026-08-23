@@ -12,6 +12,8 @@
 // ＝AdminJobPreviewとの意図的な差分。
 // job は mapJobPublicRow() で整形済みのオブジェクトを渡すこと。me は Q&A の投稿判定用（任意）。
 // ※本文の見た目を変えるときは AdminJobPreview 側と揃える（出どころが同じ・枝分かれさせない）
+import { NavIcon } from "./NavIcons";
+
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { payLabel, disp, stationLabel, payTermsLine, overtimeLine, EMPTY_MARK } from "../lib/utils";
@@ -269,7 +271,7 @@ export function JobDetailBody({ job, me, onBack }) {
       {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
       <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-          <span style={{ fontSize:18 }}>⚠️</span>
+          <span style={{ display:"flex", color:"#E8A33D" }}><NavIcon name="alert" size={18} /></span>
           <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
         </div>
         {(job.dangerPlaces && job.dangerPlaces.length > 0) && (

@@ -4,6 +4,8 @@
 //   子が「承認済みだからチャットへ」のような判断を始めた時点で第二のコントローラーになる。
 //   この層はそれを作らないための境界。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
+import { NavIcon } from "../../../../components/NavIcons";
+
 import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
 import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar } from "../../../../components/ui";
@@ -91,7 +93,7 @@ export function JobDangerZones({ job, onPhoto }) {
     {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-        <span style={{ fontSize:18 }}>⚠️</span>
+        <span style={{ display:"flex", color:"#E8A33D" }}><NavIcon name="alert" size={18} /></span>
         <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
       </div>
 

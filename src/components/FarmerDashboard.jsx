@@ -746,7 +746,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               <div className={isNow ? "cb-flow-now" : undefined}
                 style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
                 background: (isDone || isNow) ? ROLE_GREEN : "#fff", border: (isDone || isNow) ? "none" : isActive ? "2px solid " + ROLE_GREEN : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? ROLE_GREEN : "#C8C8C8" }}>
-                {isDone ? "✓" : ""}
+                {isDone ? <NavIcon name="tick" size={11} /> : ""}
               </div>
               <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? ROLE_GREEN : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
             </div>
@@ -954,7 +954,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               <AgreedDatesRow value={a.agreed_dates} />
               {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}
               {a.status === "completed" && (
-                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : "✓ 完了・評価済み"}</p>
+                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : <><NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px" }} />完了・評価済み</>}</p>
               )}
               {actionButtons}
       </div>
@@ -1095,7 +1095,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                       <button key={it.k} onClick={()=>setInsOpenKey(open ? null : it.k)}
                         className="f-sans" style={{ flexShrink:0, maxWidth:200, background: open ? ROLE_GREEN : "#F7F7F7", border:"1px solid " + (open || on ? ROLE_GREEN : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
                         <span style={{ display:"block", fontSize:13, fontWeight:700, color: open ? "#fff" : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}><NavIconInline name={it.iconName} size={13} style={{ verticalAlign:"-2px", marginRight:3 }} />{it.chip}</span>
-                        <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_GREEN : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
+                        <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_GREEN : "#B0B0B0", marginTop:2 }}>{on ? <>申告ずみ <NavIconInline name="tick" size={11} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></> : "未申告"}</span>
                       </button>
                     );
                   })}
@@ -1835,7 +1835,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       {completeDone && (
         <div onClick={()=>setCompleteDone(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 16px" }}>☑️ 評価登録完了</p>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 16px" }}><NavIconInline name="tick" size={16} style={{ verticalAlign:"-2.5px" }} /> 評価登録完了</p>
             <div className="f-sans" style={{ display:"grid", gap:8, fontSize:13, marginBottom:14 }}>
               <div style={{ display:"flex", gap:8 }}>
                 <span style={{ flexShrink:0, width:72, color:"#717171" }}>求人</span>

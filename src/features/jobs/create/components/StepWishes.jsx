@@ -22,21 +22,21 @@ export function StepWishes({ jobNotes, setJobNotes, jobCautions, setJobCautions,
       {/* 必要経験の選択式は撤回（2026-07-18）：初心者大歓迎・経験者優遇・リピート即決の3トグルに整理。jobExpは旧求人の表示用に温存 */}
       <div style={{ marginBottom:10 }}>
         <button type="button" onClick={()=>setBeginnerOk(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: beginnerOk ? "#00A86B" : "#EBEBEB", background: beginnerOk ? "#E6F7EF" : "#fff", cursor:"pointer" }}>
-          <span style={{ display:"block", fontSize:14, fontWeight:700, color: beginnerOk ? "#00A86B" : "#222" }}><NavIconInline name="sparkle" size={14} style={{ verticalAlign:"-2.5px" }} />はじめての人も歓迎{beginnerOk ? "　✓" : ""}</span>
+          <span style={{ display:"block", fontSize:14, fontWeight:700, color: beginnerOk ? "#00A86B" : "#222" }}><NavIconInline name="sparkle" size={14} style={{ verticalAlign:"-2.5px" }} />はじめての人も歓迎{beginnerOk ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginLeft:6, marginRight:0 }} /> : ""}</span>
           <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>求人カードに「初心者大歓迎」バッジが表示されます</span>
         </button>
         <button type="button" onClick={()=>setFlagInfoOpen("beginner")} className="f-sans" style={{ background:"none", border:"none", padding:"4px 2px 0", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>初心者大歓迎とは？</button>
       </div>
       <div style={{ marginBottom:10 }}>
         <button type="button" onClick={()=>setExperiencedPreferred(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: experiencedPreferred ? "#1A56C5" : "#EBEBEB", background: experiencedPreferred ? "#E8F0FE" : "#fff", cursor:"pointer" }}>
-          <span style={{ display:"block", fontSize:14, fontWeight:700, color: experiencedPreferred ? "#1A56C5" : "#222" }}><NavIconInline name="medal" size={14} style={{ verticalAlign:"-2.5px" }} />経験者優遇{experiencedPreferred ? "　✓" : ""}</span>
+          <span style={{ display:"block", fontSize:14, fontWeight:700, color: experiencedPreferred ? "#1A56C5" : "#222" }}><NavIconInline name="medal" size={14} style={{ verticalAlign:"-2.5px" }} />経験者優遇{experiencedPreferred ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginLeft:6, marginRight:0 }} /> : ""}</span>
           <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>求人カードに「経験者優遇」バッジが表示されます</span>
         </button>
         <button type="button" onClick={()=>setFlagInfoOpen("expert")} className="f-sans" style={{ background:"none", border:"none", padding:"4px 2px 0", fontSize:12, color:"#1A56C5", textDecoration:"underline", cursor:"pointer" }}>経験者優遇とは？</button>
       </div>
       <div>
         <button type="button" onClick={()=>setInstantApproveRepeat(v=>!v)} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, border:"2px solid", borderColor: instantApproveRepeat ? "#D9A013" : "#EBEBEB", background: instantApproveRepeat ? "#FFF8E7" : "#fff", cursor:"pointer" }}>
-          <span style={{ display:"block", fontSize:14, fontWeight:700, color: instantApproveRepeat ? "#8A6D1D" : "#222" }}><NavIconInline name="repeat" size={14} style={{ verticalAlign:"-2.5px" }} />また呼びたい即決{instantApproveRepeat ? "　✓" : ""}</span>
+          <span style={{ display:"block", fontSize:14, fontWeight:700, color: instantApproveRepeat ? "#8A6D1D" : "#222" }}><NavIconInline name="repeat" size={14} style={{ verticalAlign:"-2.5px" }} />また呼びたい即決{instantApproveRepeat ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginLeft:6, marginRight:0 }} /> : ""}</span>
           <span style={{ display:"block", fontSize:11, color:"#717171", marginTop:2 }}>あなたがお気に入り登録（また呼びたい）した方の応募だけ、自動で承認されます（採用ではありません）</span>
         </button>
         <button type="button" onClick={()=>setFlagInfoOpen("repeat")} className="f-sans" style={{ background:"none", border:"none", padding:"4px 2px 0", fontSize:12, color:"#8A6D1D", textDecoration:"underline", cursor:"pointer" }}>リピート即決とは？</button>

@@ -2,6 +2,8 @@
 // 保管は専用テーブル emergency_contacts（self-only）。他のプロフィール項目とは別テーブルなので、
 // 保存もこの部品の中で完結させる（呼び出し元の save() を汚さない）。
 // 開示は採用成立後・相手方のみ（contract_emergency_contact RPC）＝ContractEmergencyContact が表示側。
+import { NavIconInline } from "./NavIcons";
+
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { setCache } from "../lib/viewCache";
@@ -117,7 +119,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
       <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="例：090-0000-0000" maxLength={30} inputMode="tel"
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:14 }} />
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
-      {saved && <p className="f-sans" style={{ fontSize:12, color:accent, textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
+      {saved && <p className="f-sans" style={{ fontSize:12, color:accent, textAlign:"center", marginTop:10 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>}
       <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 0", lineHeight:1.5 }}>
         いつでも書き換え・空欄にできます。空欄にしても、応募や掲載はできます。
       </p>

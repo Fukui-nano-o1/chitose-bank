@@ -1,4 +1,6 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。プロフィールモーダル（自分の看板＋道具箱）。
+import { NavIconInline } from "./NavIcons";
+
 import { useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { compressImage } from "../lib/image";
@@ -134,7 +136,7 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
               background: isContributor ? "#E6F7EF" : "#FEF3E2",
               color: isContributor ? "#00A86B" : "#F5A623",
               border: isContributor ? "1px solid #00A86B33" : "1px solid #F5A62333",
-            }}>{isContributor ? "✅ 貢献者" : "⚠ 入力で復活"}</span>
+            }}>{isContributor ? <><NavIconInline name="tick" size={11} style={{ verticalAlign:"-1.5px" }} />貢献者</> : <><NavIconInline name="alert" size={11} style={{ verticalAlign:"-1.5px" }} />入力で復活</>}</span>
             <span style={{
               padding:"5px 14px", borderRadius:20, fontSize:11, fontWeight:600,
               background:"#F7F7F7", color:"#717171",

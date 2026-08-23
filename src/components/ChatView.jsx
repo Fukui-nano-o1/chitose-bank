@@ -631,7 +631,7 @@ export function ChatView({ applicationId, onBack }) {
           { label:"変更の範囲", value: disp((confirmJob.placeChangeScope || confirmJob.taskChangeScope) ? `場所：${confirmJob.placeChangeScope || "変更なし"}／作業：${confirmJob.taskChangeScope || "変更なし"}` : "") },
           { label:"契約の更新", value: disp(confirmJob.contractRenewal) },
           { label:"労災・雇用保険", value: disp(confirmJob.laborInsuranceStatus) },
-          { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
+          { label:"保険",     value: insurancePreparedAt ? "準備の報告あり" : "まだ報告がありません" },
         ];
         const done = confirmStep >= rows.length;
         return (
@@ -661,9 +661,9 @@ export function ChatView({ applicationId, onBack }) {
                       <div key={row.label} style={{ display:"flex", justifyContent:"space-between", gap:12, borderBottom:"1px solid #F7F7F7", paddingBottom:8 }}>
                         <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", flexShrink:0 }}>{row.label}</span>
                         {row.mapUrl ? (
-                          <a href={row.mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ fontSize:13, color:"#00A86B", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word", textDecoration:"underline" }}>✓ {row.value} 📍</a>
+                          <a href={row.mapUrl} target="_blank" rel="noopener noreferrer" className="f-sans" style={{ fontSize:13, color:"#00A86B", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word", textDecoration:"underline" }}><NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px" }} />{row.value} <NavIconInline name="pin" size={12} style={{ verticalAlign:"-1.5px", marginRight:0, marginLeft:3 }} /></a>
                         ) : (
-                          <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}>✓ {row.value}</span>
+                          <span className="f-sans" style={{ fontSize:13, color:"#222", fontWeight:600, textAlign:"right", overflowWrap:"break-word", wordBreak:"break-word" }}><NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px" }} />{row.value}</span>
                         )}
                       </div>
                     ))}

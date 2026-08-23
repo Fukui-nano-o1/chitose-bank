@@ -1,6 +1,8 @@
 // 📋 経験・できること（自己申告）専用ページ（#/experience・2026-07-25たきと指示）：
 // 働き手プロフィール編集のボックスモーダルから独立ページへ（保険の準備 #/insurance と同型）。
 // worker_profiles の experience_entries / self_declared / experienced_tasks を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
+import { NavIconInline } from "./NavIcons";
+
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS, ROLE_ORANGE } from "../lib/utils";
@@ -107,7 +109,7 @@ export function WorkerDeclarationBoxes({ selfDeclared, setSelfDeclared }) {
             <button type="button" onClick={()=>setOpenKey(open ? null : it.k)}
               className="f-sans" style={{ display:"block", width:"100%", boxSizing:"border-box", background: open ? ROLE_ORANGE : "#F7F7F7", border:"1px solid " + (open || on ? ROLE_ORANGE : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer", textAlign:"left" }}>
               <span style={{ display:"block", fontSize:14, fontWeight:700, color: open ? "#fff" : "#222" }}>{it.label}</span>
-              <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_ORANGE : "#B0B0B0", marginTop:2 }}>{on ? "申告ずみ ✓" : "未申告"}</span>
+              <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_ORANGE : "#B0B0B0", marginTop:2 }}>{on ? <>申告ずみ <NavIconInline name="tick" size={11} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></> : "未申告"}</span>
             </button>
             {open && (
               /* 展開したボックス：この申告のON/OFFをその場で切り替える（保存はページ/モーダル共通の「保存する」） */
@@ -198,7 +200,7 @@ export function WorkerExperiencePage() {
         )}
 
         <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"15px", fontSize:15, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
-        {saved && <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:12 }}>保存しました ✓</p>}
+        {saved && <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:12 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>}
       </>)}
     </div>
   );

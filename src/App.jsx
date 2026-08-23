@@ -198,9 +198,9 @@ const MOBILE_TABS = [
 ];
 // モバイル☰メニューの静的リンク項目（求人を探す・使い方・報告・ログアウトは動作が固有なので別途JSXで扱う）
 const MOBILE_MENU_ITEMS = [
-  { key:"admin",   label:"⚙️ 管理",       hash:"/admin",   auth:false, adminOnly:true },
-  { key:"boxes",   label:"🗂 ボックス一覧", hash:"/boxes",   auth:false, adminOnly:true },
-  { key:"qr",      label:"📇 QRコード",    hash:"/qr",      auth:false, adminOnly:true },
+  { key:"admin",   label:<><NavIconInline name="gear" size={13} />管理</>,        hash:"/admin", auth:false, adminOnly:true },
+  { key:"boxes",   label:<><NavIconInline name="folder" size={13} />ボックス一覧</>, hash:"/boxes", auth:false, adminOnly:true },
+  { key:"qr",      label:<><NavIconInline name="idCard" size={13} />QRコード</>,    hash:"/qr",    auth:false, adminOnly:true },
 ];
 
 
@@ -1620,7 +1620,7 @@ export default function App(){
               に採用されました。
             </p>
             {[
-              { k:"emergency", l:"緊急連絡先", body:"当日行けない・遅れる時は、プロフィールの「きょうの仕事」ページにある「⚠️ 緊急連絡」から連絡できます。無断欠勤は記録に残るため、必ず連絡してください。" },
+              { k:"emergency", l:"緊急連絡先", body:"当日行けない・遅れる時は、プロフィールの「きょうの仕事」ページにある「緊急連絡」から連絡できます。無断欠勤は記録に残るため、必ず連絡してください。" },
               { k:"flow", l:"採用からの流れ", body:"作業日までにチャットで最終確認（集合場所・持ち物・時間）→ 当日作業 → 終了後に農家が完了処理をします。困ったことはチャットで相談してください。" },
               { k:"review", l:"評価とは？", body:"仕事を終えたあと、農家と働き手がお互いを記録する仕組みです。「また呼びたい」と評価されてお気に入り登録されると、その農家のリピート即決の対象になることがあります。" },
             ].map(r => (
@@ -1646,7 +1646,7 @@ export default function App(){
             <span style={{ display:"block", fontSize:14, fontWeight:700 }}>{msgToast.title}</span>
             <span style={{ display:"block", fontSize:12, color:"#B8B8B8", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{msgToast.text || "タップして開く"}</span>
           </span>
-          <span aria-label="閉じる" onClick={(e)=>{ e.stopPropagation(); setMsgToast(null); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13 }}>✕</span>
+          <span aria-label="閉じる" onClick={(e)=>{ e.stopPropagation(); setMsgToast(null); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center" }}><NavIcon name="close" size={13} /></span>
         </button>
       )}
       {/* ── 世界の分離（2026-07-31たきと指示）──
@@ -1692,7 +1692,7 @@ export default function App(){
             <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 4px" }}>プロフィールが承認されました！</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 18px" }}>さっそく確認してみましょう！</p>
             <button onClick={()=>confirmWelcomeApproved(()=>{ try { sessionStorage.setItem("cb_openWorkerPreview", "1"); } catch {} window.location.hash = "/profile/worker/profile"; })}
-              className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>プレビューを見る 🔗</button>
+              className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>プレビューを見る <NavIconInline name="link" size={13} style={{ marginRight:0, marginLeft:3 }} /></button>
           </div>
         </div>
       )}
@@ -1745,7 +1745,7 @@ export default function App(){
             style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer",
                      background:"#fff", border:"1px solid #EBEBEB", borderRadius:24,
                      padding:"6px 8px 6px 12px", fontFamily:"inherit" }}>
-            <span style={{ fontSize:14, lineHeight:1 }}>☰</span>
+            <span style={{ display:"flex", color:"#222" }}><NavIcon name="menu" size={16} /></span>
             <span style={{ width:28, height:28, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
               <Avatar url={empCtx ? meAvatar.empUrl : meAvatar.url} name={(empCtx ? meAvatar.empName : meAvatar.name) || me?.name} size={28} bg={empCtx ? ROLE_GREEN : ROLE_ORANGE} />
             </span>
@@ -1774,7 +1774,7 @@ export default function App(){
                 style={{ display:"block", width:"100%", textAlign:"left", background:"none",
                          border:"none", cursor:"pointer", fontFamily:"inherit",
                          fontSize:14, color:"#222", padding:"10px 16px" }}>
-                📖 使い方
+                <NavIconInline name="book" size={13} />使い方
               </button>
               {me && (
                 <button onClick={() => { setMenuOpen(false); setShowFeedback(true); }}
@@ -1791,7 +1791,7 @@ export default function App(){
                   style={{ display:"block", width:"100%", textAlign:"left", background:"none",
                            border:"none", cursor:"pointer", fontFamily:"inherit",
                            fontSize:14, color:"#222", padding:"10px 16px" }}>
-                  ⚙️ 管理
+                  <NavIconInline name="gear" size={13} />管理
                 </button>
               )}
               {me && (
@@ -1817,19 +1817,19 @@ export default function App(){
           onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(v => !v); }}
           aria-label="メニュー"
           className={"app-header-mobile-float-btn" + (mobileMenuOpen ? " active" : "")}>
-          <span className="icon">☰</span>
+          <span className="icon"><NavIcon name="menu" size={20} /></span>
         </button>
         {mobileMenuOpen && (
           <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
-            <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/search"; }} className="f-sans app-header-mobile-menu-item">🔍 求人を探す</button>
-            <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item">📖 使い方</button>
+            <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/search"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="search" size={13} />求人を探す</button>
+            <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="book" size={13} />使い方</button>
             {me && (
               <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="flag" size={13} />この画面を報告</button>
             )}
             {/* お問い合わせ（2026-08-22たきと指示）。フッター「サポート」列と同じ宛先＝メールの窓口は1つ。
                 aタグだがメニュー項目のCSSに乗せる（下線を消し文字色を揃える） */}
             <a href="mailto:t5fki6643qty@gmail.com" onClick={()=>setMobileMenuOpen(false)}
-               className="f-sans app-header-mobile-menu-item" style={{ textDecoration:"none", color:"#222" }}>✉️ お問い合わせ</a>
+               className="f-sans app-header-mobile-menu-item" style={{ textDecoration:"none", color:"#222" }}><NavIconInline name="mail" size={13} />お問い合わせ</a>
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
               .map(item => (

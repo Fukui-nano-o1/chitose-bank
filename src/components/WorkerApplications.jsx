@@ -14,7 +14,7 @@ import { CropIcon } from "./CropIcon";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
-import { NavIconInline } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 export function WorkerApplications({ filter, me }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（2026-07-27たきと指示）
@@ -257,7 +257,7 @@ export function WorkerApplications({ filter, me }) {
                       <button onClick={()=>{ setDisputeModalApp(a); setDisputeReason(""); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer", marginBottom:8 }}>異議申立</button>
                     )
                   ) : reviewedIds.has(a.id) ? (
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}>✓ 評価済み</p>
+                    <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}><NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px" }} />評価済み</p>
                   ) : (
                     <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />仕事の評価</button>
                   )
@@ -407,7 +407,7 @@ export function WorkerApplications({ filter, me }) {
                 {i > 0 && <div style={{ position:"absolute", top:8, right:"50%", width:"100%", height:2, background: reached ? "#00A86B" : "#E5E5E5" }} />}
                 <div style={{ position:"relative", zIndex:1, width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:800, boxSizing:"border-box",
                   background: isDone ? "#00A86B" : "#fff", border: isDone ? "none" : isActive ? "2px solid #00A86B" : "2px solid #E5E5E5", color: isDone ? "#fff" : isActive ? "#00A86B" : "#C8C8C8" }}>
-                  {isDone ? "✓" : ""}
+                  {isDone ? <NavIcon name="tick" size={11} /> : ""}
                 </div>
                 <span className="f-sans" style={{ fontSize:9, marginTop:4, lineHeight:1.2, textAlign:"center", color: reached ? "#00A86B" : "#B0B0B0", fontWeight: isActive ? 700 : 500 }}>{s}</span>
               </div>
