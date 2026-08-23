@@ -1045,7 +1045,10 @@ export function JobSearchMapView({ onRegister, me }) {
           display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
           fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
         }}>{jobBackStack.length > 0 ? "← 前の求人に戻る"
-          // 出どころで戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）
+          // 出どころで戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）。
+          // ★カレンダー（働き手＝/saved／農家＝/profile/employer/calendar）から来た時は
+          //   「カレンダーに戻る」（2026-08-23たきと指示）。/profile/employer の判定より先に見る
+          : (backTo === "/saved" || (backTo || "").startsWith("/profile/employer/calendar")) ? "← カレンダーに戻る"
           : (backTo && backTo.startsWith("/profile/employer")) ? "← 求人に戻る" : "← 一覧に戻る"}</button>
         )}
         {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示） */}
