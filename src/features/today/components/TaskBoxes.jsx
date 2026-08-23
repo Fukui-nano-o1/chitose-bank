@@ -25,7 +25,11 @@ const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
 // 役割ごとの全用件カタログ（並びは正規フロー順・TodayPage の TODO_STAGE_CATALOG の写し）
 const STAGE_CATALOG = {
   farmer: ["t_emergency", "revision", "question", "hire", "insurance", "day_report", "complete"],
-  worker: ["t_emergency", "w_revision", "w_day_report", "w_review"],
+  // w_revision（求職の修正）は格子から外した（2026-08-22たきと指示「求職の修正カード非表示」）＝
+  // 求職カード（求職一覧・Phase2b）が未実装で、DBのやること一覧も返さない＝常に薄い空箱だったため。
+  // ★該当ありなら出る：下の activeOrder は my_todo_items の中身から作るので、将来DBが
+  //   w_revision を返し始めたらカタログに戻さなくても箱が現れる（用件を取りこぼさない）
+  worker: ["t_emergency", "w_day_report", "w_review"],
 };
 
 export function TodayTaskBoxes({ role = "worker" }) {
