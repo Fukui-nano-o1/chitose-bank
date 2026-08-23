@@ -413,6 +413,10 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               { label:"備考・注意", value: disp(job.cautions) },
               // 時間外労働（2026-08-03たきと指示・詳細/確認ページと同じ位置・同じ体裁）
               { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
+              // 労働条件の明示・掲載時凍結の3項目（2026-08-21・詳細ページと同じ体裁）
+              { label:"変更の範囲", value: disp((job.placeChangeScope || job.taskChangeScope) ? `場所：${job.placeChangeScope || "変更なし"}／作業：${job.taskChangeScope || "変更なし"}` : "") },
+              { label:"契約の更新", value: disp(job.contractRenewal) },
+              { label:"労災・雇用保険", value: disp(job.laborInsuranceStatus) },
             ].map(row => (
               <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                 <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>

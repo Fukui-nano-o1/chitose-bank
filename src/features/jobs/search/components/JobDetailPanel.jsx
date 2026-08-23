@@ -61,6 +61,11 @@ export function JobDescription({ job }) {
         { label:"備考・注意", value: disp(job.cautions) },
         // 時間外労働（2026-08-03たきと指示・持ち物／備考の下）。未設定は他項目と同じ「ー」
         { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
+        // 労働条件の明示・掲載時凍結の3項目（2026-08-21）。値の無い旧求人は「ー」（憶測で埋めない）。
+        // 退職に関する事項（長文の固定文）は労働条件通知書だけに出す＝求人票では出さない
+        { label:"変更の範囲", value: disp((job.placeChangeScope || job.taskChangeScope) ? `場所：${job.placeChangeScope || "変更なし"}／作業：${job.taskChangeScope || "変更なし"}` : "") },
+        { label:"契約の更新", value: disp(job.contractRenewal) },
+        { label:"労災・雇用保険", value: disp(job.laborInsuranceStatus) },
       ].map(row => (
         <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
           <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>

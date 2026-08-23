@@ -627,6 +627,10 @@ export function ChatView({ applicationId, onBack }) {
           { label:"賃金締切", value: WAGE_CLOSING_RULE_LABELS[confirmJob.wageClosingRule] || PAY_TERMS_UNKNOWN },
           { label:"支払",     value: payTermsLine(confirmJob).replace(/^支払：/, "") },
           { label:"支払方式", value: confirmJob.fullPayGuarantee ? "⏱ 早く終わっても満額" : EMPTY_MARK },
+          // 労働条件の明示・掲載時凍結の3項目（2026-08-21）。値の無い旧求人は「ー」（憶測で埋めない）
+          { label:"変更の範囲", value: disp((confirmJob.placeChangeScope || confirmJob.taskChangeScope) ? `場所：${confirmJob.placeChangeScope || "変更なし"}／作業：${confirmJob.taskChangeScope || "変更なし"}` : "") },
+          { label:"契約の更新", value: disp(confirmJob.contractRenewal) },
+          { label:"労災・雇用保険", value: disp(confirmJob.laborInsuranceStatus) },
           { label:"保険",     value: insurancePreparedAt ? "✓ 準備の報告あり" : "まだ報告がありません" },
         ];
         const done = confirmStep >= rows.length;

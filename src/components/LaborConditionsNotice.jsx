@@ -31,7 +31,10 @@ const fmtYmd = (d) => {
 // 記録に無い法定の明示事項（この通知書では作らないもの）。文末の注意書きで当事者間の明示を促す
 // ★2026-08-19：昇給・賞与・退職手当は待遇（jobs.perks）として掲載時に凍結されるようになったので
 //   この一覧から外した。凍結前の旧契約は perks にキーが無い＝5.賃金の欄が「記録にありません」になる
-const NOT_RECORDED_ITEMS = "契約の更新の有無と基準／就業の場所・従事すべき業務の変更の範囲／退職に関する事項（解雇の事由を含む）／社会保険・雇用保険の適用";
+// ★2026-08-21：契約の更新・変更の範囲・退職に関する事項・労災/雇用保険は掲載時凍結
+//   （migration 20260821090000）で記録されるようになったので一覧から外した。
+//   残るのは健康保険・厚生年金だけ（データを持っていない＝約束しない）
+const NOT_RECORDED_ITEMS = "健康保険・厚生年金の適用";
 
 // 凍結スナップショットから通知書の中身を組み立てる（値が無い法定項目は null＝「記録にありません」）
 function buildSections(s, r) {
@@ -60,13 +63,17 @@ function buildSections(s, r) {
     { h: "1. 労働契約の期間", rows: [
       ["作業日程", period],
       ["期間の定め", period ? "あり（上記の作業日程）" : null],
+      // 契約の更新（2026-08-21）：掲載時に凍結された固定ポリシー。旧契約はキーが無い＝「記録にありません」
+      ["契約の更新", s.contract_renewal || null],
     ]},
     { h: "2. 就業の場所", rows: [
       ["場所", place],
+      ["変更の範囲", s.place_change_scope || null],
       ["最寄り駅", s.nearest_station ? `${s.nearest_station}${s.commute_time ? `（${s.commute_time}）` : ""}` : null],
     ]},
     { h: "3. 従事すべき業務", rows: [
       ["作物・作業", [s.crop, s.task].filter(Boolean).join("　") || null],
+      ["変更の範囲", s.task_change_scope || null],
       ["作業の説明", s.notes || null],
     ]},
     { h: "4. 始業・終業の時刻、休憩、休日、時間外労働", rows: [
@@ -86,12 +93,19 @@ function buildSections(s, r) {
       ["賞与", withDetail(pk.has_bonus, pk.bonus_detail)],
       ["退職手当", withDetail(pk.has_severance_pay, pk.severance_detail)],
     ]},
-    { h: "6. そのほかの記録", rows: [
+    // 退職に関する事項（2026-08-21・労基則5条1項4号＝解雇の事由を含む）：掲載時に凍結された標準文。
+    // 旧契約はキーが無い＝「記録にありません」
+    { h: "6. 退職に関する事項（解雇の事由を含む）", rows: [
+      ["内容", s.retirement_terms || null],
+    ]},
+    { h: "7. そのほかの記録", rows: [
       ["持ち物", s.belongings || null],
       ["注意・備考", s.cautions || null],
       // 相談窓口（2026-08-19）：パート有期法6条1項＋則2条の4点セットの1つ。
       // 掲載時にperksへ凍結された値なので、あとからプロフィールを変えてもこの通知書は変わらない
       ["相談窓口", String(pk.consultation_contact || "").trim() || null],
+      // 労災・雇用保険（2026-08-21）：プロフィールの申告を掲載時に凍結した値
+      ["労災・雇用保険", s.labor_insurance_status || null],
       ["募集主の保険の申告", insItems || null],
       ["求人番号", `#${r.job_number}`],
     ]},

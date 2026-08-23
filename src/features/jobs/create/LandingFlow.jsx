@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview } from "../../../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview, PLACE_CHANGE_OPTIONS, TASK_CHANGE_OPTIONS } from "../../../lib/utils";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { snapGet } from "../../../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "../../../components/ui";
@@ -263,6 +263,11 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。労働条件の明示事項ので求人ごとに持つ。
   const [overtimePolicy,    setOvertimePolicy]    = useState(d.overtimePolicy ?? "");
   const [overtimeDetail,    setOvertimeDetail]    = useState(d.overtimeDetail ?? "");
+  // 就業の場所・業務の【変更の範囲】（2026-08-21・労基則の明示事項）。求人ごとの入力＝
+  // 場所はstep3・作業はstep2に選択肢を置く。未選択のまま掲載してもDBトリガー（job_publish_zscope）が
+  // 「変更なし」に倒すので掲載は止めない（既定＝働き手に最も有利な約束の側）
+  const [placeChangeScope, setPlaceChangeScope] = useState(d.placeChangeScope ?? "変更なし");
+  const [taskChangeScope,  setTaskChangeScope]  = useState(d.taskChangeScope ?? "変更なし");
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
   // 掲載前の必須ガード（2026-07-24〜）：未入力のまま掲載に進ませない（終了求人コピー・編集の受け皿）。
   // 判定の中身は getPublishMissingFields（下）に集約し、openPublish もそこで定義している
@@ -570,6 +575,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         setJobCautions(data.cautions ?? "");
         setOvertimePolicy(data.overtime_policy ?? "");
         setOvertimeDetail(data.overtime_detail ?? "");
+        // 変更の範囲（2026-08-21）：値の無い旧求人・白紙化（draft_stepだけの呼び出し）は既定の「変更なし」へ
+        setPlaceChangeScope(data.place_change_scope ?? "変更なし");
+        setTaskChangeScope(data.task_change_scope ?? "変更なし");
         // photos未所持の旧データを補完しつつ復元。2つ目に中身があれば展開フラグも立てる（2026-07-16）
         const dp = (data.danger_places ?? []).map(x => ({ photos: [], ...x }));
         const dt = (data.danger_tasks ?? []).map(x => ({ photos: [], ...x }));
@@ -672,7 +680,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         farmerWanted, farmerPayType, payTiming, payMethod,
         startHour, startMinute, endHour, endMinute,
         jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-        jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
+        jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
         jobDateStart: jobDateStart?.toISOString() ?? null,
         jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
         jobHolidays,
@@ -738,6 +746,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       // 「あり」以外を選んだら目安は保存しない（選び直しの残骸を残さない・受動喫煙と同じ作法）
       overtime_policy: overtimePolicy || null,
       overtime_detail: overtimePolicy === "あり" ? overtimeDetail.trim() : "",
+      // 変更の範囲（2026-08-21）：掲載時にトリガーが空を「変更なし」に倒すが、選んだ値はそのまま保存
+      place_change_scope: placeChangeScope || null,
+      task_change_scope:  taskChangeScope || null,
       danger_places:   jobDangerPlaces,
       danger_tasks:    jobDangerTasks,
       photos:          jobPhotos,
@@ -908,7 +919,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       jobPhotos, farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText, farmerWanted, farmerPayType, payTiming, payMethod,
       startHour, startMinute, endHour, endMinute, jobCount, breakTime, commuteTime, nearestStation,
       jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput, jobExp, jobTemplate, jobNotes, jobCautions,
-      overtimePolicy, overtimeDetail, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
+      overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
       jobDateStart, jobDateEnd, jobHolidays]);
 
   // step遷移時にスクロール位置をトップへリセット（前ページの途中位置が引き継がれるのを防ぐ）
@@ -1134,6 +1145,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               onOtherChange={setFarmerTaskText}
               otherPlaceholder="作業名を入力（例：畝立て、マルチ張り）"
             />
+            {/* 作業の変更の範囲（2026-08-21・労基則の明示事項「従事すべき業務の変更の範囲」）。
+                未選択のまま掲載してもDBトリガーが「変更なし」に倒す＝ここで足止めしない */}
+            <div style={{ marginTop:18 }}>
+              <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作業の変更の範囲</label>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 8px", lineHeight:1.7 }}>期間の途中で、上で選んだ作業から変わる可能性がある範囲です。「変更なし」なら求人の作業だけをお願いすることになります。</p>
+              <LFPillSelect options={TASK_CHANGE_OPTIONS} value={taskChangeScope} onSelect={setTaskChangeScope} />
+            </div>
           </>)}
 
           {isFarmer && step === 3 && (<>
@@ -1291,6 +1309,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       <option value="車20分以内">車20分以内</option>
                     </select>
                   </div>
+                </div>
+                {/* 場所の変更の範囲（2026-08-21・労基則の明示事項「就業の場所の変更の範囲」）。
+                    未選択のまま掲載してもDBトリガーが「変更なし」に倒す＝ここで足止めしない */}
+                <div style={{ marginBottom:4 }}>
+                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>場所の変更の範囲</label>
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 8px", lineHeight:1.7 }}>期間の途中で、働く場所が上の住所から変わる可能性がある範囲です。「変更なし」ならこの場所だけで働くことになります。</p>
+                  <LFPillSelect options={PLACE_CHANGE_OPTIONS} value={placeChangeScope} onSelect={setPlaceChangeScope} />
                 </div>
               </div>
             </LFWizCard>
@@ -1965,6 +1990,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       // 入力は勤務条件(step5)へ移したので、このブロックの「編集」(step10)ではなく
                       // 行に専用の編集リンクを添える＝ここから直せない項目にならないようにする
                       { label:"時間外労働", value: overtimeLine(overtimePolicy, overtimeDetail), editStep: 5 },
+                      // 変更の範囲（2026-08-21・労基則の明示事項）。入力は場所=step3／作業=step2
+                      { label:"場所の変更の範囲", value: placeChangeScope, editStep: 3 },
+                      { label:"作業の変更の範囲", value: taskChangeScope, editStep: 2 },
                     ].map(row => {
                       const has = row.value && String(row.value).trim();
                       return (

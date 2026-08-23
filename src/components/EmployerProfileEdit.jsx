@@ -4,8 +4,8 @@ import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
-import { Avatar, AutoSkeleton, Dots, FieldHelp } from "./ui";
+import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
+import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -47,6 +47,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 相談窓口（パート有期法6条1項＋則2条の4点セットの1つ・2026-08-19）：連絡先を書く項目なので
   // NG検査（電話・メール・URLの拒否）には載せない＝募集者の連絡先と同じ扱い
   const [consultationContact, setConsultationContact] = useState("");
+  // 労災・雇用保険の適用（2026-08-21・労基則の明示事項）：事業所の属性＝受動喫煙と同じ枠。
+  // 掲載時に jobs.labor_insurance_status へ凍結され、求人詳細・労働条件通知書に出る。
+  // 未申告のまま掲載も可（通知書は「記録にありません」と正直に出す）＝掲載は止めない
+  const [laborInsuranceStatus, setLaborInsuranceStatus] = useState("");
   const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
   const [accessoryOk, setAccessoryOk] = useState(false);
   const [parkingCapacity, setParkingCapacity] = useState("");
@@ -182,6 +186,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setHasRaise(data.has_raise ?? false);
           setHasSeverancePay(data.has_severance_pay ?? false);
           setConsultationContact(data.consultation_contact || "");
+          setLaborInsuranceStatus(data.labor_insurance_status || "");
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
@@ -451,6 +456,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         recruiter_name: recruiterName.trim(), recruiter_name_kana: recruiterNameKana.trim(),
         recruiter_address: composeRecruiterAddress(), recruiter_contact: recruiterContact.trim(),
         consultation_contact: consultationContact.trim(),
+        labor_insurance_status: laborInsuranceStatus || null,
         // 受動喫煙：「あり」以外を選んだら場所の記述は保存しない（選び直しの残骸を残さない）
         smoking_policy: smokingPolicy || null,
         smoking_area: smokingPolicy === "喫煙場所あり" ? smokingArea.trim() : "",
@@ -778,6 +784,16 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
               働き方の相談を受ける担当者と連絡先です（部署名・担当者名・連絡先）。
               パートタイム・有期雇用の方には、この窓口を書面で伝えることが法律で決められています。
               採用が決まると、労働条件通知書に表示されます。
+            </p>
+            {/* 労災・雇用保険の適用（2026-08-21たきと指示「実装」）：事業所の属性＝受動喫煙と同じ枠。
+                掲載時に求人へ凍結（trg_job_publish_zscope）→求人詳細・労働条件通知書に出る。
+                未申告でも掲載は止めない（通知書は「記録にありません」と正直に出す） */}
+            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>労災保険・雇用保険の適用</label>
+            <LFPillSelect options={LABOR_INSURANCE_OPTIONS} value={laborInsuranceStatus} onSelect={v => setLaborInsuranceStatus(v === laborInsuranceStatus ? "" : v)} />
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 16px", lineHeight:1.7 }}>
+              働く方に適用される保険の状況です。求人ページと労働条件通知書に表示されます。
+              法人は労災保険・雇用保険とも加入が必要です。個人経営の農業（常時5人未満）は加入が任意の場合があります
+              （労災保険の特別加入などはお近くの労働基準監督署・労働局にご確認ください）。
             </p>
       </>)}
 

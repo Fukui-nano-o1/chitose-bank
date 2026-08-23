@@ -402,6 +402,14 @@ export function mapJobPublicRow(j) {
     // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。求人ごとの条件ので jobs 直持ち
     overtimePolicy: j.overtime_policy || "",
     overtimeDetail: j.overtime_detail || "",
+    // 労働条件の明示・4項目（2026-08-21）：掲載時にDBトリガー（job_publish_zscope）が凍結した値。
+    // 変更の範囲＝求人入力（未選択は「変更なし」に倒れる）／契約の更新・退職事項＝固定文／
+    // 労災・雇用保険＝プロフィールの申告の掲載時凍結（未申告はNULL＝「ー」表示）
+    placeChangeScope: j.place_change_scope || "",
+    taskChangeScope: j.task_change_scope || "",
+    contractRenewal: j.contract_renewal || "",
+    retirementTerms: j.retirement_terms || "",
+    laborInsuranceStatus: j.labor_insurance_status || "",
     wanted: "", items: j.belongings || "",
     // 賃金支払条件（2026-08-02）：掲載申請時にトリガーが固定ポリシーを確定保存した値。表示はコード値→ラベル変換のみ
     payMethod: j.pay_method || "", payTiming: j.pay_timing || "", wageClosingRule: j.wage_closing_rule || "",
@@ -886,6 +894,22 @@ export const TASK_OPTIONS = [
   { name:"草刈り",   icon:"" },
   { name:"包装",     icon:"" },
   { name:"片付け",   icon:"" },
+];
+
+// 就業の場所・従事すべき業務の【変更の範囲】（2026-08-21・労基則5条1項1の3号＝2024-04からの明示事項）。
+// 求人入力（LandingFlow step3/step2）の選択肢。未選択のまま掲載するとDBトリガー（job_publish_zscope）が
+// 「変更なし」に倒す＝何も選ばなくても働き手に最も有利な約束になる側。
+// ★選択肢を変えるときはDBの既定値（migration 20260821090000）とラベルの整合を確認すること
+export const PLACE_CHANGE_OPTIONS = ["変更なし", "この農園の圃場の範囲内"];
+export const TASK_CHANGE_OPTIONS = ["変更なし", "関連する農作業の範囲内"];
+
+// 労災・雇用保険の適用（2026-08-21・労基則5条1項の明示事項）。プロフィール入力
+//（EmployerProfileEdit・事業所の属性＝受動喫煙と同じ枠）→ 掲載時に jobs.labor_insurance_status へ凍結。
+// 参考：法人は労災・雇用保険とも加入義務。個人経営の農業（常時5人未満）は暫定任意適用。
+export const LABOR_INSURANCE_OPTIONS = [
+  "労災保険・雇用保険に加入しています",
+  "労災保険のみ加入しています",
+  "未加入（個人経営の農業のため任意適用）",
 ];
 
 // 分割3-B（2026-07-25）：App.jsxから移動
