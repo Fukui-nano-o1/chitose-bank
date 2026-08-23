@@ -1453,18 +1453,20 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                             （2026-08-06「縦幅が求人ごとに違う。統一しろ」の狙いはそのまま） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
                         style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                        {/* 写真が1枚も無い求人は、絵文字でなく求人者のアイコンを出す（2026-08-06たきと指示・
-                            求人詳細のJobPhotoFallbackと同じ考え方＝ダミー写真で水増ししない・憲法3条）。
-                            この面の求人はすべて自分が出したものので求人者＝自分＝empMini。
-                            アイコン未設定なら Avatar が農園名の頭文字の丸（雇い手の緑）を出す＝これも実データ */}
-                        {photo
-                          ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} />
-                          : <span style={{ display:"block", lineHeight:0, filter: jobPast ? "grayscale(70%)" : "none" }}>
-                              <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={72} />
-                            </span>}
-                        <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"22px 14px 10px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
-                          <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
-                          <span style={{ display:"block", fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:2, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
+                        {photo && <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: jobPast ? "grayscale(70%)" : "none" }} />}
+                        {/* 写真の真ん中に求人者のアイコン（2026-08-23たきと指示「真ん中に求人者のアイコン」）。
+                            写真の有無に関わらず必ず置く＝旧は「写真が1枚も無い求人だけ代わりに出す」だった。
+                            この面の求人はすべて自分が出したものので求人者＝自分＝empMini。アイコン未設定なら
+                            Avatar が農園名の頭文字の丸（雇い手の緑）を出す＝これも実データ（ダミー写真で水増ししない・憲法3条）。
+                            写真の上に乗る時は白枠＋影で写真から浮かせる（写真がない時は枠なし＝灰色の下地に丸がひとつ） */}
+                        <span style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:1, display:"block", lineHeight:0, borderRadius:"50%", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: jobPast ? "grayscale(70%)" : "none" }}>
+                          <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={72} ring={photo ? "#fff" : undefined} bg={ROLE_GREEN} />
+                        </span>
+                        {/* タイトルと#No.は同じ行に（2026-08-23たきと指示「タイトルの横にナンバー」）。
+                            タイトルが長い時は「…」で省略し、#No.は必ず読める（flexShrink:0で削られない） */}
+                        <span style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"22px 14px 10px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box", display:"flex", alignItems:"baseline", gap:8 }}>
+                          <span style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
+                          <span style={{ flexShrink:0, fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.82)", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
                         </span>
                       </button>
                       {/* 下：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
