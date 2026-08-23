@@ -13,7 +13,6 @@ import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
-import LaborConditionsNotice from "./LaborConditionsNotice";
 import { LikedJobsCard } from "./LikedJobsCard";
 import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
 import { RoleSwitchOverlay } from "./RoleSwitchOverlay";
@@ -355,10 +354,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, a
                       （WorkerProfileEdit・2026-08-03にページからモーダルへ復帰）が担い、
                       相手への表示は名刺カード裏面のプロフィール面（WorkerTrustCard）に出る。
                       専用ページ #/experience もURL直打ちで生きている（入口だけをやめた） */}
-                  {/* 労働条件通知書（2026-08-18たきと指示）＝「わたしの記録」カテゴリーの1枚。
-                      採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い。
-                      旧「契約の記録」（実績モーダル内）の機能はここへ統合済み＝1機能1入口 */}
-                  <LaborConditionsNotice me={me} role="worker" />
+                  {/* 「労働条件通知書」の入口カードは削除（2026-08-22たきと指示）。
+                      ★通知書そのものは残っている：ステータスページ（#/saved）の求人カードのボタンから
+                      1件ずつ開く（applicationId付きのLaborConditionsNotice・表示と印刷）＝
+                      契約ごとの入口の方が探しやすいため、一覧カードは畳んだ */}
                   {/* いいねした求人（2026-08-22たきと指示「マイページのわたしの記録グループにいいねした求人カードを新設」
                       →同日「その他の求人と同じカード一覧構造に」）。データ源・キャッシュはステータスページと共用
                       （my_job_actions／saved:rows）。一覧はJobCard（関連求人と同じ型・wide全幅）＋♥解除⇄再いいね */}

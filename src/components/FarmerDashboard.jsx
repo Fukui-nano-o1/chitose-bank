@@ -1149,9 +1149,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                 ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
                 : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
             </div>
-            {/* 労働条件通知書（2026-08-18たきと指示）＝「記録」カテゴリーの1枚。
-                採用時に凍結された terms_snapshot から作る読み取り専用の通知書。表示・印刷のみ＝保存・入力は無い */}
-            <LaborConditionsNotice me={me} role="farmer" />
+            {/* 「労働条件通知書」の入口カードは削除（2026-08-22たきと指示）。
+                ★通知書そのものは残っている：求人カードのボタンから1件ずつ開く
+                （上の noticeAppId 経由・applicationId付きのLaborConditionsNotice・表示と印刷）＝
+                雇用主が労働条件を明示・交付する手段はサイトから失われていない */}
           </div>
           {/* やることカード群（2026-08-22たきと指示「農家も実施」＝働き手面のコピーと対）。
               正本は今日ページ（TodayPage）＝移行中の複製。行き先の専用ページ(#/calendar/todo/*)も
