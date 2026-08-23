@@ -7,7 +7,7 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, ROLE_GREEN } from "../lib/utils";
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
@@ -15,7 +15,10 @@ import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
-import { NavIcon } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
+import LaborConditionsNotice from "./LaborConditionsNotice";
+import { DayReportSheet } from "./DayReportSheet";
+import { WorkerReviewSheet } from "./WorkerReviewSheet";
 
 // 隠せる段階（2026-08-19たきと指示「チャットページの絞り込みをステータスページにコピー」）：
 // 見送り／失効／取り消しの3つ。チャット一覧の CHAT_HIDABLE・応募者ページの APP_HIDABLE と対
@@ -279,6 +282,18 @@ export function SavedJobsView({ me }) {
   // 誤タップ救済に「元に戻す」を10秒出す（2026-07-27）
   const [undoJob, setUndoJob] = useState(null);
   const [cancelingId, setCancelingId] = useState(null); // 応募の取り消し中（多重送信ガード）
+  // 求人カードのボタン（2026-08-23たきと指示「働き手のカレンダーも同じ構造で」＝雇い手の求人カードと同じ
+  // 労働条件通知書／記録する（最終の作業日からは評価する））。表示・保存はすべて共有部品が担う
+  const [noticeAppId, setNoticeAppId] = useState(null);   // 労働条件通知書（1件だけ開くモード）
+  const [dayReportApp, setDayReportApp] = useState(null); // その日の記録
+  const [reviewApp, setReviewApp] = useState(null);       // 仕事の評価（働き手→農家）
+  // カードの真ん中に出す募集主のアイコン（jobs_public の公開情報）。掲載が終わって
+  // ビューに無い求人は分からない＝その時はアイコンを出さない（?の丸などのダミーを作らない・憲法3条）
+  const [empMap, setEmpMap] = useState(() => getCache("saved:emp") ?? {});
+  // 評価に必要な相手（農家）のauth_id。my_job_actions は farmer_id を返さないので applications から引く
+  // （当事者RLS＝自分の応募だけ）。評価済みの応募（reviews・自分が書いた行だけ読める）も同時に
+  const [farmerIds, setFarmerIds] = useState(() => getCache("saved:farmerIds") ?? {});
+  const [reviewedIds, setReviewedIds] = useState(() => getCache("saved:reviewed") ?? []);
   const handleUnsave = async (r) => {
     setRows(prev => (prev || []).flatMap(x => x.job_number !== r.job_number ? [x] : (x.application_id ? [{ ...x, liked: false }] : [])));
     setUndoJob(r);
@@ -319,6 +334,55 @@ export function SavedJobsView({ me }) {
       }
     } catch { alert("取り消しに失敗しました。"); }
     setCancelingId(null);
+  };
+
+  // カードのボタン・真ん中のアイコンに要るものを、一覧が届いたあとにまとめて1往復で足す。
+  // ★失敗した時は手元の値を上書きしない（2026-08-07のフェイルオープン規則）。
+  // ★キャッシュにはJSON安全な形だけ入れる（Setを入れない・2026-08-03の事故と同じ型）so配列で持つ
+  const rowsKey = rows ? rows.map(r => r.job_number + ":" + (r.application_id || "")).join(",") : "";
+  useEffect(() => {
+    if (!rows || rows.length === 0 || !me?.id) return;
+    let live = true;
+    const nums = rows.map(r => r.job_number);
+    const appIds = rows.filter(r => r.application_id).map(r => r.application_id);
+    (async () => {
+      const [emp, apps, rev] = await Promise.all([
+        supabase.from("jobs_public").select("job_number, employer_nickname, employer_avatar_url").in("job_number", nums),
+        appIds.length
+          ? supabase.from("applications").select("id, farmer_id").in("id", appIds)
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from("reviews").select("application_id").eq("reviewer_id", me.id).eq("direction", "worker_to_farmer"),
+      ]);
+      if (!live) return;
+      if (!emp.error && Array.isArray(emp.data)) {
+        const m = {};
+        emp.data.forEach(x => { m[x.job_number] = { nickname: x.employer_nickname || "", avatar_url: x.employer_avatar_url || "" }; });
+        setEmpMap(m); setCache("saved:emp", m);
+      }
+      if (!apps.error && Array.isArray(apps.data)) {
+        const m = {};
+        apps.data.forEach(x => { m[x.id] = x.farmer_id; });
+        setFarmerIds(m); setCache("saved:farmerIds", m);
+      }
+      if (!rev.error && Array.isArray(rev.data)) {
+        const list = rev.data.map(x => x.application_id).filter(Boolean);
+        setReviewedIds(list); setCache("saved:reviewed", list);
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsKey, me?.id]);
+
+  // 評価を開く（相手＝農家のauth_idが要る）。手元に無ければその場で1件だけ引く
+  // ＝「farmer_id がまだ届いていないから押せない」ボタンを作らない（タップ不能はやめる・2026-08-03）
+  const openReview = async (appId) => {
+    let fid = farmerIds[appId];
+    if (!fid) {
+      const { data, error } = await supabase.from("applications").select("farmer_id").eq("id", appId).maybeSingle();
+      if (!error && data?.farmer_id) { fid = data.farmer_id; setFarmerIds(prev => ({ ...prev, [appId]: fid })); }
+    }
+    if (!fid) { alert("評価する相手を確認できませんでした。通信の状態を確かめて、もう一度お試しください。"); return; }
+    setReviewApp({ id: appId, farmer_id: fid });
   };
 
   // 初回（キャッシュ無し）は空白でなく仮の箱を並べる＝読み込み中がひと目で分かる。
@@ -444,34 +508,47 @@ export function SavedJobsView({ me }) {
             //   期間求人だと最終日までは jobPast が偽＝暗幕も「失効」ラベルも出ないまま応募中に見えていた
             const isExpired = r.application_status === "expired";
             const jobCompleted = r.application_status === "completed";
-            const covered = jobPast || isRejected || isCanceled || isExpired || jobCompleted;
+            // ★評価がまだ残っている完了は覆わない（2026-08-23）：暗幕は pointerEvents:none so、
+            //   覆うとカード下の「評価する」が押せない。雇い手の求人カード（todoAppIds が1件でもあれば
+            //   暗幕を出さない）と同じ規則を働き手側にも通す
+            const pendingReview = jobCompleted && !!r.application_id && !reviewedIds.includes(r.application_id);
+            const covered = (jobPast || isRejected || isCanceled || isExpired || jobCompleted) && !pendingReview;
             const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : isCanceled ? "取り消し" : "失効";
             const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : isCanceled ? APP_PHASE_COLOR.canceled : "#111";
             const phase = phaseOf(r);
+            const emp = empMap[r.job_number] || null; // 募集主の公開アイコン（分からなければ null）
             // カレンダーで選んだ日に該当する求人は光らせる（応募者ページと同じ引き継ぎ）
             return (
               <div key={r.job_number}
-                style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
+                style={{ position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
                 {covered && (
                   <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
                   </div>
                 )}
-                {/* 左：求人のトップ写真。タイトル・#No.を写真下部に重ねる（応募者ページと同じ作法）。
+                {/* 上：求人のトップ写真（2026-08-23たきと指示「働き手のカレンダーも同じ構造で」＝
+                    雇い手の求人カードと同じ縦積み・高さ180px固定・objectFit:coverで切り取る）。
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
                 <button onClick={()=>setBoxJob(r)} aria-label="この求人の状況を開く" className="f-sans"
-                  /* 写真の枠は3:4で固定（2026-07-27たきと指示「3番目のカードだけ低い」の修正）：
-                      以前は高さ指定が無く、写真の縦横比がそのままカードの高さになっていた＝
-                      横長の写真の求人だけカードが低くなっていた。枠を固定し中身はcoverで切り抜く */
-                  style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
-                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : "🌱"}
-                  <span style={{ position:"absolute", left:0, right:0, bottom:0, padding:"18px 8px 7px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box" }}>
-                    <span style={{ display:"block", fontSize:13, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
-                    <span style={{ display:"block", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.82)", marginTop:1, textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{r.job_number}</span>
+                  style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : (!emp && "🌱")}
+                  {/* 写真の真ん中に募集主（農家）のアイコン＝雇い手カードの「求人者のアイコン」と対。
+                      公開情報（jobs_public の employer_nickname / avatar）だけを使い、掲載が終わって
+                      ビューに無い求人では出さない（分からないものを丸で埋めない） */}
+                  {emp && (
+                    <span style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:1, display:"block", lineHeight:0, borderRadius:"50%", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: covered ? "grayscale(70%)" : "none" }}>
+                      <Avatar url={emp.avatar_url} name={emp.nickname || "？"} size={72} ring={photo ? "#fff" : undefined} bg={ROLE_GREEN} />
+                    </span>
+                  )}
+                  {/* タイトルと#No.は同じ行に（タイトルが長ければ「…」・#No.は必ず読める） */}
+                  <span style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:2, padding:"22px 14px 10px", background:"linear-gradient(transparent, rgba(0,0,0,0.72))", boxSizing:"border-box", display:"flex", alignItems:"baseline", gap:8 }}>
+                    <span style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>{title}</span>
+                    <span style={{ flexShrink:0, fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.82)", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{r.job_number}</span>
                   </span>
                 </button>
-                {/* 右：自分のアイコン＋自分の段階。応募していない求人は「未応募」＋求人への導線 */}
-                <div style={{ flex:1, minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                {/* 下：自分のアイコン＋自分の段階。応募していない求人は「未応募」＋求人への導線
+                    （雇い手カードの「応募者アイコンの列」と同じ位置＝相手側の並び） */}
+                <div style={{ width:"100%", minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>
                   {phase ? (
                     <button onClick={()=>setBoxJob(r)} className="f-sans"
                       style={{ width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
@@ -486,6 +563,40 @@ export function SavedJobsView({ me }) {
                     </button>
                   )}
                 </div>
+                {/* 労働条件通知書／記録する（最終の作業日からは評価する）＝雇い手の求人カードと同じ並び
+                    （2026-08-23たきと指示）。採用が決まった応募だけ＝採用前は通知書が無く、記録するものも無い。
+                    ★実行の窓口は増やしていない：記録＝DayReportSheet／評価＝WorkerReviewSheet
+                      ＝応募状況ページ・仕事の評価ページと同じ部品を、ここから呼ぶだけ */}
+                {(() => {
+                  const a = appOf(r);
+                  const k = a ? appPhaseKey(a) : null;
+                  if (!a || !["contracted", "working", "completed"].includes(k)) return null;
+                  const reviewed = reviewedIds.includes(a.id);
+                  const btn = (extra) => ({ flex:1, minWidth:0, padding:"10px", fontSize:12, fontWeight:700, borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", ...extra });
+                  // 完了＝評価がまだなら「評価する」。評価済みは押すものがない。
+                  // ★日程は行の値をそのまま使う（agreed_dates・date_start/end・work_time＝my_job_actions が返す）。
+                  //   休日（jobs.holidays）はこのRPCが返さないので、休日を挟む求人は最終日の判定が
+                  //   その日数ぶん後ろにずれることがある（＝記録するが少し長く出る）。評価の道は塞がらない
+                  const rec = k === "completed"
+                    ? (reviewed ? null : { label:"評価する", green:true, on:()=>openReview(a.id) })
+                    : isFinalWorkDone(r, r)
+                    ? { label:"評価する", green:true, on:()=>openReview(a.id) }
+                    : { label:"記録する", green:false, on:()=>setDayReportApp({ id: a.id }) };
+                  return (
+                    <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"flex", alignItems:"center", gap:8 }}>
+                      <button onClick={()=>setNoticeAppId(a.id)} className="f-sans" style={btn({ background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C" })}>労働条件通知書</button>
+                      {rec ? (
+                        <button onClick={rec.on} className="f-sans" style={btn(rec.green
+                          ? { background:"#F76B1C", color:"#fff", border:"none" }
+                          : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
+                          <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
+                        </button>
+                      ) : (
+                        <span className="f-sans" style={{ flex:1, textAlign:"center", fontSize:12, fontWeight:700, color:"#F76B1C" }}>評価済み</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* いいね解除（求人カードの♥と同じ役割・色も赤で統一・2026-07-27たきと指示）。
                     応募済みの求人はステータス確認のため一覧に残る（消えるのは「いいねだけ」の求人） */}
                 {r.liked && (
@@ -497,6 +608,14 @@ export function SavedJobsView({ me }) {
           })}
         </div>
       )}
+
+      {/* 求人カードのボタンが開くもの（表示・入力・保存は全部これらの共有部品が持つ） */}
+      {noticeAppId && <LaborConditionsNotice me={me} role="worker" applicationId={noticeAppId} onClose={()=>setNoticeAppId(null)} />}
+      <DayReportSheet app={dayReportApp} meId={me?.id} role="worker"
+        onClose={()=>setDayReportApp(null)} onDone={()=>setDayReportApp(null)} />
+      <WorkerReviewSheet app={reviewApp} meId={me?.id}
+        onClose={()=>setReviewApp(null)}
+        onDone={(appId)=>{ setReviewApp(null); setReviewedIds(prev => prev.includes(appId) ? prev : [...prev, appId]); }} />
 
       {/* ステータスの意味（2026-07-27たきと指示・応募者ページ下部の凡例と同じ）。
           並び・ラベル・色・説明はすべて APP_PHASE_* から引く＝雇い手側と文言が枝分かれしない */}
