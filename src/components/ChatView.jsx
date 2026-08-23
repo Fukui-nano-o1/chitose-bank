@@ -32,6 +32,8 @@ export function ChatView({ applicationId, onBack }) {
     el.style.height = Math.min(el.scrollHeight, CHAT_INPUT_MAX_H) + "px";
   }, [text]);
   const [myId, setMyId] = useState(null);
+  const myIdRef = useRef(null); // 購読のクロージャが凍結しないよう、今の自分のidをrefでも持つ
+  useEffect(() => { myIdRef.current = myId; }, [myId]);
   // 段階表示の先出し（2026-08-07たきと指示「はじめは最低限の要素のみ表示。段階的に表示させていく」）：
   // 一覧キャッシュ（viewCache永続＝アプリ再起動後も残る骨・本文なし）に開いた応募の行があれば、
   // 相手名・#N・段階・採用済みフラグ・役割を0往復で先出しする。本物の取得（applyActive）が後から上書き。
@@ -177,24 +179,51 @@ export function ChatView({ applicationId, onBack }) {
     }
   };
   const [deciding, setDeciding] = useState(false);
+  // 送信直後の楽観表示（まだDBに無い自分の吹き出し）を、再読込で消さないための印
+  const msgSigRef = useRef("");
+  const readStampRef = useRef(0);
   const load = async (ids) => {
     const scope = ids || appIds || [applicationId];
     try {
-      const { data } = await supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true});
+      // 自分のidは起動時に取ってある（myId）。毎回 getSession を待たない＝送信・更新の往復を1つ減らす
+      let uid = myId;
+      if (!uid) { const { data: { session } } = await supabase.auth.getSession(); uid = session?.user?.id || null; }
+      if (!uid) return;
+      // 本文と「相手の最終既読」は互いに独立so同時に投げる（直列2往復→1往復ぶんの待ちに）
+      const [msgRes, prRes] = await Promise.all([
+        supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true}),
+        supabase.from("chat_reads").select("last_read_at").in("application_id", scope).neq("reader_id", uid)
+          .order("last_read_at", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      const data = msgRes.data;
+      if (!msgRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
       // ★内容が同じなら前の配列を保つ（2026-08-07たきと報告「3〜5秒静止で最下部に自動遷移する」の根治）：
       //   5秒間隔の保険ポーリングが毎回新しい配列でsetMsgsし、下の自動スクロール（[msgs]依存）が
       //   毎回発火して、履歴を読んでいる最中でも数秒ごとに最下部へ引き戻していた。
       //   本文・送信者・時刻は改変不可（履歴保全トリガー）ので、件数と末尾idが同じ＝同一と判定してよい
-      if (data) setMsgs(prev =>
-        (prev.length === data.length && (data.length === 0 || prev[prev.length-1].id === data[data.length-1].id)) ? prev : data);
+      // ★送信中の楽観表示（_pending）はまだDBに無いので、届いた一覧の後ろに残す＝
+      //   送った吹き出しが再読込で一瞬消える、を防ぐ
+      if (data) setMsgs(prev => {
+        // 仮の吹き出しは「まだ届いていないもの」だけ残す：同じ送り主・同じ本文が届いていたら落とす
+        // （insertの返りを通信の都合で受け取れなかった時に、同じ文が二重に出たままにならない）。
+        // 60秒たっても届かない仮の分も落とす＝いつまでも幽霊が残らない
+        const pend = prev.filter(m => m._pending
+          && !data.some(d => d.id === m.id || (d.sender_id === m.sender_id && d.body === m.body))
+          && Date.now() - new Date(m.created_at).getTime() < 60000);
+        const next = pend.length ? [...data, ...pend] : data;
+        return (prev.length === next.length && (next.length === 0 || prev[prev.length-1].id === next[next.length-1].id)) ? prev : next;
+      });
       setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
+      // 中身が変わったか（変わっていない時は後始末の書き込みを省く＝5秒ごとの無駄な往復を減らす）
+      const sig = data ? data.length + ":" + (data.length ? data[data.length-1].id : "") : "";
+      const changed = sig !== msgSigRef.current;
+      msgSigRef.current = sig;
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          if ((data || []).some(m => m.sender_id !== session.user.id && !m.read_at)) {
+        {
+          if ((data || []).some(m => m.sender_id !== uid && !m.read_at)) {
             await supabase.from("messages").update({ read_at: new Date().toISOString() })
-              .in("application_id", scope).neq("sender_id", session.user.id).is("read_at", null);
+              .in("application_id", scope).neq("sender_id", uid).is("read_at", null);
             window.dispatchEvent(new Event("cb:unreadRefresh"));
             // 読んだら、そのスレッドの通知も消す（2026-08-18たきと指示「LINEと同じ設計を」）。
             // 通知はtagがスレッドごとso、この応募の分だけが消えて他のチャットの通知は残る
@@ -207,17 +236,18 @@ export function ChatView({ applicationId, onBack }) {
             scope.forEach(id => { if (um[id]) { delete um[id]; changed = true; } });
             if (changed) chatCache.v = { ...chatCache.v, unreadMap: um };
           }
-          // 既読トラッキング（2026-07-22・第8弾）：自分の最終既読時刻をchat_readsに刻む（相手側で「既読」表示に使われる）
-          const now = new Date().toISOString();
-          await supabase.from("chat_reads").upsert(
-            scope.map(id => ({ application_id: id, reader_id: session.user.id, last_read_at: now })),
-            { onConflict: "application_id,reader_id" }
-          );
-          // 相手の最終既読時刻を取得（counterpart select・当事者のみ読める）。自分の送信メッセージの「既読」判定に使う
-          const { data: pr } = await supabase.from("chat_reads")
-            .select("last_read_at").in("application_id", scope).neq("reader_id", session.user.id)
-            .order("last_read_at", { ascending: false }).limit(1).maybeSingle();
-          setPartnerReadAt(pr ? pr.last_read_at : null);
+          // 既読トラッキング（2026-07-22・第8弾）：自分の最終既読時刻をchat_readsに刻む（相手側で「既読」表示に使われる）。
+          // ★毎回は書かない（2026-08-19）：5秒ごとの保険ポーリングで毎回upsertしていたが、
+          //   中身が変わっていなければ刻み直す意味が無い。変わった時と、最後の書き込みから60秒たった時だけ。
+          //   相手の既読の【読み取り】は上のPromise.allで毎回している＝「既読」表示の即時性は落ちない
+          if (changed || Date.now() - readStampRef.current > 60000) {
+            readStampRef.current = Date.now();
+            const now = new Date().toISOString();
+            await supabase.from("chat_reads").upsert(
+              scope.map(id => ({ application_id: id, reader_id: uid, last_read_at: now })),
+              { onConflict: "application_id,reader_id" }
+            );
+          }
         }
       } catch {}
     } catch {}
@@ -330,13 +360,15 @@ export function ChatView({ applicationId, onBack }) {
   }, [applicationId]);
   // リアルタイム受信（2026-07-19）：この相手との応募IDへの新着メッセージINSERTを購読し、即時再読込。
   // 配信はRLS準拠（当事者のみ）。loadが既読化と下部バーバッジ再計算(cb:unreadRefresh)も担う。
-  // 自分の送信分もイベントが来るがloadは冪等。チャットを閉じると購読解除
+  // ★自分が送った分は受け流す（2026-08-19）：送信は楽観表示＋insertの返りで完結しているので、
+  //   自分のイベントで全件を取り直すのは無駄な往復。相手からの新着だけ取り直す
   useEffect(() => {
     if (!appIds || appIds.length === 0) return;
     // in.(uuid,...)フィルタはRealtimeで不安定なため、確実なeqを応募IDごとに張る（2026-07-27修正）
     let ch = supabase.channel("chat-" + applicationId);
     appIds.forEach(id => {
-      ch = ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "application_id=eq." + id }, () => { load(appIds); });
+      ch = ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: "application_id=eq." + id },
+        (payload) => { if (payload?.new?.sender_id && payload.new.sender_id === myIdRef.current) return; load(appIds); });
     });
     ch.subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -471,15 +503,40 @@ export function ChatView({ applicationId, onBack }) {
     setTimeout(() => setSwipeSnap(false), 240);
     if (target) goThread(target);
   };
+  // 送信（2026-08-19たきと報告「チャットの送信と更新が遅すぎる」の根治）：
+  // 旧＝getSession → insert → load（本文の全取得＋既読化＋chat_reads書き込み＋相手の既読取得）を
+  //   1つずつ順番に待っていた＝最大6往復。nanoインスタンスなので1往復数百ms＝送信のたび数秒固まっていた。
+  // 新＝①自分の吹き出しを先に出して入力を空にする（楽観表示）②insert は1往復で行の中身まで受け取る
+  //   （.select().single()）③load は呼ばない（リアルタイム購読と保険ポーリングが受け持つ）。
+  // ★失敗したら楽観表示を取り消し、本文を入力欄に返す＝送ったつもりで消える、を作らない
   const send = async () => {
-    if (!text.trim() || sending) return;
+    const body = text.trim();
+    if (!body || sending) return;
+    const uid = myId;
+    if (!uid) return;
     setSending(true);
+    const tempId = "temp-" + Date.now();
+    setMsgs(prev => [...prev, { id: tempId, application_id: activeAppId, sender_id: uid, body,
+      created_at: new Date().toISOString(), read_at: null, _pending: true }]);
+    setText(""); setPlanSel(null); setPlanConfirm(null); planBaseRef.current = "";
     try {
-      const { data:{ session } } = await supabase.auth.getSession();
-      if (!session) { setSending(false); return; }
-      const { error } = await supabase.from("messages").insert({ application_id: activeAppId, sender_id: session.user.id, body: text.trim() });
-      if (!error) { setText(""); setPlanSel(null); setPlanConfirm(null); planBaseRef.current = ""; await load(); }
-    } catch {}
+      const { data, error } = await supabase.from("messages")
+        .insert({ application_id: activeAppId, sender_id: uid, body }).select().single();
+      if (error) {
+        setMsgs(prev => prev.filter(m => m.id !== tempId));
+        setText(prev => prev.trim() ? prev : body);
+        alert("送信できませんでした：" + error.message);
+      } else if (data) {
+        // 本物の行に差し替える（保険ポーリングが先に本物を持ってきていたら、仮の分を落とすだけ）
+        setMsgs(prev => prev.some(m => m.id === data.id)
+          ? prev.filter(m => m.id !== tempId)
+          : prev.map(m => (m.id === tempId ? data : m)));
+      }
+    } catch (e) {
+      setMsgs(prev => prev.filter(m => m.id !== tempId));
+      setText(prev => prev.trim() ? prev : body);
+      alert("送信できませんでした。通信を確かめて、もう一度お試しください。");
+    }
     setSending(false);
   };
   // 送信ボタン：日程の承認を積んでいる時だけ最終確認を挟む（2026-08-19たきと指示）。
