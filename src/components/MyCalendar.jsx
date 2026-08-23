@@ -27,7 +27,7 @@ const CAL_OVERLAP = "#E24B4A";
 // 予定のない日は従来どおり（canPostJobなら求人を出すシート）＝絞り込みの解除は親の解除ボタンthat担う
 // noDaySheet＝予定のある日をタップしても日付シートを開かない（2026-08-22たきと指示）。
 // ステータスページ用＝カレンダーの下に同じ求人のカードが常に並ぶ置き場所で、シートは二重の表示になるため
-export function MyCalendar({ backToToday, canPostJob, onDayJobs, noDaySheet }) {
+export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noDaySheet }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
   // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
   // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
@@ -270,9 +270,14 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, noDaySheet }) {
     //   このカレンダーには働き手として応募した仕事・いいね（'application'/'liked'）も載るため、
     //   そういう日を渡すと応募者ページには出すカードが無く「求人はありません」の空絞り込みになっていた。
     //   自分の求人が無い日は通常の日付シートへフォールスルー＝応募の予定も「求人ページを見る」で確認できる
+    // ★dayJobsAll＝関係を問わず、その日の求人番号を全部渡す（2026-08-23たきと指示
+    //   「タップした求人カードを表示」＝働き手のカレンダーページ用）。働き手の一覧には
+    //   応募した求人・いいねした求人が並ぶので、'own' だけに絞ると渡すものが無くなる
     if (onDayJobs) {
-      const ownJobs = [...new Set(idxs.filter(i => entries[i]?.relation === "own").map(i => entries[i]?.job_number).filter(Boolean))];
-      if (ownJobs.length > 0) { onDayJobs(ymd, ownJobs); return; }
+      const picked = [...new Set(idxs
+        .filter(i => dayJobsAll || entries[i]?.relation === "own")
+        .map(i => entries[i]?.job_number).filter(Boolean))];
+      if (picked.length > 0) { onDayJobs(ymd, picked); return; }
     }
     // ★ステータスページ（noDaySheet）は予定のある日のシートを開かない（2026-08-22たきと指示
     //   「ボックス展開しなくていい。求人カードが表示されるんだから」）＝カレンダーの下に

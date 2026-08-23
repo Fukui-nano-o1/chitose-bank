@@ -7,7 +7,7 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, calFmtDate, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo } from "../lib/previewBus";
@@ -199,6 +199,7 @@ export function SavedJobsView({ me }) {
     })();
     return () => { dead = true; };
   }, [boxJob]); // eslint-disable-line react-hooks/exhaustive-deps -- boxFullは取得済み判定のみ（依存に入れると再取得ループ）
+  const [calDay, setCalDay] = useState(null); // カレンダーで選んだ日（{ymd, jobs}）＝その日の求人だけを出す
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // 非表示の選択（2026-08-19たきと指示・チャット一覧からのコピー）：ピルは【隠すもの】3つだけ。
   // 選ぶとその段階の求人が一覧から消える（複数選択）。隠すのは表示だけ＝記録・並び・取得は不変
@@ -228,8 +229,15 @@ export function SavedJobsView({ me }) {
   // 読み込み中の画面にも同じものを出す＝この面に来れば必ず予定が見える
   // noDaySheet＝日付タップでシートを開かない（2026-08-22たきと指示「ボックス展開しなくていい。
   // 求人カードが表示されるんだから」）＝このページはカレンダーの下に求人カードが常に並ぶ
+  // 日付タップ＝その日の求人カードだけを出す（2026-08-23たきと指示「タップした求人カードを表示」）。
+  // 農家のカレンダータブと同じ作法：シートは開かず（noDaySheet）、その日の求人番号を受け取って
+  // 下の一覧を絞り込む。同じ日をもう一度タップすると解除。dayJobsAll＝関係を問わず渡す
+  // （このページには応募した求人・いいねした求人が並ぶため。'own' だけでは渡すものが無い）
   const calendarTop = (
-    <div style={{ marginBottom:14 }}><MyCalendar noDaySheet /></div>
+    <div style={{ marginBottom:14 }}>
+      <MyCalendar noDaySheet dayJobsAll
+        onDayJobs={(ymd, jobs) => setCalDay(prev => (prev && prev.ymd === ymd) ? null : { ymd, jobs })} />
+    </div>
   );
   // ★取得の失敗を「0件」と断定しない（2026-08-17・たきと報告「アイコン→ボックス→求人タップ→閉じると
   //   ステータスページが空になる」の根治）。
@@ -427,7 +435,9 @@ export function SavedJobsView({ me }) {
     return ROW_RANK.expired; // 失効（応募の失効／日程that過ぎただけのいいね＝どちらも「失効」のラベル）
   };
   // 安定ソートso、同じ組の中の並び（求人番号の新しい順）はそのまま保たれる
-  const orderedRows = [...shownRows].sort((a, b) => rowRank(a) - rowRank(b));
+  const orderedRows = [...shownRows].sort((a, b) => rowRank(a) - rowRank(b))
+    // カレンダーで日を選んでいる間は、その日の求人だけ（選んでいなければ全件）
+    .filter(r => !calDay || calDay.jobs.includes(r.job_number));
   // 絞り込みのピル（見送り・失効・取り消し）はこのページから削除（2026-08-23たきと指示・
   // カレンダーの上に浮いて「応募の進み具合」と重なっていた）。既定の非表示（SAVED_HIDABLE）は
   // そのまま＝終わった取引は日常の一覧を埋めない。全部隠れて0件になった時だけ、下の空状態に
@@ -463,6 +473,13 @@ export function SavedJobsView({ me }) {
         </div>
       )}
       {calendarTop}
+      {/* いま何を見ているか（農家のカレンダータブと同じ黄色い帯）。解除で全件に戻る */}
+      {calDay && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF6DE", border:"1px solid #E8C77A", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
+          <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}><NavIconInline name="calendar" size={13} />{calFmtDate(calDay.ymd)} の求人を表示しています</span>
+          <button onClick={()=>setCalDay(null)} className="f-sans" style={{ flexShrink:0, background:"#fff", border:"1px solid #E8C77A", borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#8A6D1D", cursor:"pointer" }}>解除</button>
+        </div>
+      )}
       {rows.length === 0 ? (
         <div style={{ textAlign:"center", padding:"80px 24px" }}>
           <div style={{ marginBottom:16, color:"#E24B4A", display:"flex", justifyContent:"center" }}><NavIcon name="heart" size={40} /></div>
@@ -479,6 +496,17 @@ export function SavedJobsView({ me }) {
         </div>
       ) : (
         <div ref={skelRef} style={{ display:"grid", gap:10 }}>
+          {/* 日を選んで0件＝その日の求人が既定の非表示（見送り・失効・取り消し）に入っている時。
+              空のまま黙らせない（空ボックスに説明の原則・2026-08-03） */}
+          {calDay && orderedRows.length === 0 && (
+            <div className="f-sans" style={{ textAlign:"center", padding:"36px 20px", color:"#999" }}>
+              <p style={{ fontSize:13, margin:0, lineHeight:1.8 }}>
+                この日に表示できる求人はありません。<br />
+                {savedHidden.map(k => APP_PHASE_LABEL[k]).join("・")}は表示していません。
+              </p>
+              <button onClick={()=>setCalDay(null)} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C", borderRadius:10, cursor:"pointer" }}>すべての求人を見る</button>
+            </div>
+          )}
           {orderedRows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
