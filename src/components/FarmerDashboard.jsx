@@ -1370,12 +1370,8 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               : calDay
               ? [...order.filter(jn => dayJobs.has(jn)), ...calDay.jobs.filter(jn => jobInfoMap[jn] && !byJob[jn])]
               : order.slice(0, 1);
-            const dayNote = calDay && (
-              <div key="app-day-note" style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF6DE", border:"1px solid #E8C77A", borderRadius:12, padding:"10px 14px", marginBottom:4 }}>
-                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}><NavIconInline name="calendar" size={13} />{calFmtDate(calDay.ymd)} の求人を表示しています</span>
-                <button onClick={()=>setCalDay(null)} className="f-sans" style={{ flexShrink:0, background:"#fff", border:"1px solid #E8C77A", borderRadius:9, padding:"7px 14px", fontSize:12, fontWeight:700, color:"#8A6D1D", cursor:"pointer" }}>解除</button>
-              </div>
-            );
+            // 黄色い帯（「○月○日 の求人を表示しています」＋解除）は削除（2026-08-23たきと指示・
+            // スクショの要素削除）。解除＝カレンダーの同じ日をもう一度タップ
             // 絞り込みバー（2026-07-27たきと指示）：下部バーの真上に浮かせる。
             // スクロール格納・入力中の退避・オーバーレイ中の非表示は、浮遊☰と同じCSS作法で揃えてある
             // （.cb-applicant-filter-bar / body.cb-scroll-hide 等）。PCは従来どおり本文中に並べる
@@ -1423,7 +1419,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               // 日を選んだ時の0件＝その日に自分の求人が無い（応募の有無・絞り込みは関係なくなった＝
               // 求人カード自体は応募者ゼロでも出すため）。働き手として応募した日・いいねの日をタップした時がこれ。
               // 日を選んでいない時（直近カードの面）＝絞り込みで全員隠れている時にここで説明する
-              ? [<div key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>
+              // 日を選んで0件＝何も出さない（2026-08-23たきと指示）。この面は下に働き手のカードが並ぶので、
+              // 「あなたが出した求人はありません」と書くと、その下のカードと食い違って見える
+              ? (calDay ? [] : [<div key="app-empty" className="f-sans" style={{ gridColumn:"1/-1", textAlign:"center", color:"#999", fontSize:13, padding:"36px 0" }}>
                   <p style={{ margin:0 }}>
                     {calDay ? "この日に、あなたが出した求人はありません。" : "表示できる応募者がいません。"}
                     {!calDay && appHidden.length > 0 && <><br/>{appHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。</>}
@@ -1431,7 +1429,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                   {!calDay && appHidden.length > 0 && (
                     <button onClick={()=>setAppHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
                   )}
-                </div>]
+                </div>])
               : dayOrder.map(jn => {
                   // 求人カード化（2026-07-25たきと指示）：左＝トップ写真／右＝タイトル・No.／その下に応募者アイコンの横スワイプ列。
                   // アイコン列のtouchはstopPropagationで親のフィルタ切替スワイプと分離する
@@ -1635,7 +1633,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               : calDay
               // カレンダータブでは絞り込みのピルを出さない（2026-08-23たきと指示・浮遊バーが
               // カードの「応募の進み具合」と重なっていた）。応募者一覧では従来どおり出す
-              ? [calendarTop, dayNote, ...body, workerCards, legend]
+              ? [calendarTop, ...body, workerCards, legend]
               : [calendarTop, ...body, workerCards];
           })()
         )
