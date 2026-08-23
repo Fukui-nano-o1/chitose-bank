@@ -263,12 +263,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, a
                     {/* 未設定の数字バッジは削除（2026-08-21たきと指示「働き手と農家のバッジ表示は削除」）。
                         未設定の気づきは今日ページのプロフィール入力が担う（枠の強調も同日削除） */}
                     <Avatar url={wMini?.avatar_url} name={wMini?.nickname || me?.name} size={84} ring={ROLE_ORANGE} />
-                    <span>
-                      <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
-                      {/* 役割チップ（第11弾）：名前直下・大きめ・橙。★農家側は削除したが働き手は残す指示（2026-08-21） */}
-                      <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:13, fontWeight:800, color:"#fff", background:ROLE_ORANGE, borderRadius:20, padding:"3px 14px" }}>働き手</span>
-                    </span>
-                    {/* 役割チップの下の導線2つ（2026-08-21たきと指示・農家側と同構造）。
+                    {/* 役割チップ「働き手」も削除（2026-08-22たきと指示）＝農家側（2026-08-21削除）に揃った。
+                        役割は配色で判断できる（アイコンの枠・カードの枠・ボタンが橙） */}
+                    <span className="f-sans" style={{ display:"block", fontSize:22, fontWeight:800, color:"#222" }}>{wMini?.nickname || me?.name || "名前未設定"}</span>
+                    {/* 名前の下の導線2つ（2026-08-21たきと指示・農家側と同構造）。
                         カードタップ=反転と分けるため stopPropagation。
                         「あなたの応募」＝農家の「あなたの求人」の対（応募状況ページ #/profile/worker/applying） */}
                     <span style={{ display:"flex", gap:10, marginTop:2 }}>
