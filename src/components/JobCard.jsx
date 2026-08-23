@@ -3,7 +3,7 @@ import { useState } from "react";
 import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
 import { Avatar, StatusRibbonLeft } from "./ui";
 import { CropIcon } from "./CropIcon";
-import { NavIcon } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
@@ -128,9 +128,9 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
         </div>
         {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
           <div style={{ display:"flex", gap:4, marginTop: isList?4:6, flexWrap:"wrap" }}>
-            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}>🌱 初心者大歓迎</span>}
-            {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}>💪 経験者優遇</span>}
-            {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}>🌟 リピート即決</span>}
+            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="sparkle" size={isList?11:9} style={{ verticalAlign:"-1.5px", marginRight:3 }} />初心者大歓迎</span>}
+            {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="medal" size={isList?11:9} style={{ verticalAlign:"-1.5px", marginRight:3 }} />経験者優遇</span>}
+            {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="repeat" size={isList?11:9} style={{ verticalAlign:"-1.5px", marginRight:3 }} />リピート即決</span>}
           </div>
         )}
       </div>

@@ -8,6 +8,7 @@ import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel
 import { getCache, setCache } from "../../../lib/viewCache";
 import { snapGet } from "../../../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "../../../components/ui";
+import { NavIconInline } from "../../../components/NavIcons";
 import { CalendarView } from "../../../components/CalendarView";
 import { JobLocationMap } from "../../../components/JobLocationMap";
 import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "../../../components/JobQuestions";
@@ -1743,7 +1744,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                     <JobFlagBadges beginner={beginnerOk} expert={experiencedPreferred} repeat={instantApproveRepeat} />
                     {perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).map(b => (
-                      <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                      <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{b.emoji ? b.emoji + " " : ""}{b.label}</span>
                     ))}
                   </div>
                 )}
@@ -1860,22 +1861,22 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     <div onClick={()=>setPerksEditOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                       <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>🎁 待遇の変更</p>
+                          <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="gift" size={14} />待遇の変更</p>
                         </div>
                         <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
                           {[
-                            { k:"has_transport", l:"🚐 送迎", tk:"transport_area", tp:"送迎の範囲（例：吉野川市内）" },
-                            { k:"has_parking", l:"🅿️ 駐車場", tk:"parking_capacity", tp:"台数（例：3）" },
-                            { k:"has_commute_allowance", l:"🚃 通勤手当", tk:"commute_allowance_detail", tp:"内容（例：1日500円まで）" },
-                            { k:"has_bonus", l:"🎁 賞与", tk:"bonus_detail", tp:"時期・金額など（例：年2回（夏・冬））" },
-                            { k:"has_raise", l:"📈 昇給", tk:"raise_detail", tp:"時期・金額など（例：年1回（4月））" },
-                            { k:"has_severance_pay", l:"💼 退職手当", tk:"severance_detail", tp:"対象・計算・支払時期など" },
+                            { k:"has_transport", iconName:"van", l:"送迎", tk:"transport_area", tp:"送迎の範囲（例：吉野川市内）" },
+                            { k:"has_parking", iconName:"parking", l:"駐車場", tk:"parking_capacity", tp:"台数（例：3）" },
+                            { k:"has_commute_allowance", iconName:"train", l:"通勤手当", tk:"commute_allowance_detail", tp:"内容（例：1日500円まで）" },
+                            { k:"has_bonus", iconName:"gift", l:"賞与", tk:"bonus_detail", tp:"時期・金額など（例：年2回（夏・冬））" },
+                            { k:"has_raise", iconName:"raise", l:"昇給", tk:"raise_detail", tp:"時期・金額など（例：年1回（4月））" },
+                            { k:"has_severance_pay", iconName:"briefcase", l:"退職手当", tk:"severance_detail", tp:"対象・計算・支払時期など" },
                             { k:"employer_pays_supplies", l:"🧤 作業用品は募集主の負担", tk:"supplies_cap", tp:"上限（例：軍手・長靴まで）" },
-                            { k:"accessory_ok", l:"💍 アクセサリーOK" },
+                            { k:"accessory_ok", iconName:"ring", l:"アクセサリーOK" },
                           ].map(row => (
                             <div key={row.k} style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
                               <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, [row.k]: !p[row.k] }))} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:"2px solid", borderColor: perkDraft[row.k] ? "#00A86B" : "#EBEBEB", background: perkDraft[row.k] ? "#E6F7EF" : "#fff", cursor:"pointer", fontSize:14, fontWeight:700, color: perkDraft[row.k] ? "#00A86B" : "#222" }}>
-                                {row.l}{perkDraft[row.k] ? "　✓" : ""}
+                                {row.iconName && <NavIconInline name={row.iconName} size={14} style={{ verticalAlign:"-2.5px" }} />}{row.l}{perkDraft[row.k] ? "　✓" : ""}
                               </button>
                               {row.tk && perkDraft[row.k] && (
                                 // 台数(parking_capacity)はinteger列ので数字のみ入力させる（「3台」等を弾く・2026-07-19）
@@ -1894,7 +1895,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                             return (
                           <div style={{ borderBottom:"1px solid #F7F7F7", padding:"10px 0" }}>
                             <button type="button" onClick={()=>setPerkDraft(p=>({ ...p, smoking_policy: p.smoking_policy === "喫煙場所あり" ? "禁煙（喫煙場所なし）" : "喫煙場所あり" }))} className="f-sans" style={{ width:"100%", textAlign:"left", padding:"10px 12px", borderRadius:10, border:"2px solid", borderColor: smokeOn ? "#00A86B" : "#EBEBEB", background: smokeOn ? "#E6F7EF" : "#fff", cursor:"pointer", fontSize:14, fontWeight:700, color: smokeOn ? "#00A86B" : "#222" }}>
-                              🚭 喫煙場所あり{smokeOn ? "　✓" : ""}
+                              <NavIconInline name="noSmoke" size={14} style={{ verticalAlign:"-2.5px" }} />喫煙場所あり{smokeOn ? "　✓" : ""}
                             </button>
                             {smokeOn && (
                               <input value={perkDraft.smoking_area} onChange={e=>setPerkDraft(p=>({ ...p, smoking_area: e.target.value }))} placeholder="喫煙場所（例：屋外の休憩小屋の横）" maxLength={100} className="field f-sans" style={{ fontSize:13, marginTop:8, marginBottom:0 }} />

@@ -299,14 +299,14 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         const chips = [
           ...styleChips.map((lbl, i) => ({ key:"style-" + i, label:"🤝 " + lbl, bg:"#F7F7F7", color:"#222", isStyle:true })),
           ...insChips.map(it => ({ key:"ins-" + it.k, label: it.chip, icon: black ? null : "shield", bg: black ? "#EEEEEE" : "#E6F7EF", color: black ? "#111111" : "#0B6B4F" })),
-          ...perks.map(b => ({ key:"perk-" + b, label: black ? String(b).replace(/^\S+\s/, "") : b, bg:"#F7F7F7", color:"#222" })),
+          ...perks.map(b => ({ key:"perk-" + b.label, label: b.label, icon: black ? null : (b.icon || null), emoji: black ? null : (b.emoji || null), bg:"#F7F7F7", color:"#222" })),
         ].sort((a,b) => String(b.label).length - String(a.label).length);
         return (
           <div style={{ marginTop:12 }}>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
               {chips.map(c => (
                 <span key={c.key} {...(c.isStyle ? tap("style") : {})} className="f-sans"
-                  style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:c.color, background:c.bg, borderRadius:999, padding:"6px 12px", ...(c.isStyle ? cur : {}) }}>{c.icon && <NavIconInline name={c.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{c.label}</span>
+                  style={{ flex:"1 1 auto", minWidth:0, textAlign:"center", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:12, fontWeight:600, color:c.color, background:c.bg, borderRadius:999, padding:"6px 12px", ...(c.isStyle ? cur : {}) }}>{c.icon && <NavIconInline name={c.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{c.emoji ? c.emoji + " " : ""}{c.label}</span>
               ))}
             </div>
             {insChips.length > 0 && (

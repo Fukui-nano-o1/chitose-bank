@@ -6,6 +6,7 @@ import { openLoginBox } from "../lib/previewBus";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
+import { NavIconInline } from "./NavIcons";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/公開間近/公開中）
 export function StatusRibbon({ label, color }) {
@@ -269,9 +270,9 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
 // 初心者大歓迎・リピート即決バッジ（2026-07-17）：タップで1〜2行の説明コメントを展開（もう一度タップで閉じる）。
 // 詳細・確認・プレビューの3画面共通。flexWrap行内でコメント(width:100%)が次の行に折り返して出る構造
 const JOB_FLAG_INFO = {
-  beginner: { icon:"🌱", label:"初心者大歓迎",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
-  expert:   { icon:"💪", label:"経験者優遇",   bg:"#E8F0FE", fg:"#1A56C5", desc:"農作業の経験がある方を優先したい求人です。経験の浅い方も応募はできます。承認するかどうかは農家が判断します。" },
-  repeat:   { icon:"🌟", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働き、農家が「また呼びたい」とお気に入り登録した方だけが、再応募すると自動で承認されます（承認は採用ではありません。採用は打ち合わせ・面接のあとに決まります）。" },
+  beginner: { iconName:"sparkle", label:"初心者大歓迎",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
+  expert:   { iconName:"medal", label:"経験者優遇",   bg:"#E8F0FE", fg:"#1A56C5", desc:"農作業の経験がある方を優先したい求人です。経験の浅い方も応募はできます。承認するかどうかは農家が判断します。" },
+  repeat:   { iconName:"repeat", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働き、農家が「また呼びたい」とお気に入り登録した方だけが、再応募すると自動で承認されます（承認は採用ではありません。採用は打ち合わせ・面接のあとに決まります）。" },
 };
 
 export function JobFlagBadges({ beginner, expert, repeat }) {
@@ -285,7 +286,7 @@ export function JobFlagBadges({ beginner, expert, repeat }) {
         return (
           <button key={k} onClick={()=>setOpen(o => (o === k ? null : k))} className="f-sans"
             style={{ fontSize:12, fontWeight:700, color:b.fg, background:b.bg, padding:"4px 12px", borderRadius:20, border:"none", cursor:"pointer" }}>
-            {b.icon} {b.label} {open === k ? "▴" : "▾"}
+            <NavIconInline name={b.iconName} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />{b.label} {open === k ? "▴" : "▾"}
           </button>
         );
       })}

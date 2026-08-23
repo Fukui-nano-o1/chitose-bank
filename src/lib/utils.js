@@ -945,21 +945,25 @@ export const farmIntroTopics = (e) => [
 ].filter(t => t.body && t.body.trim());
 
 // 待遇バッジ（タイトル下用・2026-07-16）：employer_profilesのONの項目だけ短いラベルで返す。
-// 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）
+// 確認ページ・詳細ページで共通。OFFの項目は出さない（ダミー禁止）。
+// 2026-08-23：文字列 → {icon|emoji, label} に構造化（絵文字→線画の差し替え・たきと採用）。
+// icon＝NavIcons のパス名（NavIconInline で描く）。★作業用品だけは却下＝絵文字（emoji）のまま。
+// 描き手は4箇所（FarmerDashboard・JobSearchMapView・EmployerProfileEdit・LandingFlow）＋
+// TrustCards の extraBadges＝形を変えたら全部そろえること
 export function perkBadges(ep) {
   if (!ep) return [];
   return [
-    ep.has_transport && "🚐 送迎あり",
-    ep.has_parking && "🅿️ 駐車場",
-    ep.has_commute_allowance && "🚃 通勤手当",
-    ep.has_bonus && "🎁 賞与",
+    ep.has_transport && { icon:"van", label:"送迎あり" },
+    ep.has_parking && { icon:"parking", label:"駐車場" },
+    ep.has_commute_allowance && { icon:"train", label:"通勤手当" },
+    ep.has_bonus && { icon:"gift", label:"賞与" },
     // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じ有無だけの項目＝労働条件の明示事項
-    ep.has_raise && "📈 昇給",
-    ep.has_severance_pay && "💼 退職手当",
+    ep.has_raise && { icon:"raise", label:"昇給" },
+    ep.has_severance_pay && { icon:"briefcase", label:"退職手当" },
     // 「作業用品」＝労基法89条5号・労基則5条1項6号の語（食費、作業用品その他の負担）。
     // 法令は「労働者に負担させるもの」を書かせる向きなので、値は必ず誰が負担するかまで書く（2026-08-19）
-    ep.employer_pays_supplies && ("🧤 作業用品は募集主負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "")),
-    ep.accessory_ok && "💍 アクセサリーOK",
+    ep.employer_pays_supplies && { emoji:"🧤", label:"作業用品は募集主負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "") },
+    ep.accessory_ok && { icon:"ring", label:"アクセサリーOK" },
   ].filter(Boolean);
 }
 

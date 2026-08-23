@@ -1090,7 +1090,7 @@ export function JobSearchMapView({ onRegister, me }) {
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
                 <JobFlagBadges beginner={selectedJob.beginnerOk} expert={selectedJob.experiencedPreferred} repeat={selectedJob.instantApproveRepeat} />
                 {perkBadges(selectedJob.perks).map(b => (
-                  <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                  <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{b.emoji ? b.emoji + " " : ""}{b.label}</span>
                 ))}
               </div>
             )}

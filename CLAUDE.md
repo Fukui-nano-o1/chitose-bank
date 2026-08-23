@@ -7378,3 +7378,28 @@ LandingFlow 待遇の変更の行・JOB_FLAG_INFO（ui.jsx）も同時に揃え�
 スクリーンショット→自分の目で確認→ダメな絵は描き直し、の作物アイコンと同じ回し方を
 線画にも適用した。腕・軽トラ1稿目・傘1稿目はこれで落とした。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-23 待遇と求人フラグを線画に（たきと裁定：経験者=案Aメダル・リピート=案A矢印・作業用品は却下）━━━
+【採用・実装済み（11種）】NAV_ICON_PATHS に gift/van/parking/train/raise/briefcase/ring/noSmoke/
+sparkle/medal/repeat を追加（26→37個）。★作業用品の手袋は却下＝🧤の絵文字のまま残す。
+腕（💪）・麦の穂（🌾）の案は見送り＝見本帳に記録。
+【★構造の変更＝perkBadges（lib/utils）が文字列 → {icon|emoji, label} を返す】
+旧「🚐 送迎あり」の文字列連結を廃止。icon＝NavIconsのパス名／作業用品だけ emoji:"🧤"。
+描き手は5箇所＝FarmerDashboard・JobSearchMapView・EmployerProfileEdit（blackは無アイコン）・
+LandingFlow（確認ページのバッジ行）＋ TrustCards の extraBadges（perk-チップに icon/emoji 対応）。
+★perkBadges の形を変えたら5箇所全部そろえること（keyは b.label）。
+【求人フラグ3種（初心者大歓迎🌱→sparkle／経験者優遇💪→medal／リピート即決🌟→repeat）】
+・JobCard のカードバッジ3つ／ui.jsx JOB_FLAG_INFO（icon→iconName）＋JobFlagBadges の描画／
+　StepWishes の3トグル＋「〇〇とは？」説明ボックス（iconName化）
+・文中の「🌱初心者大歓迎」「💪経験者優遇」等の絵文字入りの名前は文字だけに
+　（バッジが線画になり、絵文字の名前が実物と食い違うため）。FarmerDashboard のお気に入り説明文の🌟も同様
+【LandingFlow 待遇の変更ボックス】見出し🎁→gift／行の l:"🚐 送迎"等→iconName+文字（作業用品の行だけ
+🧤のまま）／受動喫煙🚭→noSmoke。EmployerProfileEdit のトグルは元から文字だけ＝変更なし。
+【触っていない（別の意味の絵文字）】🌟また呼びたい（評価バッジ・ReceivedReviews/WorkerProfileEdit）／
+💪希望する作業の強さ（働き手チップ・TrustCards）／🌾完了の祝い（演出）／🧤作業用品（却下）。
+【検証】build成功・eslint 0 error（警告24＝着手前と同数）・対象絵文字の生きた描画コードの残存ゼロを
+機械走査・distに新パス包含（NavIconsはuiチャンクに同梱される構成になった）。
+見本帳も37個・「まだ絵文字の場所」43か所へ更新済み。
+【実機目視の残り】①求人カードのフラグ3種と詳細ページの待遇バッジ ②求人フローの待遇の変更ボックス・
+3トグル・「〇〇とは？」 ③雇い手プレビュー（black含む）のチップ ④受動喫煙のボタン
+━━━ ここまで ━━━

@@ -6,7 +6,7 @@ import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, FieldHelp } from "./ui";
-import { NavIcon } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
@@ -930,7 +930,7 @@ function FarmerProfilePreview({ me, table = "employer_profiles", withTrust = tru
           {perkBadges(data).length > 0 && (
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
               {perkBadges(data).map(b => (
-                <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{black ? b.replace(/^\S+\s/, "") : b}</span>
+                <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{!black && b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{!black && b.emoji ? b.emoji + " " : ""}{b.label}</span>
               ))}
             </div>
           )}

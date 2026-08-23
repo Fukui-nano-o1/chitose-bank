@@ -1014,7 +1014,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                       {perkBadges(empMini).length > 0 && (
                         <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
                           {perkBadges(empMini).map(b => (
-                            <span key={b} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b}</span>
+                            <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{b.emoji ? b.emoji + " " : ""}{b.label}</span>
                           ))}
                         </div>
                       )}
@@ -1657,7 +1657,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 ❤️ お気に入り登録する
               </label>
               <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"4px 0 0 26px" }}>
-                登録すると、新しい求人のお知らせが届きます。「🌟また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
+                登録すると、新しい求人のお知らせが届きます。「また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
               </p>
             </div>
           ) : null}
