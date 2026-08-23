@@ -492,8 +492,14 @@ export function WorkerApplications({ filter, me }) {
     // 見出しはProfileHub側で非表示・横線(borderTop)と見出しぶんの余白はここで外す。きょうの仕事は従来どおり
     <div style={filter !== "approved" ? { marginTop:8 } : { marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
-      {/* ラベル「応募状況」＋説明文は一覧の下へ（2026-08-22たきと指摘「ラベルが最前線」）＝
-          あなたの求人ページと同じく【タブが最前線】になる。文言は変えずに置き場所だけ動かした */}
+      {/* ラベル「応募状況」＋説明文はページの先頭（2026-08-22たきと指示「応募状況は上に移植」
+          「あなたが応募した求人の状況です。は応募状況の下に移植」）。
+          ※同日「ラベルが最前線」を取り違えて一度ここから下へ移したが、指す先は求人カードの
+          状態ラベル（失効・見送り等）のz順だったので元に戻した。見出し「あなたの応募」はProfileHub側で非表示 */}
+      {filter !== "approved" && (<>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+      </>)}
       {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
           同じ7段は各求人カードの流れバーが出しているので重複 */}
       {/* 読み込み中は仮配置（前回この面が描いた形・2026-07-27たきと指示「1秒以上かかるページに」）。
@@ -547,9 +553,6 @@ export function WorkerApplications({ filter, me }) {
                 </div>
               </div>
             </div>
-            {/* ページのラベルと説明（先頭から移動・文言は不変） */}
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", margin:"24px 0 4px" }}>応募状況</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
           </>
         )
       ) : apps.length === 0 ? (

@@ -552,7 +552,10 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
               <div key={r.job_number}
                 style={{ position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
                 {covered && (
-                  <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  // ★zIndex:5＝カードの中で最前線（2026-08-23たきと指示「失効等のラベルを最前線にしてほしい」）。
+                  // 2のままだと、後から描かれる同じzIndexのタイトル帯（下の写真の上のグラデ）に隠れて
+                  // 「失効」の文字がタイトルの裏に潜っていた（DOM順で後勝ちになるため）
+                  <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                     <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
                   </div>
                 )}

@@ -11,7 +11,9 @@ import { NavIcon, NavIconInline } from "./NavIcons";
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/公開間近/公開中）
 export function StatusRibbon({ label, color }) {
   return (
-    <div style={{ position:"absolute", top:0, right:0, width:64, height:64, overflow:"hidden", pointerEvents:"none" }}>
+    // zIndex:3＝カードの中で最前線（2026-08-23たきと指示「失効等のラベルを最前線にしてほしい」）。
+    // 写真に重なる概要の帯・暗幕（zIndex:1〜2）より前に出す＝状態のラベルが他に隠れない
+    <div style={{ position:"absolute", top:0, right:0, width:64, height:64, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
       <span className="f-sans" style={{ position:"absolute", top:12, right:-30, transform:"rotate(45deg)", width:110, textAlign:"center", background:color, color:"#fff", fontSize:10, fontWeight:800, padding:"3px 0", boxShadow:"0 1px 4px rgba(0,0,0,0.25)" }}>{label}</span>
     </div>
   );
