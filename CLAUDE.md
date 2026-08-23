@@ -8039,3 +8039,27 @@ dist：JobRow thatが ui チャンクに1つだけあり、本番と見本帳の
 【実機目視の残り】①1枚目が図になっているか・図の下の1行 ②図タップで大画面が開き、指でずらせるか・
 余白タップで【シートが閉じずに】大画面だけ閉じるか ③2枚目の選択肢が4枚ほど見えるか（窮屈すぎないか）
 ━━━ ここまで ━━━
+
+━━━ 2026-08-23(続2) 関連カードの潰れを根治（<a>thatinlineのままで幅thatが効いていなかった）━━━
+【たきと報告（スクショ）】あなたの求人のカードで、金額とバッジthat縦に潰れてカードの外へはみ出していた。
+【原因】JobCard の related だけ display:"block" thatが無く、<a>（既定はinline）のままだった。
+さがす・関連求人ではカードthat flex コンテナの【直接の子】so、flexthat自動でblock化して
+（blockification）width:80vw / maxWidth:280 thatたまたま効いていた。
+自分の求人では状態の帯・未回答の❓を重ねるためカードを<div>で包んだso、<a>thatinlineのまま
+＝幅指定thatが無視されて中身の幅に潰れ、絶対配置の概要（金額・バッジ）thatが1文字ずつ折り返して
+縦書きに見えていた。
+【修理】
+・JobCard の related に display:"block" を追加（根治）。直接の子だった経路は blockification 済みso
+　挙動不変＝さがす・その他の求人に影響なし
+・関連カードの寸法を JOB_CARD_RELATED_SIZE として1箇所に置き、包む側（自分の求人・見本帳）も
+　同じ値を使う＝幅の値を2箇所に書かない
+【★規則（今後）】カードのような部品を<div>で包んで何かを重ねる時は、包む前に部品のルートthat
+block かどうかを見る。<a>/<span>は既定inlineso、flexの直接の子でなくなった瞬間に width/height/
+maxWidth thatが黙って無効になる（レイアウトthat崩れてもbuildもlintも通る）。
+【検証】build成功／eslint 0 error・warning 24（着手前と同数）／cardStyle を実ソースから抜き出して
+node で10項目を機械検算（3variantとも display:block・related の幅/flexShrink/position・
+list/wide は従来どおり全幅・包む側2箇所thatが同じ寸法を使う・80vwの直書きthat1つだけ）／
+dist で related thatが {display:`block`,flexShrink:0,...} になったことを実物で確認。
+【実機目視の残り】あなたの求人の各グループで、カードthatさがすと同じ見た目（金額・地域・#No.・
+日程・バッジthat写真の下部に横書きで重なる）になっているか
+━━━ ここまで ━━━
