@@ -275,7 +275,7 @@ const NAV_ICON_PATHS = {
       <path d="M20.5 18h5" />
     </>
   ),
-  // お問い合わせ（旧✉）：封筒。★応募の envelope とは別の口
+  // お問い合わせ（旧✉）：封筒。★応募は受信トレイ（inbox）＝絵柄を重ねない
   mail: (
     <>
       <rect x="3.5" y="7" width="25" height="18" rx="3" />
