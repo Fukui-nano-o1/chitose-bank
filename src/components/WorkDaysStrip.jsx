@@ -8,12 +8,19 @@
 //   全部過去なら最後の日（＝直近の実績）。
 // ★中央寄せは offsetLeft で測るので、スクロール要素に position:relative を必ず付ける
 //   （chip の offsetParent がこの要素になる。付けないと基準がずれる）。
-import { useRef, useLayoutEffect } from "react";
+import { useRef, useLayoutEffect, forwardRef } from "react";
 import { ymdLocal } from "../lib/utils";
 
 const WD = ["日", "月", "火", "水", "木", "金", "土"];
+// チップの器：onPick があればボタン、無ければただの箱（refを親から受けるので forwardRef）
+const Chip = forwardRef(function Chip(props, ref) {
+  const Tag = props.onClick ? "button" : "div";
+  return <Tag ref={ref} {...props} />;
+});
 
-export function WorkDaysStrip({ days, accent = "#00A86B", label = "働く日" }) {
+// onPick（任意・2026-08-23たきと指示「日程タップで応募ボックス展開」）：渡すとチップがボタンになり、
+// タップした日（"YYYY-MM-DD"）を返す。渡さなければ従来どおり表示だけ
+export function WorkDaysStrip({ days, accent = "#00A86B", label = "働く日", onPick }) {
   const scRef = useRef(null);
   const focusRef = useRef(null);
   const list = Array.isArray(days) ? days : [];
@@ -52,8 +59,10 @@ export function WorkDaysStrip({ days, accent = "#00A86B", label = "働く日" })
             const isPast = d < today;
             const isFocus = d === focus;
             return (
-              <div key={d} ref={isFocus ? focusRef : undefined} className="f-sans"
+              <Chip key={d} ref={isFocus ? focusRef : undefined} className="f-sans"
+                {...(onPick ? { onClick: () => onPick(d), type: "button" } : {})}
                 style={{ flexShrink:0, minWidth:52, textAlign:"center", borderRadius:10, padding:"6px 8px", boxSizing:"border-box",
+                  cursor: onPick ? "pointer" : "default", appearance:"none",
                   background: isToday ? accent : "#fff",
                   border: "1px solid " + (isToday ? accent : isFocus ? accent : "#EBEBEB"),
                   opacity: isPast && !isToday ? 0.45 : 1 }}>
@@ -61,7 +70,7 @@ export function WorkDaysStrip({ days, accent = "#00A86B", label = "働く日" })
                 <span style={{ display:"block", fontSize:13, fontWeight:800, color: isToday ? "#fff" : isPast ? "#999" : "#222", lineHeight:1.3 }}>
                   {dt.getMonth() + 1}/{dt.getDate()}
                 </span>
-              </div>
+              </Chip>
             );
           })}
         </div>

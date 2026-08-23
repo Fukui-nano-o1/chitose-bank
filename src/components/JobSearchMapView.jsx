@@ -903,6 +903,20 @@ export function JobSearchMapView({ onRegister, me }) {
   // ★自分の応募が分かるまでは締切扱いにしない（2026-07-27たきと報告「一瞬だけ満員が映る」）。
   //   未取得の間はmyAppStatusがundefinedので、応募済みの人にも一度「満員」を出してから戻っていた
   const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
+  // カレンダーの日程タップから来た時は、そのまま応募ボックスを開く（2026-08-23たきと指示
+  // 「日程タップで応募ボックス展開」）。合図＝sessionStorage cb_openApply（求人番号）。
+  // ★自分の応募の状態GA分かるまで合図を消さない＝読み込み中に消すと開く機会を失う。
+  //   応募済み・仮応募・自分の求人・締切の時は開かない（応募ボタンと同じ条件をそのまま使う）
+  useEffect(() => {
+    if (!selectedJob || !me) return;
+    let sig = null;
+    try { sig = sessionStorage.getItem("cb_openApply"); } catch {}
+    if (!sig || String(sig) !== String(selectedJob.id)) return;
+    if (!myAppLoaded) return;
+    try { sessionStorage.removeItem("cb_openApply"); } catch {}
+    if (myAppStatus || myPending || hideApply || isOwnJob) return;
+    setApplyConfirmStep(0); setApplyChoice(null); setApplyConfirmOpen(true);
+  }, [selectedJob, me, myAppLoaded, myAppStatus, myPending, hideApply, isOwnJob]);
   // 満員の2段階（2026-08-14たきと指示・JobCardの帯と同じ区別）：満員のみ＝募集終了／満員かつ終了済み＝掲載終了
   const closedLabel = selectedJob?.filled
     ? ((selectedJob.closed || selectedJob.expired) ? "この求人は掲載を終了しました（満員）" : "この募集は終了しました（満員）")
