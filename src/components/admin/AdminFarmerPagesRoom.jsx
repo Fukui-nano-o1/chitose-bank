@@ -18,7 +18,7 @@
 //   url は必ず実コードにgrepで当ててから書く（2026-08-11：旧#/roleを載せて旧遺物を指摘された）。
 import { useState, useEffect } from "react";
 import { AdminNav } from "./AdminNav";
-import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon } from "../ui";
+import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon, JobRow } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
 import { JobCard } from "../JobCard";
 import { Celebration } from "../Celebration";
@@ -87,8 +87,8 @@ function Btn({ children, kind = "primary" }) {
    状態の帯（公開間近／一時非公開）はカードの外側に重ねる＝本番と同じ */
 function JobTile({ job, ribbon }) {
   return (
-    <div style={{ position:"relative" }}>
-      <JobCard job={job} variant="wide" onOpen={noop} />
+    <div style={{ position:"relative", flexShrink:0 }}>
+      <JobCard job={job} variant="related" onOpen={noop} />
       {ribbon && (
         <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
           <StatusRibbon label={ribbon} color="#0E8A6B" />
@@ -422,19 +422,24 @@ const STEPS = [
         </p>
       </div>
     ) },
-  { ch:"掲載する", name:"自分の求人", url:"#/profile/employer/drafts ／ /active", act:"作成中と公開中を上のタブで行き来する。指でも横に送れる。掲載は即公開（2026-08-14承認プロセス削除）。公開の処理が完了しなかった求人にだけ「公開間近」の帯が付く（運営が開く救済経路）。",
+  { ch:"掲載する", name:"自分の求人", url:"#/profile/employer/drafts ／ /active", act:"作成中と公開中を上のタブで行き来する。指でも横に送れる。グループ（作成中／公開間近など）ごとにカードthatが横に並び、指でスライドして送る。掲載は即公開（2026-08-14承認プロセス削除）。公開の処理が完了しなかった求人にだけ「公開間近」の帯が付く（運営が開く救済経路）。",
     body: () => (
       <div style={{ padding:14 }}>
         <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
           <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`2px solid ${INK}`, background:"#fff", fontSize:14, fontWeight:800, color:INK }}>作成中（2）</span>
           <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`1px solid ${LINE}`, background:"#fff", fontSize:14, fontWeight:600, color:"#999" }}>公開中（1）</span>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>
-          <JobTile ribbon="公開間近" job={{ ...SAMPLE_JOB, id:1201, crop:"ブロッコリー", task:"収穫" }} />
+        {/* グループ（作成中／公開間近）ごとに横に並べて指でスライドする＝本番と同じ（2026-08-23） */}
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 6px" }}>作成中（2）</p>
+        <div style={{ marginBottom:14 }}><JobRow count={2}>
           <JobTile job={{ ...SAMPLE_JOB, id:1202, crop:"レタス", task:"定植", isNew:false, beginnerOk:false }} />
           {/* 何も入力していない下書き＝題名のフォールバック・報酬なし（本番と同じ見え方） */}
           <JobTile job={{ ...SAMPLE_JOB, id:1203, crop:"無題の求人", task:"", pay:0, isNew:false, beginnerOk:false, dateStartRaw:"", dateEndRaw:"" }} />
-        </div>
+        </JobRow></div>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0E8A6B", margin:"0 0 6px" }}>公開間近（1）</p>
+        <JobRow count={1}>
+          <JobTile ribbon="公開間近" job={{ ...SAMPLE_JOB, id:1201, crop:"ブロッコリー", task:"収穫" }} />
+        </JobRow>
       </div>
     ) },
 

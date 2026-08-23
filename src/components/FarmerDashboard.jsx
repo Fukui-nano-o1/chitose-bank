@@ -9,7 +9,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
 import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
-import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
+import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
@@ -118,6 +118,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
   const pagerDrag = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
   const pagerBasePct = () => (jobTab === "draft" ? 0 : -50);
   const onPagerStart = (e) => {
+    // グループの横スライド（.carousel-scroll）の中で始まったタッチは掴まない（2026-08-23）＝
+    // カードを送る指theタブ切替に取られない。はみ出していない（1枚だけの）グループは従来どおり
+    // ページャーに譲る＝送る余地thatが無い所でタブ切替thatが死なない
+    const hs = e.target.closest && e.target.closest(".carousel-scroll");
+    if (hs && hs.scrollWidth > hs.clientWidth + 1) { pagerDrag.current = null; return; }
     pagerDrag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
   };
   const onPagerMove = (e) => {
@@ -592,9 +597,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
     const qn = qUnansweredMap[d.job_number] || 0;
     const canOpenQ = d.status === "open" && !hideEndLabel;
     return (
-      // JobCard（wide）の高さ＝写真の高さ＝カードの高さ。inset:0＋角丸で重ねものを写真の中に収める
-      <div key={d.job_number} style={{ position:"relative" }}>
-        <JobCard job={j} variant="wide" hideEndLabel={hideEndLabel}
+      // JobCard（related）の高さ＝写真の高さ＝カードの高さ。inset:0＋角丸で重ねものを写真の中に収める。
+      // flexShrink:0＝横並び（JobRow）の中で潰れない（幅はカード側の 80vw / 最大280px thatが決める）
+      <div key={d.job_number} style={{ position:"relative", flexShrink:0 }}>
+        <JobCard job={j} variant="related" hideEndLabel={hideEndLabel}
           onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
             : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
             : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} />
@@ -1235,7 +1241,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
         <div ref={pagerTrackRef} style={{ display:"flex", width:"200%", transform: jobTab==="draft" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
-            <div ref={skelDraftRef} style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>{/* 作成中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
+            <div ref={skelDraftRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:16 }}>{/* 作成中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
       {draftsLoading ? (
           /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
           <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmDrafts" /></div>
@@ -1259,9 +1265,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             return (
               <>
                 {making.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 -2px" }}>作成中（{making.length}）</p>}
-                {making.map(renderDraftCard)}
+                {making.length > 0 && <JobRow count={making.length}>{making.map(renderDraftCard)}</JobRow>}
                 {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#0E8A6B", margin:"8px 0 -2px" }}>公開間近（{pending.length}）</p>}
-                {pending.map(renderDraftCard)}
+                {pending.length > 0 && <JobRow count={pending.length}>{pending.map(renderDraftCard)}</JobRow>}
               </>
             );
           })()
@@ -1269,7 +1275,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             </div>
           </div>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-            <div ref={skelActiveRef} style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>{/* 公開中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
+            <div ref={skelActiveRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:16 }}>{/* 公開中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
       {draftsLoading ? (
           /* 読み込み中に「公開中の求人はありません」を出すと一瞬ゼロに見える。確定するまでは仮配置 */
           <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmActive" /></div>
@@ -1300,11 +1306,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             return (
               <>
                 {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 -2px" }}>公開中（{open.length}）</p>}
-                {open.map(d => renderActiveJobCard(d))}
+                {open.length > 0 && <JobRow count={open.length}>{open.map(d => renderActiveJobCard(d))}</JobRow>}
                 {unpub.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#757575", margin:"8px 0 -2px" }}>一時非公開（{unpub.length}）</p>}
-                {unpub.map(d => renderActiveJobCard(d))}
+                {unpub.length > 0 && <JobRow count={unpub.length}>{unpub.map(d => renderActiveJobCard(d))}</JobRow>}
                 {ended.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#9E9E9E", margin:"8px 0 -2px" }}>終了（{ended.length}）</p>}
-                {ended.map(d => renderActiveJobCard(d, true))}
+                {ended.length > 0 && <JobRow count={ended.length}>{ended.map(d => renderActiveJobCard(d, true))}</JobRow>}
               </>
             );
           })()
@@ -1315,7 +1321,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       </div>
       ) : (
       <div ref={appGridRef}
-        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="calendar") ? "repeat(3, 1fr)" : jobTab==="expired" ? "1fr" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="calendar") ? 10 : jobTab==="expired" ? 16 : 20 }}>{/* 応募者・カレンダーは横3列。期限切れは縦一列（カードはさがすと同じ設計・2026-08-23） */}
+        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="calendar") ? "repeat(3, 1fr)" : jobTab==="expired" ? "minmax(0, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="calendar") ? 10 : jobTab==="expired" ? 16 : 20 }}>{/* 応募者・カレンダーは横3列。期限切れは縦一列（カードはさがすと同じ設計・2026-08-23） */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -1642,10 +1648,12 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
         ) : (
           // カードは「その他の求人」と同じ設計＝作成中・公開中と同じ renderOwnJobCard（2026-08-23）。
           // 帯は「期限切れ」だけ＝このタブ自体that期限切れso、JobCardの終了帯は出さない（重複排除）
-          dbExpired.map(d => renderOwnJobCard(d, {
-            hideEndLabel: true,
-            ribbon: <StatusRibbon label="期限切れ" color="#9E9E9E" />,
-          }))
+          <JobRow count={dbExpired.length}>
+            {dbExpired.map(d => renderOwnJobCard(d, {
+              hideEndLabel: true,
+              ribbon: <StatusRibbon label="期限切れ" color="#9E9E9E" />,
+            }))}
+          </JobRow>
         )
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>

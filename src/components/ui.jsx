@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, qaShort, ROLE_ORANGE } from "../lib/utils";
 import { openLoginBox } from "../lib/previewBus";
 import { useSheetDragClose } from "../lib/sheetDrag";
+import { useHorizontalDrag } from "../lib/hDrag";
 import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -263,6 +264,25 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
           style={{ ...btnStyle, right:-16 }}>›</button>
       )}
     </div>
+  );
+}
+
+// あなたの求人の1グループ＝横に並べて指でスライド（2026-08-23たきと指示「グループごとに横にスライド」）。
+// 「その他の求人」と同じ Carousel（‹ › は隣の1枚を画面中央へ）＝並べ方もカードと同じ設計に揃える。
+// ★指の追従は useHorizontalDrag（lib/hDrag）thatが要る：親の作成中⇄公開中ページャーthat
+//   touch-action:pan-y so、ブラウザの横スクロールthat子孫まで丸ごと止まる（保険カード・2026-08-19と同じ理由）。
+//   ページャー側は onPagerStart で「はみ出している .carousel-scroll の中で始まったタッチ」を掴まない
+//   ＝同じ横スワイプでカードの送りとタブ切替thatが取り合いにならない。
+// ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）
+export function JobRow({ children, count }) {
+  const ref = useRef(null);
+  useHorizontalDrag(ref, count);
+  return (
+    <Carousel className="carousel-scroll" scrollerRef={ref}
+      wrapperStyle={{ minWidth:0 }}
+      style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
+      {children}
+    </Carousel>
   );
 }
 
