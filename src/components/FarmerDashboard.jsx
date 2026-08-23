@@ -1346,11 +1346,6 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               : calDay
               ? [...order.filter(jn => dayJobs.has(jn)), ...calDay.jobs.filter(jn => jobInfoMap[jn] && !byJob[jn])]
               : order.slice(0, 1);
-            const calHint = (
-              <p key="app-cal-hint" className="f-sans" style={{ gridColumn:"1/-1", fontSize:12, color:"#999", textAlign:"center", margin:"0 0 8px", lineHeight:1.8 }}>
-                日付をタップすると、その日の求人と応募者が表示されます
-              </p>
-            );
             const dayNote = calDay && (
               <div key="app-day-note" style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#FFF6DE", border:"1px solid #E8C77A", borderRadius:12, padding:"10px 14px", marginBottom:4 }}>
                 <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", minWidth:0 }}><NavIconInline name="calendar" size={13} />{calFmtDate(calDay.ymd)} の求人を表示しています</span>
@@ -1570,7 +1565,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               ? [tabBar, floatingFilterBar, ...body, legend]
               : calDay
               ? [calendarTop, dayNote, tabBar, floatingFilterBar, ...body, legend]
-              : [calendarTop, calHint, ...body];
+              : [calendarTop, ...body];
           })()
         )
       ) : jobTab==="expired" ? (

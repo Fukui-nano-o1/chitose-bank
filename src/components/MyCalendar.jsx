@@ -368,7 +368,10 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, noDaySheet }) {
                     color: fillFg, fontWeight: (baseColor || isToday) ? 700 : 400,
                     boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
                     // minWidth:0＝中身（名前チップ）で列を押し広げない。長い名前は下の…省略で収める
-                    display:"flex", flexDirection:"column", alignItems:"stretch", gap:2, minWidth:0, overflow:"hidden", minHeight: chips.length > 0 ? 46 : undefined,
+                    display:"flex", flexDirection:"column", alignItems:"stretch", gap:2, minWidth:0, overflow:"hidden",
+                    // マスの高さ（2026-08-23たきと指示「カレンダーを縦に伸ばして」）：名前チップが乗る日だけ
+                    // 46pxで、それ以外は中身なりの高さだった＝盤面が詰まって見えた。予定の無い日にも下限を持たせる
+                    minHeight: chips.length > 0 ? 56 : 44,
                   }}>
                     <span>{dd}</span>
                     {/* 誰が来るか（採用済みのみ）。色は段階色＝帯・チャットと同じ体系。
