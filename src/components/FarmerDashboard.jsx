@@ -1445,7 +1445,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                     <div key={`job-${jn}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
                       {jobPast && (
-                        <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        // ★zIndex:5＝カードの中で最前線（2026-08-23たきと指示「失効等のラベルを最前線に」・
+                        //   適用はこの応募者一覧ページのみ）。2のままだと、後から描かれる同じzIndexの
+                        //   タイトル帯（写真の下部のグラデ）が勝ち、「失効」の文字が求人名の裏に潜っていた
+                        <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}

@@ -84,19 +84,15 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
             ステータスページの展開ボックスは、上の現在地バナー（採用・作業中等）と応募の進み具合が
             自分の段階を語る場ので、求人側の「掲載終了（満員）」は要らない（自分が採用された求人に
             掲載終了と出て読み違える）。一覧・さがす等では従来どおり出す＝既定は表示 */}
-      {/* ★暗幕と文字を2枚に分ける（2026-08-23たきと指示「失効等のラベルを最前線にしてほしい」）：
-          暗幕は写真の上（zIndex:1）のまま＝👀・♡・概要の見え方を変えない。文字だけを概要の帯（zIndex:2）
-          より前（zIndex:3）へ出す＝タイトルと重なる位置でも必ず読める（1枚のままだと文字が裏に潜る） */}
-      {!hideEndLabel && (job.filled || job.expired || job.closed) && (<>
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", zIndex:1, pointerEvents:"none" }} />
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, display:"flex", alignItems:"center", justifyContent:"center", zIndex:3, pointerEvents:"none" }}>
+      {!hideEndLabel && (job.filled || job.expired || job.closed) && (
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
           <span className="f-sans" style={{ background:"rgba(30,30,30,0.88)", color:"#fff", fontSize: isList?14:12, fontWeight:800, letterSpacing:".04em", padding:"7px 18px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
             {/* 満員の2段階（2026-08-14たきと指示）：満員でまだ期間中＝募集終了（満員）／
                 満員かつ終了済み（closed or 期間経過）＝掲載終了（満員） */}
             {job.filled ? ((job.closed || job.expired) ? "掲載終了（満員）" : "募集終了（満員）") : job.closed ? "募集終了" : "募集期間終了"}
           </span>
         </div>
-      </>)}
+      )}
       {topSrc ? (
         <img loading="lazy" src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
       ) : (
