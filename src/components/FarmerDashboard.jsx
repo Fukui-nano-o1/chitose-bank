@@ -1556,6 +1556,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                       <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{a.attended === false ? "欠勤記録済み" : "評価済み"}</span>
                                     )}
                                   </div>
+                                  {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。
+                                      採用成立後のみ・当事者だけに開く唯一の窓口（contract_emergency_contact）を
+                                      そのまま置く＝この画面で新しい開示経路を作らない。相手が未登録なら何も出ない */}
+                                  <ContractEmergencyContact applicationId={a.id} style={{ margin:0 }} />
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示） */}
                                   <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                                     style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B" }}>労働条件通知書</button>

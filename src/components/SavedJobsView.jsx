@@ -16,6 +16,7 @@ import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
 import { MyCalendar } from "./MyCalendar";
 import { WorkDaysStrip } from "./WorkDaysStrip";
+import ContractEmergencyContact from "./ContractEmergencyContact";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { DayReportSheet } from "./DayReportSheet";
@@ -600,6 +601,9 @@ export function SavedJobsView({ me }) {
                           <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color:"#F76B1C" }}>評価済み</span>
                         )}
                       </div>
+                      {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。窓口は
+                          contract_emergency_contact 1本のまま＝採用成立後・当事者だけ。未登録なら何も出ない */}
+                      <ContractEmergencyContact applicationId={a.id} style={{ margin:0 }} />
                       {/* 労働条件通知書＝全幅で大きく（たきと指示） */}
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                         style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C" }}>労働条件通知書</button>
