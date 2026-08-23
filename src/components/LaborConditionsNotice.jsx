@@ -112,7 +112,12 @@ function buildSections(s, r) {
   ];
 }
 
-export default function LaborConditionsNotice({ me, role = "worker" }) {
+// applicationId（任意・2026-08-23たきと指示「求人カードに労働条件通知書ボタン」）：
+//   渡すと入口カード・一覧を出さず、その1件の通知書だけをその場で開く（呼び出し元が入口を持つ形）。
+//   読む先・組み立て・印刷は一覧から開いた時と完全に同じ＝通知書の姿を二重に作らない。
+//   とじる／外タップで onClose を呼ぶ（開いているかどうかは呼び出し元が持つ）
+export default function LaborConditionsNotice({ me, role = "worker", applicationId = null, onClose }) {
+  const single = !!applicationId;
   const isWorker = role === "worker";
   const accent = isWorker ? ROLE_ORANGE : ROLE_GREEN;
   const [rows, setRows] = useState(null);        // null=読み込み中
@@ -153,6 +158,16 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
     }
   };
 
+  // 1件だけ開くモード：契約が読み終わったらその行をそのまま開く（一覧は挟まない）
+  useEffect(() => {
+    if (!single || !rows) return;
+    const r = rows.find(x => x.id === applicationId);
+    if (r) openNotice(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [single, rows, applicationId]);
+  // とじる＝1件モードでは呼び出し元にも知らせる（呼び出し元が開閉を持っているため）
+  const closeNotice = () => { setOpen(null); if (single) onClose?.(); };
+
   // 印刷（2026-08-18たきと報告「1枚目の大部分が空白」）：紙に出さないものを流し込みから外すため、
   // 押した瞬間に html/body へ .cb-print-doc を付ける。効くのは @media print の中だけなので画面は変わらない。
   // ★:has() に頼らない＝素のクラスセレクタで確実に当てる。afterprint は iOS で発火しないことが
@@ -171,13 +186,27 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
   return (
     <>
       {/* 「わたしの記録」「記録」カテゴリーの中に並ぶ1枚（2026-08-18たきと指示）＝専用の見出しは持たない。
-          件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す） */}
-      <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+          件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す）。
+          1件だけ開くモード（applicationId）では入口カードを出さない＝呼び出し元のボタンが入口 */}
+      {!single && <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
         <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>労働条件通知書</span>
         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
           {rows === null ? "読み込み中…" : count > 0 ? `${count}件　採用の時点で決まった労働条件です。表示・印刷できます` : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
         </span>
-      </button>
+      </button>}
+
+      {/* 1件だけ開くモードの読み込み中・見つからない時（黙って何も出さない、を作らない） */}
+      {single && !open && createPortal(
+        <div onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10500, padding:"40px 16px" }}>
+          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"22px 20px", maxWidth:380, width:"100%", textAlign:"center" }}>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, margin:"0 0 14px" }}>
+              {rows === null ? "読み込み中…" : "この仕事の労働条件の記録が見つかりません。"}
+            </p>
+            <button onClick={() => onClose?.()} className="f-sans" style={{ background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"11px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* 一覧（契約の選択）。ボックスは上下40pxの余白を残して画面中央＝2026-08-01に統一した
           編集モーダルと同じ規格（overlayに padding:"40px 16px"／シートは maxHeight:"100%"＝
@@ -241,11 +270,11 @@ export default function LaborConditionsNotice({ me, role = "worker" }) {
           const actionRow = (style) => (
             <div className="no-print" style={{ display:"flex", gap:10, ...style }}>
               <button onClick={printNotice} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
-              <button onClick={() => setOpen(null)} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
+              <button onClick={closeNotice} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 18px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
             </div>
           );
           return (
-            <div onClick={(e) => { if (e.target === e.currentTarget) setOpen(null); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500, padding:"40px 16px" }}>
+            <div onClick={(e) => { if (e.target === e.currentTarget) closeNotice(); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500, padding:"40px 16px" }}>
               <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
                 {/* ✕は置かない（外タップで閉じる・入力ボックスの統一と同じ作法）。下部に「とじる」あり */}
                 <div className="cb-ctr-print">

@@ -349,6 +349,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
   // （今日ページの📋今日の記録・緊急連絡のシートと同じもの＝入力を枝分かれさせない）。
   // ★ここで記録しても作業全体の出欠（applications.attended）は変わらない＝最終日の評価で決まる
   const [dayReportApp, setDayReportApp] = useState(null);
+  // 労働条件通知書を1件だけ開く（求人カードのボタン・2026-08-23たきと指示）。表示・印刷は
+  // 共有部品 LaborConditionsNotice が担う＝通知書の姿をこの画面で作らない
+  const [noticeAppId, setNoticeAppId] = useState(null);
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
   // 最終日の評価の答え（2026-08-20に3問×3択＋タグへ再設計）。列名をそのまま鍵にする
@@ -969,6 +972,8 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       {/* その日の記録（最終の作業日より前の作業日・2026-08-19）。祝祭は出さない（祝う場面ではない） */}
       <DayReportSheet app={dayReportApp && { id: dayReportApp.id }} meId={me?.id} role="farmer"
         onClose={()=>setDayReportApp(null)} onDone={()=>setDayReportApp(null)} />
+      {/* 労働条件通知書（求人カードのボタンから1件だけ開く・2026-08-23）。入口カードは出さないモード */}
+      {noticeAppId && <LaborConditionsNotice me={me} role="farmer" applicationId={noticeAppId} onClose={()=>setNoticeAppId(null)} />}
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
@@ -1513,6 +1518,48 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                         </div>
                         </>)}
                       </div>
+                      {/* 労働条件通知書／記録する（最終の作業日からは評価する）＝2026-08-23たきと指示。
+                          対象は採用が決まった応募だけ（採用前は通知書が無く、記録するものもない）。
+                          複数人を採用している求人は1人1行＝誰のぶんかが分かるよう名前を添える。
+                          ★実行の窓口は増やしていない：記録＝DayReportSheet／評価＝完了・評価モーダル（openCompleteModal）
+                            ＝応募者シート・今日の各ページが使っているものと同じ部品を、ここから呼ぶだけ */}
+                      {(() => {
+                        const hired = apps.filter(a => ["contracted","working","completed"].includes(appPhaseKey(a)));
+                        if (hired.length === 0) return null;
+                        const jinfo = jobInfoMap[jn];
+                        const btn = (extra) => ({ flex:1, minWidth:0, padding:"10px", fontSize:12, fontWeight:700, borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", ...extra });
+                        return (
+                          <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
+                            {hired.map(a => {
+                              const wp = workerProfiles[a.worker_id];
+                              const phase = appPhaseKey(a);
+                              // 完了＝評価がまだ残っている時だけ「評価する」。欠勤記録済み・評価済みは押すものがない
+                              const rec = phase === "completed"
+                                ? ((a.attended === false || reviewedAppIds.has(a.id)) ? null : { label:"評価する", green:true, on:()=>openCompleteModal(a) })
+                                : isFinalWorkDone(a, jinfo)
+                                ? { label:"評価する", green:true, on:()=>openCompleteModal(a) }
+                                : { label:"記録する", green:false, on:()=>setDayReportApp(a) };
+                              return (
+                                <div key={a.id} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  {hired.length > 1 && (
+                                    <span className="f-sans" style={{ flexShrink:0, maxWidth:76, fontSize:11, fontWeight:700, color:"#717171", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
+                                  )}
+                                  <button onClick={()=>setNoticeAppId(a.id)} className="f-sans" style={btn({ background:"#fff", color:"#00A86B", border:"1px solid #00A86B" })}>労働条件通知書</button>
+                                  {rec ? (
+                                    <button onClick={rec.on} className="f-sans" style={btn(rec.green
+                                      ? { background:"#00A86B", color:"#fff", border:"none" }
+                                      : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
+                                      <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
+                                    </button>
+                                  ) : (
+                                    <span className="f-sans" style={{ flex:1, textAlign:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{a.attended === false ? "欠勤記録済み" : "評価済み"}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 });
