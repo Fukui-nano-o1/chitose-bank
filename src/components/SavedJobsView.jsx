@@ -586,7 +586,20 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     「求人を見る」は従来と同じ窓口＝カードのボックス（内容の確認・求人詳細へのスライド） */}
                 {!appOf(r) && (
                   <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
-                    <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" label="日程" />
+                    {/* 日程タップ＝求人詳細へ行き、そのまま応募ボックスを開く（2026-08-23たきと指示
+                        「日程タップで応募ボックス展開」）。応募の窓口は求人詳細の応募ボックス1つのまま＝
+                        ここでは合図（cb_openApply）を置いて送るだけ。応募済み・自分の求人・締切の時は
+                        詳細側が開かない（そこの条件をそのまま使う）。
+                        ★2026-08-23：並走セッションの「撤回」（175b103）でこの配線が巻き添えで消えていた
+                        （たきと報告「日程タップで応募ボックス展開しない」）＝復旧したもの */}
+                    <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" label="日程"
+                      onPick={()=>{
+                        try {
+                          sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "") || "/saved");
+                          sessionStorage.setItem("cb_openApply", String(r.job_number));
+                        } catch {}
+                        window.location.hash = "/work/job/" + r.job_number;
+                      }} />
                     {/* 求人詳細ページへ遷移（2026-08-23たきと指示「求人を見るボックスタップで、求人詳細ページへ」）。
                         戻り先（cb_jobBackTo）にいまのURLを置く＝働き手のカレンダーからでも、農家のカレンダーに
                         埋め込まれた一覧からでも、詳細の「←」でその画面に戻る */}
