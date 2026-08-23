@@ -6,7 +6,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
-import { openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
+import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
@@ -1498,7 +1498,13 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                             この面の求人はすべて自分が出したものので求人者＝自分＝empMini。アイコン未設定なら
                             Avatar が農園名の頭文字の丸（雇い手の緑）を出す＝これも実データ（ダミー写真で水増ししない・憲法3条）。
                             写真の上に乗る時は白枠＋影で写真から浮かせる（写真がない時は枠なし＝灰色の下地に丸がひとつ） */}
-                        <span style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:1, display:"block", lineHeight:0, borderRadius:"50%", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }}>
+                        {/* ★タップ＝農家プレビュー（2026-08-23たきと指示「農家のアイコンは農家プレビュー」）。
+                            写真のボタンの中に入れ子のbuttonは置けないので span の role="button"＋stopPropagation
+                            ＝写真（求人）のタップと分ける */}
+                        <span role="button" tabIndex={0} aria-label="農家のプレビューを見る"
+                          onClick={(e)=>{ e.stopPropagation(); if (me?.id) openEmployerPreview(me.id); }}
+                          onKeyDown={(e)=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); if (me?.id) openEmployerPreview(me.id); } }}
+                          style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:3, display:"block", lineHeight:0, borderRadius:"50%", cursor:"pointer", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }}>
                           <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={72} ring={photo ? "#fff" : undefined} bg={ROLE_GREEN} />
                         </span>
                         {/* タイトルと#No.は同じ行に（2026-08-23たきと指示「タイトルの横にナンバー」）。
@@ -1535,7 +1541,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                             // 失効の事実はカード全体の黒「失効」オーバーレイが担う（アイコン側に失効ラベルは出さない）
                             const phaseA = a.status === "expired" ? { ...a, status: "applied" } : a;
                             return (
-                              <button key={a.id} onClick={()=>setSheetApplicantId(a.id)} className="f-sans"
+                              // アイコン＝働き手プレビュー（2026-08-23たきと指示「働き手アイコンは働き手のプレビュー」）。
+                              // ★段階のチップ＝応募者シート（承認・見送り・採用の窓口）に付け替えた＝
+                              //   アイコンをプレビューに譲っても、判断の入口がカードから1タップで残る
+                              <button key={a.id} onClick={()=>openWorkerPreview(a.worker_id)} className="f-sans"
                                 style={{ flexShrink:0, width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                                 {/* 未対応（農家の番）のアイコンだけ跳ねる。働き手のアクション待ちは静止（2026-07-26たきと指示） */}
                                 <span className={!jobPast && todoAppIds.has(a.id) ? "cb-jump" : undefined} style={{ display:"block", lineHeight:0 }}>
@@ -1544,7 +1553,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                 <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color: wp?.nickname ? "#222" : "#999", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
                                 {/* 段階は貼るラベル（チップ）で出す（2026-08-22たきと指示「ラベル貼れていない」）：
                                     文字色だけだと貼った感が無い＝凡例の帯と同じ 段階色の下地＋白文字 に統一 */}
-                                <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(phaseA)); }} role="button" style={{ display:"inline-block", fontSize:9, fontWeight:700, background:appRibbonColor(phaseA), color:"#fff", borderRadius:6, padding:"2px 7px", marginTop:3, cursor:"pointer", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{appRibbonLabel(phaseA)}</span>
+                                <span onClick={(e)=>{ e.stopPropagation(); setSheetApplicantId(a.id); }} role="button" style={{ display:"inline-block", fontSize:9, fontWeight:700, background:appRibbonColor(phaseA), color:"#fff", borderRadius:6, padding:"2px 7px", marginTop:3, cursor:"pointer", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{appRibbonLabel(phaseA)}</span>
                               </button>
                             );
                           })}

@@ -10,7 +10,7 @@ import { supabase } from "../lib/supabase";
 import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
 import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
-import { openPhaseInfo } from "../lib/previewBus";
+import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
@@ -540,7 +540,14 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                       公開情報（jobs_public の employer_nickname / avatar）だけを使い、掲載が終わって
                       ビューに無い求人では出さない（分からないものを丸で埋めない） */}
                   {emp && (
-                    <span style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:1, display:"block", lineHeight:0, borderRadius:"50%", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: covered ? "grayscale(70%)" : "none" }}>
+                    /* ★タップ＝農家プレビュー（2026-08-23たきと指示「農家のアイコンは農家プレビュー」）。
+                       相手（募集主）のauth_idは my_job_actions が返さないので applications から引いた farmerIds を使う
+                       ＝応募のある求人だけ開ける。いいねだけの求人は分からないので、写真と同じ
+                       ボックス（求人の内容・農園プロフィールを含む）を開く */
+                    <span role="button" tabIndex={0} aria-label="農家のプレビューを見る"
+                      onClick={(e)=>{ e.stopPropagation(); const fid = r.application_id ? farmerIds[r.application_id] : null; if (fid) openEmployerPreview(fid); else setBoxJob(r); }}
+                      onKeyDown={(e)=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); const fid = r.application_id ? farmerIds[r.application_id] : null; if (fid) openEmployerPreview(fid); else setBoxJob(r); } }}
+                      style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:3, display:"block", lineHeight:0, borderRadius:"50%", cursor:"pointer", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: covered ? "grayscale(70%)" : "none" }}>
                       <Avatar url={emp.avatar_url} name={emp.nickname || "？"} size={72} ring={photo ? "#fff" : undefined} bg={ROLE_GREEN} />
                     </span>
                   )}
@@ -554,7 +561,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     （雇い手カードの「応募者アイコンの列」と同じ位置＝相手側の並び） */}
                 <div style={{ width:"100%", minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>
                   {phase ? (
-                    <button onClick={()=>setBoxJob(r)} className="f-sans"
+                    /* アイコン＝働き手プレビュー（自分・2026-08-23たきと指示「働き手アイコンは働き手のプレビュー」）。
+                       段階のチップは従来どおり段階の説明（この面には承認等の操作が無いため） */
+                    <button onClick={()=>{ if (me?.id) openWorkerPreview(me.id); }} className="f-sans"
                       style={{ width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
                       <Avatar url={myProfile?.avatar_url} name={myProfile?.nickname || (me?.name || "？")} size={52} ring={phaseColorNow(phase, r)} />
                       <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>あなた</span>
