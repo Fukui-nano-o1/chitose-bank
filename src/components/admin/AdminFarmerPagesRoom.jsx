@@ -81,15 +81,19 @@ function Btn({ children, kind = "primary" }) {
     : { background:"#fff", color:"#444", border:"1px solid #DDD" };
   return <span className="f-sans" style={{ display:"block", flex:1, textAlign:"center", padding:"12px 16px", borderRadius:14, fontSize:14, fontWeight:800, ...s }}>{children}</span>;
 }
-/* 本番の求人カード（作成中・公開中パネル）の正方形カードを写経＝写真が無ければ線画（postJob／sprout） */
-function JobTile({ label, icon, ribbon }) {  // icon＝NavIconの名前
+/* 自分の求人カード（作成中・公開中パネル）＝本物の JobCard（wide）をそのまま使う。
+   2026-08-23たきと指示「その他の求人カードと同じ設計に」で本番thatこの形になったso、
+   見本帳も写経をやめて実物に合わせた（FarmerDashboard.renderOwnJobCard と同じ組み立て）。
+   状態の帯（公開間近／一時非公開）はカードの外側に重ねる＝本番と同じ */
+function JobTile({ job, ribbon }) {
   return (
-    <div style={{ background:"#fff", border:`1px solid ${LINE}`, borderRadius:12, overflow:"hidden" }}>
-      <div style={{ position:"relative", aspectRatio:"1 / 1", background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}>
-        <NavIcon name={icon} size={36} />
-        {ribbon && <StatusRibbon label={ribbon} color="#0E8A6B" />}
-      </div>
-      <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:INK, margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{label}</p>
+    <div style={{ position:"relative" }}>
+      <JobCard job={job} variant="wide" onOpen={noop} />
+      {ribbon && (
+        <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
+          <StatusRibbon label={ribbon} color="#0E8A6B" />
+        </div>
+      )}
     </div>
   );
 }
@@ -425,10 +429,11 @@ const STEPS = [
           <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`2px solid ${INK}`, background:"#fff", fontSize:14, fontWeight:800, color:INK }}>作成中（2）</span>
           <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`1px solid ${LINE}`, background:"#fff", fontSize:14, fontWeight:600, color:"#999" }}>公開中（1）</span>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10 }}>
-          <JobTile label="ブロッコリー 収穫" icon="sprout" ribbon="公開間近" />
-          <JobTile label="レタス 定植" icon="postJob" />
-          <JobTile label="無題の求人" icon="postJob" />
+        <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>
+          <JobTile ribbon="公開間近" job={{ ...SAMPLE_JOB, id:1201, crop:"ブロッコリー", task:"収穫" }} />
+          <JobTile job={{ ...SAMPLE_JOB, id:1202, crop:"レタス", task:"定植", isNew:false, beginnerOk:false }} />
+          {/* 何も入力していない下書き＝題名のフォールバック・報酬なし（本番と同じ見え方） */}
+          <JobTile job={{ ...SAMPLE_JOB, id:1203, crop:"無題の求人", task:"", pay:0, isNew:false, beginnerOk:false, dateStartRaw:"", dateEndRaw:"" }} />
         </div>
       </div>
     ) },

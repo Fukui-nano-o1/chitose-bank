@@ -576,6 +576,48 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
   // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
   const [nearPublishInfo, setNearPublishInfo] = useState(false);
   const [nearPubDetail, setNearPubDetail] = useState(false);
+  // ── あなたの求人カード（作成中・公開中の両パネル共用・2026-08-23たきと指示
+  //    「その他の求人カードと同じ設計にしてほしい」）──
+  // さがす・関連求人と同じ JobCard を使う＝カードの顔をこの面だけ別に作らない。
+  // related は横スクロール用に幅280px固定so、縦一列のこの面には全幅版の wide を使う
+  // （2026-08-19 仕事の評価ページと同じ判断）。JobCard を直せばこの面も自動で追従する。
+  // ★この面だけの情報（状態の帯・未回答の質問）はカードの外側に重ねる＝JobCardに分岐を足さない。
+  // ribbon＝StatusRibbon（公開間近／一時非公開）。hideEndLabel＝終了の帯を出さない
+  //   （区画見出し「終了（N）」thatあるso重複させない・2026-07-27の判断を維持）。
+  const renderOwnJobCard = (d, { ribbon, hideEndLabel } = {}) => {
+    const j = mapJobPublicRow(d);
+    // 何も入力していない下書きthat名無しにならないように（JobCardは crop task をそのまま並べる）
+    if (!j.crop && !j.task) j.crop = "無題の求人";
+    const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
+    const qn = qUnansweredMap[d.job_number] || 0;
+    const canOpenQ = d.status === "open" && !hideEndLabel;
+    return (
+      // JobCard（wide）の高さ＝写真の高さ＝カードの高さ。inset:0＋角丸で重ねものを写真の中に収める
+      <div key={d.job_number} style={{ position:"relative" }}>
+        <JobCard job={j} variant="wide" hideEndLabel={hideEndLabel}
+          onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
+            : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
+            : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} />
+        {ribbon && (
+          <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>{ribbon}</div>
+        )}
+        {qn > 0 && (
+          // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
+          // カード本体の展開とは別動作so stopPropagation＋preventDefault（JobCardは<a>）。
+          // 求人詳細は jobs_public（公開中のみ）を読むso、公開中でない求人では詳細thatが開けない
+          // ＝その場合はカードの展開に任せる（バッジは表示のみ）
+          <span onClick={canOpenQ ? (e => {
+            e.preventDefault(); e.stopPropagation();
+            try { sessionStorage.setItem("cb_jobBackTo", "/profile/employer/active"); } catch {}
+            window.location.hash = "/work/job/" + d.job_number + "/questions";
+          }) : undefined}
+            role={canOpenQ ? "button" : undefined}
+            aria-label={canOpenQ ? "未回答の質問を見る" : undefined}
+            className="f-sans" style={{ position:"absolute", top:10, right:10, zIndex:4, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, borderRadius:20, padding:"3px 10px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", cursor: canOpenQ ? "pointer" : undefined }}>?{qn}</span>
+        )}
+      </div>
+    );
+  };
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
   // シート内の求人カード→詳細面（2026-08-08たきと指示「ここも同じにしよう。アニメーションもコピー」＝
@@ -1193,7 +1235,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
         <div ref={pagerTrackRef} style={{ display:"flex", width:"200%", transform: jobTab==="draft" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
-            <div ref={skelDraftRef} style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 作成中パネル（メルカリ風・横3列） */}
+            <div ref={skelDraftRef} style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>{/* 作成中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
       {draftsLoading ? (
           /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
           <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmDrafts" /></div>
@@ -1206,25 +1248,12 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
         ) : (
           (() => {
             // 作成中と審査中をセクションで分離（2026-07-16）。審査中は閲覧のみ（再開/削除は作成中のみ）
-            const renderDraftCard = (d) => {
-              const photo = photoThumb(d.photos?.[0]);
-              const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
-              return (
-              <button key={d.job_number}
-                onClick={()=> armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
-                  : nearPublish
-                  ? setNearPublishInfo(true)  // 公開間近は詳細も求人者も見せず、説明ボックスを展開する
-                  : setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
-                className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name={nearPublish ? "sprout" : "postJob"} size={36} /></span>}
-                  {/* タブ名（作成中）と同じ帯は出さない（重複排除）。公開間近だけ帯を出す＝「審査中」ではなく前向きな色（2026-08-07） */}
-                  {nearPublish && <StatusRibbon label="公開間近" color="#0E8A6B" />}
-                </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題の求人"}</p>
-              </button>
-              );
-            };
+            // カードは「その他の求人」と同じ設計＝renderOwnJobCard（JobCard wide）に集約（2026-08-23）。
+            // タブ名（作成中）と同じ帯は出さない（重複排除）。公開間近だけ帯を出す
+            // ＝「審査中」ではなく前向きな色（2026-08-07）
+            const renderDraftCard = (d) => renderOwnJobCard(d, {
+              ribbon: d.status === "pending" ? <StatusRibbon label="公開間近" color="#0E8A6B" /> : null,
+            });
             const making = dbDrafts.filter(d => d.status === "draft");
             const pending = dbDrafts.filter(d => d.status === "pending");
             return (
@@ -1240,7 +1269,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             </div>
           </div>
           <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-            <div ref={skelActiveRef} style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>{/* 公開中パネル（メルカリ風・横3列） */}
+            <div ref={skelActiveRef} style={{ display:"grid", gridTemplateColumns:"1fr", gap:16 }}>{/* 公開中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
       {draftsLoading ? (
           /* 読み込み中に「公開中の求人はありません」を出すと一瞬ゼロに見える。確定するまでは仮配置 */
           <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmActive" /></div>
@@ -1253,36 +1282,18 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
         ) : (
           (() => {
             // 審査中(pending)と公開中(open)をセクションで分離（2026-07-16）。
-            // 終了（作業日程が過ぎた求人）も公開中ボックスに残す（2026-07-22）＝endedフラグで灰色帯「終了」
-            const renderActiveJobCard = (d, ended=false) => {
-              const photo = photoThumb(d.photos?.[0]);
-              return (
-              <div key={d.job_number} onClick={()=> armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
-                : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} style={{ border:"1px solid #EBEBEB", borderRadius:12, overflow:"hidden", background:"#fff", cursor:"pointer" }}>
-                <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(40%)" : "none" }} /> : (ended ? <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="ended" size={36} /></span> : <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="image" size={36} /></span>)}
-                  {/* 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」に加え、
-                      区画見出し「終了（N）」があるので終了の帯も出さない（写真のグレースケール＋終了アイコンで十分伝わる） */}
-                  {!ended && d.status !== "open" && <StatusRibbon label={d.status==="draft" ? "一時非公開" : "公開間近"} color={d.status==="draft" ? "#757575" : "#0E8A6B"} />}
-                  {qUnansweredMap[d.job_number] > 0 && (
-                    // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
-                    // カード本体のプレビュー展開とは別動作なのでstopPropagation。戻るはこのページへ。
-                    // 求人詳細はjobs_public（公開中のみ）を読むため、公開中でない・終了した求人では
-                    // 詳細が開けないため、その場合は従来どおりカードのプレビューに任せる（バッジは表示のみ）
-                    <span onClick={(d.status === "open" && !ended) ? (e => {
-                      e.stopPropagation();
-                      try { sessionStorage.setItem("cb_jobBackTo", "/profile/employer/active"); } catch {}
-                      window.location.hash = "/work/job/" + d.job_number + "/questions";
-                    }) : undefined}
-                      role={(d.status === "open" && !ended) ? "button" : undefined}
-                      aria-label={(d.status === "open" && !ended) ? "未回答の質問を見る" : undefined}
-                      className="f-sans" style={{ position:"absolute", top:6, right:6, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:20, padding:"2px 8px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", cursor:(d.status === "open" && !ended) ? "pointer" : undefined }}>?{qUnansweredMap[d.job_number]}</span>
-                  )}
-                </div>
-                <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
-              </div>
-              );
-            };
+            // 終了（作業日程が過ぎた求人）も公開中ボックスに残す（2026-07-22）。
+            // カードは「その他の求人」と同じ設計＝renderOwnJobCard（JobCard wide）に集約（2026-08-23）。
+            // 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」は出さず、
+            // 区画見出し「終了（N）」thatある終了の段も帯を出さない（hideEndLabel）。
+            // ★公開中の段では終了帯を出す＝満員（募集終了（満員））thatカードで分かる。
+            //   従来この面は満員を表示できず、公開中の求人と見分けthatつかなかった
+            const renderActiveJobCard = (d, ended=false) => renderOwnJobCard(d, {
+              hideEndLabel: ended,
+              ribbon: (!ended && d.status !== "open")
+                ? <StatusRibbon label={d.status==="draft" ? "一時非公開" : "公開間近"} color={d.status==="draft" ? "#757575" : "#0E8A6B"} />
+                : null,
+            });
             const open = dbActive.filter(d => d.status === "open");
             const unpub = dbActive.filter(d => d.status === "draft"); // 一時非公開（掲載歴あり）
             const ended = dbExpired; // 作業日程が過ぎた求人＝終了（探すからは自動で外れるが、農家の公開中ボックスには残す）
@@ -1304,7 +1315,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
       </div>
       ) : (
       <div ref={appGridRef}
-        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="calendar"||jobTab==="expired") ? "repeat(3, 1fr)" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="calendar"||jobTab==="expired") ? 10 : 20 }}>{/* 求人一覧はメルカリ風に横3列固定・タイトルのみ */}
+        style={{ display:"grid", gridTemplateColumns: (jobTab==="applicants"||jobTab==="calendar") ? "repeat(3, 1fr)" : jobTab==="expired" ? "1fr" : "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: (jobTab==="applicants"||jobTab==="calendar") ? 10 : jobTab==="expired" ? 16 : 20 }}>{/* 応募者・カレンダーは横3列。期限切れは縦一列（カードはさがすと同じ設計・2026-08-23） */}
       {/* 2026-07-14: プレビューページ廃止＝トップボックスタップで直接編集ページへ。プレビューは編集ページ右上→モーダル */}
       {jobTab==="profile" ? (
         <EmployerProfileEdit me={me} />
@@ -1629,19 +1640,12 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>作業日程が過ぎた求人がここに入ります。</p>
           </div>
         ) : (
-          dbExpired.map(d => {
-            const photo = photoThumb(d.photos?.[0]);
-            return (
-            <button key={d.job_number} onClick={()=>setPreviewJob({ num: d.job_number, draft: d.status === "draft", published: !!d.opened_at })}
-              className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
-              <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F2F2F2", display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, overflow:"hidden" }}>
-                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(40%)" }} /> : <span style={{ display:"flex", color:"#C8C8C8" }}><NavIcon name="ended" size={36} /></span>}
-                <StatusRibbon label="期限切れ" color="#9E9E9E" />
-              </div>
-              <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0, padding:"8px 10px 10px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{((d.crop||"")+" "+(d.task||"")).trim() || "無題"}</p>
-            </button>
-            );
-          })
+          // カードは「その他の求人」と同じ設計＝作成中・公開中と同じ renderOwnJobCard（2026-08-23）。
+          // 帯は「期限切れ」だけ＝このタブ自体that期限切れso、JobCardの終了帯は出さない（重複排除）
+          dbExpired.map(d => renderOwnJobCard(d, {
+            hideEndLabel: true,
+            ribbon: <StatusRibbon label="期限切れ" color="#9E9E9E" />,
+          }))
         )
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
