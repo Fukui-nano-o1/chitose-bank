@@ -597,7 +597,13 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                 {!appOf(r) && (
                   <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
                     <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" label="日程" />
-                    <button onClick={()=>setBoxJob(r)} className="f-sans"
+                    {/* 求人詳細ページへ遷移（2026-08-23たきと指示「求人を見るボックスタップで、求人詳細ページへ」）。
+                        戻り先（cb_jobBackTo）にいまのURLを置く＝働き手のカレンダーからでも、農家のカレンダーに
+                        埋め込まれた一覧からでも、詳細の「←」でその画面に戻る */}
+                    <button onClick={()=>{
+                      try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "") || "/saved"); } catch {}
+                      window.location.hash = "/work/job/" + r.job_number;
+                    }} className="f-sans"
                       style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C" }}>求人を見る</button>
                   </div>
                 )}
