@@ -587,9 +587,13 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                       {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。窓口は
                           contract_emergency_contact 1本のまま＝採用成立後・当事者だけ。未登録なら何も出ない */}
                       <ContractEmergencyContact applicationId={a.id} style={{ margin:0 }} />
-                      {/* 労働条件通知書＝全幅で大きく（たきと指示） */}
+                      {/* 労働条件通知書＝全幅で大きく（たきと指示）。
+                          ★終わった仕事（完了・失効・見送り・取り消し）でカード全体がタップ不能になっても、
+                            このボタンだけは押せるようにする（2026-08-24たきと指示）＝
+                            通知書の提供は義務なので、記録の閲覧を暗幕で塞がない。
+                            暗幕（zIndex:2）より上に置き、pointerEvents を自分だけ auto に戻す */}
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
-                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C" }}>労働条件通知書</button>
+                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}>労働条件通知書</button>
                       {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                           日の集合は appWorkDates（agreed_dates ＞ 求人の期間）＝カレンダー・最終日の判定と
                           同じソース。進み具合はボックスの中と同じ共有部品 FlowBar＝段の点き方が枝分かれしない */}
