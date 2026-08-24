@@ -221,34 +221,12 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
           </Fragment>
         ) : null; })}
       </div>
-      {okTrust && trust.want_again_workers > 0 && (
-        <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{!black && <NavIconInline name="star" size={13} />}また働きたい×{trust.want_again_workers}</p>
-      )}
-      {/* 求人内容との一致（2026-08-20たきと裁定）：働き手の最終評価 match_level を1契約1票で集計。
-          ★％では出さない＝母数を消さない（8/10件）。
-          ★2026-08-24たきと指示「これは評価の要素だ。評価は件数関係なく表示させろ。空ならまだないと明記」＝
-          旧・5件未満は数字を出さないゲートを撤去。1件から数字を出し、0件は「まだありません」と明記する。
-          日次の「予定と違います」はここの分母に使わない（1つの仕事で複数の差異が起きるため）。
-          集計と公開判定（双方揃うか完了3日）はDB側 employer_trust_info が担う＝ここは表示だけ */}
-      {okTrust && (
-        ((trust.match_total || 0) > 0) ? (
-          <div style={{ margin:"0 0 6px" }}>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0 }}>
-              求人内容との一致　{trust.match_matched} / {trust.match_total}件
-            </p>
-            {(trust.match_partly > 0 || trust.match_differed > 0) && (
-              <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"2px 0 0" }}>
-                一部違った {trust.match_partly}件{trust.match_differed > 0 ? `・大きく違った ${trust.match_differed}件` : ""}
-              </p>
-            )}
-            {/* 帰属の明記（2026-08-21たきと裁定・規約第8条3）：これは働き手の回答の集計であって、
-                運営者が認定した事実ではない。この1行を外さないこと（規約が「集計である旨を明記」と約束している） */}
-            <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"2px 0 0" }}>働き手の最終回答を集計</p>
-          </div>
-        ) : (
-          <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 6px" }}>求人内容との一致　まだありません</p>
-        )
-      )}
+      {/* 削除（2026-08-24たきと指示）：
+          ・「また働きたい×N」＝評価タブ（ReceivedReviews の肯定バッジ）と同じものが2箇所に出ていたので消した
+          ・「求人内容との一致 N / M件」＝意味が伝わらないので消した（DB側 employer_trust_info の
+            match_* の集計自体は残っている＝出し方を決め直したくなったらそこから描ける）
+          ★消したのは表示だけ。規約 第8条2四（集計は件数にかかわらず表示・否定の件数を含む）は
+            いま表示している集計が肯定だけになった＝次の改訂で文面を見直す候補（たきと判断待ち） */}
       {okTrust && trust.completed_hires > 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
       )}
