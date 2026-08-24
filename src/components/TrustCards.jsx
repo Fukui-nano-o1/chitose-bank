@@ -225,12 +225,13 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
         <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:"0 0 6px" }}>{!black && <NavIconInline name="star" size={13} />}また働きたい×{trust.want_again_workers}</p>
       )}
       {/* 求人内容との一致（2026-08-20たきと裁定）：働き手の最終評価 match_level を1契約1票で集計。
-          ★％では出さない＝母数を消さない（8/10件）。5件未満は数字を出さない（MVPの最低ゲート＝
-          1〜2件の偶然でプロフィールの印象を決めない。法的・統計的な基準値ではない）。
+          ★％では出さない＝母数を消さない（8/10件）。
+          ★2026-08-24たきと指示「これは評価の要素だ。評価は件数関係なく表示させろ。空ならまだないと明記」＝
+          旧・5件未満は数字を出さないゲートを撤去。1件から数字を出し、0件は「まだありません」と明記する。
           日次の「予定と違います」はここの分母に使わない（1つの仕事で複数の差異が起きるため）。
           集計と公開判定（双方揃うか完了3日）はDB側 employer_trust_info が担う＝ここは表示だけ */}
-      {okTrust && trust.match_total != null && (
-        (trust.match_total >= 5) ? (
+      {okTrust && (
+        ((trust.match_total || 0) > 0) ? (
           <div style={{ margin:"0 0 6px" }}>
             <p className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", margin:0 }}>
               求人内容との一致　{trust.match_matched} / {trust.match_total}件
@@ -245,7 +246,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
             <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"2px 0 0" }}>働き手の最終回答を集計</p>
           </div>
         ) : (
-          <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 6px" }}>求人内容との一致　まだ十分な記録がありません</p>
+          <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 6px" }}>求人内容との一致　まだありません</p>
         )
       )}
       {okTrust && trust.completed_hires > 0 && (

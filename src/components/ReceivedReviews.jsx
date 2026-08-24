@@ -39,10 +39,11 @@ const BADGE_DEFS = {
   ],
 };
 
-// 空（まだ公開できる評価が無い）の時は【何も描かない】（2026-08-08たきと指示「削除」）。
-// 以前は「お互いの評価が揃うか、完了から3日で表示されます。」の案内を出していたが、
-// プロフィールプレビューの最下部に常時出るため撤去した。公開判定の仕組み自体は不変（DB側）。
-// ★hideEmpty/onEmptyChange の2propも役目を終えたので廃止（親が中央固定で描いていた層ごと削除）
+// 空（まだ公開できる評価が無い）の時は「まだ評価はありません」と明記する
+// （2026-08-24たきと指示「評価は件数関係なく表示させろ。空ならまだないと明記」）。
+// ★2026-08-08の「何も描かない」は撤回：評価が独立した面（タブ）になり、空だと面ごと白紙に見えるため。
+// 公開判定の仕組み自体は不変（DB側 reviews_public_badges）。
+// ★hideEmpty/onEmptyChange の2propは廃止のまま（親が中央固定で描いていた層ごと削除済み）
 export function ReceivedReviews({ userId, direction }) {
   const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
@@ -70,7 +71,9 @@ export function ReceivedReviews({ userId, direction }) {
       {/* 見出し「🌟 受け取った評価」は削除（2026-08-07たきと指示・タブ名「評価」が見出しを兼ねる） */}
       {data === null ? (
         <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中<Dots /></p>
-      ) : isEmpty ? null : (
+      ) : isEmpty ? (
+        <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0", margin: 0 }}>まだ評価はありません</p>
+      ) : (
         <>
           {shown.length > 0 && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: comments.length > 0 ? 12 : 0 }}>
