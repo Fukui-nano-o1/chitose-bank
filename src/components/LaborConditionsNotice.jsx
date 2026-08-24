@@ -311,7 +311,8 @@ export default function LaborConditionsNotice({ me, role = "worker", application
               </div>
               {hint && (
                 <p className="f-sans" style={{ fontSize:11, color:"#909090", lineHeight:1.7, margin:"8px 0 0" }}>
-                  「PDFで保存」を押すとPDFファイルが保存されます（iPhoneはダウンロード → ファイルアプリに入ります）。
+                  「PDFで保存」を押すとPDFファイルが保存されます（iPhoneはダウンロード → ファイルアプリに入ります）。<br />
+                  「印刷する」は、iPhoneで「自動的に印刷することは禁止されています」と出たら「許可」を選んでください。
                 </p>
               )}
             </div>
