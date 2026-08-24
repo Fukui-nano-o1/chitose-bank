@@ -916,7 +916,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
   // カレンダーの日程タップから来た時は、そのまま応募ボックスを開く（2026-08-23たきと指示
   // 「日程タップで応募ボックス展開」）。合図＝sessionStorage cb_openApply（求人番号）。
-  // ★自分の応募の状態GA分かるまで合図を消さない＝読み込み中に消すと開く機会を失う。
+  // ★自分の応募の状態が分かるまで合図を消さない＝読み込み中に消すと開く機会を失う。
   //   応募済み・仮応募・自分の求人・締切の時は開かない（応募ボタンと同じ条件をそのまま使う）
   useEffect(() => {
     if (!selectedJob || !me) return;

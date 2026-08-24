@@ -1570,7 +1570,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                           ★実行の窓口は増やしていない：チャット＝#/chat/{応募ID}／記録＝DayReportSheet／
                             評価＝完了・評価モーダル（openCompleteModal）＝応募者シート・今日の各ページと同じ部品 */}
                       {(() => {
-                        const hired = apps.filter(a => ["contracted","working","completed"].includes(appPhaseKey(a)));
+                        // 承認（面接中）＝まだ採用していない応募も並べる（2026-08-24たきと指示
+                        // 「承認すると採用するボタンを設置」）。この段の右のボタンは【採用するページへのリンク】
+                        // ＝採用の実行窓口は #/calendar/todo/hire 1箇所のまま（2026-08-06一本化・最終確認・
+                        // 二重予約の警告・本名開示の明示・confirm_terms はすべてあちらが担う）
+                        const hired = apps.filter(a => ["interview","contracted","working","completed"].includes(appPhaseKey(a)));
                         if (hired.length === 0) return null;
                         const jinfo = jobInfoMap[jn];
                         const btn = (extra) => ({ flex:1, minWidth:0, padding:"10px", fontSize:12, fontWeight:700, borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", ...extra });
@@ -1580,7 +1584,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                               const wp = workerProfiles[a.worker_id];
                               const phase = appPhaseKey(a);
                               // 完了＝評価がまだ残っている時だけ「評価する」。欠勤記録済み・評価済みは押すものがない
-                              const rec = phase === "completed"
+                              // 面接中＝採用する（採用ページへ）／完了＝評価する／作業中＝記録する（最終日からは評価する）
+                              const beforeHire = phase === "interview";
+                              const rec = beforeHire
+                                ? { label:"採用する →", green:true, icon:"hire", on: goHirePage }
+                                : phase === "completed"
                                 ? ((a.attended === false || reviewedAppIds.has(a.id)) ? null : { label:"評価する", green:true, on:()=>openCompleteModal(a) })
                                 : isFinalWorkDone(a, jinfo)
                                 ? { label:"評価する", green:true, on:()=>openCompleteModal(a) }
@@ -1600,7 +1608,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                       <button onClick={rec.on} className="f-sans" style={btn(rec.green
                                         ? { background:"#00A86B", color:"#fff", border:"none", pointerEvents:"auto" }
                                         : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
-                                        <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
+                                        <NavIconInline name={rec.icon || (rec.green ? "star" : "clipboard")} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
                                       </button>
                                     ) : (
                                       <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{a.attended === false ? "欠勤記録済み" : "評価済み"}</span>
@@ -1609,16 +1617,17 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                   {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。
                                       採用成立後のみ・当事者だけに開く唯一の窓口（contract_emergency_contact）を
                                       そのまま置く＝この画面で新しい開示経路を作らない。相手が未登録なら何も出ない */}
-                                  <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />
+                                  {/* 緊急連絡先・労働条件通知書は採用（契約成立）後だけ＝面接中はまだ記録が無い */}
+                                  {!beforeHire && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />}
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                                       ★終わった仕事（完了・失効・見送り）でカード全体がタップ不能になっても、
                                         このボタンだけは押せるようにする（2026-08-24たきと指示）＝
                                         通知書の提供は義務なので、記録の閲覧を暗幕で塞がない。
                                         ★この通知書だけは最前線に置く（2026-08-24たきと指示「労働条件通知書は最前線」）＝
                             暗幕（zIndex:5）より上の zIndex:6。暗幕はタップを飲み込まない（pointerEvents:none）ので
-                            押せること自体は重ね順に依存しないGA、終わった仕事でも文字GA暗くならず読める */}
-                                  <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
-                                    style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}>労働条件通知書</button>
+                            押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
+                                  {!beforeHire && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
+                                    style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}>労働条件通知書</button>}
                                   {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                                       日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
                                       カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
@@ -1641,7 +1650,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             //（絞り込みバー・凡例は日を選んだ時だけ＝従来どおり）。
             // 応募者一覧：カレンダーは出さず、全件＋絞り込みバー・凡例
             // 働き手として応募した求人のカード（2026-08-23たきと指示）＝働き手のカレンダーページと
-            // 同じ部品をそのまま埋め込む（見た目・操作を二重に作らない）。カードGA1枚も無ければ何も出ない
+            // 同じ部品をそのまま埋め込む（見た目・操作を二重に作らない）。カードが1枚も無ければ何も出ない
             const workerCards = (
               <div key="worker-cards" style={{ gridColumn:"1/-1" }}>
                 <SavedJobsView me={me} embedded calDay={calDay} />

@@ -439,7 +439,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
         </div>
       ) : (
         <div ref={skelRef} style={{ display:"grid", gap:10 }}>
-          {/* 日を選んで0件の案内も削除（2026-08-23たきと指示）＝カードGA並ばないことで伝わる */}
+          {/* 日を選んで0件の案内も削除（2026-08-23たきと指示）＝カードが並ばないことで伝わる */}
           {orderedRows.map(r => {
             const photo = photoOf(r);
             const title = titleOf(r);
@@ -597,7 +597,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                             通知書の提供は義務なので、記録の閲覧を暗幕で塞がない。
                             ★この通知書だけは最前線に置く（2026-08-24たきと指示「労働条件通知書は最前線」）＝
                             暗幕（zIndex:2）より上の zIndex:3。暗幕はタップを飲み込まない（pointerEvents:none）ので
-                            押せること自体は重ね順に依存しないGA、終わった仕事でも文字GA暗くならず読める */}
+                            押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                         style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}>労働条件通知書</button>
                       {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
