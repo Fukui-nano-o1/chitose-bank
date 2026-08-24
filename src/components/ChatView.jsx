@@ -2,6 +2,7 @@
 // 日程案シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
+import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
   CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
@@ -130,7 +131,7 @@ export function ChatView({ applicationId, onBack }) {
     if (!jobNumber) return;
     setJobBox({ loading: true, job_number: jobNumber, job: null });
     try {
-      const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jobNumber).maybeSingle();
+      const { data } = await fetchJobRowForMe(jobNumber);
       setJobBox({ loading: false, job_number: jobNumber, job: data ? mapJobPublicRow(data) : null });
     } catch { setJobBox({ loading: false, job_number: jobNumber, job: null }); }
   };
@@ -170,7 +171,7 @@ export function ChatView({ applicationId, onBack }) {
       try {
         // 求人情報と集合場所は並列取得（2026-07-27：直列だと切替が体感で遅い）
         const [jobRes, mpRes] = await Promise.all([
-          supabase.from("jobs_public").select("*").eq("job_number", row.job_number).maybeSingle(),
+          fetchJobRowForMe(row.job_number),
           supabase.rpc('job_meeting_place', { p_job_number: row.job_number }),
         ]);
         if (jobRes.data) setConfirmJob(mapJobPublicRow(jobRes.data));
@@ -336,12 +337,13 @@ export function ChatView({ applicationId, onBack }) {
           if (schedNums.length) {
             (async () => {
               try {
-                const pub = await supabase.from("jobs_public").select("job_number,work_time,date_start,date_end,holidays").in("job_number", schedNums);
+                // jobs_public に無い求人（一時非公開・掲載終了・下書きに戻したもの）は
+                // fetchJobRowsForMe が当事者用の窓口で補う（2026-08-24）＝応募が生きているのに
+                // 日程だけ分からない、を無くす。働き手側でも同じに見える
+                const pub = await fetchJobRowsForMe(schedNums, "job_number,work_time,date_start,date_end,holidays");
                 if (pub.error) return; // 失敗しても手元の表示を壊さない（2026-08-07規則）
-                const map = Object.fromEntries((pub.data || []).map(j => [j.job_number, j]));
-                // jobs_public に無い求人（一時非公開・下書きに戻したもの）は、その求人の持ち主なら
-                // jobs から読める（RLS「jobs owner select」）。応募が生きているのに日程だけ
-                // 分からない、を無くす＝チャットは求人が公開中かどうかに左右されない
+                const map = { ...pub.rows };
+                // 求人の持ち主は jobs からも読める（RLS「jobs owner select」）＝窓口が落ちた時の保険
                 const rest = schedNums.filter(n => !map[n]);
                 if (rest.length) {
                   const own = await supabase.from("jobs").select("job_number,work_time,date_start,date_end,holidays").in("job_number", rest);

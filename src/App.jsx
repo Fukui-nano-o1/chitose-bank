@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { supabase } from "./lib/supabase";
+import { fetchJobRowForMe } from "./lib/jobForMe";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, isUpcomingSoon, msgSnippet, PRIVACY_VERSION } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
 import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBus";
@@ -1300,7 +1301,7 @@ export default function App(){
         if (!fresh) return;
         const [epRes, jobRes] = await Promise.all([
           supabase.from("employer_profiles_public").select("nickname").eq("auth_id", fresh.farmer_id).maybeSingle(),
-          supabase.from("jobs_public").select("crop,task").eq("job_number", fresh.job_number).maybeSingle(),
+          fetchJobRowForMe(fresh.job_number, "job_number,crop,task"),
         ]);
         if (cancelled) return;
         try { localStorage.setItem("cb_hiredBoxShown", JSON.stringify([...shown, fresh.id])); } catch {}
@@ -1363,7 +1364,7 @@ export default function App(){
           const { data: exists } = await supabase.rpc('job_exists', { p_job_number: c.a.job_number });
           if (cancelled) return;
           if (exists === false) { shown.push(key); try { localStorage.setItem("cb_stageShown", JSON.stringify(shown)); } catch {} continue; }
-          const { data } = await supabase.from("jobs_public").select("crop,task").eq("job_number", c.a.job_number).maybeSingle();
+          const { data } = await fetchJobRowForMe(c.a.job_number, "job_number,crop,task");
           if (cancelled) return;
           fresh = c; jobRow = data; break;
         }

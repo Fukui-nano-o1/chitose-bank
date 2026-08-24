@@ -462,17 +462,18 @@ export function JobSearchMapView({ onRegister, me }) {
     if (dbJobs && dbJobs.length > 0) clearApplyReturn();
     // 一覧の到着を待たず、該当求人だけ先に1行引いて詳細を出す（2026-08-02・求人ページの体感）。
     // ディープリンク（#/work/job/N・お仕事タブや通知からの遷移）は従来、全求人一覧の取得完了まで
-    // 白いままだった。1行なら数KBで先に返る。後から一覧が届いたら上の found 経路が同じ求人で上書きする
-    if (!dbJobs) {
-      let cancelled = false;
-      (async () => {
-        try {
-          const { data } = await fetchPublicJobByNumber(jn);
-          if (!cancelled && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
-        } catch {}
-      })();
-      return () => { cancelled = true; };
-    }
+    // 白いままだった。1行なら数KBで先に返る。後から一覧が届いたら上の found 経路が同じ求人で上書きする。
+    // ★一覧が届いた後も引く（2026-08-24）：掲載が終わった・一時非公開の求人は一覧（jobs_public）に
+    //   無いが、その求人の当事者なら fetchPublicJobByNumber（当事者用の窓口つき）で開ける。
+    //   従来はここで諦めてさがす一覧に落ちていた
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await fetchPublicJobByNumber(jn);
+        if (!cancelled && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
   }, [dbJobs]);
   useEffect(() => {
     const onHash = () => {
@@ -480,7 +481,17 @@ export function JobSearchMapView({ onRegister, me }) {
       if (!m) { setSelectedJob(null); setBackTo(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
       const found = jobList.find(j => j.id === jn);
-      if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); }
+      if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); return; }
+      // 一覧に無い求人（掲載が終わった・一時非公開）でも、当事者なら開ける（2026-08-24）。
+      // カードの「求人を見る」・日程のタップ・チャットや今日ページのリンクがここを通る
+      (async () => {
+        try {
+          const { data } = await fetchPublicJobByNumber(jn);
+          if (!data) return;
+          if (window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE)?.[1] !== String(jn)) return; // 待つ間に別の画面へ移っていたら置き換えない
+          setSelectedJob(mapJobPublicRow(data)); setDetailTab(m[2] || "content");
+        } catch {}
+      })();
     };
     window.addEventListener("hashchange", onHash);
     window.addEventListener("popstate", onHash);

@@ -13,6 +13,7 @@
 // ★また呼びたい名簿（repeat_roster）の操作は必ず farmer_id で絞る（削除は worker_id も）。
 //   登録の効果をその求人者本人の範囲から出さないための約束（2026-07-16 労働局回答③）。
 import { supabase } from "../../../lib/supabase";
+import { fetchJobRowForMe } from "../../../lib/jobForMe";
 
 // ★画面側に同名のハンドラ（submitFarmerReview / saveInsurance）が既にあるので、
 //   窓口側の名前を Rpc / upsert で分けてある。
@@ -37,8 +38,7 @@ export const fetchWorkerCards = (workerIds) =>
 // ── 求人・応募者（どちらも1往復に集約済みのRPC）────────
 export const fetchMyFarmJobs = () => supabase.rpc("my_farm_jobs");
 export const fetchMyFarmApplicants = () => supabase.rpc("my_farm_applicants");
-export const fetchPublicJobByNumber = (jobNumber) =>
-  supabase.from("jobs_public").select("*").eq("job_number", jobNumber).maybeSingle();
+export const fetchPublicJobByNumber = (jobNumber) => fetchJobRowForMe(jobNumber);
 // 求人の題名を引く（評価完了の控え用・自分の求人だけ）
 export const fetchMyJobLabel = (jobNumber, farmerId) =>
   supabase.from("jobs").select("crop,task").eq("job_number", jobNumber).eq("farmer_id", farmerId).maybeSingle();

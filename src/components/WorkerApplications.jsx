@@ -1,6 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar7段・評価モーダル・緊急連絡）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
@@ -144,7 +145,7 @@ export function WorkerApplications({ filter, me }) {
             // JobCardの材料 mapJobPublicRow が全列を前提にするため）。キャッシュ(wapp:jobs)には
             // この生の行（JSON安全）だけを置き、Dateを含む整形後は描画のたびに作る（2026-08-03の実害の型）
             jobNumbers.length > 0
-              ? supabase.from("jobs_public").select("*").in("job_number", jobNumbers).then(r => r, () => ({ data: [] }))
+              ? fetchJobRowListForMe(jobNumbers).then(r => r, () => ({ data: [] }))
               : Promise.resolve({ data: [] }),
             waitFarmerIds.length > 0
               ? Promise.all(waitFarmerIds.map(async fid => {

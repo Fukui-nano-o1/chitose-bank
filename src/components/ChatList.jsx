@@ -1,6 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。チャット一覧＋運営DMポップアップ＋通知オンバナー。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
@@ -163,7 +164,7 @@ export function ChatList() {
           workerIds.length ? supabase.rpc("worker_cards_for_farmer", { p_worker_ids: workerIds }) : Promise.resolve({ data: [] }),
           // 日程4列（work_time/date_start/date_end/holidays）は段階チップの「いま」表示用＝
           // 作業日でない日は「作業中」でなく「次は M/D(曜)」を出す（appPhaseLabelNow）
-          jobNumbers.length ? supabase.from("jobs_public").select("job_number,crop,task,work_time,date_start,date_end,holidays").in("job_number", jobNumbers) : Promise.resolve({ data: [] }),
+          jobNumbers.length ? fetchJobRowListForMe(jobNumbers, "job_number,crop,task,work_time,date_start,date_end,holidays") : Promise.resolve({ data: [] }),
         ]);
         if (cancelled) return;
         const epMap = {}; (epRes.data || []).forEach(e => { epMap[e.auth_id] = e; });

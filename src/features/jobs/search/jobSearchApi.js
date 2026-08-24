@@ -8,14 +8,14 @@
 // ★一覧そのものの取得（jobs_public 全件）は lib/searchJobs.js の fetchPublicJobs が担う。
 //   玄関（#/visit）の先読みと共有するため lib に置いたままにしてある＝ここには持ってこない。
 import { supabase } from "../../../lib/supabase";
+import { fetchJobRowForMe } from "../../../lib/jobForMe";
 
 // ── 認証 ───────────────────────────────────────────────
 export const getSession = () => supabase.auth.getSession();
 
 // ── 求人（一覧の外・単票の先読み）───────────────────────
 // ディープリンク（#/work/job/N）で一覧の到着を待たずに1行だけ先に引く
-export const fetchPublicJobByNumber = (jobNumber) =>
-  supabase.from("jobs_public").select("*").eq("job_number", jobNumber).maybeSingle();
+export const fetchPublicJobByNumber = (jobNumber) => fetchJobRowForMe(jobNumber);
 
 // 自分が出した求人の番号（いいね対象外・自分の求人と分かる表示のため）
 export const fetchMyJobNumbers = (farmerId) =>

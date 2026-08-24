@@ -8211,3 +8211,58 @@ build成功・eslint 0 error・precacheは1866KB（html2canvasの199KBは対象�
 【文言】「印刷する」の方はブロックが出続けるので、下の一言に「『自動的に印刷することは禁止されています』と
   出たら『許可』を選ぶ」を追記した。
 ━━━ ここまで ━━━
+
+━━━ 2026-08-24 掲載が終わった求人を当事者には見せる（A・job_details_for_party）━━━
+【たきと指示】「Openになってない求人は詳細ボックスが空だったり労働条件通知書が空だったりする。
+他にも影響があるか確認。」→ 調査の結果を報告し、「Aから」＝当事者用の窓口を足す案を採用。
+【何が起きていたか（調査・実測）】求人の全体像の出どころは jobs_public だけで、このビューは
+status='open'（＋満員で closed）しか返さない（一時非公開 unlisted_reason も除外）。jobs のRLSは
+「求人の農家本人だけ」so、応募した働き手は掲載が終わると中身を一切読めなかった。
+本番の該当＝10求人（#1018/#1026/#1033/#1036＝復元分・#1046/#1052/#1053＝一時非公開・#1048＝下書き・
+#1060/#1255＝満員でない掲載終了）／応募13件・いいね5件。影響は詳細ボックスだけでなく：
+①カードの募集主アイコンが出ない ②★チャットの契約確認カードが出ず【採用まで進めない】（#1046・#1053が
+現にこの状態）③チャットの日程案が作れない ④チャットの求人ボックス・一覧の求人名 ⑤求人ページへの
+リンク（チャット・今日ページ・カードの「求人を見る」・日程のタップ）がエラーも出さずさがす一覧に落ちる
+⑥求人詳細の中の農家プロフィール・信頼情報（job_employer_profile／job_employer_trust_info が
+status='open' 限定）。応募状況・いいね一覧・仕事の評価ページは最小カードのフォールバックがあり無事。
+【DB（migration 20260824020500_job_details_for_party・本番適用済み・repo写経済み・履歴表のnameと同名）】
+・is_job_party(job_number)＝資格の判定（求人の農家本人／その求人に応募した働き手・状態は問わない／運営）。
+  内部専用＝public・anon・authenticated からEXECUTEを剥がした
+・job_details_for_party(int[]) returns jsonb＝当事者に、ログイン時の jobs_public と同じ姿を返す窓口。
+  ★列は to_jsonb(j) で組む＝jobs に列を足しても自動追従（jobs_public の列を列挙しない＝42P13を新しく
+  作らない）。派生5つ（work_address・has_work_address・employer_nickname・employer_avatar_url・
+  hired_count）だけ名前をそろえて足し、farmer_id・行id・運営の内部列（unlisted_reason 等）は返さない。
+  一度に引ける上限100件。anon revoke・authenticated grant
+・★ビュー jobs_public は触っていない＝触るとさがす一覧に非公開求人が混ざる
+・job_employer_profile／job_employer_trust_info の status='open' 限定を「open または当事者」に緩めた
+  （長い日本語の本文は写経せず、ASCIIのアンカーを1箇所だけ置換して実行＝家の作法）。開示は広がって
+  いない＝employer_profiles_public はログイン利用者なら誰でも読める公開の看板で、信頼情報の中身の
+  資格判定は employer_trust_info（本人／応募のある働き手／公開求人のある農家）が従来どおり行う
+・★audit.sql ③c（当事者ゲート無しDefinerの露出）に引っかからないよう、本体にも auth.uid() is not null を
+  置いた（is_job_party に委ねると構造の点検からはゲートが見えない）。適用後 ③c は0本
+【フロント】lib/jobForMe.js を新設＝求人の全体像を取る唯一の窓口。
+  fetchJobRowsForMe / fetchJobRowForMe / fetchJobRowListForMe＝まず jobs_public、無かったぶんだけ
+  当事者用のRPCで補い、jobs_public と同じ形で返す（呼び出し側は従来どおり mapJobPublicRow に渡す）。
+  取得に失敗したら error を返す＝呼び出し側は「失敗時は手元の値を上書きしない」を守る（2026-08-07規則）。
+  ★以後、求人の全体像を引く時は必ずこの窓口を使う（jobs_public の直叩きを新しく書かない）。
+  乗せ替え：SavedJobsView（ボックスの詳細・募集主アイコン）／ChatView（求人ボックス・契約確認カードの
+  材料・日程）／ChatList（スレッドの求人名と日程）／WorkerApplications／LikedJobsCard／App.jsx（お祝いの
+  箱の題名2箇所）／各featureのapi窓口（jobSearchApi・farmerDashboardApi・todayApi）。
+  jobs_public の直叩きで残るのは lib/searchJobs.js の一覧取得だけ＝さがすは公開ぶんだけで正しい
+【求人詳細ページ】ディープリンクの先読みを「一覧が未着の時だけ」から常時に変更＋hashchangeでも
+  一覧に無ければ当事者用の窓口で引くようにした＝掲載が終わった求人のリンクがさがす一覧に落ちない。
+  待つ間に別の画面へ移っていたら置き換えない
+【検証】DB実弾（ロールバック付き）：応募した働き手＝#1053（一時非公開）を取得・農家本人も取得・
+  農家プロフィール1行・信頼情報 ok=true／無関係の利用者＝0件・プロフィール0行・信頼情報 ok=false／
+  anon＝EXECUTE拒否／公開中の求人（#1233）とこの窓口の返り値が key・値とも完全一致（差分は
+  recruiter_name_kana の1つ多いだけ＝job_employer_profile が元からログイン利用者に返している項目）。
+  helper は実ソースを import して node で11項目を機械検算（公開のみ／不足分だけRPC／当事者でなければ空／
+  jobs_public 失敗時に error を返す／RPCが落ちても公開分は残る／単票と配列の形／100件上限／空・不正入力）。
+  build成功・eslint 0 error / 24 warnings（着手前と同数）
+【残（B・未着手）】労働条件通知書が空になるのは open/closed とは無関係で、terms_snapshot が無い採用
+  （#1046・#1053の1件・#1054/#1055/#1056＝2026-08-05に記録を入れ直した分。凍結は意図的に空のまま）。
+  ボタンだけ先に出て「記録が見つかりません」になる＝ボタンを出さないか、理由を出すかはたきと判断
+【実機目視の残り】①一時非公開・掲載終了の求人でカードのボックスに詳細が出るか（農家プロフィールも）
+  ②チャットで契約確認カード（内容に相違ありません）が出るか ③リンクから求人詳細ページが開くか
+  ④さがす一覧に非公開求人が混ざっていないこと ⑤未ログインでさがす・求人詳細が従来どおり開くこと
+━━━ ここまで ━━━

@@ -1702,7 +1702,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
             {full
               ? <JobDetailBody job={full} me={me} onBack={()=>{ setSheetPane("main"); setSheetShowcase(false); }} />
               : <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
-                  {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : <>読み込み中<Dots /></>}
+                  {full === null ? "この求人の詳しい内容を表示できません（求人の記録が見つかりません）" : <>読み込み中<Dots /></>}
                 </p>}
           </div>
         );

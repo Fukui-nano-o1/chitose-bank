@@ -7,6 +7,7 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
@@ -138,7 +139,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     let dead = false;
     (async () => {
       try {
-        const { data } = await supabase.from("jobs_public").select("*").eq("job_number", jn).maybeSingle();
+        const { data } = await fetchJobRowForMe(jn);
         if (!dead) setBoxFull(prev => ({ ...prev, [jn]: data ? mapJobPublicRow(data) : null }));
       } catch { if (!dead) setBoxFull(prev => ({ ...prev, [jn]: null })); }
     })();
@@ -310,16 +311,16 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     const appIds = rows.filter(r => r.application_id).map(r => r.application_id);
     (async () => {
       const [emp, apps, rev] = await Promise.all([
-        supabase.from("jobs_public").select("job_number, employer_nickname, employer_avatar_url").in("job_number", nums),
+        fetchJobRowsForMe(nums, "job_number, employer_nickname, employer_avatar_url"),
         appIds.length
           ? supabase.from("applications").select("id, farmer_id").in("id", appIds)
           : Promise.resolve({ data: [], error: null }),
         supabase.from("reviews").select("application_id").eq("reviewer_id", me.id).eq("direction", "worker_to_farmer"),
       ]);
       if (!live) return;
-      if (!emp.error && Array.isArray(emp.data)) {
+      if (!emp.error) {
         const m = {};
-        emp.data.forEach(x => { m[x.job_number] = { nickname: x.employer_nickname || "", avatar_url: x.employer_avatar_url || "" }; });
+        Object.values(emp.rows).forEach(x => { m[x.job_number] = { nickname: x.employer_nickname || "", avatar_url: x.employer_avatar_url || "" }; });
         setEmpMap(m); setCache("saved:emp", m);
       }
       if (!apps.error && Array.isArray(apps.data)) {
@@ -699,7 +700,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     const full = boxFull[r.job_number];
                     if (!full) return (
                       <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
-                        {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : <>読み込み中<Dots /></>}
+                        {full === null ? "この求人の詳しい内容を表示できません（求人の記録が見つかりません）" : <>読み込み中<Dots /></>}
                       </p>
                     );
                     return <JobDetailBody job={full} me={me} />;

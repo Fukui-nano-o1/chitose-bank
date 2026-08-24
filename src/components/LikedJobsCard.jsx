@@ -19,6 +19,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
+import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { getCache, setCache } from "../lib/viewCache";
 import { mapJobPublicRow, ROLE_ORANGE } from "../lib/utils";
 import { fetchJobViewCounts } from "../lib/searchJobs";
@@ -74,7 +75,7 @@ export function LikedJobsCard({ me }) {
     (async () => {
       try {
         const [jobRes, vc] = await Promise.all([
-          supabase.from("jobs_public").select("*").in("job_number", nums),
+          fetchJobRowListForMe(nums),
           fetchJobViewCounts(nums),
         ]);
         if (!live) return;
