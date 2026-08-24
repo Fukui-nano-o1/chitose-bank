@@ -1574,17 +1574,23 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                         // 「承認すると採用するボタンを設置」）。この段の右のボタンは【採用するページへのリンク】
                         // ＝採用の実行窓口は #/calendar/todo/hire 1箇所のまま（2026-08-06一本化・最終確認・
                         // 二重予約の警告・本名開示の明示・confirm_terms はすべてあちらが担う）
-                        const hired = apps.filter(a => ["interview","contracted","working","completed"].includes(appPhaseKey(a)));
+                        // 応募者ごとに分ける（2026-08-24たきと指示「これは分けて。見送りラベル貼ろう」）：
+                        // 1人でも名前と段階のラベルを頭に付け、どの人のボタンかを必ず示す。
+                        // 見送り・失効・取り消しの人もラベルだけ出す（ボタンは無い＝終わった応募なので操作を出さない）
+                        const ACTIVE_K = ["interview","contracted","working","completed"];
+                        const ENDED_K = ["rejected","expired","canceled"];
+                        const hired = apps.filter(a => ACTIVE_K.includes(appPhaseKey(a)) || ENDED_K.includes(appPhaseKey(a)));
                         if (hired.length === 0) return null;
                         const jinfo = jobInfoMap[jn];
                         const btn = (extra) => ({ flex:1, minWidth:0, padding:"10px", fontSize:12, fontWeight:700, borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", ...extra });
                         return (
                           <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:12 }}>
-                            {hired.map(a => {
+                            {hired.map((a, idx) => {
                               const wp = workerProfiles[a.worker_id];
                               const phase = appPhaseKey(a);
                               // 完了＝評価がまだ残っている時だけ「評価する」。欠勤記録済み・評価済みは押すものがない
                               // 面接中＝採用する（採用ページへ）／完了＝評価する／作業中＝記録する（最終日からは評価する）
+                              const ended = ENDED_K.includes(phase);
                               const beforeHire = phase === "interview";
                               const rec = beforeHire
                                 ? { label:"採用する →", green:true, icon:"hire", on: goHirePage }
@@ -1594,10 +1600,14 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                 ? { label:"評価する", green:true, on:()=>openCompleteModal(a) }
                                 : { label:"記録する", green:false, on:()=>setDayReportApp(a) };
                               return (
-                                <div key={a.id} style={{ display:"grid", gap:8 }}>
-                                  {hired.length > 1 && (
-                                    <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#717171", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
-                                  )}
+                                <div key={a.id} style={{ display:"grid", gap:8, borderTop: idx > 0 ? "1px solid #F0F0F0" : "none", paddingTop: idx > 0 ? 12 : 0 }}>
+                                  {/* 誰のボタンかを必ず示す（1人でも出す）＝アイコン・名前・段階のラベル */}
+                                  <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                                    <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={28} ring={appRibbonColor(a)} />
+                                    <span className="f-sans" style={{ flex:1, minWidth:0, fontSize:12, fontWeight:700, color: wp?.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
+                                    <span className="f-sans" style={{ flexShrink:0, fontSize:10, fontWeight:700, background:appRibbonColor(a), color:"#fff", borderRadius:6, padding:"2px 8px" }}>{appRibbonLabel(a)}</span>
+                                  </div>
+                                  {!ended && (
                                   <div style={{ display:"flex", gap:8 }}>
                                     {/* ★チャットと評価するは、終わった仕事でも押せる（2026-08-24たきと指示）。
                                         記録する（その日の記録）は終わった仕事では押せないまま＝操作は増やさない */}
@@ -1614,11 +1624,12 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                       <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{a.attended === false ? "欠勤記録済み" : "評価済み"}</span>
                                     )}
                                   </div>
+                                  )}
                                   {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。
                                       採用成立後のみ・当事者だけに開く唯一の窓口（contract_emergency_contact）を
                                       そのまま置く＝この画面で新しい開示経路を作らない。相手が未登録なら何も出ない */}
                                   {/* 緊急連絡先・労働条件通知書は採用（契約成立）後だけ＝面接中はまだ記録が無い */}
-                                  {!beforeHire && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />}
+                                  {!beforeHire && !ended && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />}
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                                       ★終わった仕事（完了・失効・見送り）でカード全体がタップ不能になっても、
                                         このボタンだけは押せるようにする（2026-08-24たきと指示）＝
@@ -1626,17 +1637,19 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                         ★この通知書だけは最前線に置く（2026-08-24たきと指示「労働条件通知書は最前線」）＝
                             暗幕（zIndex:5）より上の zIndex:6。暗幕はタップを飲み込まない（pointerEvents:none）ので
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
-                                  {!beforeHire && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
+                                  {!beforeHire && !ended && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                                     style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}>労働条件通知書</button>}
                                   {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                                       日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
                                       カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
                                       お仕事の流れバー（renderEmpFlowBar）＝段の点き方が枝分かれしない */}
-                                  <WorkDaysStrip days={[...appWorkDates(a, jinfo)].sort()} accent="#00A86B" />
-                                  <div>
-                                    <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
-                                    {renderEmpFlowBar(a)}
-                                  </div>
+                                  {!ended && <WorkDaysStrip days={[...appWorkDates(a, jinfo)].sort()} accent="#00A86B" />}
+                                  {!ended && (
+                                    <div>
+                                      <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
+                                      {renderEmpFlowBar(a)}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
