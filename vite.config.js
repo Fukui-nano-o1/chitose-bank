@@ -41,6 +41,8 @@ export default defineConfig({
         //   LandingFlow(115KB)=求人作成／AdminTab・ConsignmentRoom・AdminBoxRegistryPage=管理者のみ
         globIgnores: [
           '**/heic2any-*.js',
+          '**/html2canvas-*.js', // PDF保存を押した時だけ読む（2026-08-19）
+
           '**/leaflet-src-*.js',
           '**/LandingFlow-*.js',
           '**/AdminTab-*.js',

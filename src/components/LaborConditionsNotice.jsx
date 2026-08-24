@@ -10,9 +10,10 @@
 // ・★記録に無い法定の明示事項（契約の更新・変更の範囲・退職に関する事項ほか）は作らない（データ憲法3条・
 //   表示にダミー禁止）。「記録にありません」と正直に出し、文末で当事者間の別途明示を促す。
 // ・印刷は appStyles の「契約の印刷」@media print と対（.cb-ctr-print / -overlay / -sheet の3クラス）。
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
+import { saveElementAsPdf } from "../lib/pdfExport";
 import { payTermsLine, overtimeLine, WAGE_CLOSING_RULE_LABELS, INSURANCE_ITEMS, normalizeInsuranceItems, ROLE_GREEN, ROLE_ORANGE } from "../lib/utils";
 
 // 通知書には年まで要る（fmtJstShort は月日からなので使わない）
@@ -126,6 +127,8 @@ export default function LaborConditionsNotice({ me, role = "worker", application
   const [open, setOpen] = useState(null);        // 表示中の契約（applications行）
   const [partnerName, setPartnerName] = useState(""); // 凍結名を持たない旧契約のRPCフォールバック名
   const [infoOpen, setInfoOpen] = useState(false); // 説明は？ボタンで展開（また呼びたいリストと同じ作法・2026-08-18たきと指示）
+  const [pdfBusy, setPdfBusy] = useState(false); // PDFの作成中（html2canvasは一瞬かかる）
+  const printRef = useRef(null);                 // 通知書の本体（.cb-ctr-print）＝PDFに写す範囲
 
   useEffect(() => {
     if (!me?.id) return;
@@ -176,10 +179,29 @@ export default function LaborConditionsNotice({ me, role = "worker", application
   // 外部ライブラリでPDFを組み立てない＝日本語フォントの埋め込み（数MB）も、文字を画像に焼く劣化も避ける。
   // 印刷と同じ出力＝紙とPDFで体裁が食い違わない。docTitle は保存時の既定のファイル名になる
   // （ブラウザは document.title をPDFの名前に使う）。押した後は必ず元のタイトルへ戻す。
-  const printNotice = (r) => {
+  const noticeFileName = (r) => {
     const s = r?.terms_snapshot || {};
     const label = [s.crop, s.task].filter(Boolean).join(" ");
-    const docTitle = ["労働条件通知書", r?.job_number ? "No" + r.job_number : "", label].filter(Boolean).join("_");
+    return ["労働条件通知書", r?.job_number ? "No" + r.job_number : "", label].filter(Boolean).join("_");
+  };
+
+  // PDFで保存＝印刷ダイアログを通さずにPDFファイルを保存する（2026-08-19たきと報告）。
+  // iPhone Safari の印刷シートからPDFにするのは隠れた操作が要るため、ここで直接ファイルを作る。
+  // 写す範囲は通知書の本体だけ（ボタンは .no-print ので写らない）
+  const savePdf = async (r) => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      await saveElementAsPdf(printRef.current, noticeFileName(r));
+    } catch {
+      alert("PDFを作成できませんでした。お手数ですが「印刷する」からお試しください。");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const printNotice = (r) => {
+    const docTitle = noticeFileName(r);
     const prevTitle = document.title;
     const el = [document.documentElement, document.body];
     el.forEach(n => n && n.classList.add("cb-print-doc"));
@@ -284,12 +306,12 @@ export default function LaborConditionsNotice({ me, role = "worker", application
             <div className="no-print" style={{ ...style }}>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={() => printNotice(r)} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
-                <button onClick={() => printNotice(r)} className="f-sans" style={{ flex:1, background:"#fff", color:accent, border:"1.5px solid " + accent, borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>PDFで保存</button>
+                <button onClick={() => savePdf(r)} disabled={pdfBusy} className="f-sans" style={{ flex:1, background:"#fff", color:accent, border:"1.5px solid " + accent, borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer", opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "作成中…" : "PDFで保存"}</button>
                 <button onClick={closeNotice} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 14px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
               </div>
               {hint && (
                 <p className="f-sans" style={{ fontSize:11, color:"#909090", lineHeight:1.7, margin:"8px 0 0" }}>
-                  PDFは、開いた画面で「PDFとして保存」を選ぶと保存できます（iPhoneは共有ボタン →「&quot;ファイル&quot;に保存」）。
+                  「PDFで保存」を押すとPDFファイルが保存されます（iPhoneはダウンロード → ファイルアプリに入ります）。
                 </p>
               )}
             </div>
@@ -298,7 +320,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
             <div onClick={(e) => { if (e.target === e.currentTarget) closeNotice(); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500, padding:"40px 16px" }}>
               <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
                 {/* ✕は置かない（外タップで閉じる・入力ボックスの統一と同じ作法）。下部に「とじる」あり */}
-                <div className="cb-ctr-print">
+                <div className="cb-ctr-print" ref={printRef}>
                   <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"0 0 2px", textAlign:"center" }}>労働条件通知書</p>
                   <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"0 0 14px", textAlign:"center" }}>
                     採用（両者の確認）の時点で凍結された記録　{fmtJstFull(s.snapshot_at || r.terms_confirmed_farmer_at) || "—"}
