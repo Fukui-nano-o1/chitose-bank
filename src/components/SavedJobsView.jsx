@@ -8,7 +8,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
-import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -37,16 +36,10 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   const [rows, setRows] = useState(() => { const c = getCache("saved:rows"); return (Array.isArray(c) && c.length > 0) ? c : null; });
   const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
-  // ボックス内の求人カード用の全体像（2026-08-07たきと指示「その他の求人と同じ配置と要素」＝JobCard）。
-  // my_job_actions はカードの最小限（報酬・地域・3トグルを含まない）ので、開いた求人だけ jobs_public から
+  // ボックスに出す求人の全体像（2026-08-24たきと指示「詳細ボックスに差し替え」＝JobDetailBody の材料）。
+  // my_job_actions はカードの最小限しか持たないので、開いた求人だけ jobs_public から
   // 1行読み足す。job_number→mapped行｜null(非公開=draft/pending等でビューに無い)。開いたものだけ・1回だけ
   const [boxFull, setBoxFull] = useState({});
-  // ボックス内の求人カードのタップ（2026-08-07たきと指示「求人タップでスライドしてね。
-  // そこで、求人詳細の確認しよう」）：タップ＝cbJobShowcase（縮む→一拍→大きく→右へスライドアウト）を
-  // 再生し、終わった合図で面を求人詳細パネルへスライドする。ページ遷移はしない。
-  // boxPane: "main"＝要約・日にち・操作ボックス／"detail"＝求人詳細の確認パネル
-  const [cardShow, setCardShow] = useState(false);
-  const [boxPane, setBoxPane] = useState("main");
   // ボックスの下スワイプで畳む（2026-08-07たきと指示「下スクロールはボックスを畳む。指に連動。
   // 画面中央より下で指が離れたなら畳む」）：
   // ・シート内の中身が最上部（scrollTop<=0）のときだけ、下向きのドラッグがシートを掴む＝
@@ -57,26 +50,10 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   //   {passive:false}で張る（2026-08-02今日ページ・TodayPageと同じ理由）
   const sheetRef = useRef(null);
   const boxScrollRef = useRef(null);
-  const paneRef = useRef(null);      // 面の2枚コンテナ（横スワイプの追従対象）
-  const boxPaneRef = useRef("main"); // リスナーは[boxJob]で1回張るので、最新の面はrefで読む
-  useEffect(() => { boxPaneRef.current = boxPane; }, [boxPane]);
-  // 面の切り替えとスクロール位置（2026-08-08たきと指示「スライドしたならトップから始めろ。
-  // ステータスページも同じにしろ」＝DragSheetと同じ規則）：詳細面に入る時はトップから。
-  // メイン面のスクロール位置は覚えておき、戻った時に復元する（読みかけの位置を失わない）
-  const boxScrollSavedRef = useRef(0);
-  useEffect(() => {
-    const sc = boxScrollRef.current;
-    if (!sc) return;
-    if (boxPane === "detail") { boxScrollSavedRef.current = sc.scrollTop; sc.scrollTop = 0; }
-    else { sc.scrollTop = boxScrollSavedRef.current || 0; }
-  }, [boxPane]);
-  // ジェスチャは1本のパイプラインで軸ロック（2026-08-07たきと指示「左右スワイプで戻って。
-  // 戻るは削除。指に連動させるが滑らかに」で横を追加）：
+  // ジェスチャは1本のパイプラインで軸ロック：
   // ・8px動いた時点で縦か横かを1ジェスチャ1回だけ確定（TodayPage・AdminJobPreviewと同じ作法）
-  // ・縦＝下向き＆中身が最上部のときシートを掴む→引き下げ位置が画面中央より下で離すと畳む（従来）
-  // ・横＝詳細面のときだけ面コンテナを掴む→指に連動（左=戻る方向は1:1・右=行き先が無いのでゴム抵抗）。
-  //   しきい値（幅35%・最大140px）を超えて離すとメイン面へ、未満なら詳細面へ戻す。
-  //   写真カルーセル内で始まったタッチは写真スクロールに譲る
+  // ・縦＝下向き＆中身が最上部のときシートを掴む→引き下げ位置が画面中央より下で離すと畳む
+  // ・横＝掴まない（2026-08-24・面の2枚構造を廃止）＝中の写真カルーセル・タブの横スワイプに全部譲る
   // ・滑らかさの3点セット（同日「かくかくだ」の修理）：will-change＝自前の合成レイヤー／
   //   書き込みはrequestAnimationFrameで1フレーム1回／掴んだ瞬間に基点を置き直す（跳びゼロ）
   useEffect(() => {
@@ -84,19 +61,10 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     if (!boxJob || !el) return;
     el.style.transform = ""; el.style.transition = ""; // 開き直し・求人切り替えの残骸を消す
     el.style.willChange = "transform";
-    // ★面コンテナの残骸掃除は「空文字」でなく現在の面の定位置を書く（2026-08-07「ボックスが真っ白」の修理）：
-    //   transform="" にするとReactthaが与えた translateX(-50%)（メイン面の位置）まで消え、コンテナthaが
-    //   空の詳細面を向いたまま固定＝真っ白に見えた。Reactは自分の前回値と同じ間は書き直さないため、
-    //   手動で消した値は手動で正しい値に戻すこと（settleHの注記と同じ罠）
-    if (paneRef.current) {
-      paneRef.current.style.transition = "transform .35s ease"; // ""にするとReactの.35sも消えたまま戻らない（同じ罠）
-      paneRef.current.style.transform = boxPaneRef.current === "detail" ? "translateX(0)" : "translateX(-50%)";
-    }
-    let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, lastX = 0, paneW = 1, axis = null, tracking = false, raf = 0;
+    let sx = 0, sy = 0, baseY = 0, baseTop = 0, lastY = 0, axis = null, tracking = false, raf = 0;
     const paint = () => {
       raf = 0;
       if (axis === "v") el.style.transform = `translateY(${lastY}px)`;
-      else if (axis === "h" && paneRef.current) paneRef.current.style.transform = `translateX(${lastX}px)`;
     };
     const onStart = (e) => {
       if (e.touches.length !== 1) { tracking = false; return; }
@@ -116,19 +84,12 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
             baseTop = el.getBoundingClientRect().top; // 掴んだ瞬間の定位置（この時点でtransformは0）
           } else { tracking = false; return; }
         } else {
-          // 横：詳細面のときだけ「戻る」ジェスチャとして面を掴む（メイン面の横スワイプは何もしない）
-          if (boxPaneRef.current !== "detail") { tracking = false; return; }
-          // 写真カルーセル＝写真送りに譲る／タブの中身（.cb-content-swipe）＝タブ切替に譲る（2026-08-08・
-          // 端でのスワイプはContentQSwipeAreaのonEdgeSwipe→onBackで面が戻る）
-          if (e.target.closest && (e.target.closest(".carousel-scroll") || e.target.closest(".cb-content-swipe"))) { tracking = false; return; }
-          const p = paneRef.current; if (!p) { tracking = false; return; }
-          axis = "h"; paneW = el.clientWidth || 1;
-          p.style.transition = "none"; p.style.willChange = "transform";
+          // 横：シートは掴まない＝中身（写真カルーセル・タブの横スワイプ）に譲る
+          tracking = false; return;
         }
       }
       e.preventDefault();
-      if (axis === "v") lastY = Math.max(0, cy - baseY);
-      else lastX = dx < 0 ? Math.max(dx, -paneW) : Math.min(dx * 0.25, 40); // 左=1:1／右=ゴム抵抗
+      lastY = Math.max(0, cy - baseY);
       if (!raf) raf = requestAnimationFrame(paint);
     };
     const settleV = (toClose) => {
@@ -141,19 +102,6 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
         el.style.transform = "translateY(0)";
       }
     };
-    const settleH = (goBack) => {
-      const p = paneRef.current; if (!p) return;
-      p.style.willChange = "";
-      if (goBack) {
-        // 手動のtransition:noneをReactの値に戻してから面を切り替える＝いまの指の位置から滑らかに-50%へ。
-        // ★Reactはtransitionを書き換えない（diff上は不変）ため、手動で戻さないと'none'のまま跳ぶ
-        p.style.transition = "transform .35s ease";
-        setBoxPane("main"); setCardShow(false);
-      } else {
-        p.style.transition = "transform .3s ease";
-        p.style.transform = "translateX(0)";
-      }
-    };
     const onEnd = () => {
       if (!tracking) return;
       const a = axis; axis = null; tracking = false;
@@ -162,18 +110,15 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
         // 畳む発火＝指を離した時、引き下げたボックス（掴んでいる上端）が画面中央より下まで来ている時だけ。
         // ★指の画面座標で判定しない（2026-08-07「まだ下スクロールで畳む」の修理）
         settleV(baseTop + lastY > window.innerHeight / 2);
-      } else if (a === "h") {
-        settleH(Math.abs(lastX) > Math.min(140, paneW * 0.35));
       }
-      lastX = 0; lastY = 0;
+      lastY = 0;
     };
     const onCancel = () => {
       if (!tracking) return;
       const a = axis; axis = null; tracking = false;
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
       if (a === "v") settleV(false);
-      else if (a === "h") settleH(false);
-      lastX = 0; lastY = 0;
+      lastY = 0;
     };
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMove, { passive: false });
@@ -188,7 +133,6 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     };
   }, [boxJob]);
   useEffect(() => {
-    setCardShow(false); setBoxPane("main"); // 開き直し・別の求人への切り替えで演出・面の残骸を持ち越さない
     const jn = boxJob?.job_number;
     if (!jn || jn in boxFull) return;
     let dead = false;
@@ -724,50 +668,11 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                 <span style={{ width:40, height:4, borderRadius:2, background:"#E0E0E0" }} />
               </div>
               <div ref={boxScrollRef} style={{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
-                {/* ═══ 面の2枚構造（2026-08-07たきと指示「求人タップでスライドしてね。そこで、求人詳細の確認しよう」）：
-                     [詳細パネル｜メイン面] を横に並べ、コンテナのtransformで切り替える。
-                     カードの右スライドアウト（cbJobShowcase）が終わった合図で詳細面へ＝中身全体が右へずれて
-                     左から詳細が現れる（カードの動きと同じ右方向・連続した1つの動きに見える）。
-                     戻るは詳細面の「← 戻る」（cardShowも解除＝カードが定位置に戻る） ═══ */}
-                <div ref={paneRef} style={{ display:"flex", width:"200%", transform: boxPane === "detail" ? "translateX(0)" : "translateX(-50%)", transition:"transform .35s ease" }}>
-                {/* ── 面2：求人詳細の確認パネル（左側に置く＝右ずれの動きで現れる）。
-                     中身は JobDetailBody＝求人詳細ページのボックス化（AdminJobPreview）の本文を
-                     トレースした共有部品（2026-08-07たきと指示・浮遊ボックスは除外済み） ── */}
-                <div style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
-                  {boxPane === "detail" && (() => {
-                    const full = boxFull[r.job_number];
-                    // 「← 戻る」ボタンは削除（2026-08-07たきと指示）＝戻りは横スワイプ（指に連動）。
-                    // 案内は最上部の小さな1行だけ（操作を増やさない）
-                    const swipeHint = (
-                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:"0 0 10px" }}>横スワイプで戻る</p>
-                    );
-                    if (!full) return (
-                      <div>
-                        {swipeHint}
-                        <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
-                          {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : <>読み込み中<Dots /></>}
-                        </p>
-                      </div>
-                    );
-                    {/* 「求人ページで開く」ボタンは削除（2026-08-07たきと指示）＝
-                        求人ページへの道はメイン面の📄ボックスに一本化 */}
-                    return (
-                      <div>
-                        {swipeHint}
-                        <JobDetailBody job={full} me={me} onBack={()=>{ setBoxPane("main"); setCardShow(false); }} />
-                      </div>
-                    );
-                  })()}
-                </div>
-                {/* ── 面1：メイン（バナー・カード・日にち・操作ボックス） ──
-                    演出の対象は面全体（2026-08-08たきと指示「求人タップで全てスライド」）：
-                    カード単体でなく、バナー・カード・日にち・操作ボックスがまとまって
-                    縮む→一拍→右スライドアウトし、終わった合図で詳細面へ。
-                    ★onAnimationEndはtarget一致で絞る：JobCard内の写真ポップ等がバブルしてくるため、
-                      絞らないと演出の途中で面が切り替わる */}
-                <div className={cardShow ? "cb-job-showcase" : undefined}
-                  onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cardShow) setBoxPane("detail"); }}
-                  style={{ width:"50%", boxSizing:"border-box", padding:"0 16px" }}>
+                {/* ═══ ボックスの中身は1枚（2026-08-24たきと指示「求人の要約は削除。代わりに詳細ボックスに差し替え」）：
+                     要約カード（JobCard wide）＋タップで詳細面へスライドする2枚構造をやめ、
+                     求人の詳細（JobDetailBody）をその場に出す。カード自体（写真・タイトル・#No.・
+                     ボタン・日程・進み具合）がすでに要約の役目を持つので、ボックスの中で二度出さない ═══ */}
+                <div style={{ boxSizing:"border-box", padding:"0 16px" }}>
                 {/* 現在地バナー（応募者ページと同じ・段階色＋APP_PHASE_DESC＝説明の唯一のソース） */}
                 {phase ? (
                   <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
@@ -781,26 +686,23 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                 ) : (
                   <div style={{ background:"#F7F7F7", borderLeft:"4px solid #B0B0B0", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
                     <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#717171", margin:0 }}>まだ応募していません</p>
-                    <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>いいねした求人です。カードをタップすると内容を確認できます。応募は さがす の求人ページから。</p>
+                    <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>いいねした求人です。求人の内容は下に表示しています。応募は 求人ページ から。</p>
                   </div>
                 )}
-                {/* 求人の要約＝その他の求人と同じカード（2026-08-07たきと指示・スクショ＝関連求人カード）：
-                    JobCard variant="wide"＝写真に タイトル・地域・#No.・報酬・日程・3トグル を重ねる型を全幅で。
-                    要約の顔を独自に作らない＝JobCardが唯一のソース。my_job_actions は報酬・地域・3トグルを
-                    持たないので、開いた求人だけ jobs_public から読み足す（boxFull）。届くまで／非公開求人は
-                    手元の行から作った仮の姿（写真・タイトル・#No.・日程・町域）＝報酬0円やダミーは出さない */}
+                {/* 求人の詳細＝求人詳細ページのボックス化（AdminJobPreview）の本文をトレースした
+                    共有部品 JobDetailBody（2026-08-24たきと指示「代わりに詳細ボックスに差し替え」）。
+                    my_job_actions はカードの最小限しか持たないので、開いた求人だけ jobs_public から
+                    1行読み足す（boxFull）。届くまで＝読み込み中／掲載終了などでビューに無い＝その旨を出す
+                    （ダミーの中身は作らない・憲法3条） */}
                 <div style={{ marginBottom:12 }}>
                   {(() => {
                     const full = boxFull[r.job_number];
-                    const job = full || {
-                      id: r.job_number, crop: r.crop || "", task: r.task || "", photos: r.photos || [],
-                      region: r.town || "", dateStartRaw: r.date_start || "", dateEndRaw: r.date_end || "", pay: 0,
-                    };
-                    // タップ＝面全体の演出を発火（cb-job-showcaseは面1のdivに付く・2026-08-08「全てスライド」）。
-                    // はみ出しはスクロール容器のoverflowX:hiddenが切る
-                    // hideEndLabel＝終了帯を出さない（2026-08-17たきと指示「このボックスの求人にラベルは
-                    // 必要ない」）：段階は上の現在地バナー＋応募の進み具合が語る
-                    return <JobCard job={job} variant="wide" hideEndLabel onOpen={()=>{ if (!cardShow) setCardShow(true); }} />;
+                    if (!full) return (
+                      <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
+                        {full === null ? "この求人は現在公開されていないため、詳しい内容を表示できません" : <>読み込み中<Dots /></>}
+                      </p>
+                    );
+                    return <JobDetailBody job={full} me={me} />;
                   })()}
                   {r.application_id && (
                     <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"8px 4px 0" }}>応募日 {new Date(r.applied_at).toLocaleDateString("ja-JP")}</p>
@@ -847,8 +749,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     {cancelingId === r.application_id ? <>取り消し中<Dots /></> : "応募を取り消す"}
                   </button>
                 )}
-                </div>{/* /面1メイン */}
-                </div>{/* /面の2枚構造 */}
+                </div>{/* /ボックスの中身 */}
               </div>
             </div>
           </div>
