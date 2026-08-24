@@ -1614,10 +1614,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                       ★終わった仕事（完了・失効・見送り）でカード全体がタップ不能になっても、
                                         このボタンだけは押せるようにする（2026-08-24たきと指示）＝
                                         通知書の提供は義務なので、記録の閲覧を暗幕で塞がない。
-                                        ★重ね順は上げない（たきと指示「最前線にしなくていい」）＝暗幕がタップを飲み込まない
-                            （pointerEvents:none）ので、下に居ても押せる。見た目は暗幕の下で他と同じに暗くなる */}
+                                        ★この通知書だけは最前線に置く（2026-08-24たきと指示「労働条件通知書は最前線」）＝
+                            暗幕（zIndex:5）より上の zIndex:6。暗幕はタップを飲み込まない（pointerEvents:none）ので
+                            押せること自体は重ね順に依存しないGA、終わった仕事でも文字GA暗くならず読める */}
                                   <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
-                                    style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", pointerEvents:"auto" }}>労働条件通知書</button>
+                                    style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}>労働条件通知書</button>
                                   {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                                       日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
                                       カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
