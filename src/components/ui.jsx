@@ -183,6 +183,30 @@ export function SwipeTabPages({ tabs, page, onPage, children }) {
 
 // 読み込み中の「…」（2026-07-30たきと指示・遊び心）：点が1つずつ跳ねる。
 // 読み上げには「…」1文字だけ渡す（点3つを読み上げさせない）
+// 待遇のバッジ列（2026-08-24たきと指示「待遇はすべてバッジ化」）。
+// 中身の正は lib/utils の perkBadges＝送迎・駐車場・通勤手当・賞与・昇給・退職手当・作業用品・
+// アクセサリー・受動喫煙を、内容（時期・台数・エリア等）つきの1行ラベルで返す。
+// ★ここは並べるだけ＝項目を足す・言い方を変えるときは perkBadges を直す（画面ごとに書かない）。
+// 未設定の項目はバッジを作らない＝旧・待遇表の「ー」の行は出ない（記録が無いものを欄で見せない）。
+// muted＝記録なしの知らせ（受動喫煙だけ・求人詳細で使う）
+export function PerkBadgeRow({ badges, style }) {
+  const list = Array.isArray(badges) ? badges : [];
+  if (list.length === 0) return null;
+  return (
+    <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", ...style }}>
+      {list.map(b => (
+        <span key={b.label} className="f-sans"
+          style={{ fontSize:12, fontWeight:600, color: b.muted ? "#B0B0B0" : "#222",
+            background: b.muted ? "#FAFAFA" : "#F7F7F7", border: b.muted ? "1px dashed #EBEBEB" : "none",
+            borderRadius:999, padding:"6px 12px", lineHeight:1.5 }}>
+          {b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}
+          {b.emoji ? b.emoji + " " : ""}{b.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export const Dots = () => (
   <span className="cb-dots" aria-label="…" role="img"><span aria-hidden="true">.</span><span aria-hidden="true">.</span><span aria-hidden="true">.</span></span>
 );

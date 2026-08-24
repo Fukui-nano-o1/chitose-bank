@@ -982,21 +982,33 @@ export const farmIntroTopics = (e) => [
 // 2026-08-23の描き直し「グローブ考えて」で glove に採用済み）。
 // 描き手は4箇所（FarmerDashboard・JobSearchMapView・EmployerProfileEdit・LandingFlow）＋
 // TrustCards の extraBadges＝形を変えたら全部そろえること
-export function perkBadges(ep) {
+export function perkBadges(ep, opts = {}) {
   if (!ep) return [];
-  return [
-    ep.has_transport && { icon:"van", label:"送迎あり" },
-    ep.has_parking && { icon:"parking", label:"駐車場" },
-    ep.has_commute_allowance && { icon:"train", label:"通勤手当" },
-    ep.has_bonus && { icon:"gift", label:"賞与" },
+  // 「あり」の中身（時期・台数・エリア等）は括弧で添える＝求人詳細の待遇表と同じ言い方
+  const withDetail = (label, d) => {
+    const t = String(d ?? "").trim();
+    return t ? label + "（" + t + "）" : label;
+  };
+  const list = [
+    ep.has_transport && { icon:"van", label: withDetail("送迎あり", ep.transport_area) },
+    ep.has_parking && { icon:"parking", label: withDetail("駐車場", ep.parking_capacity ? ep.parking_capacity + "台" : "") },
+    ep.has_commute_allowance && { icon:"train", label: withDetail("通勤手当", ep.commute_allowance_detail) },
+    ep.has_bonus && { icon:"gift", label: withDetail("賞与", ep.bonus_detail) },
     // 昇給・退職手当（2026-08-19たきと指示）：賞与と同じ有無だけの項目＝労働条件の明示事項
-    ep.has_raise && { icon:"raise", label:"昇給" },
-    ep.has_severance_pay && { icon:"briefcase", label:"退職手当" },
+    ep.has_raise && { icon:"raise", label: withDetail("昇給", ep.raise_detail) },
+    ep.has_severance_pay && { icon:"briefcase", label: withDetail("退職手当", ep.severance_detail) },
     // 「作業用品」＝労基法89条5号・労基則5条1項6号の語（食費、作業用品その他の負担）。
     // 法令は「労働者に負担させるもの」を書かせる向きなので、値は必ず誰が負担するかまで書く（2026-08-19）
-    ep.employer_pays_supplies && { icon:"glove", label:"作業用品は募集主負担" + (ep.supplies_cap ? "（" + ep.supplies_cap + "）" : "") },
+    ep.employer_pays_supplies && { icon:"glove", label: withDetail("作業用品は募集主負担", ep.supplies_cap) },
     ep.accessory_ok && { icon:"ring", label:"アクセサリーOK" },
-  ].filter(Boolean);
+  ];
+  // 受動喫煙（2026-08-24たきと指示「待遇はすべてバッジ化」で合流）＝就業場所の状況は求人の明示事項so
+  // 決まっていれば必ず1つ出す。opts.showUnknownSmoking＝記録が無い旧求人でも欄を消さずに知らせる
+  //（求人詳細だけで使う。プロフィール側は未設定なら出さない＝入力を促すのは編集画面の役目）
+  const sp = String(ep.smoking_policy ?? "").trim();
+  if (sp) list.push({ icon:"noSmoke", label: sp === "喫煙場所あり" ? withDetail("喫煙場所あり", ep.smoking_area) : sp });
+  else if (opts.showUnknownSmoking) list.push({ icon:"noSmoke", label:"受動喫煙：記録なし", muted:true });
+  return list.filter(Boolean);
 }
 
 // 自由記述の書き分け（2026-08-03たきと指示「入力項目を空にするなら審査は必要ない」）。
