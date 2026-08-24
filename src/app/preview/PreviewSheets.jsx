@@ -16,10 +16,14 @@ import { NavIconInline } from "../../components/NavIcons";
 
 export function EmployerPreviewSheet() {
   const [st, setSt] = useState(null); // {farmer_id, loading, profile, trust}
+  // ボックスは3枚（0=プロフィール／1=自己紹介／2=評価）。横スワイプで行き来する（2026-08-24たきと指示）。
+  // 働き手プレビュー（下）と同じ SwipeTabPages＝送り方・見た目が枝分かれしない
+  const [page, setPage] = useState(0);
   useEffect(() => {
     const f = (e) => {
       const farmerId = e.detail;
       if (!farmerId) return;
+      setPage(0); // 開くたび1枚目から
       // 段階表示（2026-08-07・働き手プレビューと同じ3段）：段階0＝前回のプレビュー即表示（viewCache）／
       // 段階1＝プロフィールが届いた時点で表示／段階2＝実績が届き次第合流（失敗時は上書きしない）
       const cached = getCache("preview:e:" + farmerId);
@@ -56,20 +60,29 @@ export function EmployerPreviewSheet() {
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
-          <>
-            {/* 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
-            {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）はカードの下に1つのQaChatで（2026-08-14たきと指示
-                「質問形式は代表よりの下に移植」＝このシートに代表よりは無いのでカード直下・3画面同順） */}
-            <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} hideQa />
-            {(() => {
-              const qaAll = [...farmHostQa(st.profile), ...topics.map(t => ({ q: t.label, a: t.body }))];
-              return qaAll.length > 0 ? <QaChat items={qaAll} accent={ROLE_GREEN} /> : null;
-            })()}
-            {/* 受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定） */}
-            <div style={{ marginTop:16, paddingTop:16, borderTop:"1px solid #EEE" }}>
+          <SwipeTabPages tabs={["プロフィール","自己紹介","評価"]} page={page} onPage={setPage}>
+            {/* 1枚目：プロフィール＝信頼カードまるごと（氏名・実績・タグ行と
+                「農家の自己申告です。運営が確認したものではありません。」の注記まで・2026-08-24たきと指示）。
+                待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
+            <div>
+              <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} hideQa />
+            </div>
+            {/* 2枚目：自己紹介＝質問形式の群れ（問いかけQ&A＋紹介文のお題）を1つのQaChatで
+                （2026-08-14たきと指示「質問形式は代表よりの下に移植」＝並びは従来どおり） */}
+            <div>
+              {(() => {
+                const qaAll = [...farmHostQa(st.profile), ...topics.map(t => ({ q: t.label, a: t.body }))];
+                return qaAll.length > 0
+                  ? <QaChat items={qaAll} accent={ROLE_GREEN} style={{ marginTop:0 }} />
+                  : <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:12, padding:"24px 0", margin:0 }}>まだ自己紹介はありません</p>;
+              })()}
+            </div>
+            {/* 3枚目：受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定）。
+                公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
+            <div>
               <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />
             </div>
-          </>
+          </SwipeTabPages>
         ) : (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この農家のプロフィールは未設定です</p>
         )}

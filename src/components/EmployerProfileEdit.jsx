@@ -913,7 +913,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 }
 
 // プレビューの統一（2026-07-25たきと指示）：実際の求人詳細で雇い手アイコンをタップした時に出る
-// EmployerPreviewSheet（App.jsx）と同一の情報・構造（農園紹介タイトル→信頼カード→待遇チップ→紹介お題）で表示する。
+// EmployerPreviewSheet（app/preview/PreviewSheets.jsx）と同一の【情報】（信頼カード→待遇チップ→紹介お題）で表示する。
+// ★2026-08-24：本物のプレビューは3タブ（プロフィール／自己紹介／評価）に分かれた。ここは1画面の通し表示のまま＝
+//   並べる中身は同じで、面の分け方だけが違う（項目を足すときは両方に足す）。
 // データは本人行（employer_profiles）＋employer_trust_info＝働き手が見るものと同じ形。項目タップ編集は廃止（編集はボックス格子から）
 function FarmerProfilePreview({ me, table = "employer_profiles", withTrust = true, black = false }) {
   const [data, setData] = useState(null);
