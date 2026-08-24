@@ -90,19 +90,23 @@ export function FinalReviewSheet({
   // ═══ 送信するタップ後の最終確認 ═══
   if (confirming) return shell(
     <>
-      <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>これで送信します</p>
-      {confirmNote && <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 14px" }}>{confirmNote}</p>}
+      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>これで送信します</p>
+      {confirmNote && <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 14px" }}>{confirmNote}</p>}
+      {/* ★問いと答えは【上下】に置く（2026-08-23たきと指示「見やすくして」）：
+          横並び（flex）だと、問いが長い時に答えの幅が min-content まで押し潰され、
+          「どちらともいえない」が1文字ずつの縦書きになっていた。下のタグ行と同じ
+          「小さい灰色のラベル＋大きい答え」の形に全部そろえる＝行の形が枝分かれしない */}
       <div style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"4px 14px", marginBottom:14 }}>
         {questions.map(q => (
-          <div key={q.k} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"9px 0", borderBottom:"1px solid #F4F4F4" }}>
-            <span className="f-sans" style={{ fontSize:13, color:"#222", flexShrink:0 }}>{q.label}</span>
-            <span className="f-sans" style={{ fontSize:13, fontWeight:800, textAlign:"right", color:accent }}>{choiceLabel(q)}</span>
+          <div key={q.k} style={{ padding:"11px 0", borderBottom:"1px solid #F4F4F4" }}>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 3px", lineHeight:1.5 }}>{q.label}</p>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:accent, margin:0, lineHeight:1.5 }}>{choiceLabel(q)}</p>
           </div>
         ))}
         {tagDef && (
-          <div style={{ padding:"9px 0", borderBottom: confirmExtra ? "1px solid #F4F4F4" : "none" }}>
-            <p className="f-sans" style={{ fontSize:11, color:"#999", margin:"0 0 2px" }}>{tagDef.label}</p>
-            <p className="f-sans" style={{ fontSize:13, color: tags.length ? "#222" : "#B0B0B0", margin:0, lineHeight:1.7 }}>
+          <div style={{ padding:"11px 0", borderBottom: confirmExtra ? "1px solid #F4F4F4" : "none" }}>
+            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 3px", lineHeight:1.5 }}>{tagDef.label}</p>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color: tags.length ? "#222" : "#B0B0B0", margin:0, lineHeight:1.6 }}>
               {tags.length ? tagDef.options.filter(o => tags.includes(o.v)).map(o => o.l).join("・") : "（なし）"}
             </p>
           </div>
@@ -111,9 +115,9 @@ export function FinalReviewSheet({
       </div>
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
         <button onClick={()=>{ if (!submitting) setConfirming(false); }} disabled={submitting} className="f-sans"
-          style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻って直す</button>
+          style={{ padding:"11px 20px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻って直す</button>
         <button onClick={onSubmit} disabled={submitting} className="f-sans"
-          style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: submitting ? 0.5 : 1 }}>
+          style={{ padding:"11px 20px", fontSize:14, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: submitting ? 0.5 : 1 }}>
           {submitting ? "送信中..." : "送信する"}
         </button>
       </div>
@@ -122,8 +126,8 @@ export function FinalReviewSheet({
 
   return shell(
     <>
-      <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>{title}</p>
-      {intro && <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 14px" }}>{intro}</p>}
+      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>{title}</p>
+      {intro && <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 14px" }}>{intro}</p>}
       {/* ①客観データの自動表示（本人に再入力させない） */}
       <DayFacts applicationId={app.id} dayCount={dayCount} />
       {/* ②設問（3問程度・3択・縦に選択肢を並べる） */}
@@ -165,10 +169,10 @@ export function FinalReviewSheet({
       {extra}
       <div style={{ display:"flex", gap:8, justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
         <button onClick={()=>{ if (!submitting) onClose(); }} disabled={submitting} className="f-sans"
-          style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
+          style={{ padding:"11px 20px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
         {/* ★押せないボタンにしない（2026-08-03の原則）：未回答があれば理由を添えて薄くする */}
         <button onClick={()=>{ if (ready) setConfirming(true); }} className="f-sans"
-          style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: ready ? 1 : 0.5 }}>
+          style={{ padding:"11px 20px", fontSize:14, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: ready ? 1 : 0.5 }}>
           送信する
         </button>
       </div>
