@@ -203,7 +203,7 @@ const MOBILE_TABS = [
 const MOBILE_MENU_ITEMS = [
   { key:"admin",   label:<><NavIconInline name="gear" size={13} />管理</>,        hash:"/admin", auth:false, adminOnly:true },
   { key:"boxes",   label:<><NavIconInline name="folder" size={13} />ボックス一覧</>, hash:"/boxes", auth:false, adminOnly:true },
-  { key:"qr",      label:<><NavIconInline name="idCard" size={13} />QRコード</>,    hash:"/qr",    auth:false, adminOnly:true },
+  { key:"qr",      label:<><NavIconInline name="qr" size={13} />QRコード</>,    hash:"/qr",    auth:false, adminOnly:true },
 ];
 
 

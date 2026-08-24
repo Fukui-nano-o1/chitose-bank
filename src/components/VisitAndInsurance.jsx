@@ -125,7 +125,7 @@ export function VisitorQRPage() {
   const url = "https://chitose-bank.com/#/visit";
   return (
     <div style={{ maxWidth:520, margin:"0 auto", padding:"40px 20px 96px", textAlign:"center" }}>
-      <h1 className="f-sans qr-noprint" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 12px" }}><NavIconInline name="idCard" size={22} style={{ verticalAlign:"-3px", marginRight:6 }} />QRコード</h1>
+      <h1 className="f-sans qr-noprint" style={{ fontSize:24, fontWeight:800, color:"#222", margin:"0 0 12px" }}><NavIconInline name="qr" size={22} style={{ verticalAlign:"-3px", marginRight:6 }} />QRコード</h1>
       <p className="f-sans qr-noprint" style={{ fontSize:12, color:"#C77700", background:"#FFF7E6", border:"1px solid #FFE0A3", borderRadius:10, padding:"10px 12px", margin:"0 0 22px", lineHeight:1.8, textAlign:"left" }}>このQRは印刷物に配布済み。画像とURLは永久に変更しないこと（恒久URL /#/visit）。</p>
       <div className="qr-print-area">
         <img src="/visit-qr.svg" alt="訪問者用QRコード" style={{ width:"min(72vw, 320px)", height:"auto", imageRendering:"pixelated", display:"block", margin:"0 auto" }} />
