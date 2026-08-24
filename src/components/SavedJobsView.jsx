@@ -590,7 +590,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                       </div>
                       {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。窓口は
                           contract_emergency_contact 1本のまま＝採用成立後・当事者だけ。未登録なら何も出ない */}
-                      <ContractEmergencyContact applicationId={a.id} style={{ margin:0 }} />
+                      <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />
                       {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                           ★終わった仕事（完了・失効・見送り・取り消し）でカード全体がタップ不能になっても、
                             このボタンだけは押せるようにする（2026-08-24たきと指示）＝

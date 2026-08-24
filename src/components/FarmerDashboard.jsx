@@ -1609,7 +1609,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                   {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。
                                       採用成立後のみ・当事者だけに開く唯一の窓口（contract_emergency_contact）を
                                       そのまま置く＝この画面で新しい開示経路を作らない。相手が未登録なら何も出ない */}
-                                  <ContractEmergencyContact applicationId={a.id} style={{ margin:0 }} />
+                                  <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                                       ★終わった仕事（完了・失効・見送り）でカード全体がタップ不能になっても、
                                         このボタンだけは押せるようにする（2026-08-24たきと指示）＝
