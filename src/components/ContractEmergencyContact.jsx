@@ -8,6 +8,8 @@
 // ・asButton（2026-08-24たきと指示「緊急連絡先ボタンを労働条件通知書の上に配置」）：
 //   求人カードでは全幅のボタンにして、タップで中身を開く。取得はタップの時に1回だけ（カードが重くならない）。
 //   ★終わった仕事のカード（暗幕・pointerEvents:none）でも押せるように auto を自分で戻す＝通知書と同じ扱い。
+//     ★重ね順は上げない（2026-08-24たきと指示「最前線にしなくていい」）＝暗幕がタップを飲み込まない
+//     （pointerEvents:none）ので、下に居ても押せる。見た目は他と同じに暗幕の下で暗くなる。
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -65,7 +67,7 @@ export default function ContractEmergencyContact({ applicationId, showPending = 
         <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} className="f-sans"
           style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer",
                    background:"#fff", color:accent, border:"1.5px solid " + accent,
-                   position:"relative", zIndex:6, pointerEvents:"auto",
+                   pointerEvents:"auto",
                    display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
           <NavIcon name="phone" size={16} />緊急連絡先
         </button>
