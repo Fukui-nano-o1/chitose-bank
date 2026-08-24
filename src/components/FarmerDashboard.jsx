@@ -1471,7 +1471,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                         // ★zIndex:5＝カードの中で最前線（2026-08-23たきと指示「失効等のラベルを最前線に」・
                         //   適用はこの応募者一覧ページのみ）。2のままだと、後から描かれる同じzIndexの
                         //   タイトル帯（写真の下部のグラデ）が勝ち、「失効」の文字が求人名の裏に潜っていた
-                        <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        /* ★暗幕はタップを飲み込まない（2026-08-24たきと指示）＝pointerEvents:none。
+                           押せるもの（求人の写真・アイコン・チャット・評価する・通知書）は各要素で auto に戻す */
+                        <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
                           <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
                         </div>
                       )}
@@ -1491,7 +1493,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                             高さを決めて objectFit:cover に切り取らせれば、どの画面幅・どの求人でも同じ高さで揃う
                             （2026-08-06「縦幅が求人ごとに違う。統一しろ」の狙いはそのまま） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
-                        style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                        style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left", pointerEvents:"auto" }}>
                         {photo && <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }} />}
                         {/* 写真の真ん中に求人者のアイコン（2026-08-23たきと指示「真ん中に求人者のアイコン」）。
                             写真の有無に関わらず必ず置く＝旧は「写真が1枚も無い求人だけ代わりに出す」だった。
@@ -1533,7 +1535,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                           onTouchEnd={e=>{ const el = e.currentTarget; if (el.scrollWidth > el.clientWidth + 1) e.stopPropagation(); }}
                           /* overflowX:autoは縦も切り取る（CSSの規則：片軸がautoならvisibleはautoになる）ので、
                              ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
-                          style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2 }}>
+                          style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2, pointerEvents:"auto" }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
                           {apps.map(a => {
                             const wp = workerProfiles[a.worker_id];
@@ -1589,12 +1591,14 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                     <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#717171", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
                                   )}
                                   <div style={{ display:"flex", gap:8 }}>
-                                    <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={btn({ background:"#fff", color:"#00A86B", border:"1px solid #00A86B" })}>
+                                    {/* ★チャットと評価するは、終わった仕事でも押せる（2026-08-24たきと指示）。
+                                        記録する（その日の記録）は終わった仕事では押せないまま＝操作は増やさない */}
+                                    <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={btn({ background:"#fff", color:"#00A86B", border:"1px solid #00A86B", pointerEvents:"auto" })}>
                                       <NavIconInline name="chats" size={12} style={{ verticalAlign:"-2px" }} />チャット
                                     </button>
                                     {rec ? (
                                       <button onClick={rec.on} className="f-sans" style={btn(rec.green
-                                        ? { background:"#00A86B", color:"#fff", border:"none" }
+                                        ? { background:"#00A86B", color:"#fff", border:"none", pointerEvents:"auto" }
                                         : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                                         <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
                                       </button>

@@ -471,7 +471,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
               <div key={r.job_number}
                 style={{ position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
                 {covered && (
-                  <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  /* ★暗幕はタップを飲み込まない（2026-08-24たきと指示「チャットと評価する、求人と求人者
+                     アイコンもタップ可能に」）＝pointerEvents:none。押せるものは各要素で auto に戻す */
+                  <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
                     <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
                   </div>
                 )}
@@ -479,7 +481,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     雇い手の求人カードと同じ縦積み・高さ180px固定・objectFit:coverで切り取る）。
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
                 <button onClick={()=>setBoxJob(r)} aria-label="この求人の状況を開く" className="f-sans"
-                  style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
+                  style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left", pointerEvents:"auto" }}>
                   {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : (!emp && <NavIcon name="image" size={30} style={{ color:"#C8C8C8" }} />)}
                   {/* 写真の真ん中に募集主（農家）のアイコン＝雇い手カードの「求人者のアイコン」と対。
                       公開情報（jobs_public の employer_nickname / avatar）だけを使い、掲載が終わって
@@ -509,7 +511,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     /* アイコン＝働き手プレビュー（自分・2026-08-23たきと指示「働き手アイコンは働き手のプレビュー」）。
                        段階のチップは従来どおり段階の説明（この面には承認等の操作が無いため） */
                     <button onClick={()=>{ if (me?.id) openWorkerPreview(me.id); }} className="f-sans"
-                      style={{ width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                      style={{ width:64, background:"none", border:"none", padding:0, cursor:"pointer", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", pointerEvents:"auto" }}>
                       <Avatar url={myProfile?.avatar_url} name={myProfile?.nickname || (me?.name || "？")} size={52} ring={phaseColorNow(phase, r)} />
                       <span style={{ display:"block", width:"100%", fontSize:11, fontWeight:600, color:"#222", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>あなた</span>
                       <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(phase); }} role="button" style={{ display:"block", fontSize:9, fontWeight:700, color:phaseColorNow(phase, r), marginTop:1, cursor:"pointer" }}>{phaseLabelNow(phase, r) || ""}</span>
@@ -571,12 +573,14 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                   return (
                     <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
                       <div style={{ display:"flex", gap:8 }}>
-                        <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={btn({ background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C" })}>
+                        {/* ★チャットと評価するは、終わった仕事でも押せる（2026-08-24たきと指示）。
+                            記録する（その日の記録）は終わった仕事では押せないまま＝操作は増やさない */}
+                        <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={btn({ background:"#fff", color:"#F76B1C", border:"1px solid #F76B1C", pointerEvents:"auto" })}>
                           <NavIconInline name="chats" size={12} style={{ verticalAlign:"-2px" }} />チャット
                         </button>
                         {rec ? (
                           <button onClick={rec.on} className="f-sans" style={btn(rec.green
-                            ? { background:"#F76B1C", color:"#fff", border:"none" }
+                            ? { background:"#F76B1C", color:"#fff", border:"none", pointerEvents:"auto" }
                             : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                             <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
                           </button>
