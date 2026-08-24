@@ -118,7 +118,7 @@ export function FinalReviewSheet({
           style={{ padding:"11px 20px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻って直す</button>
         <button onClick={onSubmit} disabled={submitting} className="f-sans"
           style={{ padding:"11px 20px", fontSize:14, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: submitting ? 0.5 : 1 }}>
-          {submitting ? "送信中..." : "送信する"}
+          {submitting ? <>送信中<Dots /></> : "送信する"}
         </button>
       </div>
     </>

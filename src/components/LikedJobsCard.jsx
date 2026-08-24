@@ -25,6 +25,7 @@ import { mapJobPublicRow, ROLE_ORANGE } from "../lib/utils";
 import { fetchJobViewCounts } from "../lib/searchJobs";
 import { JobCard } from "./JobCard";
 import { NavIconInline } from "./NavIcons";
+import { Dots } from "./ui";
 
 const likedOf = (list) => (Array.isArray(list) ? list.filter(r => r.liked) : null);
 
@@ -135,7 +136,7 @@ export function LikedJobsCard({ me }) {
       <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
         <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NavIconInline name="heartFill" size={15} style={{ color:"#E24B4A" }} />いいねした求人</span>
         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
-          {rows === null ? "読み込み中…" : count > 0 ? `${count}件　気になる求人の一覧です。タップで見返せます` : "気になる求人をいいねしておくと、ここに並びます"}
+          {rows === null ? <>読み込み中<Dots /></> : count > 0 ? `${count}件　気になる求人の一覧です。タップで見返せます` : "気になる求人をいいねしておくと、ここに並びます"}
         </span>
       </button>
 
@@ -155,7 +156,7 @@ export function LikedJobsCard({ me }) {
               </p>
             )}
             {rows === null ? (
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中…</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中<Dots /></p>
             ) : count === 0 ? (
               <div style={{ textAlign:"center", padding:"24px 8px" }}>
                 <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, margin:0 }}>

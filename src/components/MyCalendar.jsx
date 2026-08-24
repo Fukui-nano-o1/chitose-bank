@@ -8,6 +8,7 @@ import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_
 import { getCache, setCache } from "../lib/viewCache";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { NavIcon } from "./NavIcons";
+import { Dots } from "./ui";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）の予定を月グリッドに塗る。
@@ -301,7 +302,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           「外」that無いので閉じるボタンを置いてよい（2026-08-19の✕全廃の対象外と同じ扱い） */}
       {moveMode && (
         <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#0E8A6B", color:"#fff", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
-          <span style={{ fontSize:13, fontWeight:700, minWidth:0 }}>{moving ? "うごかしています…" : <>#{moveMode.jobNumber} の新しい開始日をタップしてください</>}</span>
+          <span style={{ fontSize:13, fontWeight:700, minWidth:0 }}>{moving ? <>うごかしています<Dots /></> : <>#{moveMode.jobNumber} の新しい開始日をタップしてください</>}</span>
           <button onClick={()=>setMoveMode(null)} disabled={moving} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", color:"#fff", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>やめる</button>
         </div>
       )}

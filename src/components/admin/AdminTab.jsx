@@ -467,7 +467,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                   （カード＝1タップで新規登録画面へ・ポップアップを挟まない） */}
 
               {otherBox==="flow" && (<>
-                <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発: 画面ジャンプ(LandingFlow)</p>
+                <p className="f-sans" style={{ fontSize:10, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", marginBottom:8 }}>開発：画面ジャンプ(LandingFlow)</p>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                   {[
                     { l:"LFトップ",      dj:{ role:"",       step:0 } },

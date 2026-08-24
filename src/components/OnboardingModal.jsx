@@ -217,7 +217,7 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
       ))}
     </div>,
 
-    // 4: 専業/兼業
+    // 4: 専業／兼業
     <div style={{ marginTop:24 }}>
       <CardBtn selected={obFarmingType === "fulltime"} onClick={() => setObFarmingType("fulltime")}>専業農家（農業のみ）</CardBtn>
       <CardBtn selected={obFarmingType === "parttime"} onClick={() => setObFarmingType("parttime")}>兼業農家（他の仕事も）</CardBtn>
@@ -305,7 +305,7 @@ export function OnboardingModal({ me, setMe, onComplete, isEditing = false, onCl
           { icon:"pin", label:"都道府県", value: obPrefecture },
           { icon:"pin", label:"市区町村", value: obMunicipality },
           { icon:"calendar", label:"就農歴", value: obTier },
-          { icon:"farmer", label:"専業/兼業", value: obFarmingType === "fulltime" ? "専業農家" : "兼業農家" },
+          { icon:"farmer", label:"専業／兼業", value: obFarmingType === "fulltime" ? "専業農家" : "兼業農家" },
           { icon:"ruler", label:"経営面積", value: obArea + " 反" },
         ].map(item => (
           <div key={item.label} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#fff", borderRadius:10 }}>

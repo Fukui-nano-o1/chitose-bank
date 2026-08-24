@@ -28,6 +28,7 @@ import { supabase } from "../lib/supabase";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { dayReportKinds, ymdLocal } from "../lib/utils";
 import { NavIcon } from "./NavIcons";
+import { Dots } from "./ui";
 
 // app＝{ id }（応募のID）。meId＝自分のauth_id。role＝"farmer" | "worker"（選択肢が変わる）。
 // workDate＝この記録が指す作業日（"YYYY-MM-DD"／省略時は今日）。
@@ -221,7 +222,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
               {/* ★押せないボタンにしない（2026-08-03の原則）：未選択なら薄くして理由を添える */}
               <button onClick={submit} disabled={submitting} className="f-sans"
                 style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (submitting || !ready) ? 0.5 : 1 }}>
-                {submitting ? "送信中..." : "記録する"}
+                {submitting ? <>送信中<Dots /></> : "記録する"}
               </button>
             </div>
           )}

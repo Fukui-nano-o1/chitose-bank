@@ -16,6 +16,7 @@ import { supabase } from "../lib/supabase";
 import { fetchJobRowsForMe } from "../lib/jobForMe";
 import { saveElementAsPdf } from "../lib/pdfExport";
 import { payTermsLine, overtimeLine, WAGE_CLOSING_RULE_LABELS, INSURANCE_ITEMS, normalizeInsuranceItems, ROLE_GREEN, ROLE_ORANGE } from "../lib/utils";
+import { Dots } from "./ui";
 
 // 通知書には年まで要る（fmtJstShort は月日からなので使わない）
 const fmtJstFull = (ts) => {
@@ -253,7 +254,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
       {!single && <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
         <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>労働条件通知書</span>
         <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
-          {rows === null ? "読み込み中…" : count > 0 ? `${count}件　採用の時点で決まった労働条件です。表示・印刷できます` : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
+          {rows === null ? <>読み込み中<Dots /></> : count > 0 ? `${count}件　採用の時点で決まった労働条件です。表示・印刷できます` : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
         </span>
       </button>}
 
@@ -262,7 +263,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
         <div onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10500, padding:"40px 16px" }}>
           <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"22px 20px", maxWidth:380, width:"100%", textAlign:"center" }}>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, margin:"0 0 14px" }}>
-              {rows === null ? "読み込み中…" : "この仕事の労働条件の記録が見つかりません。"}
+              {rows === null ? <>読み込み中<Dots /></> : "この仕事の労働条件の記録が見つかりません。"}
             </p>
             <button onClick={() => onClose?.()} className="f-sans" style={{ background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"11px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
           </div>
@@ -289,7 +290,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
               </p>
             )}
             {rows === null ? (
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中…</p>
+              <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中<Dots /></p>
             ) : count === 0 ? (
               <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"24px 8px" }}>
                 まだ採用が決まった仕事はありません。<br />
@@ -334,7 +335,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
             <div className="no-print" style={{ ...style }}>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={() => printNotice(r)} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
-                <button onClick={() => savePdf(r)} disabled={pdfBusy} className="f-sans" style={{ flex:1, background:"#fff", color:accent, border:"1.5px solid " + accent, borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer", opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "作成中…" : "PDFで保存"}</button>
+                <button onClick={() => savePdf(r)} disabled={pdfBusy} className="f-sans" style={{ flex:1, background:"#fff", color:accent, border:"1.5px solid " + accent, borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer", opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? <>作成中<Dots /></> : "PDFで保存"}</button>
                 <button onClick={closeNotice} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 14px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
               </div>
               {hint && (

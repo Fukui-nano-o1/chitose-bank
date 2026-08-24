@@ -670,7 +670,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           <ToggleSwitch accent={AC} label="通勤手当" checked={hasCommuteAllowance} onChange={setHasCommuteAllowance} />
           {hasCommuteAllowance && (
             <div style={{ marginLeft:16, paddingBottom:12 }}>
-              <input value={commuteAllowanceDetail} onChange={e=>setCommuteAllowanceDetail(e.target.value)} placeholder="例：上限500円 / 実費支給" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+              <input value={commuteAllowanceDetail} onChange={e=>setCommuteAllowanceDetail(e.target.value)} placeholder="例：上限500円／実費支給" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
             </div>
           )}
         </div>
@@ -708,7 +708,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           <ToggleSwitch accent={AC} label="作業用品は募集主の負担" checked={employerPaysSupplies} onChange={setEmployerPaysSupplies} />
           {employerPaysSupplies && (
             <div style={{ marginLeft:16, paddingBottom:12 }}>
-              <input value={suppliesCap} onChange={e=>setSuppliesCap(e.target.value)} placeholder="上限の設定（例：上限1,000円まで / 軍手・長靴のみ）" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
+              <input value={suppliesCap} onChange={e=>setSuppliesCap(e.target.value)} placeholder="上限の設定（例：上限1,000円まで／軍手・長靴のみ）" className="field f-sans" style={{ width:"100%", fontSize:13 }} />
             </div>
           )}
         </div>

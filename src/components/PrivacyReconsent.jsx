@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { PRIVACY_VERSION } from "../lib/utils";
+import { Dots } from "./ui";
 
 export default function PrivacyReconsent({ authId, onAgreed, onShowPrivacy }) {
   const [busy, setBusy] = useState(false);
@@ -52,7 +53,7 @@ export default function PrivacyReconsent({ authId, onAgreed, onShowPrivacy }) {
         width:"100%", padding:"15px", background:"#00A86B", border:"none", borderRadius:12,
         fontSize:15, fontWeight:700, color:"#fff", cursor: busy ? "default" : "pointer",
         opacity: busy ? 0.6 : 1, fontFamily:"inherit",
-      }}>{busy ? "保存しています…" : "同意して続ける"}</button>
+      }}>{busy ? <>保存しています<Dots /></> : "同意して続ける"}</button>
 
       <p style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"12px 0 0" }}>
         ご同意いただいた版数と日時を記録します。

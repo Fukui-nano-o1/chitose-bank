@@ -345,7 +345,7 @@ export function ConsignorInfoEdit() {
     return (
       <div>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>登録情報の修正</h2>
-        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>新規登録の情報（唯一の正）を修正します。保存すると委託者情報にも反映されます。区分（個人事業者/法人）はここでは変更できません。</p>
+        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>新規登録の情報（唯一の正）を修正します。保存すると委託者情報にも反映されます。区分（個人事業者／法人）はここでは変更できません。</p>
         {isCorp ? (<>
           {regField("company_name", "法人名", { ph:"例：株式会社千歳農園" })}
           {/* 法人番号は通常編集禁止（2026-08-02たきと確定指示・DBトリガーでも拒否）＝読み取り専用表示 */}

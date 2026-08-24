@@ -171,7 +171,7 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
             {[
               { icon:"pin", label:"地域", value:(me.prefecture || "") + (me.municipality ? " " + me.municipality : "") || "未設定" },
               { icon:"calendar", label:"就農歴", value:TIER_LABELS[me.experience_tier] || "未設定" },
-              { icon:"barn", label:"専業/兼業", value:farmType === "fulltime" ? "専業農家" : farmType === "parttime" ? "兼業農家" : "未設定" },
+              { icon:"barn", label:"専業／兼業", value:farmType === "fulltime" ? "専業農家" : farmType === "parttime" ? "兼業農家" : "未設定" },
               { icon:"ruler", label:"経営面積", value:areaTan ? areaTan + " 反" : "未設定" },
             ].map((item, i, arr) => (
               <div key={item.label} style={{

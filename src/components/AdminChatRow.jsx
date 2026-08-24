@@ -62,7 +62,7 @@ export function AdminChatRow() {
   };
   // 一覧に出す1行ぶんの下書き（プレビュー＝最後のメッセージ。無ければ使い方の一言）
   const last = dmMsgs.length ? dmMsgs[dmMsgs.length - 1] : null;
-  const preview = last ? (last.from_admin ? "運営: " : "") + String(last.body || "").replace(/\s+/g, " ") : "運営への連絡もここから送れます。";
+  const preview = last ? (last.from_admin ? "運営：" : "") + String(last.body || "").replace(/\s+/g, " ") : "運営への連絡もここから送れます。";
   return (<>
     {/* 一覧の最上部の行（他のスレッド行と同じ形：アイコン40px・名前・未読バッジ・下に1行の要約） */}
     <button onClick={()=>{ setDmOpen(true); loadDm(true); }}
