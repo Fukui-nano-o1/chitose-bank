@@ -180,7 +180,8 @@ const MENU_ITEMS = [
 // （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→カレンダー→チャット(③約束する)→マイページ
 // アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。
-// 農家ナビ（empNav）・訪問者ナビ（visitorNav）も同日に追従＝下部ナビの絵文字アイコンは全廃。
+// 訪問者ナビ（visitorNav）も同日に追従＝下部ナビの絵文字アイコンは全廃。
+// ★2026-08-22：役割で分けていた2本のナビを1本に統合（切り替えはマイページだけ）。
 // ★2026-08-23：農家ナビも【さがす・カレンダー・チャット・マイページ】の同じ4タブに統一
 //   （旧「応募者」タブは廃止・応募者一覧はマイページの入口カードへ）。定義は下の navTabs 側。
 // ★「今日」タブは下部バー・PC☰・農家ナビの3箇所から削除（2026-08-22たきと指示「今日ページを
@@ -413,6 +414,11 @@ export default function App(){
   // 働き手=worker_profiles／雇い手空間(#/profile/employer*)の表示中=employer_profiles でアイコンを分ける。
   // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
   const [meAvatar,setMeAvatar]=useState({ url:"", name:"", empUrl:"", empName:"" });
+  // 雇い手の面を持っているか（capability・2026-08-22たきと指示「切り替えはマイページだけに限定」）。
+  // ★モード（empCtx）とは別物：これは「持っているか」so、働き手モードに切り替えても変わらない＝
+  //   下部ナビの行き先が切り替えで変わらない（カレンダーで自分の求人カードが消える件の根治）。
+  //   初期値はマイページが書くキャッシュ（ProfileHubのhub:hasEmp）から。falseには倒さない（ちらつき防止）
+  const [hasEmp,setHasEmp]=useState(() => getCache("hub:hasEmp") ?? false);
   const isEmpCtxHash = () => window.location.hash.replace(/^#\/?/, "").startsWith("profile/employer");
   // 現在のURL（ハッシュ）を状態として持つ（2026-07-27・下部ナビの点灯が付いてこないバグの根治）。
   // 描画中に window.location.hash を直接読むと、同じタブ内でのページ移動（例 応募者→求人）は
@@ -476,6 +482,7 @@ export default function App(){
           supabase.from("employer_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle(),
         ]);
         if (!cancelled) setMeAvatar({ url: data?.avatar_url || "", name: data?.nickname || me.name || "", empUrl: ep?.avatar_url || "", empName: ep?.nickname || me.name || "" });
+        if (!cancelled && ep) { setHasEmp(true); setCache("hub:hasEmp", true); }
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -663,7 +670,10 @@ export default function App(){
       if (_em) { resolveEmergencyLink(_em[1]); return; }
       // 現在モード（雇い手/働き手）はempCtxに集約（同一ソース・二重状態を作らない）。プロフィールの側に入った時だけ
       // 更新し、共通タブ（カレンダー/チャット等）へ移っても保持（sticky・localStorage永続）。下部ナビの役割追従もこれを見る
-      if (rawHash.startsWith("profile/employer")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
+      // ★モードが変わるのはマイページの入口・編集だけ（2026-08-22たきと指示「切り替えはマイページだけに限定」）。
+      //   雇い手の他のサブページ（カレンダー・応募者・求人一覧）はモードを動かさない＝
+      //   下部ナビのカレンダーを押しただけで農家モードに化ける、が起きない
+      if (rawHash === "profile/employer" || rawHash.startsWith("profile/employer/profile")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
       else if (rawHash === "profile" || rawHash.startsWith("profile/worker")) { setEmpCtx(false); try { localStorage.setItem("cb_empCtx","0"); } catch {} }
       // 求人フローを閉じた時の戻り先（2026-08-19たきと指示「前回の画面に保存せずに強制遷移」）。
       // フロー以外のハッシュを通るたびに控える＝フローに入る直前に見ていた画面。
@@ -1554,39 +1564,36 @@ export default function App(){
     ? (((tab === "admin" || tab === "boxes" || tab === "qr") && !isAdmin(me)) || ((tab === "insurance" || tab === "experience" || tab === "new-applicants") && !me) ? "search" : tab)
     : "search";
 
-  // 下部ナビの役割追従（2026-07-22）：農家モード（me && empCtx）はカレンダーの行き先だけ差し替え。
-  // ★両役割とも【さがす・カレンダー・チャット・マイページ】の4タブ（2026-08-23たきと指示
-  //   「働き手のカレンダーと農家の応募者を統合」）：旧「応募者」タブは廃止し、行き先の
-  //   #/profile/employer/calendar がカレンダー＋日タップで応募者、の統合面になった。
-  //   全件の応募者一覧はマイページの入口カード（#/profile/employer/applicants）へ移植。
-  //   未ログインは現行のまま（empNav=false）
-  const empNav = !!(me && empCtx);
+  // 下部ナビ（2026-08-22たきと指示「農家と働き手の切り替えはマイページだけに限定」）：
+  // ★モード（empCtx）でナビを変えない＝切り替えても行き先が動かない。
+  //   カレンダーの行き先だけは【雇い手の面を持っているか（hasEmp）】で決める＝capabilityの話so
+  //   モードを切り替えても同じページに着く（働き手モードで開くと自分の求人カードが消える件の根治）。
+  //   雇い手の面がある人＝#/profile/employer/calendar（カレンダー＋自分の求人＋日タップで応募者＋
+  //   働き手としての予定も埋め込み表示）／持たない人＝#/saved（働き手のカレンダー）。
+  // 4タブ＝さがす・カレンダー・チャット・マイページ（2026-08-23統一・「今日」は2026-08-22に削除）
   // 訪問者版3タブ（未ログイン・2026-07-24）：さがす／入れ方／登録・ログイン
-  // アイコンは働き手・農家ナビと同じアウトラインSVG（NavIcon・2026-08-22）＝下部ナビの絵文字は全廃
+  // アイコンは全ナビ共通のアウトラインSVG（NavIcon・2026-08-22）＝下部ナビの絵文字は全廃
   const visitorNav = [
     { k:"search",  icon:<NavIcon name="search" />,  label:"さがす" },
     { k:"install", icon:<NavIcon name="install" />, label:"入れ方", hash:"/install" },
     { k:"login",   icon:<NavIcon name="login" />,   label:"登録・ログイン", hash:"/login" },
   ];
-  // 農家：さがす→カレンダー→チャット→マイページ（2026-08-23・働き手と同じ4タブに統一）
+  // カレンダーのタブ（行き先だけ capability で出し分け・ラベルとアイコンは共通）。
+  // matchは「そのタブの領域に居るか」を明示する（2026-07-27）＝hashのstartsWithだけだと
+  // 雇い手プロフィール等で どのタブも点かない穴があった
+  const calendarTab = hasEmp
+    ? { k:"emp-calendar", icon:<NavIcon name="calendar" />, label:"カレンダー", hash:"/profile/employer/calendar",
+        match: h => h.startsWith("profile/employer/calendar") }
+    : { k:"saved", icon:<NavIcon name="calendar" />, label:"カレンダー" };
   const navTabs = !me
     ? visitorNav
-    : empNav
-    ? [
-        // matchは「そのタブの領域に居るか」を明示する（2026-07-27）。hashのstartsWithだけだと
-        // 雇い手プロフィール等で どのタブも点かない穴があった
-        // 「求人」(emp-jobs→/profile/employer/active)は「さがす」に差し替え（2026-08-21たきと指示）。
-        // 自分の求人ページへは名刺カードの「あなたの求人」から従来どおり行ける
-        // 旧「応募者」タブ（emp-applicants→/profile/employer/applicants・赤バッジ付き）は
-        // 2026-08-23に「カレンダー」へ差し替え＝バッジはマイページの応募者一覧カードへ移った
-        { k:"search",       icon:<NavIcon name="search" />,   label:"さがす" },
-        { k:"emp-calendar", icon:<NavIcon name="calendar" />, label:"カレンダー", hash:"/profile/employer/calendar",
-          match: h => h.startsWith("profile/employer/calendar") },
-        { k:"chats",        icon:<NavIcon name="chats" />,    label:"チャット" },
-        { k:"profile",        icon:<NavIcon name="profile" />,    label:"マイページ",
+    : [
+        { k:"search",  icon:<NavIcon name="search" />,  label:"さがす" },
+        calendarTab,
+        { k:"chats",   icon:<NavIcon name="chats" />,   label:"チャット" },
+        { k:"profile", icon:<NavIcon name="profile" />, label:"マイページ",
           match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
-      ]
-    : MOBILE_TABS;
+      ];
 
   return(
     <div style={{minHeight:"100vh",background:C.washi,color:C.ink,"--mode-accent":modeAccent,"--role-accent":(me && !empCtx) ? ROLE_ORANGE : ROLE_GREEN,"--role-accent-soft":(me && !empCtx) ? "rgba(247,107,28,0.15)" : "rgba(0,168,107,0.13)"}}>
@@ -1858,9 +1865,7 @@ export default function App(){
               ? t.match(cur)
               : t.hash
               ? cur.startsWith(t.hash.replace(/^\//, ""))
-              : (t.k === "profile"
-                  ? (empNav ? (cur === "profile/employer" || cur === "profile") : safeTab === "profile")
-                  : safeTab === t.k);
+              : safeTab === t.k;
             // 宿題バッジ（第12弾）：数字＝待たせている/自分の宿題の件数。求人(農家)の差し戻しのみ⚠フラグ
             // ★「今日」タブの赤バッジ（navBadges.todo）は削除（2026-08-21たきと指示「タブの赤バッジも必要ない」・
             //   今日ページ内の丸数字バッジ全廃と対）。my_nav_badges の todo は取得だけ続く（DB不変・読み手なし）
