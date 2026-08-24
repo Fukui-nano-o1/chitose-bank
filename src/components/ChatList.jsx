@@ -8,7 +8,7 @@ import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
 import { Avatar } from "./ui";
-import { AdminChatRow } from "./AdminChatRow";
+import { AdminChatRow } from "./AdminChat";
 import { NavIcon } from "./NavIcons";
 
 // 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
@@ -32,7 +32,7 @@ export function ChatList() {
   const [loading, setLoading] = useState(() => !chatCache.v); // キャッシュがあれば最初からスピナーを出さない
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("chats");
-  // 運営DM（2026-07-16）は共有部品 AdminChatRow が担う（一覧の最上部の行・2026-08-19に浮遊ボックスから戻した）
+  // 運営DM（2026-07-16）は共有部品 AdminChatRow が担う（一覧の最上部の行・タップで #/chat/admin のページへ）
   const [unreadMap, setUnreadMap] = useState(() => chatCache.v?.unreadMap || {}); // { application_id: 未読数 }（my_unread_message_counts・2026-07-17）
   const [initialsMap, setInitialsMap] = useState(() => chatCache.v?.initialsMap || {}); // { partner_auth_id: メール頭文字2文字 }（ニックネーム未設定時のアイコン・2026-07-22）
   // アクション順（2026-07-27たきと指示・同日改定）：並びの既定は「利用者が最後にアクションした順」。
@@ -90,7 +90,7 @@ export function ChatList() {
     })();
   }, []);
   // リアルタイム（2026-07-19）：チャット一覧を開いている間、新着を購読して一覧の未読数を即時更新。
-  // 配信はRLS準拠（自分の当事者チャットのみ）。運営DMの購読・既読化はAdminChatRow側が担う
+  // 配信はRLS準拠（自分の当事者チャットのみ）。運営DMの購読は AdminChat が担う（既読化はページ側 #/chat/admin）
   useEffect(() => {
     const refreshUnreadMap = async () => {
       try {

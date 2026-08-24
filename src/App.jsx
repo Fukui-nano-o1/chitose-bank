@@ -117,6 +117,7 @@ function PublishIdleRedirect({ seconds = 60, onEnd }) {
 }
 
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
+const AdminChatPage = lazyChunk(() => import("./components/AdminChat").then(m => ({ default: m.AdminChatPage })));
 // 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面ので遅延読み込み
 const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
 // 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面ので遅延読み込み
@@ -660,7 +661,7 @@ export default function App(){
   useEffect(() => installFixedRepin(), []);
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
   const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
-  const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/([0-9a-f-]+)$/); return m?m[1]:null; });
+  const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/(admin|[0-9a-f-]+)$/); return m?m[1]:null; });
 
   // ↓ここに置く理由：この中で使う state（openAccountForm・showJobPost 等）の宣言より後ろでないと
   //   宣言前参照になる（no-use-before-define。2026-07-29に並べ替え・中身は不変）
@@ -712,7 +713,7 @@ export default function App(){
         } catch {}
         try { setPromotedCount(Number(sessionStorage.getItem("cb_promoted") || 0)); sessionStorage.removeItem("cb_promoted"); } catch {}
       }
-      const _cm = rawHash.match(/^chat\/([0-9a-f-]+)$/);
+      const _cm = rawHash.match(/^chat\/(admin|[0-9a-f-]+)$/);
       setChatAppId(_cm ? _cm[1] : null);
       if (rawHash === "account") {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1187,7 +1188,7 @@ export default function App(){
     // 自分の送信分・今まさに開いているチャットは出さない
     const showToast = (hash, title, text) => {
       const cur = window.location.hash.replace(/^#\/?/, "");
-      if (hash === "/chats" && (cur === "chats" || cur.startsWith("chat/"))) return; // DM系
+      if (hash === "/chat/admin" && cur === "chats") return; // 運営DM：一覧に行と未読が出ているので二重に出さない
       if (hash.startsWith("/chat/") && cur === hash.replace(/^#?\/?/, "").replace(/^\//, "")) return;
       if (hash.startsWith("/chat/") && cur.startsWith("chat/")) return; // チャットを開いている間は出さない
       setMsgToast({ title: title || "新しいメッセージ", text, hash });
@@ -1213,7 +1214,7 @@ export default function App(){
       refresh();
       const m = payload?.new;
       if (!m || !m.from_admin) return;
-      showToast("/chats", "運営", msgSnippet(m.body));
+      showToast("/chat/admin", "運営", msgSnippet(m.body)); // 運営チャットのページへ（2026-08-24）
     };
     // ナビバッジと同じ理由で遷移時は20秒スロットル（2026-07-27）。新着はRealtime、既読はcb:unreadRefreshが即反映
     let lastAt = 0;
@@ -1961,6 +1962,9 @@ export default function App(){
           }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : needsPrivacyReconsent ? (
           <PrivacyReconsent authId={me?.id} onAgreed={()=>setNeedsPrivacyReconsent(false)} onShowPrivacy={()=>setShowPrivacy(true)} />
+        ) : chatAppId === "admin" ? (
+          /* 運営チャット（#/chat/admin）＝当事者チャットと同じ器に相乗り（AdminChat.jsx冒頭の注記） */
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/chats"); }} /></Suspense>
         ) : chatAppId ? (
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
         ) : showApplyPending ? (
