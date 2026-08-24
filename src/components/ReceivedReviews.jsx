@@ -84,6 +84,11 @@ export function ReceivedReviews({ userId, direction }) {
               ))}
             </div>
           )}
+          {shown.length > 0 && (
+            /* 集計である旨の明記（利用規約 第8条3）。旧・信頼カードの「働き手の最終回答を集計」の
+               役目をここが引き継ぐ（2026-08-24に一致の集計ごとカードから消したため）。この1行を外さないこと */
+            <p className="f-sans" style={{ fontSize: 10, color: "#B0B0B0", margin: comments.length > 0 ? "0 0 10px" : 0 }}>相手の回答を数えたものです（運営者が認定した事実ではありません）</p>
+          )}
           {comments.map((c, i) => (
             <div key={i} className="f-sans" style={{ borderTop: i === 0 ? "none" : "1px solid #EEE", padding: i === 0 ? "0 0 6px" : "8px 0 6px" }}>
               <p style={{ margin: 0, fontSize: 13, color: "#222", lineHeight: 1.7, overflowWrap: "break-word", wordBreak: "break-word" }}>{c.comment}</p>
