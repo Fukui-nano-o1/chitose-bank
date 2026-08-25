@@ -35,9 +35,12 @@ cleanupOutdatedCaches()
 // precacheにindex.htmlが無いので、この経路を先取りするものは他に無い。
 // ★NavigationRouteで包むのは「ナビゲーションだけを確実に捕まえる」ため（request.mode判定と同義だが、
 //   Workboxの正規の入口なので将来の実装差で取りこぼさない）
+// ★/j/{番号}（共有カードのつなぎページ・2026-08-25）は除外＝サーバーthat求人ごとのOGタグを付けて
+//   返す使い捨てのHTMLso、キャッシュに溜めない（古い求人の姿を返さない）
 registerRoute(
   new NavigationRoute(
-    new NetworkFirst({ cacheName: 'pages-cache', networkTimeoutSeconds: 3 })
+    new NetworkFirst({ cacheName: 'pages-cache', networkTimeoutSeconds: 3 }),
+    { denylist: [/^\/j\//] }
   )
 )
 

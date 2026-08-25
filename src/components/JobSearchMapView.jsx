@@ -108,7 +108,10 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [shareNote]);
   const shareJob = async () => {
     if (!selectedJob) return;
-    const url = window.location.origin + "/#/work/job/" + selectedJob.id;
+    // 渡すのは #を含まない /j/{番号}（2026-08-25）：LINE等のクローラーはJSを実行せず、#より後ろは
+    // サーバーに届かないため、#/work/job/… のままでは常にサイト既定のカードになる。
+    // /j/{番号} はサーバー（api/j/[num].js）that求人のOGタグを付けて返し、人はそこから詳細へ飛ぶ
+    const url = window.location.origin + "/j/" + selectedJob.id;
     const title = `${selectedJob.crop || ""} ${selectedJob.task || ""}`.trim() + (selectedJob.region ? `｜${selectedJob.region}` : "");
     if (navigator.share) {
       try { await navigator.share({ title: title || "chitose-bank の求人", url }); return; }

@@ -7,6 +7,16 @@
     <meta name="theme-color" content="#00A86B" />
     <!-- OSダークモードでも native の選択肢（select/option/日時ピッカー）の文字が消えないよう明色に固定（2026-08-07） -->
     <meta name="color-scheme" content="light" />
+    <!-- 共有カードの既定（2026-08-25）：LINE等にリンクを貼った時の題名・説明・画像。
+         ★求人ごとのカード（写真・作物×作業・地域）は別経路＝ /j/{番号}（api/j/[num].js）that返す。
+         ここはトップ・さがす等、#付きURLを貼った時に出る共通のカード -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="chitose-bank" />
+    <meta property="og:title" content="chitose-bank" />
+    <meta property="og:description" content="徳島県吉野川市の農家と働き手をつなぐ、農作業のマッチングサービス" />
+    <meta property="og:image" content="https://chitose-bank.com/pwa-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="description" content="徳島県吉野川市の農家と働き手をつなぐ、農作業のマッチングサービス" />
     <!-- iOSは「共有→ホーム画面に追加」でしかインストールできず、standalone起動には
          この3つのapple-mobile-web-app-*が要る（manifestのdisplay:standaloneだけでは
          iOSバージョンによってアドレスバーが消えないため） -->
