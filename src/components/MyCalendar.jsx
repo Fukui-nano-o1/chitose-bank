@@ -50,6 +50,11 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // シートはこの部品を置いた全ての画面で開く（お仕事タブのカレンダー面・応募者ページ上部・ステータスページ）。
   const [daySheet, setDaySheet] = useState(null);   // { ymd, idxs } | null
   const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
+  // dayOwn＝親へ日を渡す置き場所（農家のカレンダー面）で選んだ日の【自分が出した求人】の予定。
+  // その置き場所は日付シートを開かない（日タップ＝求人カードの絞り込み）ため、移動・コピーの入口が
+  // 無くなっていた（2026-08-25たきと指示「自分が出した求人予定をタップで移動とコピー可能にして」）。
+  // 盤面のすぐ下に操作の行として出す＝カードを覆わない・移動モードは同じ盤面で行き先をタップできる
+  const [dayOwn, setDayOwn] = useState(null);       // "YYYY-MM-DD" | null（予定は毎回この日から引き直す＝取り直しが入っても添字がずれない）
   const [moving, setMoving] = useState(false);      // 多重送信ガード
   const [reloadKey, setReloadKey] = useState(0);    // 移動成功後に予定を取り直す合図（loadingは立てない＝骨は出ない）
 
@@ -279,7 +284,13 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       const picked = [...new Set(idxs
         .filter(i => dayJobsAll || entries[i]?.relation === "own")
         .map(i => entries[i]?.job_number).filter(Boolean))];
-      if (picked.length > 0) { onDayJobs(ymd, picked); return; }
+      if (picked.length > 0) {
+        onDayJobs(ymd, picked);
+        // 自分が出した求人の予定がある日は、盤面の下に移動・コピーの行を出す（親の絞り込みと同じ間隔で入り切りする）
+        const mine = idxs.filter(i => entries[i]?.relation === "own");
+        setDayOwn(prev => prev === ymd || mine.length === 0 ? null : ymd);
+        return;
+      }
     }
     // ★ステータスページ（noDaySheet）は予定のある日のシートを開かない（2026-08-22たきと指示
     //   「ボックス展開しなくていい。求人カードが表示されるんだから」）＝カレンダーの下に
@@ -412,6 +423,31 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
               色や斜線の意味そのものは変えていない（塗り分けは従来どおり） */}
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
+          )}
+          {/* 選んだ日の「自分が出した求人」の操作（2026-08-25）：移動は掲載中だけ・コピーは終了した求人でも可
+              （日付シートの規則と揃える＝同じ操作が画面ごとに違わない）。実行は同じ関数を呼ぶ */}
+          {!moveMode && dayOwn && entryIdxOnDay(dayOwn).some(i => entries[i]?.relation === "own") && (
+            <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:8 }}>
+              {entryIdxOnDay(dayOwn).filter(i => entries[i]?.relation === "own").map(i => {
+                const e = entries[i];
+                if (!e) return null;
+                const title = ((e.crop||"") + " " + (e.task||"")).trim() || "無題";
+                const live = e.status === "open";
+                return (
+                  <div key={"own-act-" + e.job_number} style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 12px" }}>
+                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {title} <span style={{ color:"#B0B0B0", fontWeight:600, fontSize:11 }}>#{e.job_number}</span>
+                    </span>
+                    {live && (
+                      <button onClick={()=>setMoveMode({ jobNumber: e.job_number, title })} className="f-sans"
+                        style={{ flexShrink:0, background:"#0E8A6B", color:"#fff", border:"none", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>日程をうごかす</button>
+                    )}
+                    <button onClick={()=>copyFromSheet(e.job_number)} className="f-sans"
+                      style={{ flexShrink:0, background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピー</button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </>
       )}
