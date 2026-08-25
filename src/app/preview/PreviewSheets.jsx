@@ -4,15 +4,28 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
-import { isAdmin, ROLE_GREEN, farmIntroTopics, farmHostQa, perkBadges, workerQaItems } from "../../lib/utils";
+import { isAdmin, ROLE_GREEN, ROLE_ORANGE, farmIntroTopics, farmHostQa, perkBadges, workerQaItems } from "../../lib/utils";
 import { getCache, setCache, clearCache } from "../../lib/viewCache";
 import { openWorkerPreview, openEmployerPreview } from "../../lib/previewBus";
-import { Dots, QaChat, SwipeTabPages } from "../../components/ui";
+import { Avatar, Dots, QaChat, SwipeTabPages } from "../../components/ui";
 import { WorkerTrustCard, FarmerTrustCard } from "../../components/TrustCards";
 import { WorkerWorkRecord } from "../../components/WorkerWorkRecord";
 import { ReceivedReviews } from "../../components/ReceivedReviews";
 import { MyReviewsOfWorker } from "../../components/MyReviewsOfWorker";
 import { NavIconInline } from "../../components/NavIcons";
+
+// 誰のプレビューかの名乗り（2026-08-24たきと指示「プレビューにはアイコンと名称の明記を。報復防止のため」）。
+// タブを切り替えても常に見える位置＝面の外に置く。記録・評価の面だけを見て相手を取り違えたまま
+// 評価・通報・報告に進むことを防ぐ（取り違えた相手への報復を作らない）。
+// 色は役割色（働き手=橙／農家=緑・2026-07-22の規約）。
+function PreviewIdentity({ url, name, accent }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 12px" }}>
+      <Avatar url={url} name={name} size={36} ring={accent} />
+      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name || "名前未設定"}</p>
+    </div>
+  );
+}
 
 export function EmployerPreviewSheet() {
   const [st, setSt] = useState(null); // {farmer_id, loading, profile, trust}
@@ -60,7 +73,9 @@ export function EmployerPreviewSheet() {
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
-          <SwipeTabPages tabs={["プロフィール","自己紹介","評価"]} page={page} onPage={setPage}>
+          <>
+            <PreviewIdentity url={st.profile.avatar_url} name={st.profile.nickname} accent={ROLE_GREEN} />
+            <SwipeTabPages tabs={["プロフィール","自己紹介","評価"]} page={page} onPage={setPage}>
             {/* 1枚目：プロフィール＝信頼カードまるごと（氏名・実績・タグ行と
                 「農家の自己申告です。運営が確認したものではありません。」の注記まで・2026-08-24たきと指示）。
                 待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
@@ -78,11 +93,12 @@ export function EmployerPreviewSheet() {
               })()}
             </div>
             {/* 3枚目：受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定）。
-                公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
+                まだ無い時は「まだ評価はありません」と明記（2026-08-24たきと指示・部品側が担う） */}
             <div>
               <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />
             </div>
-          </SwipeTabPages>
+            </SwipeTabPages>
+          </>
         ) : (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この農家のプロフィールは未設定です</p>
         )}
@@ -202,6 +218,7 @@ export function WorkerPreviewSheet() {
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
+            <PreviewIdentity url={st.profile.avatar_url} name={st.profile.nickname} accent={ROLE_ORANGE} />
             <SwipeTabPages tabs={["プロフィール","記録","評価"]} page={page} onPage={setPage}>
               {/* 1枚目：プロフィール（従来の中身をそのまま） */}
               <div>
@@ -218,7 +235,7 @@ export function WorkerPreviewSheet() {
                 {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
               </div>
               {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋公開コメント。DBのreviews_public_badgesが公開判定）。
-                  公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
+                  まだ無い時は「まだ評価はありません」と明記（2026-08-24たきと指示・部品側が担う） */}
               <div>
                 <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
               </div>
