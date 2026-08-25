@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
-import { Avatar, LFPillSelect, AutoSkeleton, Dots, FieldHelp } from "./ui";
+import { Avatar, LFPillSelect, AutoSkeleton, Dots, FieldHelp, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
 import { WorkerTrustCard } from "./TrustCards";
@@ -485,15 +485,25 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         );
       })()}
 
-      {/* ═══ ボックス格子（入口カードと同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+      {/* ═══ 項目の一覧（2026-08-25たきと指示「プロフィール編集ページもAirbnbをぱくれ」）＝
+             2列の格子カード → Airbnb型の縦一列の行。上にアイコン、その下に行が並ぶ。
+             タップでモーダル編集する仕組み（editBox）は不変＝中身は1行も変えていない ═══ */}
+      {/* アイコン＝Airbnbと同じく先頭に大きく1つ。タップでアイコンの編集へ */}
+      <div style={{ textAlign:"center", padding:"4px 0 20px" }}>
+        <button type="button" onClick={()=>setEditBox("avatar")} aria-label="アイコンを変更"
+          style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}>
+          <Avatar url={avatarUrl} name={nickname} size={96} ring={ROLE_ORANGE} />
+        </button>
+        <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"12px 0 0" }}>{nickname || "名前未設定"}</p>
+        <button type="button" onClick={()=>setEditBox("avatar")} className="f-sans"
+          style={{ marginTop:6, background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:700, color:ROLE_ORANGE, textDecoration:"underline" }}>
+          {avatarUrl ? "写真を変更" : "写真を追加"}
+        </button>
+      </div>
+      <div>
         {[
-          // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16・農家プロと同じ規則）
-          // 配置（2026-07-16）：アイコン・ニックネーム／アイコンの下に自己紹介。任意は農家プロと同じ系統順（条件系→属性→問いかけ系が最後）
-          // カードの絵文字アイコンは削除＝テキストのみ（2026-08-14たきと指示・雇い手編集ページと同型）
-          // 枠と値の色は役割色（働き手=橙 ROLE_ORANGE／雇い手側は緑）＝いまどちらの面にいるかが枠で分かる
-          // （2026-08-19たきと指示「各カードの枠に色を配色」・役割カラー規約2026-07-22の目印の一種）
-          { k:"avatar",    l:"アイコン",     v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
+          // req:true=看板の核（未設定を赤で示す）。それ以外は任意＝灰色の「未設定」
+          // 並びは従来のまま（条件系→属性→問いかけ系が最後）。アイコンは上のブロックが受け持つ
           { k:"nickname",  l:"ニックネーム", req:true, v: nickname },
           { k:"pr",        l:"自己紹介",     req:true, v: pr },
           { k:"residence", l:"居住地",       v: residenceCity },
@@ -504,21 +514,14 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           { k:"languages", l:"言語",         v: languages.join("・") },
           { k:"declared",  l:"経験・資格", v: [...expEntries.filter(e=>(e.crop||"").trim()).map(e=>`${e.crop}×${e.task||""}`), ...selfDeclared.map(k => (WORKER_DECLARATIONS.find(x=>x.k===k)||{}).chip)].filter(Boolean).join("・") },
           { k:"qa",        l:"質問に答える", v: prQa.length > 0 ? `${prQa.length}問に回答` : "" },
-          // 緊急連絡先（2026-08-03）：別テーブル保存ので格子の値表示は持たない（開いた先で読み書きする）
-          { k:"emergency", l:"緊急連絡先",   v: emgSummary }, // サマリーは emgSummary（2026-08-14修理）
-        ].map(b => {
-          // 修正依頼の赤帯（2026-07-19）：指摘対象「自己紹介本文」→自己紹介ボックス／質問文→質問に答えるボックス
+          // 緊急連絡先（2026-08-03）：別テーブル保存。サマリーは emgSummary（2026-08-14修理）
+          { k:"emergency", l:"緊急連絡先",   v: emgSummary },
+        ].map((b, i, arr) => {
+          // 修正依頼の印（2026-07-19）：指摘対象「自己紹介本文」→自己紹介／質問文→質問に答える
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
           return (
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (revFlagged ? " cb-urgent-still" : b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ position:"relative", background:"#fff", border:"1px solid " + ROLE_ORANGE, borderRadius:20, padding: revFlagged ? "20px 10px 38px" : "20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
-            {revFlagged && (
-              <span className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:0, zIndex:1, padding:"5px 6px", borderRadius:"0 0 20px 20px", background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, textAlign:"center", boxSizing:"border-box" }}><NavIconInline name="alert" size={11} style={{ verticalAlign:"-1.5px" }} />修正のお願い</span>
-            )}
-            {/* アイコンのカードだけ1行まるごと＋アイコン本体を大きく（2026-08-14たきと指示・雇い手編集ページと同型） */}
-            {b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} ring={ROLE_ORANGE} />}
-            <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
-            <span style={{ fontSize:11, color: b.v ? ROLE_ORANGE : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
-          </button>
+            <ProfileEditRow key={b.k} label={b.l} value={b.v} required={b.req} flagged={revFlagged}
+              accent={ROLE_ORANGE} onClick={()=>setEditBox(b.k)} last={i === arr.length - 1} />
           );
         })}
       </div>

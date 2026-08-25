@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
-import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect } from "./ui";
+import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -527,14 +527,27 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
       </button>
 
-      {/* ═══ ボックス格子（働き手編集ページと全く同じ様式・タップでモーダル編集・2026-07-14） ═══ */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+      {/* ═══ 項目の一覧（2026-08-25たきと指示「プロフィール編集ページもAirbnbをぱくれ」）＝
+             2列の格子カード → Airbnb型の縦一列の行。上にアイコン、その下に行が並ぶ。
+             タップでモーダル編集する仕組み（editBox）は不変＝中身は1行も変えていない。
+             行の色は AC（雇い手=緑／委託レーンのブラック世界=#111111）＝いまどちらの面にいるかが分かる ═══ */}
+      {/* ロゴ・アイコン＝Airbnbと同じく先頭に大きく1つ。委託レーンではアイコンを出さない（従来どおり） */}
+      <div style={{ textAlign:"center", padding:"4px 0 20px" }}>
+        {!black && (
+          <button type="button" onClick={()=>setEditBox("avatar")} aria-label="ロゴ・アイコンを変更"
+            style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}>
+            <Avatar url={avatarUrl} name={nickname} size={96} ring={AC} />
+          </button>
+        )}
+        <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin: black ? "0" : "12px 0 0" }}>{recruiterName || nickname || "名称未設定"}</p>
+        <button type="button" onClick={()=>setEditBox("avatar")} className="f-sans"
+          style={{ marginTop:6, background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:700, color:AC, textDecoration:"underline" }}>
+          {avatarUrl ? "写真を変更" : "写真を追加"}
+        </button>
+      </div>
+      <div>
         {[
-          // req:true=看板の核（未入力なら浮遊アニメ）。それ以外は任意=未入力でも赤影のみ（2026-07-16）
-          // 枠と値の色は AC（雇い手=緑／委託レーンのブラック世界=#111111）＝いまどちらの面にいるかが枠で分かる
-          // （2026-08-19たきと指示「各カードの枠に色を配色」。ブラックの世界に役割色は持ち込まない・2026-07-31）
-          // カードの絵文字・アバターのアイコンは削除＝テキストのみ（2026-08-14たきと指示）
-          { k:"avatar",   l:"ロゴ・アイコン", v: avatarUrl ? "設定済み" : "" }, // 義務化解除（2026-07-25たきと指示）＝任意扱い（未入力は静止赤影のみ）
+          // req:true=看板の核（未設定を赤で示す）。それ以外は任意＝灰色の「未設定」
           { k:"nickname", l:"氏名・名称",     req:true, v: recruiterName },
           { k:"place",    l:"住所・所在地",   req:true, v: composeRecruiterAddress() },
           { k:"perks",    l:"待遇",           v: perksOn.join("・") },
@@ -547,14 +560,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"intro",    l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    l:"関わり方",       v: styleAnswered.join("・") },
-        ].filter(b => !black || !["intro","ask","style","insurance"].includes(b.k)).map(b => (
-          // 未入力ボックスは赤影アニメで促す（2026-07-16）。ロゴ・アイコンだけ1行まるごと（2026-08-14たきと指示）
-          <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: "1px solid " + AC, borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
-            {/* ロゴ・アイコンだけはアイコン本体を大きく見せる（2026-08-14たきと指示）。他カードはテキストのみ */}
-            {!black && b.k === "avatar" && <Avatar url={avatarUrl} name={nickname} size={72} ring={AC} />}
-            <span style={{ fontSize:14, fontWeight:700, color:"#222" }}>{b.l}</span>
-            <span style={{ fontSize:11, color: b.v ? AC : "#B0B0B0", maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.v || "未設定"}</span>
-          </button>
+        ].filter(b => !black || !["intro","ask","style","insurance"].includes(b.k)).map((b, i, arr) => (
+          <ProfileEditRow key={b.k} label={b.l} value={b.v} required={b.req}
+            accent={AC} onClick={()=>setEditBox(b.k)} last={i === arr.length - 1} />
         ))}
       </div>
       {saved && (

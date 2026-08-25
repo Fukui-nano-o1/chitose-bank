@@ -219,20 +219,23 @@ const STEPS = [
         </div>
       </div>
     ) },
-  { ch:"準備", name:"雇い手プロフィール", url:"#/profile/employer/profile", act:"農園名・写真・待遇・保険・緊急連絡先を埋める。働き手はここを見て応募を決める。未入力の数がバッジに出る。",
+  { ch:"準備", name:"雇い手プロフィール", url:"#/profile/employer/profile", act:"農園名・写真・待遇・保険・緊急連絡先を埋める。働き手はここを見て応募を決める。行をタップすると、その項目だけが開く。",
     body: () => (
       <div style={{ padding:14 }}>
-        <Card style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, borderColor:ROLE_GREEN }}>
-          <Avatar url={null} name="千歳ファーム" size={52} ring={ROLE_GREEN} />
-          <div>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:0 }}>千歳ファーム</p>
-            <p className="f-sans" style={{ fontSize:11, color:SUB, margin:"3px 0 0" }}>吉野川市 ・ 就農16年目</p>
-          </div>
-        </Card>
-        {[["氏名・農園名","入力済み"],["所在地","入力済み"],["連絡先","入力済み"],["待遇","あと1つ"],["保険","入力済み"],["緊急連絡先","未入力"]].map(([l, r]) => (
-          <div key={l} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 2px", borderBottom:`1px solid ${SOFT}` }}>
-            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:INK }}>{l}</span>
-            <Chip bg={r === "入力済み" ? "#E6F7EF" : "#FFF4E0"} fg={r === "入力済み" ? GREEN : "#C77700"}>{r}</Chip>
+        {/* 実物に追従（2026-08-25）：2列の格子カード → Airbnb型の縦一列の行。
+            先頭にアイコンと名称、その下に項目の行（値／右に「›」／細い区切り線）。未設定は灰、必須の未設定は赤 */}
+        <div style={{ textAlign:"center", padding:"4px 0 16px" }}>
+          <Avatar url={null} name="千歳ファーム" size={72} ring={ROLE_GREEN} />
+          <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:INK, margin:"10px 0 0" }}>千歳ファーム</p>
+          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:GREEN, margin:"5px 0 0", textDecoration:"underline" }}>写真を変更</p>
+        </div>
+        {[["氏名・名称","千歳ファーム"],["住所・所在地","吉野川市山川町"],["待遇","送迎・駐車場"],["連絡先","088-000-0000"],["緊急連絡先",""],["保険の準備","農作業中の傷害保険"],["代表より","3件記入"],["問いかけ","2件記入"],["関わり方",""]].map(([l, v], i, arr) => (
+          <div key={l} style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 2px", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${SOFT}` }}>
+            <span style={{ minWidth:0, flex:1 }}>
+              <span className="f-sans" style={{ display:"block", fontSize:14, fontWeight:600, color:INK }}>{l}</span>
+              <span className="f-sans" style={{ display:"block", fontSize:12.5, marginTop:3, color: v ? SUB : "#B0B0B0" }}>{v || "未設定"}</span>
+            </span>
+            <span style={{ color:GREEN, fontSize:17, flexShrink:0 }}>›</span>
           </div>
         ))}
       </div>

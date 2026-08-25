@@ -53,6 +53,29 @@ export function ExpandableText({ text, limit = 100, style, moreLabel = "もっ�
 // 画面を文字で埋めない。説明は消していない＝押せばいつでも読める（EmergencyContactBoxの作法を部品化）。
 // label＝見出し／children＝説明の本文／accent＝役割色（開いている時の？の色）。
 // ★短い一言（1行で収まる注記）はこれで畳まない＝畳む価値がない上に、押さないと読めない文that増えるだけ。
+// プロフィール編集ページの1行（2026-08-25たきと指示「プロフィール編集ページもAirbnbをぱくれ」）。
+// ★Airbnbの実物のコード・素材は複製できない（非公開・著作物）ので、見た目の言語だけを自前で写した：
+//   2列の格子カード → 縦一列の行（ラベル／いまの値／右に「›」／行の間に細い区切り線）。
+//   未設定は灰、必須の未設定だけ赤で示す（旧・赤影の点滅アニメは行の並びでは落ち着かないので置き換え）。
+// 働き手・雇い手の両編集ページで共用＝行の見た目を2箇所に書かない。accent は役割色（橙／緑・委託は黒）。
+export function ProfileEditRow({ label, value, required, flagged, accent = "#00A86B", onClick, last }) {
+  return (
+    <button type="button" onClick={onClick} className="f-sans"
+      style={{ display:"flex", alignItems:"center", gap:12, width:"100%", textAlign:"left", background:"none",
+               border:"none", borderBottom: last ? "none" : "1px solid #EBEBEB", padding:"16px 2px", cursor:"pointer" }}>
+      <span style={{ minWidth:0, flex:1 }}>
+        <span style={{ display:"block", fontSize:15, fontWeight:600, color:"#222" }}>{label}</span>
+        <span style={{ display:"block", fontSize:13, marginTop:3, color: value ? "#717171" : (required ? "#E24B4A" : "#B0B0B0"),
+                       overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{value || "未設定"}</span>
+      </span>
+      {flagged && (
+        <span className="f-sans" style={{ flexShrink:0, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:10, padding:"3px 8px" }}>修正のお願い</span>
+      )}
+      <span style={{ color: accent, fontSize:18, flexShrink:0 }}>›</span>
+    </button>
+  );
+}
+
 export function FieldHelp({ label, accent = "#00A86B", children, labelSize = 12 }) {
   const [open, setOpen] = useState(false);
   return (
