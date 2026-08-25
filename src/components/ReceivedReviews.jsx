@@ -84,6 +84,9 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, pr
   // shown.lengthでは常に非空になり「まだ評価はありません」that出せなくなる）
   const hasAny = defs.some(d => (badges[d.k] || 0) > 0) || comments.length > 0;
   const isEmpty = data !== null && !hasAny;
+  // 公開待ち＝相手はもう評価しているが、規約第8条4のゲート（双方の評価が揃うか、完了から3日）で
+  // まだ出せない件数。中身も誰かも出さない＝数だけ知らせて「消えた」と誤解させない（2026-08-25たきと報告）
+  const waiting = (data && data.waiting) || 0;
   // 働き手宛＝農家からの評価＝緑／農家宛＝働き手からの評価＝橙（役割色の規約2026-07-22）
   const AC = direction === "farmer_to_worker" ? "#00A86B" : "#F76B1C";
 
@@ -97,6 +100,12 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, pr
           {/* まだ1件も届いていない時の明記。showAllItemsではこの下に全項目（0件）that並ぶ＝
               「何が評価されるのか」は見えたまま、まだ無いことも隠さない */}
           {isEmpty && (
+            waiting > 0 ? (
+              <p className="f-sans" style={{ fontSize: 12, color: "#717171", lineHeight: 1.7, padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>
+                相手からの評価が{waiting}件届いています。<br />
+                お互いの評価が揃うか、仕事の完了から3日たつと表示されます。
+              </p>
+            ) :
             <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>まだ評価はありません</p>
           )}
           {shown.length > 0 && (
