@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, dayReportOpen, ROLE_GREEN } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -569,7 +569,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     ? (reviewed ? null : { label:"評価する", green:true, on:()=>openReview(a.id) })
                     : isFinalWorkDone(r, r)
                     ? { label:"評価する", green:true, on:()=>openReview(a.id) }
-                    : { label:"記録する", green:false, on:()=>setDayReportApp({ id: a.id }) };
+                    // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24たきと指示）。
+                    // 窓の外は灰色の押せないボタンで残す＝どこにあるかは見えたまま
+                    : { label:"記録する", green:false, closed: !dayReportOpen(r, r), on:()=>setDayReportApp({ id: a.id }) };
                   return (
                     <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
                       <div style={{ display:"flex", gap:8 }}>
@@ -579,7 +581,11 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                           <NavIconInline name="chats" size={12} style={{ verticalAlign:"-2px" }} />チャット
                         </button>
                         {rec ? (
-                          <button onClick={rec.on} className="f-sans" style={btn(rec.green
+                          <button onClick={rec.closed ? undefined : rec.on} disabled={!!rec.closed}
+                            aria-label={rec.closed ? "作業が始まると記録できます（終了の3時間後まで）" : undefined}
+                            className="f-sans" style={btn(rec.closed
+                            ? { background:"#F7F7F7", color:"#C8C8C8", border:"1px solid #EBEBEB", cursor:"default" }
+                            : rec.green
                             ? { background:"#F76B1C", color:"#fff", border:"none", pointerEvents:"auto" }
                             : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                             <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}

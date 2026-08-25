@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -1598,7 +1598,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                 ? ((a.attended === false || reviewedAppIds.has(a.id)) ? null : { label:"評価する", green:true, on:()=>openCompleteModal(a) })
                                 : isFinalWorkDone(a, jinfo)
                                 ? { label:"評価する", green:true, on:()=>openCompleteModal(a) }
-                                : { label:"記録する", green:false, on:()=>setDayReportApp(a) };
+                                // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24たきと指示
+                                // 「仕事が始まっていないのに記録するボタンが押せる」）。窓の外は灰色の
+                                // 押せないボタンで残す＝どこにあるかは見えたまま（黙って消さない）
+                                : { label:"記録する", green:false, closed: !dayReportOpen(a, jinfo), on:()=>setDayReportApp(a) };
                               return (
                                 <div key={a.id} style={{ display:"grid", gap:8, borderTop: idx > 0 ? "1px solid #F0F0F0" : "none", paddingTop: idx > 0 ? 12 : 0 }}>
                                   {/* 誰のボタンかを必ず示す（1人でも出す）＝アイコン・名前・段階のラベル */}
@@ -1615,7 +1618,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                       <NavIconInline name="chats" size={12} style={{ verticalAlign:"-2px" }} />チャット
                                     </button>
                                     {rec ? (
-                                      <button onClick={rec.on} className="f-sans" style={btn(rec.green
+                                      <button onClick={rec.closed ? undefined : rec.on} disabled={!!rec.closed}
+                                        aria-label={rec.closed ? "作業が始まると記録できます（終了の3時間後まで）" : undefined}
+                                        className="f-sans" style={btn(rec.closed
+                                        ? { background:"#F7F7F7", color:"#C8C8C8", border:"1px solid #EBEBEB", cursor:"default" }
+                                        : rec.green
                                         ? { background:"#00A86B", color:"#fff", border:"none", pointerEvents:"auto" }
                                         : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                                         <NavIconInline name={rec.icon || (rec.green ? "star" : "clipboard")} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
