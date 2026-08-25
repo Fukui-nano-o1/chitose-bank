@@ -8869,3 +8869,23 @@ contracted/working）。ので、2026-08-25に戻した「終了した自分の�
 ②求人フローの入力中に掲載タブをタップしても消えないか ③チャットの入力中にチャットタブで消えないか
 ④引き下げ更新では位置thatそのままか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-25 「プロフィール入力のお願い」を画像に差し替え ━━━
+【たきと指示】「プロフィール入力のお願いボックスの内容を画像に差し替え」
+・admin_notice_registry は image_url thatあれば本文の代わりに画像を出す作り（App.jsx 1745・
+  AdminBoxRegistryPage のプレビューも同じ）。既存の作法＝public配下の静的画像を相対パスで参照
+  （前例：/notice-heatstroke-2026.jpg・/day-report-guide.jpg）。
+・public/notice-profile-fill-2026.jpg を追加（1200x800・140KB＝既存2枚と同規格）。元は1536x1024の
+  PNG(1.5MB)so、playwrightのChromiumのcanvasでJPEG化（この箱にはPIL・ImageMagickthat無い。
+  実行は `chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'})`。
+  playwrightはプロジェクト直下でしか解決できないso作業スクリプトは一時的にリポジトリ直下へ置いて実行し削除）。
+・台帳側は image_url を1行UPDATE（コンテンツ行のDML so migrationなし）。本文は残す＝画像を出せない時の控え。
+【★未解決の食い違い（たきと判断待ち）】画像の中の入力状況リストthat、実装と合っていない：
+  ①「本人確認書類 未入力」＝利用規約第4条1「書類等による本人確認は行わず、入力された内容は
+    ご本人の申告として取り扱います」と正面から食い違う（この機能自体thatない）。
+  ②「電話番号」＝プロフィールの項目ではない（登録情報 account_holders 側で、メールか電話の
+    どちらか一方で足りる）。働き手プロフィールの必須は3つ（ニックネーム・居住地・自己紹介・2026-08-19）。
+  ③この行は audience='farmer'・trigger_on='confirm'＝【農家】に出るthat、画像のリストは
+    働き手プロフィールの項目。
+  → 画像を差し替えるか、この行を働き手向けに作り直すか。1行UPDATEで戻せる（image_url=null で本文に戻る）。
+━━━ ここまで ━━━
