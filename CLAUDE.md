@@ -8640,3 +8640,25 @@ get_my_calendar_jobs を own_rows=status='open' のみに絞った（migration 2
 完了した仕事がカレンダーに（薄色で）出るか ②その日をタップして求人カードが並ぶか
 ③終了した求人のシートに「日程をうごかす」「内容を編集」がが出ないこと
 ━━━ ここまで ━━━
+━━━ 2026-08-25 緊急連絡先は「仕事の開始から終了まで」だけ（たきと指示・二重の壁）━━━
+【指示】「緊急連絡先ボタンは仕事の開始から終了まで。それ以外はいかなる理由でも見せない。」
+【窓の定義】開始＝applications.started_at（作業開始時刻に自動で入る）／終了＝work_completed_at
+（完了の記録・最終作業日の終了時刻に自動でも入る）。どちらかが分からない時は【見せない】に倒す。
+＝採用が決まっただけ・面接中・完了後・見送り・失効では、ボタンも中身も一切出ない。
+【DB（migration 20260825031200・本番適用済み・repo写経済み）】contract_emergency_contact に窓の検査を追加。
+窓の外は {ok:false, reason:'not_working'}＝当事者であっても中身を返さない（UIを迂回しても取れない）。
+当事者判定・terms_snapshot（採用成立）・相手のプラポリ同意版の各ゲートは従来どおり不変。
+★関数本体は写経せず pg_get_functiondef の現物に差し込んで作り直す方式（冪等・アンカー3点を検査）。
+【フロント】lib/utils に isWorkWindowOpen(a) を新設＝表示の唯一の物差し。応募の行（status/started_at/
+work_completed_at）と、カレンダーRPC（application_status しか返さない）の両方の形を受ける。
+components/ContractEmergencyContact に workWindow prop を追加＝【既定 false】でフェイルクローズ
+（渡し忘れた画面では出ない）。窓の外では RPC も呼ばない。
+置いてある4箇所すべてに渡した：応募者シート（FarmerDashboard）／今日の仕事カードのボタン（同）／
+ステータスページのボタン（SavedJobsView）／今日ページの緊急連絡シート（StagePanels）。
+★DBの窓とフロントの窓は同じ条件＝片方だけ変えると「ボタンは出るのに中身が出ない」になる。必ず両方直す。
+【検証】ロールバック付き実弾（残置ゼロ実測・emergency_contacts 11行不変）：
+T1 開始前=not_working／T2 作業中=窓を通過（次のゲート＝相手の同意で止まる＝設計どおり）／
+T2b 作業中かつ相手が同意済み=氏名・電話を返す／T3 終了後=not_working。
+build成功・eslint 0 error / warning 23（変更前と同数）。
+【テストの教訓】set local role authenticated のまま applications を UPDATE しても、農家のUPDATEポリシーは
+2026-08-07に削除済みなので0行＝テストが素通りする。更新は role を戻してから行うこと。

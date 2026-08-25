@@ -905,6 +905,21 @@ export const THIS_YEAR = new Date().getFullYear();
 // 少数のうちは内訳から個々の回答が推測されうる旨を明記し、同二を「それ単体で分かる形では表示しない」に
 // 揃えた。フロントの5件ゲート撤去〈たきと指示「評価は件数関係なく表示させろ」〉と字面を一致させたもの）
 // プラポリv4.3 = 同日・同趣旨（第3条の評価の行を「件数にかかわらず集計を表示」に追従）
+// 仕事の開始から終了までの間か（2026-08-25たきと指示「緊急連絡先ボタンは仕事の開始から終了まで。
+// それ以外はいかなる理由でも見せない」）＝緊急連絡先を出してよい唯一の窓。
+// ★表示の判定はここ1箇所。DB側の contract_emergency_contact も同じ窓で拒む（二重の壁）＝
+//   片方を変えたら必ず両方直すこと。
+// ★分からない時は「開いていない」に倒す（フェイルクローズ）＝迷ったら見せない。
+// 応募の行（applications）とカレンダーRPC（application_status しか持たない）の両方を受ける。
+export function isWorkWindowOpen(a) {
+  if (!a) return false;
+  const st = a.status ?? a.application_status;
+  if (st !== "working") return false;                       // 開始前・完了後・見送り・失効は出さない
+  if ("work_completed_at" in a && a.work_completed_at) return false;
+  if ("started_at" in a) return !!a.started_at;             // 打刻の列を持つ画面では実際の開始も確かめる
+  return true;
+}
+
 export const TERMS_VERSION = "v2.8-2026-08";
 export const PRIVACY_VERSION = "v4.4-2026-08";
 
