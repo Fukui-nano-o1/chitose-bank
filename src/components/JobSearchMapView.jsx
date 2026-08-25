@@ -1109,12 +1109,14 @@ export function JobSearchMapView({ onRegister, me }) {
             display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
             fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
           }}><NavIcon name="share" size={16} />共有する</button>
-          {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示） */}
+          {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示）。
+              いいねは♡マークだけ（2026-08-25たきと指示）＝文字を出さない丸ボタン。
+              押した状態は塗り（heartFill・赤）で分かる。読み上げ用の名前は aria-label that持つ */}
           {!isOwnJob && canLike(selectedJob) && (
           <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
-            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-            fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-          }}><span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={17} /></span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
+            display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff", border:"1px solid #EBEBEB", borderRadius:"50%",
+            color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:0, boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}><span className="cb-like-heart" style={{ display:"inline-flex" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={19} /></span></button>
           )}
         </div>
         {/* 共有の結果（コピーした・できなかった）の一言。2.4秒で消える・操作は奪わない */}
