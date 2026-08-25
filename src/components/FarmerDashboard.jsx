@@ -650,6 +650,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
   // シートの役割は判断材料を見せることに徹し、採用ボタンは採用ページへのリンク。
   // 最終確認・二重予約警告・本名開示の明示・実行（confirm_terms）はすべて採用ページ側が担う。
   const goHirePage = () => { window.location.hash = "/calendar/todo/hire"; };
+  // 保険の準備の報告も、実行するのは今日の用件ページ（confirm_insurance を撃つ窓口はそこ1箇所）。
+  // カードのボタンはその入口＝新しい書き込み経路を作らない（2026-08-24たきと指示）
+  const goInsurancePage = () => { window.location.hash = "/calendar/todo/insurance"; };
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   // ★作業中は「今日」で出し分ける（2026-08-18たきと指示「作業していない時間は作業中ではない」）＝
@@ -1430,7 +1433,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                     <button onClick={()=>setAppHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
                   )}
                 </div>])
-              : dayOrder.map(jn => {
+              : dayOrder.flatMap(jn => {
                   // 求人カード化（2026-07-25たきと指示）：左＝トップ写真／右＝タイトル・No.／その下に応募者アイコンの横スワイプ列。
                   // アイコン列のtouchはstopPropagationで親のフィルタ切替スワイプと分離する
                   // apps＝この求人の表示できる応募者。応募者ゼロでもカードは出す（2026-08-21）ので必ず||[]で受ける
@@ -1446,26 +1449,31 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                   // 日程が過ぎた求人は、完了記録あり＝「完了」／なし＝「失効」の暗幕＋中央ラベル＋タップ無反応
                   const jobEnd = info.date_end || info.date_start;
                   const datePast = !!jobEnd && jobEnd < ymdLocal(new Date());
+                  // ★応募者単位でカードを分ける（2026-08-24たきと指示「応募者単位でカード新設」）：
+                  //   1枚のカード＝1人の応募者。写真・タイトル・#No. は同じ求人のものが並ぶ。
+                  //   応募者ゼロの求人は従来どおり1枚だけ出す（理由の一言を右に出す・2026-08-21）
+                  return (apps.length === 0 ? [null] : apps).map(one => {
+                  const capps = one ? [one] : [];
                   // ★完了ラベル（暗幕）は評価まで終わってから（2026-07-27たきと指示）。
                   //   従来は日程が過ぎた時点で暗幕＋pointerEvents:noneを掛けていたため、今日ページの
                   //   「バイトの評価」（旧・完了して評価する）から来ても応募者カードに触れず、完了記録・評価ができなかった。
                   //   todoAppIds（my_todo_items由来＝完了記録・評価が残っている応募）が1件でもあれば暗幕を出さない
-                  const jobPendingAction = apps.some(a => todoAppIds.has(a.id));
+                  const jobPendingAction = capps.some(a => todoAppIds.has(a.id));
                   const jobPast = datePast && !jobPendingAction;
-                  const jobCompleted = jobPast && apps.some(a => a.status === "completed");
+                  const jobCompleted = jobPast && capps.some(a => a.status === "completed");
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。
                   // 既存の .cb-urgent-card（赤影＋3.5秒の浮遊ループ）をそのまま使う。終わった求人は静かにする
-                  const cardUrgent = !jobPast && apps.some(a => todoAppIds.has(a.id));
+                  const cardUrgent = !jobPast && capps.some(a => todoAppIds.has(a.id));
                   // 見送り・取り消しも失効と同じ扱い（2026-08-23たきと指示「見送りと取り消しも同様」）＝
                   // 表示している応募が全員その状態で終わっている求人に、最前線のラベルを出す。
                   // ★ただしタップは殺さない（暗幕を pointerEvents:none にする）：失効・完了と違い、
                   //   求人自体はまだ生きていて新しい応募が来ることがあるため、開けなくしてはいけない
-                  const endedAll = !jobPast && apps.length > 0 && apps.every(a => a.status === "rejected" || a.status === "canceled");
-                  const endedLabel = !endedAll ? null : (apps.some(a => a.status === "rejected") ? "見送り" : "取り消し");
+                  const endedAll = !jobPast && capps.length > 0 && capps.every(a => a.status === "rejected" || a.status === "canceled");
+                  const endedLabel = !endedAll ? null : (capps.some(a => a.status === "rejected") ? "見送り" : "取り消し");
                   const endedColor = endedLabel === "見送り" ? (APP_PHASE_COLOR.rejected || "#9E9E9E") : (APP_PHASE_COLOR.canceled || "#9E9E9E");
                   return (
-                    <div key={`job-${jn}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
+                    <div key={`job-${jn}-${one ? one.id : "empty"}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
                       {jobPast && (
                         // ★zIndex:5＝カードの中で最前線（2026-08-23たきと指示「失効等のラベルを最前線に」・
@@ -1520,7 +1528,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                       <div style={{ width:"100%", minWidth:0, padding:"10px 12px 12px", display:"flex", alignItems:"center", boxSizing:"border-box" }}>
                         {/* 応募者ゼロでもカードは出す（2026-08-21）：右側は理由の一言。
                             全員が絞り込みで隠れている時と、まだ応募が無い時を区別する */}
-                        {apps.length === 0 ? (
+                        {capps.length === 0 ? (
                           <p className="f-sans" style={{ width:"100%", textAlign:"center", fontSize:12, color:"#999", margin:0, lineHeight:1.7 }}>
                             {hiddenCount > 0
                               ? <>絞り込みで{hiddenCount}名を非表示にしています</>
@@ -1537,7 +1545,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                              ジャンプ(-5px)が上で欠ける。paddingTopで跳ねる分の逃げを確保（2026-07-26たきと報告） */
                           style={{ width:"100%", minWidth:0, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain", paddingTop:8, paddingBottom:2, pointerEvents:"auto" }}>
                           <div style={{ display:"flex", gap:12, width:"max-content", margin:"0 auto" }}>
-                          {apps.map(a => {
+                          {capps.map(a => {
                             const wp = workerProfiles[a.worker_id];
                             // 失効応募のアイコンは「失効当時の状態」で表示（2026-07-25たきと指示）。失効はappliedからのみ発生（cron）＝応募中。
                             // 失効の事実はカード全体の黒「失効」オーバーレイが担う（アイコン側に失効ラベルは出さない）
@@ -1574,46 +1582,47 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                         // 「承認すると採用するボタンを設置」）。この段の右のボタンは【採用するページへのリンク】
                         // ＝採用の実行窓口は #/calendar/todo/hire 1箇所のまま（2026-08-06一本化・最終確認・
                         // 二重予約の警告・本名開示の明示・confirm_terms はすべてあちらが担う）
-                        // 応募者ごとに分ける（2026-08-24たきと指示「これは分けて。見送りラベル貼ろう」）：
-                        // 1人でも名前と段階のラベルを頭に付け、どの人のボタンかを必ず示す。
-                        // 見送り・失効・取り消しの人もラベルだけ出す（ボタンは無い＝終わった応募なので操作を出さない）
+                        // カード＝応募者1人（2026-08-24たきと指示「応募者単位でカード新設」）なので、
+                        // ここに並ぶのはその人のぶんだけ。名前と段階のラベルは上のアイコンが担う（二度出さない）。
+                        // 見送り・失効・取り消しはボタンを出さない＝終わった応募なので操作を増やさない
                         const ACTIVE_K = ["interview","contracted","working","completed"];
-                        const ENDED_K = ["rejected","expired","canceled"];
-                        const hired = apps.filter(a => ACTIVE_K.includes(appPhaseKey(a)) || ENDED_K.includes(appPhaseKey(a)));
+                        const hired = capps.filter(a => ACTIVE_K.includes(appPhaseKey(a)));
                         if (hired.length === 0) return null;
                         const jinfo = jobInfoMap[jn];
                         const btn = (extra) => ({ flex:1, minWidth:0, padding:"10px", fontSize:12, fontWeight:700, borderRadius:10, cursor:"pointer", whiteSpace:"nowrap", ...extra });
                         return (
                           <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:12 }}>
-                            {hired.map((a, idx) => {
+                            {hired.map(a => {
                               const wp = workerProfiles[a.worker_id];
                               const phase = appPhaseKey(a);
-                              // 完了＝評価がまだ残っている時だけ「評価する」。欠勤記録済み・評価済みは押すものがない
-                              // 面接中＝採用する（採用ページへ）／完了＝評価する／作業中＝記録する（最終日からは評価する）
-                              const ended = ENDED_K.includes(phase);
+                              // 段ごとの右のボタン（2026-08-24たきと指示「保険の報告ボタン新設。記録するボタンは
+                              // 仕事が始まってから表示。それまでは保険の報告ボタンを表示」）：
+                              //   面接中＝採用する（採用ページへ）／採用済み・未開始＝保険の報告（用件ページへ）／
+                              //   作業中＝記録する（最終の作業日からは評価する）／完了＝評価する。
+                              // ★実行の窓口は増やさない＝採用・保険の報告はどちらもページへのリンク
+                              //   （confirm_insurance を撃つのは今日の用件ページ #/calendar/todo/insurance 1箇所のまま）
                               const beforeHire = phase === "interview";
-                              const rec = beforeHire
-                                // アイコンは消した「やること」の箱と同じ絵に揃える（2026-08-22たきと指示
-                                // 「アイコンはカレンダーページの各ボタンに配置」）：採用する=hire／
-                                // バイトの評価=check／今日の記録=clipboard（既定は下の三項）
-                                ? { label:"採用する →", green:true, icon:"hire", on: goHirePage }
-                                : phase === "completed"
-                                ? ((a.attended === false || reviewedAppIds.has(a.id)) ? null : { label:"評価する", green:true, on:()=>openCompleteModal(a) })
-                                : isFinalWorkDone(a, jinfo)
-                                ? { label:"評価する", green:true, on:()=>openCompleteModal(a) }
-                                // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24たきと指示
-                                // 「仕事が始まっていないのに記録するボタンが押せる」）。窓の外は灰色の
-                                // 押せないボタンで残す＝どこにあるかは見えたまま（黙って消さない）
-                                : { label:"記録する", green:false, closed: !dayReportOpen(a, jinfo), on:()=>setDayReportApp(a) };
+                              // アイコンは消した「やること」の箱と同じ絵に揃える（2026-08-22たきと指示）：
+                              // 採用する=hire／保険の報告=shield／評価=star／今日の記録=clipboard
+                              const started = phase === "working" || !!a.started_at;
+                              let rec = null, doneText = null;
+                              if (beforeHire) rec = { label:"採用する →", green:true, icon:"hire", on: goHirePage };
+                              else if (phase === "completed") {
+                                if (a.attended === false) doneText = "欠勤記録済み";
+                                else if (reviewedAppIds.has(a.id)) doneText = "評価済み";
+                                else rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
+                              } else if (isFinalWorkDone(a, jinfo)) {
+                                rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
+                              } else if (!started) {
+                                if (a.insurance_prepared_at) doneText = "保険 報告済み";
+                                else rec = { label:"保険の報告 →", green:true, icon:"shield", on: goInsurancePage };
+                              } else {
+                                // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24）。
+                                // 窓の外は灰色の押せないボタンで残す＝どこにあるかは見えたまま（黙って消さない）
+                                rec = { label:"記録する", green:false, closed: !dayReportOpen(a, jinfo), on:()=>setDayReportApp(a) };
+                              }
                               return (
-                                <div key={a.id} style={{ display:"grid", gap:8, borderTop: idx > 0 ? "1px solid #F0F0F0" : "none", paddingTop: idx > 0 ? 12 : 0 }}>
-                                  {/* 誰のボタンかを必ず示す（1人でも出す）＝アイコン・名前・段階のラベル */}
-                                  <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                                    <Avatar url={wp?.avatar_url} name={wp?.nickname || "？"} size={28} ring={appRibbonColor(a)} />
-                                    <span className="f-sans" style={{ flex:1, minWidth:0, fontSize:12, fontWeight:700, color: wp?.nickname ? "#222" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{wp?.nickname || "未設定"}</span>
-                                    <span className="f-sans" style={{ flexShrink:0, fontSize:10, fontWeight:700, background:appRibbonColor(a), color:"#fff", borderRadius:6, padding:"2px 8px" }}>{appRibbonLabel(a)}</span>
-                                  </div>
-                                  {!ended && (
+                                <div key={a.id} style={{ display:"grid", gap:8 }}>
                                   <div style={{ display:"flex", gap:8 }}>
                                     {/* ★チャットと評価するは、終わった仕事でも押せる（2026-08-24たきと指示）。
                                         記録する（その日の記録）は終わった仕事では押せないまま＝操作は増やさない */}
@@ -1630,16 +1639,15 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                         : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                                         <NavIconInline name={rec.icon || (rec.green ? "check" : "clipboard")} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
                                       </button>
-                                    ) : (
-                                      <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{a.attended === false ? "欠勤記録済み" : "評価済み"}</span>
-                                    )}
+                                    ) : doneText ? (
+                                      <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{doneText}</span>
+                                    ) : null}
                                   </div>
-                                  )}
                                   {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。
                                       採用成立後のみ・当事者だけに開く唯一の窓口（contract_emergency_contact）を
                                       そのまま置く＝この画面で新しい開示経路を作らない。相手が未登録なら何も出ない */}
                                   {/* 緊急連絡先・労働条件通知書は採用（契約成立）後だけ＝面接中はまだ記録が無い */}
-                                  {!beforeHire && !ended && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />}
+                                  {!beforeHire && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />}
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                                       ★終わった仕事（完了・失効・見送り）でカード全体がタップ不能になっても、
                                         このボタンだけは押せるようにする（2026-08-24たきと指示）＝
@@ -1647,19 +1655,17 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                         ★この通知書だけは最前線に置く（2026-08-24たきと指示「労働条件通知書は最前線」）＝
                             暗幕（zIndex:5）より上の zIndex:6。暗幕はタップを飲み込まない（pointerEvents:none）ので
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
-                                  {!beforeHire && !ended && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
+                                  {!beforeHire && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                                     style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>}
                                   {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                                       日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
                                       カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
                                       お仕事の流れバー（renderEmpFlowBar）＝段の点き方が枝分かれしない */}
-                                  {!ended && <WorkDaysStrip days={[...appWorkDates(a, jinfo)].sort()} accent="#00A86B" />}
-                                  {!ended && (
-                                    <div>
-                                      <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
-                                      {renderEmpFlowBar(a)}
-                                    </div>
-                                  )}
+                                  <WorkDaysStrip days={[...appWorkDates(a, jinfo)].sort()} accent="#00A86B" />
+                                  <div>
+                                    <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
+                                    {renderEmpFlowBar(a)}
+                                  </div>
                                 </div>
                               );
                             })}
@@ -1668,6 +1674,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                       })()}
                     </div>
                   );
+                  });
                 });
             // カレンダータブ：日を選んでいない時は静かな面＝カレンダー・案内・直近カード1枚だけ
             //（絞り込みバー・凡例は日を選んだ時だけ＝従来どおり）。
