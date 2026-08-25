@@ -3,7 +3,9 @@
 // 働き手プレビュー（ボックス展開の横スワイプ2枚目）の両方が、この1つの部品を使う
 // ＝見た目と数え方がページごとにズレない。
 //
-// 中身：① 直近5件に欠勤はあるか ② 働いた回数・時間・欠勤 ③ 作物別・作業別の件数と時間
+// 中身：① 直近の仕事5件に欠勤はあるか ② 働いた日数・時間・欠勤 ③ 作物別・作業別の日数と時間
+// ★数え方は日数（2026-08-25たきと指示「件数は日数にしよう」）。進行中の仕事も、終わった作業日の
+//   ぶんだけリアルタイムに数える（日数・時間・直近・作物別・作業別のすべて）＝DB側 app_accrued_days が土台。
 //
 // 【この画面が言わないこと】点数・順位・おすすめ度は作らない。良し悪しの断定もしない。
 //   出すのは記録そのもの（出欠・求人の勤務時間）だけ。運営の主観は混ぜない（2026-07-16）。
@@ -39,7 +41,7 @@ function BigStat({ label, value, unit, tone }) {
   );
 }
 
-// 作物別・作業別の内訳（件数の多い順にDBが並べたものをそのまま出す）
+// 作物別・作業別の内訳（日数の多い順にDBが並べたものをそのまま出す）
 function Breakdown({ title, rows }) {
   return (
     <div style={{ flex:"1 1 240px", minWidth:0 }}>
@@ -51,7 +53,7 @@ function Breakdown({ title, rows }) {
           {rows.map(r => (
             <div key={r.key} className="f-sans" style={{ display:"flex", alignItems:"baseline", gap:8, fontSize:12, borderBottom:"1px solid #F5F5F5", paddingBottom:5 }}>
               <span style={{ color:"#222", flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.key}</span>
-              <span style={{ color:"#222", fontWeight:700, flexShrink:0 }}>{r.count}件</span>
+              <span style={{ color:"#222", fontWeight:700, flexShrink:0 }}>{r.count}日</span>
               <span style={{ color:"#717171", flexShrink:0, width:72, textAlign:"right" }}>{r.minutes ? hm(r.minutes) : "ー"}</span>
             </div>
           ))}
@@ -72,23 +74,23 @@ export function WorkRecordBody({ data, showName }) {
     <div className="ledger-card" style={{ padding:"16px", marginBottom:12 }}>
       {showName && <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{data.worker?.name || "名前未設定"}</p>}
 
-      {/* ② 働いた回数・時間・欠勤 */}
+      {/* ② 働いた日数・時間・欠勤（進行中の仕事も、終わった作業日のぶんまで入る） */}
       <div style={{ display:"flex", gap:8 }}>
-        <BigStat label="件数" value={t.completed_count ?? 0} unit="件" />
+        <BigStat label="日数" value={t.worked_days ?? 0} unit="日" />
         <BigStat label="時間" value={Math.floor((t.total_minutes ?? 0) / 60)} unit="時間" />
         <BigStat label="欠勤" value={t.absent_count ?? 0} unit="件" tone={(t.absent_count ?? 0) > 0 ? "#E24B4A" : "#222"} />
       </div>
-      {(t.unknown_time_count ?? 0) > 0 && (
-        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0" }}>うち{t.unknown_time_count}件は勤務時間の記録がなく、時間に含めていません</p>
+      {(t.unknown_time_days ?? 0) > 0 && (
+        <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"6px 0 0" }}>うち{t.unknown_time_days}日は勤務時間の記録がなく、時間に含めていません</p>
       )}
     </div>
 
-    {/* ① 直近5件の欠勤：要約チップのみ。回ごとの明細行（日付・予定時刻・判定）は
+    {/* ① 直近の仕事5件の欠勤：要約チップのみ。回ごとの明細行（日付・予定時刻・判定）は
         2026-08-07たきと指示「丸ごと消せ」で削除した＝日付×時刻から過去の求人を辿らせない徹底。
         遅刻は数えない（2026-08-18・打刻の全面削除＝判定の材料が無い） */}
     <div className="ledger-card" style={{ padding:"16px", marginBottom:12 }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-        <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>直近5件</p>
+        <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:0 }}>直近の仕事5件</p>
         {recent.length > 0 && (
           <span className="f-sans" style={{ fontSize:11, fontWeight:800, borderRadius:20, padding:"3px 10px",
             color: clean ? "#00A86B" : "#E24B4A", background: clean ? "#E6F7EF" : "#FDECEC" }}>
@@ -110,8 +112,8 @@ export function WorkRecordBody({ data, showName }) {
     </div>
 
     <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 2px 0" }}>
-      すべて記録から出しています。時間は求人の勤務時間から数えています（休憩は引いていません）。
-      進行中の仕事は、終わった作業日のぶんまで時間に入れています（件数と作物別・作業別は、仕事が完了してから数えます）。
+      すべて記録から出しています。日数は働いた作業日の数、時間は求人の勤務時間から数えています（休憩は引いていません）。
+      進行中の仕事も、終わった作業日のぶんまで数えています（その日の終了時刻を過ぎたら1日と数えます）。
       遅刻の判定はしません（開始時刻は自動で記録されるため、そこから遅刻を決めつけません）。
       点数や順位は付けません。
     </p>
