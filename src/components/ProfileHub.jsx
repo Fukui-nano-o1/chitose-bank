@@ -94,7 +94,7 @@ function ProfileWithdrawSection({ onLogout }) {
   );
 }
 
-export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, applicantsBadge }) {
+export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
@@ -377,7 +377,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, a
         <>
           {/* 「← プロフィールへ」ボタンは削除（2026-07-14）。働き手側への行き来は浮遊「🤝 働く」トグルが担う */}
           {/* 承認待ちバナーは削除（2026-08-14 承認プロセスの廃止＝掲載は即公開。「承認後に公開できます」は嘘になるため） */}
-          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} applicantsBadge={applicantsBadge} />
+          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}
       </div>

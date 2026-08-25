@@ -76,7 +76,7 @@ const FARMER_TRAIT_TAGS = {
   ],
 };
 
-export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
+export function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer/profile") return "profile";
@@ -1092,23 +1092,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               )}
             </div>
           </div>
-          {/* 応募者一覧の入口カード（2026-08-23たきと指示「応募者一覧としてマイページに移植」）：
-              下部ナビの「応募者」タブはカレンダー（#/profile/employer/calendar）に差し替えたため、
-              全件の応募者一覧はこのカードが入口。赤バッジ＝未対応の応募（my_nav_badges.applicants_pending
-              ＝旧ナビタブのバッジと同じ数・Appからprop渡し）。承認・見送りの実行は従来どおり応募者シートが唯一の窓口 */}
-          <button onClick={()=>{ window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ position:"relative", width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="applicants" size={40} /></span>
-            <span style={{ minWidth:0 }}>
-              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>応募者一覧</span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>求人ごとの応募者と、いまの段階をまとめて確認できます。</span>
-            </span>
-            {(applicantsBadge || 0) > 0 && (
-              <span style={{ position:"absolute", top:-8, right:-8, minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{applicantsBadge}</span>
-            )}
-          </button>
           {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は2026-07-25に一度削除→
-              2026-08-23に応募者一覧だけ復活（上のカード）。作成中・公開中への入口は名刺カードの
-              「あなたの求人」ボタンとURL直打ち(/profile/employer/*)が従来どおり生きている */}
+              2026-08-23に応募者一覧だけ復活→2026-08-25たきと指示「応募者一覧ボックスも削除」で再び削除。
+              ★応募者一覧のページ（#/profile/employer/applicants）は生きている＝求人詳細の
+              「あなたの求人」操作シート・お知らせ／メールのリンク・URL直打ちから従来どおり開ける。
+              作成中・公開中への入口は名刺カードの「あなたの求人」ボタンが担う */}
           <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 箱ジャンプ(cb-jump)→タイトル文字の順ジャンプに変更（NoticeJumpText・2026-07-25たきと指示） */}
             <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
             <span>
