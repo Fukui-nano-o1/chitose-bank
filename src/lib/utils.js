@@ -197,6 +197,31 @@ export function isFinalWorkDone(app, job, now = new Date()) {
   return now.getHours() * 60 + now.getMinutes() >= end;
 }
 
+// その日の記録（遅刻・欠勤・相手が来ない等）を入力できる窓（2026-08-24たきと指示
+// 「仕事が開始してからその日の仕事が終わり3時間以内まで入力可能」）。
+// 窓＝［その作業日の開始時刻 〜 終了時刻＋3時間］。作業日でない日・開始前は閉じる。
+// ・終了＋3時間が日をまたぐ求人（例 22:00終了→翌1:00まで）は、前日ぶんの窓も見る
+// ・勤務時間が読めない求人は 0:00〜23:59+3時間 に倒す＝憶測で締め切らず記録の道を塞がない
+//   （時刻の読み取りは workStartMinutes/workEndMinutes に一本化＝完了判定と同じ物差し）
+// ・日程が分からない求人は窓を作れないので閉じる（開始した証拠がないため）
+// ★これは画面の窓口の話。緊急連絡（遅れる・休むの事前連絡）は別の入口で従来どおり開始前でも送れる
+export const DAY_REPORT_GRACE_MIN = 180;
+export function dayReportOpen(app, job, now = new Date()) {
+  const days = appWorkDates(app, job);
+  if (!days.size) return false;
+  const wt = job?.work_time ?? app?.work_time;
+  const startMin = workStartMinutes(wt) ?? 0;
+  const closeMin = (workEndMinutes(wt) ?? (23 * 60 + 59)) + DAY_REPORT_GRACE_MIN;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const today = ymdLocal(now);
+  if (days.has(today) && nowMin >= startMin && nowMin <= closeMin) return true;
+  if (closeMin > 24 * 60) { // 終了＋3時間が翌日にかかるぶん
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    if (days.has(ymdLocal(y)) && nowMin <= closeMin - 24 * 60) return true;
+  }
+  return false;
+}
+
 // JSTの短い日時表示（MM/DD HH:MM）
 export const fmtJstShort = (ts) => {
   if (!ts) return "";

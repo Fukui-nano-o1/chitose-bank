@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, dayReportOpen, ROLE_GREEN } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -569,7 +569,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     ? (reviewed ? null : { label:"評価する", green:true, on:()=>openReview(a.id) })
                     : isFinalWorkDone(r, r)
                     ? { label:"評価する", green:true, on:()=>openReview(a.id) }
-                    : { label:"記録する", green:false, on:()=>setDayReportApp({ id: a.id }) };
+                    // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24たきと指示）。
+                    // 窓の外は灰色の押せないボタンで残す＝どこにあるかは見えたまま
+                    : { label:"記録する", green:false, closed: !dayReportOpen(r, r), on:()=>setDayReportApp({ id: a.id }) };
                   return (
                     <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
                       <div style={{ display:"flex", gap:8 }}>
@@ -579,7 +581,11 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                           <NavIconInline name="chats" size={12} style={{ verticalAlign:"-2px" }} />チャット
                         </button>
                         {rec ? (
-                          <button onClick={rec.on} className="f-sans" style={btn(rec.green
+                          <button onClick={rec.closed ? undefined : rec.on} disabled={!!rec.closed}
+                            aria-label={rec.closed ? "作業が始まると記録できます（終了の3時間後まで）" : undefined}
+                            className="f-sans" style={btn(rec.closed
+                            ? { background:"#F7F7F7", color:"#C8C8C8", border:"1px solid #EBEBEB", cursor:"default" }
+                            : rec.green
                             ? { background:"#F76B1C", color:"#fff", border:"none", pointerEvents:"auto" }
                             : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                             <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
@@ -599,7 +605,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                             暗幕（zIndex:2）より上の zIndex:3。暗幕はタップを飲み込まない（pointerEvents:none）ので
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
-                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}>労働条件通知書</button>
+                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>
                       {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                           日の集合は appWorkDates（agreed_dates ＞ 求人の期間）＝カレンダー・最終日の判定と
                           同じソース。進み具合はボックスの中と同じ共有部品 FlowBar＝段の点き方が枝分かれしない */}

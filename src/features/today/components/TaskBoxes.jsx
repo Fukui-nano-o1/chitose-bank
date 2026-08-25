@@ -24,12 +24,18 @@ const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
 
 // 役割ごとの全用件カタログ（並びは正規フロー順・TodayPage の TODO_STAGE_CATALOG の写し）
 const STAGE_CATALOG = {
-  farmer: ["t_emergency", "revision", "question", "hire", "insurance", "day_report", "complete"],
+  // 2026-08-22たきと指示「採用する、緊急連絡先、今日の記録、バイトの評価カード削除。
+  // アイコンはカレンダーページの各ボタンに配置」＝この4つの行為はカレンダーページの求人カードの
+  // ボタン（採用する／記録する／評価する・緊急連絡先）が担う＝入口が二重にならない。
+  // ★該当ありなら出る（下の activeOrder は my_todo_items の中身から作る）＝用件を取りこぼさない
+  farmer: ["revision", "question", "insurance"],
   // w_revision（求職の修正）は格子から外した（2026-08-22たきと指示「求職の修正カード非表示」）＝
   // 求職カード（求職一覧・Phase2b）が未実装で、DBのやること一覧も返さない＝常に薄い空箱だったため。
   // ★該当ありなら出る：下の activeOrder は my_todo_items の中身から作るので、将来DBが
   //   w_revision を返し始めたらカタログに戻さなくても箱が現れる（用件を取りこぼさない）
-  worker: ["t_emergency", "w_day_report", "w_review"],
+  // 働き手側も同じ名前の2つ（緊急連絡・今日の記録）を削除。
+  // ★仕事の評価（w_review）は名指しに無かったので残置＝揃えるなら1行消すだけ
+  worker: ["w_review"],
 };
 
 export function TodayTaskBoxes({ role = "worker" }) {
