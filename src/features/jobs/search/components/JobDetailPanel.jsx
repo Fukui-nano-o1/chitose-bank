@@ -7,11 +7,11 @@
 
 import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
-import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar, PerkBadgeRow } from "../../../../components/ui";
+import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar } from "../../../../components/ui";
 import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { ReceivedReviews } from "../../../../components/ReceivedReviews";
-import { disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, perkBadges, ROLE_GREEN } from "../../../../lib/utils";
+import { EMPTY_MARK, disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, ROLE_GREEN } from "../../../../lib/utils";
 import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 // 求人の主要情報（日程・勤務時間・休憩・人数・最寄り駅・報酬・支払条件・時間外）
 export function JobKeyFacts({ job }) {
@@ -267,9 +267,30 @@ export function JobEmployerCard({ job, employer, trust, onOpenIntro }) {
         RPC（employer）は農園紹介モーダルの中身と信頼情報の補強にだけ使う */}
     {(employer?.nickname || job.employerName) && (() => {
       const pk = job.perks || {}; // 掲載時に確定保存された待遇のみ（2026-08-02・プロフィール現在値とのマージ廃止）
-      // 待遇はすべてバッジ（2026-08-24たきと指示）＝旧・9行の表を廃止。中身の正は lib/utils の perkBadges。
-      // 受動喫煙は求人の明示事項so、記録が無い旧求人でも「記録なし」のバッジで欄を消さない
-      const perks = perkBadges(pk, { showUnknownSmoking: true });
+      // ★求人者カードの待遇は【項目名＋内容の9行の表】に戻した（2026-08-25たきと指示
+      //   「ここの待遇は前回の見せ方を復元」）＝2026-08-24のバッジ化はこのカードでは撤回。
+      //   バッジは縦に積むと1行1個になり、何の項目か（駐車場/受動喫煙…）が読み取りにくかった。
+      //   ★タイトル下のバッジ列（JobFlagBadges＋perkBadges）と確認ページ・審査プレビューの表は不変
+      const perkRows = [
+        { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
+        { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
+        { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
+        // 昇給・賞与・退職手当（2026-08-19たきと指示）：掲載時に凍結された perks から。
+        // 「あり」のときの内容（時期・金額等）も凍結されていれば括弧で添える。旧求人はキーが無い＝「ー」
+        { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? `あり${pk.bonus_detail ? "（" + pk.bonus_detail + "）" : ""}` : EMPTY_MARK },
+        { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? `あり${pk.raise_detail ? "（" + pk.raise_detail + "）" : ""}` : EMPTY_MARK },
+        { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? `あり${pk.severance_detail ? "（" + pk.severance_detail + "）" : ""}` : EMPTY_MARK },
+        { label:"作業用品の負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `募集主が負担${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
+        { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
+        // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
+        // 値は掲載時に凍結された perks から（プロフィール現在値は参照しない）。未設定は「ー」
+        { label:"受動喫煙", on: !!pk.smoking_policy,
+          value: pk.smoking_policy
+            ? (pk.smoking_policy === "喫煙場所あり"
+                ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
+                : pk.smoking_policy)
+            : EMPTY_MARK },
+      ];
       return (
         <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
           {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16） */}
@@ -285,7 +306,17 @@ export function JobEmployerCard({ job, employer, trust, onOpenIntro }) {
           </div>
           <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
           <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em", textAlign:"center" }}>待遇</p>
-          <PerkBadgeRow badges={perks} />
+          <div style={{ width:"fit-content", margin:"0 auto" }}>{/* 待遇ブロックはカード中央配置（2026-07-16） */}
+            {perkRows.map((row, i) => (
+              <div key={row.label} style={{
+                display:"flex", alignItems:"center", gap:12, padding:"8px 0",
+                borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
+              }}>
+                <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
+                <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       );
     })()}
