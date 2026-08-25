@@ -62,6 +62,16 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   const [drag, setDrag] = useState(null);           // つかんでいる最中 { jobNumber, title, live, fromYmd, x, y, overYmd }
   const dragRef = useRef(null);                     // 同じ中身（document のリスナーから読む用）
   const [dropSheet, setDropSheet] = useState(null); // 離した日の選択 { jobNumber, title, live, fromYmd, toYmd, spanDays }
+  // つかんでいる間のスクロール止め（2026-08-25たきと指示「長押し中は画面スクロール解除。カレンダーのみ」）。
+  // ★cb-lock-scroll は使わない＝下部バー・浮遊ボタンまで消えてしまう。専用の cb-drag-lock（overflow:hidden だけ）
+  const setScrollLock = (on) => {
+    const c = "cb-drag-lock";
+    try {
+      document.documentElement.classList.toggle(c, !!on);
+      document.body.classList.toggle(c, !!on);
+    } catch { /* 画面が無い環境（テスト等）では何もしない */ }
+  };
+  useEffect(() => () => { try { document.documentElement.classList.remove("cb-drag-lock"); document.body.classList.remove("cb-drag-lock"); } catch { /* 同上 */ } }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +146,17 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
   const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
+  // つかんでいる最中の月送り（下記 startDrag）用：いま出している月を ref でも持つ。
+  // ★prevMo/nextMo は描き直しのたびに作り直される閉じ込め（cvMonth）を見るので、
+  //   つかんだ時に作った関数から続けて呼ぶと2回目が古い月から数えてしまう
+  const monthRef = useRef({ y: cvYear, m: cvMonth });
+  useEffect(() => { monthRef.current = { y: cvYear, m: cvMonth }; }, [cvYear, cvMonth]);
+  const shiftMonth = (delta) => {
+    const { y, m } = monthRef.current;
+    const d = new Date(y, m + delta, 1);
+    monthRef.current = { y: d.getFullYear(), m: d.getMonth() };
+    setCvYear(d.getFullYear()); setCvMonth(d.getMonth());
+  };
   // カレンダーのスワイプ月送り（2026-07-19）：左スワイプ=次月/右スワイプ=前月。
   // 判定は求人フローと同じ作法（60px以上かつ横が縦の1.5倍）。切替時は求人フローの横滑りアニメを流用
   // 指に連動する月送り（2026-07-30たきと指示）＋前後の月が見える3枚並び。
@@ -299,15 +320,42 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   const startDrag = (info) => {
     fbTap();
     calTouch.current = null;                         // 月送りのスワイプは取り下げる（つかんだ方が勝つ）
+    setScrollLock(true);                             // つかんでいる間は画面をスクロールさせない（二重の壁の外側）
     const st = { ...info, overYmd: info.fromYmd };
     dragRef.current = st; setDrag(st);
     let raf = 0;
+    let edge = null;                                 // { side:"l"|"r", timer } ＝端で止めている最中
+    const clearEdge = () => { if (edge && edge.timer) clearInterval(edge.timer); edge = null; };
+    // 端で持ったままにすると隣の月へ送る（TimeTreeと同じ・またぎの移動をこれで行う）。
+    // 送ったあとは指を動かさなくても行き先が変わるので、その場で読み直す
+    const edgeCheck = (x, y) => {
+      const box = calTrackRef.current && calTrackRef.current.getBoundingClientRect();
+      if (!box) { clearEdge(); return; }
+      const side = x < box.left + 26 ? "l" : x > box.right - 26 ? "r" : null;
+      if (!side) { clearEdge(); return; }
+      if (edge && edge.side === side) return;        // 同じ端に居続けている＝すでに送り続けている
+      clearEdge();
+      edge = { side, timer: setInterval(() => {
+        if (!dragRef.current) { clearEdge(); return; }
+        shiftMonth(side === "l" ? -1 : 1);
+        fbTap();
+        // 月が変わった直後は指の下の日も変わる。描き終わりを待って読み直す
+        setTimeout(() => {
+          if (!dragRef.current) return;
+          const nx = { ...dragRef.current, overYmd: ymdFromPoint(x, y) };
+          dragRef.current = nx; setDrag(nx);
+        }, 60);
+      }, 700) };
+    };
     const move = (ev) => {
       const t = ev.touches && ev.touches[0];
       if (!t) return;
       ev.preventDefault();                           // ページのスクロールを止める（passive:false で張っている）
-      const next = { ...dragRef.current, x: t.clientX, y: t.clientY, overYmd: ymdFromPoint(t.clientX, t.clientY) };
+      const over = ymdFromPoint(t.clientX, t.clientY);
+      if (over && dragRef.current && over !== dragRef.current.overYmd) fbTap();  // 別の日に入った合図（手触り）
+      const next = { ...dragRef.current, x: t.clientX, y: t.clientY, overYmd: over };
       dragRef.current = next;
+      edgeCheck(t.clientX, t.clientY);
       // 描き直しは1フレーム1回（盤面は3か月ぶんがあるので、毎イベント描くと指がもたつく）
       if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (dragRef.current) setDrag({ ...dragRef.current }); });
     };
@@ -316,6 +364,8 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       document.removeEventListener("touchend", up);
       document.removeEventListener("touchcancel", up);
       if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      clearEdge();
+      setScrollLock(false);
       const st2 = dragRef.current; dragRef.current = null; setDrag(null);
       justDraggedRef.current = Date.now();
       if (!st2) return;
@@ -537,7 +587,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       {/* つかんでいる予定が指についてくる（2026-08-25たきと指示「長押しで指追従」）。
           pointer-events:none＝下のマスの当たり判定を邪魔しない（指の下の日は elementFromPoint で読む） */}
       {drag && (
-        <div className="f-sans" style={{
+        <div className="f-sans cb-drag-chip" style={{
           position:"fixed", left: drag.x, top: drag.y - 44, transform:"translate(-50%,0)", zIndex:9000, pointerEvents:"none",
           background:"#0E8A6B", color:"#fff", borderRadius:20, padding:"8px 14px", fontSize:13, fontWeight:700,
           boxShadow:"0 6px 18px rgba(0,0,0,0.22)", whiteSpace:"nowrap", maxWidth:"70vw", overflow:"hidden", textOverflow:"ellipsis",

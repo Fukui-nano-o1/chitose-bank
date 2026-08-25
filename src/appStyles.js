@@ -1121,6 +1121,16 @@ body:has(.cb-farmer-walk-page) .app-header-mobile-float { display: none !importa
 html:has(.cb-preview-overlay), body:has(.cb-preview-overlay),
 html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height: 100%; overscroll-behavior: none; }
 
+/* カレンダーで予定をつかんでいる間だけのスクロール止め（2026-08-25たきと指示「長押し中は画面スクロール解除。
+   カレンダーのみ」）。★cb-lock-scroll とは別物＝下部バー・浮遊ボタンは消さない（つかんでいる最中に
+   画面の道具が消えると、どこにいるかが分からなくなる）。position:fixed も使わない（位置が飛ぶため）。
+   実際にスクロールを止めているのは MyCalendar が張る passive:false の touchmove（preventDefault）で、
+   この規則はその二重の壁（慣性・オーバースクロール止め） */
+html.cb-drag-lock, body.cb-drag-lock { overflow: hidden !important; overscroll-behavior: none; touch-action: none; }
+/* つかんだ札の持ち上がり（TimeTreeの長押しの手触りに寄せる）＝一度だけ弾んで定位置に落ち着く */
+@keyframes cbDragLift { 0% { transform: translate(-50%, 6px) scale(0.86); opacity: 0; } 60% { transform: translate(-50%, -2px) scale(1.06); opacity: 1; } 100% { transform: translate(-50%, 0) scale(1); opacity: 1; } }
+.cb-drag-chip { animation: cbDragLift .18s cubic-bezier(.22,.8,.36,1) both; }
+
 /* QRコード印刷（#/qr・2026-07-24）：印刷時はQRエリアだけをA4中央に。サイト名・ひとことは印刷時のみ表示 */
 .qr-print-only { display: none; }
 @media print {
