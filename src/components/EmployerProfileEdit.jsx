@@ -10,6 +10,7 @@ import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
+import { InsurancePrepBox, insuranceSummary } from "./InsurancePrepBox";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapSet } from "../lib/snapshot";
 
@@ -51,6 +52,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 掲載時に jobs.labor_insurance_status へ凍結され、求人詳細・労働条件通知書に出る。
   // 未申告のまま掲載も可（通知書は「記録にありません」と正直に出す）＝掲載は止めない
   const [laborInsuranceStatus, setLaborInsuranceStatus] = useState("");
+  // 保険の準備（2026-08-25・マイページの反転カードから移設）：カードの要約だけをここで持つ。
+  // 保存は InsurancePrepBox の中で完結（employer_profiles の2列だけをupsert）＝共通payloadには載せない
+  // （委託レーン＝consignment_profiles にこの2列は無い）。読み込みは本体の data から拾う（下）
+  const [insSummary, setInsSummary] = useState("");
   const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
   const [accessoryOk, setAccessoryOk] = useState(false);
   const [parkingCapacity, setParkingCapacity] = useState("");
@@ -187,6 +192,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           setHasSeverancePay(data.has_severance_pay ?? false);
           setConsultationContact(data.consultation_contact || "");
           setLaborInsuranceStatus(data.labor_insurance_status || "");
+          setInsSummary(insuranceSummary(data.insurance_items));
           setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
           setAccessoryOk(data.accessory_ok ?? false);
           setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
@@ -535,10 +541,13 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"recruiter", l:"連絡先",         req:true, v: recruiterContact },
           // 緊急連絡先（2026-08-03）：別テーブル保存。カードのサマリーは emgSummary（2026-08-14修理）
           { k:"emergency", l:"緊急連絡先",     v: emgSummary },
+          // 保険の準備（2026-08-25たきと指示でマイページの反転カードから移設）。
+          // 委託レーン（black）は employer_profiles ではないので出さない
+          { k:"insurance", l:"保険の準備",     v: insSummary },
           { k:"intro",    l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    l:"関わり方",       v: styleAnswered.join("・") },
-        ].filter(b => !black || !["intro","ask","style"].includes(b.k)).map(b => (
+        ].filter(b => !black || !["intro","ask","style","insurance"].includes(b.k)).map(b => (
           // 未入力ボックスは赤影アニメで促す（2026-07-16）。ロゴ・アイコンだけ1行まるごと（2026-08-14たきと指示）
           <button key={b.k} onClick={()=>setEditBox(b.k)} className={"f-sans" + (b.v ? "" : (b.req ? " cb-urgent-card" : " cb-urgent-still"))} style={{ background:"#fff", border: "1px solid " + AC, borderRadius:20, padding:"20px 10px 16px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minWidth:0, ...(b.k === "avatar" ? { gridColumn:"1/-1" } : {}) }}>
             {/* ロゴ・アイコンだけはアイコン本体を大きく見せる（2026-08-14たきと指示）。他カードはテキストのみ */}
@@ -753,6 +762,15 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {/* 緊急連絡先（2026-08-03たきと指示）：採用成立後に相手方へのみ開示。保存はこの部品の中で完結
           （emergency_contacts テーブル・self-only）ので、下の共通「保存する」は押さなくてよい */}
       <EmergencyContactBox accent={AC} onSaved={({ name, relation }) => setEmgSummary([relation, name].filter(x => (x || "").trim()).join("・"))} />
+      <div style={{ marginBottom:8 }} />
+      </>)}
+
+      {editBox==="insurance" && (<>
+      {/* 保険の準備（2026-08-25たきと指示「保険の準備はプロフィール編集ページに移設。同じ構造にして表示」）。
+          保存はこの部品の中で完結（employer_profiles の insurance_items / insurance_notes だけ）＝
+          下の共通「保存する」は押さなくてよい（緊急連絡先と同じ作法）。
+          申告の形（1項目=1ボックス・トグル・ひとこと・排他ルール）は保険の準備ページ #/insurance と共通 */}
+      <InsurancePrepBox accent={AC} onSaved={({ items }) => setInsSummary(insuranceSummary(items))} />
       <div style={{ marginBottom:8 }} />
       </>)}
 

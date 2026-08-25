@@ -4,13 +4,11 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
   unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
   markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
-  upsertRoster, deleteRoster,
-  upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
+  upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
-import { ToggleSwitch } from "./ToggleSwitch";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
 import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
@@ -194,50 +192,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [empTrust, setEmpTrust] = useState(() => getCache("farm:empTrust") ?? null); // 名刺カード裏面＝本物のプレビュー（FarmerTrustCard）用の信頼情報
   const [empTopBack, setEmpTopBack] = useState(() => { try { return localStorage.getItem("cb_empTopBack") === "1"; } catch { return false; } }); // トップボックスの裏面表示。切り返した画面で固定（localStorageに永続・2026-07-16）
   const [empTopAnim, setEmpTopAnim] = useState("");    // 反転アニメ: pflip-out|pflip-in（0.4s×2=0.8秒）
-  // 🛡保険の準備カードの反転（2026-07-29たきと指示・質問集カードと同じ作法）：
-  // 表＝案内文（タップで#/insurance）／裏＝保険の箱を横スクロール、タップでその場に開いて申告できる。
-  // 中身は employer_profiles.insurance_items / insurance_notes（empMiniが全列を持っているので追加の読み込みは無し）
-  const [insCardBack, setInsCardBack] = useState(() => { try { return localStorage.getItem("cb_insCardBack") === "1"; } catch { return false; } });
-  const [insCardAnim, setInsCardAnim] = useState("");
-  const [insOpenKey, setInsOpenKey] = useState(null);  // 展開中の保険のキー（null=閉じている）
-  const [insItems, setInsItems] = useState([]);        // 作業コピー（保存で employer_profiles へ書き戻す）
-  const [insNotes, setInsNotes] = useState({});
-  const [insSaving, setInsSaving] = useState(false);
-  useEffect(() => {
-    if (insOpenKey) return;                            // 入力中は上書きしない（読み込みが後から来ても消えない）
-    setInsItems(Array.isArray(empMini?.insurance_items) ? empMini.insurance_items : []);
-    setInsNotes((empMini?.insurance_notes && typeof empMini.insurance_notes === "object") ? empMini.insurance_notes : {});
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [empMini]);
-  // 箱の並び（2026-07-29たきと指示）：申告した順に左へ、そのあとに未申告。
-  // 並びの元は「保存ずみ」の順（empMini）＝入力中にトグルするたび箱が飛び回らない。保存すると並び替わる
-  const insOrderedItems = (() => {
-    const saved = Array.isArray(empMini?.insurance_items) ? empMini.insurance_items : [];
-    const declared = saved.map(k => INSURANCE_ITEMS.find(x => x.k === k)).filter(Boolean);
-    return [...declared, ...INSURANCE_ITEMS.filter(it => !saved.includes(it.k))];
-  })();
-  const toggleInsurance = (k, v) => {
-    // 排他ルールは lib/utils の insuranceToggle（保険ページと共用）。確認の文言も保険ページと同じ
-    const r = insuranceToggle(insItems, insNotes, k, v);
-    if (r.losing && !window.confirm("「これから準備する」を選ぶと、他の保険の選択と入力したひとことはリセットされます。よろしいですか？")) return;
-    setInsItems(r.items); setInsNotes(r.notes);
-  };
-  const saveInsurance = async () => {
-    if (insSaving) return;
-    setInsSaving(true);
-    try {
-      const { data: { session } } = await getSession();
-      if (!session) { setInsSaving(false); return; }
-      // ひとことは選択中の項目のぶんだけ残す（外した項目のメモは持ち越さない＝保険ページと同じ規則）
-      const pruned = {};
-      insItems.forEach(k => { const t = (insNotes[k] || "").trim(); if (t) pruned[k] = t; });
-      const { error } = await upsertInsurance(session.user.id, insItems, pruned);
-      if (error) throw error;
-      setEmpMini(prev => { const nx = { ...(prev || {}), insurance_items: insItems, insurance_notes: pruned }; setCache("farm:empMini", nx); snapSet("empMini", nx); return nx; });
-      setInsOpenKey(null);
-    } catch (e) { alert("保存に失敗しました：" + (e?.message || "不明")); }
-    finally { setInsSaving(false); }
-  };
   // 未設定の項目数（編集ページの9ボックス基準・従業員数は削除済み2026-08-01）。トップボックスの通知バッジ＋赤影に使用（2026-07-16・働き手側と同構造）
   // 核（アイコン・農園名・作業場所）が未設定→赤影＋浮遊アニメ／任意のみ未設定→赤影のみ（紹介PR→作業場所に差替・2026-07-16）
   // 数え方はlib/utilsのemployerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）。
@@ -1117,68 +1071,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
             </button>
           )}
-          {/* 保険の準備（2026-07-24・専用ページ#/insuranceへ遷移）。アプリ内遷移の目印を残し、戻るは history.back で元の場所（スクロール位置）へ復帰させる。
-              質問集カードと同じ反転式（2026-07-29たきと指示）：裏＝保険の箱を横スクロール、タップでその場に開いて申告できる */}
-          <div style={{ position:"relative", marginTop:12 }}>
-            {!insCardBack ? (
-              <button onClick={()=>{ try{ sessionStorage.setItem("cb_insFromApp","1"); }catch{} window.location.hash="/insurance"; }}
-                className={"f-sans" + (insCardAnim ? " " + insCardAnim : "")}
-                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && insCardAnim === "pflip-in") setInsCardAnim(""); }}
-                style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box" }}>
-                <span style={{ flexShrink:0, display:"flex" }}><NavIcon name="shield" size={40} /></span>
-                <span style={{ minWidth:0, paddingRight:28 }}>
-                  <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>保険の準備</span>
-                  <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>働き手のケガに備える保険の準備方針を、自己申告で表明できます。</span>
-                </span>
-              </button>
-            ) : (
-              <div className={"f-sans" + (insCardAnim ? " " + insCardAnim : "")}
-                onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && insCardAnim === "pflip-in") setInsCardAnim(""); }}
-                style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:100, boxSizing:"border-box", display:"flex", flexDirection:"column", justifyContent:"center" }}>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 10px", paddingRight:28 }}><NavIconInline name="shield" size={11} style={{ verticalAlign:"-1.5px", marginRight:3 }} />保険の準備（自己申告・{insItems.length}件）</p>
-                <div style={{ display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", margin:"0 -16px", padding:"2px 16px" }}>
-                  {insOrderedItems.map(it => {
-                    const on = insItems.includes(it.k);
-                    const open = insOpenKey === it.k;
-                    return (
-                      /* 箱の色（2026-07-29たきと指示）：既定=元のまま／申告ずみ=縁だけ緑／開いている=全体が緑 */
-                      <button key={it.k} onClick={()=>setInsOpenKey(open ? null : it.k)}
-                        className="f-sans" style={{ flexShrink:0, maxWidth:200, background: open ? ROLE_GREEN : "#F7F7F7", border:"1px solid " + (open || on ? ROLE_GREEN : "#EBEBEB"), borderRadius:12, padding:"10px 14px", cursor:"pointer", textAlign:"left" }}>
-                        <span style={{ display:"block", fontSize:13, fontWeight:700, color: open ? "#fff" : "#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}><NavIconInline name={it.iconName} size={13} style={{ verticalAlign:"-2px", marginRight:3 }} />{it.chip}</span>
-                        <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_GREEN : "#B0B0B0", marginTop:2 }}>{on ? <>申告ずみ <NavIconInline name="tick" size={11} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></> : "未申告"}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {insOpenKey && (() => {
-                  const it = INSURANCE_ITEMS.find(x => x.k === insOpenKey);
-                  const on = insItems.includes(insOpenKey);
-                  return (
-                    /* 展開したボックス：この保険の申告ON/OFFと、働き手へのひとことをその場で入力する */
-                    <div className="fade-in" style={{ marginTop:12, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"6px 14px 14px" }}>
-                      <ToggleSwitch label={it.label} checked={on} onChange={(v)=>toggleInsurance(insOpenKey, v)} />
-                      {on && (
-                        <textarea value={insNotes[insOpenKey] || ""} onChange={e=>setInsNotes(prev => ({ ...prev, [insOpenKey]: e.target.value }))}
-                          placeholder="働き手へのひとこと（任意・例：加入している保険会社や補償の範囲など）" rows={2} maxLength={300}
-                          className="field f-sans" style={{ fontSize:13, resize:"vertical", width:"100%", boxSizing:"border-box", background:"#fff", marginTop:2 }} />
-                      )}
-                      <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                        <button onClick={()=>setInsOpenKey(null)} className="f-sans" style={{ flex:"0 0 auto", padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-                        <button onClick={saveInsurance} disabled={insSaving} className="f-sans" style={{ flex:1, padding:"11px", fontSize:14, fontWeight:700, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{insSaving ? <>保存中<Dots /></> : "保存する"}</button>
-                      </div>
-                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.6 }}>自己申告です。運営が確認するものではありません。</p>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-            <button onClick={()=>{
-              if (insCardAnim === "pflip-out") return; // 連打ガード
-              setInsOpenKey(null);                     // 開いていた入力ボックスは畳んでから返す
-              setInsCardAnim("pflip-out");
-              setTimeout(()=>{ setInsCardBack(v=>{ const nv = !v; try { localStorage.setItem("cb_insCardBack", nv ? "1" : "0"); } catch {} return nv; }); setInsCardAnim("pflip-in"); }, 400);
-            }} aria-label="表示を切り替える" className={insCardAnim || undefined} style={{ position:"absolute", top:12, right:12, width:32, height:32, borderRadius:"50%", background:"#F0F0F0", border:"none", fontSize:15, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}><NavIcon name="swap" size={16} /></button>
-          </div>
+          {/* 「保険の準備」の反転カードは削除（2026-08-25たきと指示「保険の準備はプロフィール編集ページに
+              移設。同じ構造にして表示。マイページの保険の準備は削除」）＝申告の入口は
+              プロフィール編集の「保険の準備」ボックス（InsurancePrepBox）に一本化。
+              ★申告そのものは消えていない：求人ページの保険（掲載時に凍結）・応募者への表示・
+              専用ページ #/insurance（URL直打ち）は従来どおり */}
           <div style={{ marginTop:16 }}>
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>記録</p>
             <div className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
