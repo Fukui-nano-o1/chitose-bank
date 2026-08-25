@@ -6,7 +6,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -1089,7 +1089,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             )}
             {rosterRows.length === 0
               ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
-              : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
+              : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} ring={ROLE_ORANGE} bg={ROLE_ORANGE} /></button>))}</div>}
             {/* 「労働条件通知書」の入口カードは削除（2026-08-22たきと指示）。
                 ★通知書そのものは残っている：求人カードのボタンから1件ずつ開く
                 （上の noticeAppId 経由・applicationId付きのLaborConditionsNotice・表示と印刷）＝
