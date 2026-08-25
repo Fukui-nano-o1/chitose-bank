@@ -463,7 +463,7 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#999", textAlign:"center", textDecoration:"underline", marginTop:18 }}>あとで見る</p>
       </div>
     ) },
-  { ch:"応募がくる", name:"応募者一覧", url:"#/profile/employer/applicants", act:"マイページの「応募者一覧」カードから開く。応募者の信頼カードを見て、承認するか見送るかを決める。上の帯で段階を絞り込める。",
+  { ch:"応募がくる", name:"応募者一覧", url:"#/profile/employer/applicants", act:"求人ページの「あなたの求人」操作シート・お知らせ・メールのリンクから開く（マイページの入口カードは2026-08-25に削除）。応募者の信頼カードを見て、承認するか見送るかを決める。上の帯で段階を絞り込める。",
     body: () => (
       <div style={{ padding:14 }}>
         <div style={{ display:"flex", gap:6, marginBottom:12 }}>

@@ -8,7 +8,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
-import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
+import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
 import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
@@ -1051,13 +1051,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               ★応募者一覧のページ（#/profile/employer/applicants）は生きている＝求人詳細の
               「あなたの求人」操作シート・お知らせ／メールのリンク・URL直打ちから従来どおり開ける。
               作成中・公開中への入口は名刺カードの「あなたの求人」ボタンが担う */}
-          <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 箱ジャンプ(cb-jump)→タイトル文字の順ジャンプに変更（NoticeJumpText・2026-07-25たきと指示） */}
-            <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
-            <span>
-              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}><NoticeJumpText text="求人の掲載" /></span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>基本情報だけなら5分。写真や説明は後から追加できます。</span>
-            </span>
-          </button>
+          {/* 「求人の掲載」の入口カードは削除（2026-08-25たきと指示「求人の掲載カード削除」）。
+              ★求人を出す道は残っている：名刺カードの「あなたの求人」→作成中・公開中の面にある
+              「＋ 求人の掲載」（1件も無い時は面いっぱいの大ボタン＝空状態が最大の導線）と、
+              カレンダーで予定の無い日をタップ→「この日から始まる求人を出す」。#/work/new の直打ちも生きている */}
           {/* 新しく委託を出す（2026-07-31たきと指示）：求人カードの真下・同じ構造。
               配色はブラック＝委託・受託の世界（求人・求職のオレンジ／ミドリとは分ける）。アイコンは置かない。
               黒いカードそのものが「別の世界への扉」の目印になる。
