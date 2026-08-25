@@ -436,8 +436,8 @@ export default function App(){
   const [empCtx, setEmpCtx] = useState(() => { try { const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
   // 応募者バッジは navBadges.applicants_pending（未対応の応募＝跳ねるアイコンと同数）に一本化（2026-07-26）。
   // 旧・独自の status='applied' 件数カウントは廃止＝バッジとアイコンで数が食い違う原因だった。
-  // ★表示場所は旧「応募者」ナビタブ→マイページ農家面の「応募者一覧」入口カードへ移植
-  //   （2026-08-23・ProfileHub→FarmerDashboard に applicantsBadge としてprop渡し）
+  // ★表示するバッジは無くなった（旧「応募者」ナビタブ→2026-08-23マイページの入口カード→
+  //   2026-08-25にカードごと削除）。この数は今も起動時の着地判定（新着の応募→#/new-applicants）で使う
 
   // 下部ナビの宿題バッジ（第12弾・2026-07-23）：チャット未読スレッド／きょうの契約済み仕事／評価締切内未実施／差し戻し有無。
   // 1本のRPC(my_nav_badges)で取得。再計算＝起動・ページ遷移・既読等(cb:unreadRefresh)・モード切替。
@@ -1978,7 +1978,6 @@ export default function App(){
             約1秒、プロフィールの働き手面が露出し「働き手に切り替わった」ように見える＝オーバーレイ描画の鉄則 */}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&!showJobPost&&safeTab==="profile"&&(me
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
-              applicantsBadge={navBadges.applicants_pending}
               onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} /></Suspense>

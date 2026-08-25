@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster,
   upsertInsurance } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, INSURANCE_ITEMS, insuranceToggle, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, NoticeJumpText, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -33,7 +33,7 @@ import { Celebration } from "./Celebration";
 import { DayReportSheet } from "./DayReportSheet";
 import { FinalReviewSheet } from "./FinalReviewSheet";
 import { NavIcon, NavIconInline } from "./NavIcons";
-import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
+import { UpcomingSchedule } from "../features/today/components/Upcoming";
 
 // 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
 // ★ピルは「見るもの」ではなく【隠すもの】の選択＝見送り／失効／取り消しの3つだけ。複数選択可。
@@ -76,7 +76,7 @@ const FARMER_TRAIT_TAGS = {
   ],
 };
 
-export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
+export function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer/profile") return "profile";
@@ -983,8 +983,8 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                 <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
                 {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
                 <ContractPartyName applicationId={a.id} showPending={false} />
-                {/* 緊急連絡先も採用成立後のみ（同じ窓口作法・2026-08-03） */}
-                <ContractEmergencyContact applicationId={a.id} />
+                {/* 緊急連絡先＝仕事の開始から終了までの間だけ（2026-08-25たきと指示）。窓口は従来どおり1本 */}
+                <ContractEmergencyContact applicationId={a.id} workWindow={isWorkWindowOpen(a)} />
                 <MyReviewsOfWorker workerId={a.worker_id} />
               </div>
               {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
@@ -1092,23 +1092,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
               )}
             </div>
           </div>
-          {/* 応募者一覧の入口カード（2026-08-23たきと指示「応募者一覧としてマイページに移植」）：
-              下部ナビの「応募者」タブはカレンダー（#/profile/employer/calendar）に差し替えたため、
-              全件の応募者一覧はこのカードが入口。赤バッジ＝未対応の応募（my_nav_badges.applicants_pending
-              ＝旧ナビタブのバッジと同じ数・Appからprop渡し）。承認・見送りの実行は従来どおり応募者シートが唯一の窓口 */}
-          <button onClick={()=>{ window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ position:"relative", width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="applicants" size={40} /></span>
-            <span style={{ minWidth:0 }}>
-              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>応募者一覧</span>
-              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:2, lineHeight:1.6 }}>求人ごとの応募者と、いまの段階をまとめて確認できます。</span>
-            </span>
-            {(applicantsBadge || 0) > 0 && (
-              <span style={{ position:"absolute", top:-8, right:-8, minWidth:20, height:20, borderRadius:10, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)" }}>{applicantsBadge}</span>
-            )}
-          </button>
           {/* 入口カード（📌いま=応募者／📋求人の管理=作成中・公開中）は2026-07-25に一度削除→
-              2026-08-23に応募者一覧だけ復活（上のカード）。作成中・公開中への入口は名刺カードの
-              「あなたの求人」ボタンとURL直打ち(/profile/employer/*)が従来どおり生きている */}
+              2026-08-23に応募者一覧だけ復活→2026-08-25たきと指示「応募者一覧ボックスも削除」で再び削除。
+              ★応募者一覧のページ（#/profile/employer/applicants）は生きている＝求人詳細の
+              「あなたの求人」操作シート・お知らせ／メールのリンク・URL直打ちから従来どおり開ける。
+              作成中・公開中への入口は名刺カードの「あなたの求人」ボタンが担う */}
           <button onClick={onNewJob} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:14, textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>{/* 箱ジャンプ(cb-jump)→タイトル文字の順ジャンプに変更（NoticeJumpText・2026-07-25たきと指示） */}
             <span style={{ flexShrink:0, display:"flex", color:"#333" }}><NavIcon name="postJob" size={40} /></span>
             <span>
@@ -1210,10 +1198,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                 （上の noticeAppId 経由・applicationId付きのLaborConditionsNotice・表示と印刷）＝
                 雇用主が労働条件を明示・交付する手段はサイトから失われていない */}
           </div>
-          {/* やることカード群（2026-08-22たきと指示「農家も実施」＝働き手面のコピーと対）。
-              正本は今日ページ（TodayPage）＝移行中の複製。行き先の専用ページ(#/calendar/todo/*)も
-              今日ページ側に残っている（削除の段でこちらへ引っ越す）。中身・並びは共有部品が担う */}
-          <TodayTaskBoxes role="farmer" />
+          {/* つぎの予定（7日以内）。やることの格子は2026-08-25たきと指示で撤去（働き手面と対）＝
+              採用する・保険の報告・記録する・評価する・緊急連絡先はカレンダーページの求人カードの
+              ボタン、求人の修正・質問は求人カードとお知らせ、プロフィール入力は名刺カードが担う */}
+          <UpcomingSchedule role="farmer" />
           {/* 「期限切れの求人を見る」リンクは削除（2026-07-25たきと指示）。ページ自体(/profile/employer/expired)はURL直打ちで到達可 */}
         </>
       ) : (
@@ -1646,8 +1634,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                   {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。
                                       採用成立後のみ・当事者だけに開く唯一の窓口（contract_emergency_contact）を
                                       そのまま置く＝この画面で新しい開示経路を作らない。相手が未登録なら何も出ない */}
-                                  {/* 緊急連絡先・労働条件通知書は採用（契約成立）後だけ＝面接中はまだ記録が無い */}
-                                  {!beforeHire && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />}
+                                  {/* 労働条件通知書は採用（契約成立）後だけ＝面接中はまだ記録が無い。
+                                      緊急連絡先はさらに狭く【仕事の開始から終了まで】だけ出す（2026-08-25たきと指示） */}
+                                  {!beforeHire && <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} workWindow={isWorkWindowOpen(a)} />}
                                   {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                                       ★終わった仕事（完了・失効・見送り）でカード全体がタップ不能になっても、
                                         このボタンだけは押せるようにする（2026-08-24たきと指示）＝

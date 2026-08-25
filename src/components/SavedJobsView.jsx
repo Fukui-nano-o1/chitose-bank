@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, dayReportOpen, ROLE_GREEN } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, dayReportOpen, ROLE_GREEN, isWorkWindowOpen } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -601,8 +601,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                         ) : null}
                       </div>
                       {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。窓口は
-                          contract_emergency_contact 1本のまま＝採用成立後・当事者だけ。未登録なら何も出ない */}
-                      <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} />
+                          contract_emergency_contact 1本のまま＝当事者だけ。未登録なら何も出ない。
+                          ★出るのは【仕事の開始から終了まで】だけ（2026-08-25たきと指示） */}
+                      <ContractEmergencyContact applicationId={a.id} asButton style={{ margin:0 }} workWindow={isWorkWindowOpen(a)} />
                       {/* 労働条件通知書＝全幅で大きく（たきと指示）。
                           ★終わった仕事（完了・失効・見送り・取り消し）でカード全体がタップ不能になっても、
                             このボタンだけは押せるようにする（2026-08-24たきと指示）＝

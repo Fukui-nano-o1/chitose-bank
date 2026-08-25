@@ -1,6 +1,9 @@
 // 採用成立後の緊急連絡先の開示（当事者間のみ・2026-08-03たきと指示）。
 // ・保管は専用テーブル emergency_contacts（self-only＝本人しか直接読めない）。
 //   worker_profiles／employer_profiles には置かない（応募段階で農家に見えてしまうため）。
+// ・★出す期間は「仕事の開始から終了まで」だけ（2026-08-25たきと指示「それ以外はいかなる理由でも
+//   見せない」）。呼び出し側が workWindow={isWorkWindowOpen(応募の行)} を渡す＝渡さなければ出ない
+//   （既定 false＝フェイルクローズ）。DB側の contract_emergency_contact も同じ窓で拒む（二重の壁）。
 // ・唯一の窓口は SECURITY DEFINER 関数 contract_emergency_contact(application_id)。
 //   当事者のみ・terms_snapshot（＝採用成立）が無ければ中身を返さない＝氏名開示（裁定B）と同じ作法。
 // ・返り値：{ok:true, empty:false, name, relation, phone}／{ok:true, empty:true, message}（相手が未登録・
@@ -17,12 +20,12 @@ import { NavIcon, NavIconInline } from "./NavIcons";
 // 採用成立後の値だけキャッシュする（相手が後から登録・修正することがあるので empty はキャッシュしない）
 const CACHE = new Map(); // applicationId -> {ok:true, empty:false, ...}
 
-export default function ContractEmergencyContact({ applicationId, showPending = false, style, asButton = false, accent = "#E24B4A" }) {
+export default function ContractEmergencyContact({ applicationId, showPending = false, style, asButton = false, accent = "#E24B4A", workWindow = false }) {
   const [res, setRes] = useState(() => (applicationId && CACHE.get(applicationId)) || null);
   const [open, setOpen] = useState(false);   // asButton の開閉
   const [loading, setLoading] = useState(false);
   // 取得：ボタン式は開いた時に1回だけ／従来の置き場所（今日ページ・応募者シート）は表示のたび
-  const need = asButton ? open : true;
+  const need = workWindow && (asButton ? open : true);
   useEffect(() => {
     let live = true;
     if (!applicationId || !need) return;
@@ -59,6 +62,9 @@ export default function ContractEmergencyContact({ applicationId, showPending = 
     }
     return null;
   })();
+
+  // ★仕事の開始から終了までの外では、ボタンも中身も一切出さない（2026-08-25たきと指示）
+  if (!workWindow) return null;
 
   // ボタン式：件数や登録の有無にかかわらずボタンは出す（タップ不能・非表示にしない＝2026-08-03の原則）
   if (asButton) {

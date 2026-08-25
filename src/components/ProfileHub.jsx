@@ -14,7 +14,7 @@ import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
 import { LikedJobsCard } from "./LikedJobsCard";
-import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
+import { UpcomingSchedule } from "../features/today/components/Upcoming";
 import { RoleSwitchOverlay } from "./RoleSwitchOverlay";
 
 // 役割切替の全画面アニメ（Airbnb「ホストに切り替え」風・2026-08-22）のタイミング。
@@ -94,7 +94,7 @@ function ProfileWithdrawSection({ onLogout }) {
   );
 }
 
-export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, applicantsBadge }) {
+export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout }) {
   const hashToPTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     if (h === "profile/employer" || h.startsWith("profile/employer/")) return "employer";
@@ -337,11 +337,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, a
                       （my_job_actions／saved:rows）。一覧はJobCard（関連求人と同じ型・wide全幅）＋♥解除⇄再いいね */}
                   <LikedJobsCard me={me} />
                 </div>
-                {/* やることカード群（2026-08-22たきと指示「今日ページのカード群をマイページの
-                    いいねした求人カードの下にコピー。実機確認後、今日ページの削除に移行する」）。
-                    正本は今日ページ（TodayPage）＝移行中の複製。行き先の専用ページ(#/calendar/todo/*)も
-                    今日ページ側に残っている（削除の段でこちらへ引っ越す） */}
-                <TodayTaskBoxes role="worker" />
+                {/* つぎの予定（7日以内）。やることの格子は2026-08-25たきと指示「やること必要なくなったな。
+                    他のページに移設したりしたから。削除」で撤去＝各行為の入口はカレンダーページの
+                    求人カードのボタンと、名刺カードの「編集する」（プロフィールの未入力）が担う */}
+                <UpcomingSchedule role="worker" />
               </>);
             })()}
             {/* 旧・🌟わたしの実績モーダル（WorkerTrustCard hideSelfDeclare）は削除（2026-08-21）＝
@@ -377,7 +376,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout, a
         <>
           {/* 「← プロフィールへ」ボタンは削除（2026-07-14）。働き手側への行き来は浮遊「🤝 働く」トグルが担う */}
           {/* 承認待ちバナーは削除（2026-08-14 承認プロセスの廃止＝掲載は即公開。「承認後に公開できます」は嘘になるため） */}
-          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} applicantsBadge={applicantsBadge} />
+          <FarmerDashboard onNewJob={onNewJob} onResume={onResume} me={me} />
         </>
       )}
       </div>

@@ -526,24 +526,26 @@ const STEPS = [
     ) },
 
   /* ═══ 仕事の当日 ═══ */
-  { ch:"仕事の当日", name:"やること（マイページ）", url:"#/profile/employer", act:"やることが並ぶ。空の箱も押せて、説明が出る。今日ページは廃止＝マイページに移った（2026-08-22）。",
+  { ch:"仕事の当日", name:"つぎの予定（マイページ）", url:"#/profile/employer", act:"7日以内に始まる仕事が新しい順に並ぶ。行をタップで求人ページへ。",
     body: () => (
       <div style={{ padding:14 }}>
-        <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:SUB, margin:"0 0 8px" }}>やること</p>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
-          {/* 実物に追従（2026-08-22）：「いま これだけ」廃止（2026-08-21）・開始確認の箱廃止（2026-08-18）を反映。
-              並びは TodayPage の TODO_STAGE_CATALOG.farmer＋先頭の常設プロフィール入力。
-              アイコンは実物と同じ NavIcon（絵文字→アウトラインSVG・2026-08-22）。
-              枠＝役割色1.5px・白背景・影＝実物の TodoStageBox と同じ規格（2026-08-21） */}
-          {[["profile","プロフィール入力",1],["alert","緊急連絡"],["edit","求人の修正"],["question","求人の質問"],["hire","採用する",1],["shield","保険の報告"],["clipboard","今日の記録"],["check","バイトの評価"]].map(([ic, l, on]) => (
-            <div key={l} style={{ position:"relative", border:`1.5px solid ${GREEN}`, borderRadius:18, padding:"20px 6px 14px", textAlign:"center", background:"#fff", boxShadow:"0 3px 10px rgba(0,0,0,0.10)", opacity: on ? 1 : 0.45 }}>
-              <div style={{ display:"flex", justifyContent:"center", marginBottom:8, color:"#333" }}><NavIcon name={ic} size={36} /></div>
-              <p className="f-sans" style={{ fontSize:12, fontWeight:800, color:INK, margin:0, lineHeight:1.4 }}>{l}</p>
-              {ic === "profile" ? <span className="f-sans" style={{ position:"absolute", top:8, right:8, minWidth:20, padding:"2px 6px", borderRadius:10, background:GREEN, color:"#fff", fontSize:10, fontWeight:800 }}>1</span> : null}
+        {/* 実物に追従（2026-08-25）：やることの格子は撤去した（たきと指示「やること必要なくなったな。
+            他のページに移設したりしたから。削除」）＝各行為の入口はカレンダーページの求人カードの
+            ボタンと、名刺カードの「編集する」（プロフィールの未入力）が担う。
+            残るのはつぎの予定だけ＝行の見た目は実物（features/today/components/Upcoming.jsx）と同じ規格 */}
+        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>つぎの予定（7日以内）</p>
+        <div style={{ display:"grid", gridTemplateColumns:"minmax(0,1fr)", gap:8 }}>
+          {[["キャベツ 収穫","#1042","8/27（木）　8:00〜15:00　たけし"],["ネギ 定植","#1051","8/29（土）〜8/30（日）　7:30〜16:00　みどり"]].map(([t, no, sub]) => (
+            <div key={no} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:"1px solid #F0F0F0", borderLeft:`3px solid ${GREEN}`, borderRadius:10, padding:"11px 12px" }}>
+              <span style={{ minWidth:0 }}>
+                <span className="f-sans" style={{ display:"block", fontSize:13, fontWeight:600, color:INK }}>{t} <span style={{ color:"#999", fontWeight:700, fontSize:11 }}>{no}</span></span>
+                <span className="f-sans" style={{ display:"block", fontSize:11, color:"#999", marginTop:2 }}><NavIcon name="calendar" size={11} /> {sub}</span>
+              </span>
+              <span style={{ color:"#C8C8C8", fontSize:16, flexShrink:0 }}>›</span>
             </div>
           ))}
         </div>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>薄い箱は「いま用事が無い」の目印。押すと用件の説明が出る（押せない箱は無い）。</p>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>7日以内に始まる予定が無ければ、この区画ごと出ない。</p>
       </div>
     ) },
   { ch:"仕事の当日", name:"保険の準備の報告", url:"#/calendar/todo/insurance", act:"保険の備えができたと報告する。働き手にも伝わる。",
