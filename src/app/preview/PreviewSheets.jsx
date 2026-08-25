@@ -10,6 +10,7 @@ import { openWorkerPreview, openEmployerPreview } from "../../lib/previewBus";
 import { Avatar, Dots, QaChat, SwipeTabPages } from "../../components/ui";
 import { WorkerTrustCard, FarmerTrustCard } from "../../components/TrustCards";
 import { WorkerWorkRecord } from "../../components/WorkerWorkRecord";
+import { FarmerRecord } from "../../components/FarmerRecord";
 import { ReceivedReviews } from "../../components/ReceivedReviews";
 import { MyReviewsOfWorker } from "../../components/MyReviewsOfWorker";
 import { NavIconInline } from "../../components/NavIcons";
@@ -29,8 +30,9 @@ function PreviewIdentity({ url, name, accent }) {
 
 export function EmployerPreviewSheet() {
   const [st, setSt] = useState(null); // {farmer_id, loading, profile, trust}
-  // ボックスは3枚（0=プロフィール／1=自己紹介／2=評価）。横スワイプで行き来する（2026-08-24たきと指示）。
-  // 働き手プレビュー（下）と同じ SwipeTabPages＝送り方・見た目が枝分かれしない
+  // ボックスは3枚（0=プロフィール／1=記録／2=評価）。横スワイプで行き来する。
+  // ★働き手プレビュー（下）と同じ構造・同じタブ名（2026-08-24たきと指示「農家プレビューも
+  //   働き手プレビューと同じ構造に」）＝面の分け方も送り方も役割で枝分かれしない
   const [page, setPage] = useState(0);
   useEffect(() => {
     const f = (e) => {
@@ -75,28 +77,29 @@ export function EmployerPreviewSheet() {
         ) : st.profile ? (
           <>
             <PreviewIdentity url={st.profile.avatar_url} name={st.profile.nickname} accent={ROLE_GREEN} />
-            <SwipeTabPages tabs={["プロフィール","自己紹介","評価"]} page={page} onPage={setPage}>
-            {/* 1枚目：プロフィール＝信頼カードまるごと（氏名・実績・タグ行と
-                「農家の自己申告です。運営が確認したものではありません。」の注記まで・2026-08-24たきと指示）。
-                待遇バッジはカードのタグ行へ合流（2026-07-27たきと指示：タグは1箇所） */}
-            <div>
-              <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} hideQa />
-            </div>
-            {/* 2枚目：自己紹介＝質問形式の群れ（問いかけQ&A＋紹介文のお題）を1つのQaChatで
-                （2026-08-14たきと指示「質問形式は代表よりの下に移植」＝並びは従来どおり） */}
-            <div>
-              {(() => {
-                const qaAll = [...farmHostQa(st.profile), ...topics.map(t => ({ q: t.label, a: t.body }))];
-                return qaAll.length > 0
-                  ? <QaChat items={qaAll} accent={ROLE_GREEN} style={{ marginTop:0 }} />
-                  : <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:12, padding:"24px 0", margin:0 }}>まだ自己紹介はありません</p>;
-              })()}
-            </div>
-            {/* 3枚目：受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定）。
-                まだ無い時は「まだ評価はありません」と明記（2026-08-24たきと指示・部品側が担う） */}
-            <div>
-              <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />
-            </div>
+            <SwipeTabPages tabs={["プロフィール","記録","評価"]} page={page} onPage={setPage}>
+              {/* 1枚目：プロフィール＝信頼カード（身元・自己申告のタグ）＋自己紹介の問いかけQ&A。
+                  働き手プレビューの1枚目（WorkerTrustCard＋QaChat）と同じ組み立て（2026-08-24たきと指示）。
+                  数字（受け入れ・公開中・実績）は hideStats で出さない＝2枚目の記録が持つ */}
+              <div>
+                <FarmerTrustCard profile={st.profile} trust={st.trust} extraBadges={perkBadges(st.profile)} hideQa hideStats />
+                {(() => {
+                  const qaAll = [...farmHostQa(st.profile), ...topics.map(t => ({ q: t.label, a: t.body }))];
+                  return qaAll.length > 0
+                    ? <QaChat items={qaAll} accent={ROLE_GREEN} />
+                    : <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:12, padding:"16px 0 0", margin:0 }}>まだ自己紹介はありません</p>;
+                })()}
+              </div>
+              {/* 2枚目：記録＝受け入れの数字（employer_trust_info から。往復は増やさない）。
+                  働き手の「はたらいた記録」と対の面 */}
+              <div>
+                <FarmerRecord trust={st.trust} />
+              </div>
+              {/* 3枚目：受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定）。
+                  まだ無い時は「まだ評価はありません」と明記（部品側が担う） */}
+              <div>
+                <ReceivedReviews userId={st.farmer_id} direction="worker_to_farmer" />
+              </div>
             </SwipeTabPages>
           </>
         ) : (

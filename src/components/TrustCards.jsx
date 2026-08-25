@@ -146,7 +146,10 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // 訪問者に伏せた項目のうち【値が入っているもの】の名前（jobs_public.masked_fields）。
 // 渡された項目は、値が空でも行を消さず伏せ字（MaskedText）で描く＝「情報が無い農家」と誤解させない。
 // 渡さない画面（会員・編集・委託）は従来どおり＝値が空なら行ごと出ない。
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false, maskedFields }) {
+// hideStats＝受け入れ・公開中・実績などの数字の行を出さない（2026-08-24たきと指示「農家プレビューも
+// 働き手プレビューと同じ構造に」）。数字はプレビューの【記録】の面（components/FarmerRecord）が持つ＝
+// 働き手側（プロフィール＝人となり／記録＝数字）と同じ分け方。他の画面は従来どおり数字を出す
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false, hideStats = false, maskedFields }) {
   const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const AC = black ? "#111111" : "#00A86B";
@@ -160,6 +163,9 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
   // 関わり方＝4問の回答チップ（HOST_STYLE_QUESTIONS・2026-08-14拡充）。black（委託）は従来どおり出さない
   const styleChips = black ? [] : hostStyleChips(profile);
   const okTrust = !!(trust && trust.ok);
+  // 数字の行（受け入れ・公開中・受け入れ中・実績・承認までの時間）だけを出し分ける。
+  // 利用開始・連絡先確認済みは身元の事実so hideStats でも消さない
+  const showStats = okTrust && !hideStats;
   return (
     <div>
       {/* ヘッダー刷新（2026-08-03たきと指示）：アイコンを中央に、下に募集者の項目（氏名・住所・連絡先）を
@@ -227,28 +233,28 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
             match_* の集計自体は残っている＝出し方を決め直したくなったらそこから描ける）
           ★消したのは表示だけ。規約 第8条2四（集計は件数にかかわらず表示・否定の件数を含む）は
             いま表示している集計が肯定だけになった＝次の改訂で文面を見直す候補（たきと判断待ち） */}
-      {okTrust && trust.completed_hires > 0 && (
+      {showStats && trust.completed_hires > 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>これまでに{trust.completed_hires}人を受け入れました</p>
       )}
       {/* 公開中＝いま募集している求人（→公開中タブ）／実績＝日程が終了した求人（→過去の実績タブ）。混同させない（2026-07-24） */}
-      {okTrust && trust.open_jobs > 0 && (
+      {showStats && trust.open_jobs > 0 && (
         <p onClick={onTapOpenJobs || undefined} role={onTapOpenJobs ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapOpenJobs ? AC : "#717171", fontWeight: onTapOpenJobs ? 600 : 400, margin:"0 0 6px", ...(onTapOpenJobs ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
           公開中：{trust.open_jobs}件{onTapOpenJobs ? " →" : ""}
         </p>
       )}
       {/* 受け入れ中＝進行中求人への応募の現在地（応募→承認→採用）。集計値のみ・誰かは出さない */}
-      {okTrust && (trust.active_applied || 0) > 0 && (
+      {showStats && (trust.active_applied || 0) > 0 && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>
           受け入れ中：応募{trust.active_applied}件・承認{trust.active_approved || 0}件・採用{trust.active_hired || 0}人
         </p>
       )}
-      {okTrust && (trust.ended_jobs || 0) > 0 && (
+      {showStats && (trust.ended_jobs || 0) > 0 && (
         <p onClick={onTapExperience || undefined} role={onTapExperience ? "button" : undefined} className="f-sans" style={{ fontSize:12, color: onTapExperience ? AC : "#717171", fontWeight: onTapExperience ? 600 : 400, margin:"0 0 6px", ...(onTapExperience ? { cursor:"pointer", textDecoration:"underline" } : {}) }}>
           実績：{trust.ended_jobs}件{onTapExperience ? " →" : ""}
         </p>
       )}
       {/* 利用歴・連絡先確認は氏名の直下（ヘッダー内）へ移動（2026-08-07たきと指示） */}
-      {okTrust && trust.avg_approval_hours != null && (
+      {showStats && trust.avg_approval_hours != null && (
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px" }}>承認までの時間：平均{trust.avg_approval_hours}時間</p>
       )}
       {/* 問いかけQ&A（うちの畑のユニークなところ等）もチャット形式（2026-08-07たきと指示・
