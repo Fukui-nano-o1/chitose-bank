@@ -22,10 +22,10 @@ const BADGE_DEFS = {
     { k: "trait_fast", label: "作業が早かった" },
     { k: "trait_attentive", label: "指示をよく確認した" },
     { k: "trait_safe", label: "安全に作業した" },
-    { k: "entrust", label: "安心して任せられた" },
-    { k: "on_time", label: "時間どおり" },
-    { k: "as_described", label: "聞いていたとおり" },
-    { k: "followed_instructions", label: "指示どおり" },
+    { k: "entrust", label: "安心して任せられた", legacy: true },
+    { k: "on_time", label: "時間どおり", legacy: true },
+    { k: "as_described", label: "聞いていたとおり", legacy: true },
+    { k: "followed_instructions", label: "指示どおり", legacy: true },
   ],
   // 2026-08-20に3問×3択へ再設計（求人と一致・報酬は約束どおり・また働きたい）。
   // safety_care/on_time/instructions_clear は旧データ用に残す（>0の時だけ出る）
@@ -33,9 +33,9 @@ const BADGE_DEFS = {
     { k: "want_again", label: "また働きたい", icon:"star" },
     { k: "as_described", label: "求人のとおりだった" },
     { k: "paid_as_posted", label: "報酬は約束どおり" },
-    { k: "safety_care", label: "安全に配慮" },
-    { k: "on_time", label: "時間どおり" },
-    { k: "instructions_clear", label: "教え方が分かりやすい" },
+    { k: "safety_care", label: "安全に配慮", legacy: true },
+    { k: "on_time", label: "時間どおり", legacy: true },
+    { k: "instructions_clear", label: "教え方が分かりやすい", legacy: true },
   ],
 };
 
@@ -47,7 +47,13 @@ const BADGE_DEFS = {
 // jobNumber（任意・2026-08-25）：求人ページから求人者の評価を出すときに渡す。求人ページの
 // クライアントは求人者のauth UIDを知らない（farmer_idは誰にも出さない）ため、求人No.で引く窓口
 // job_employer_reviews に切り替える。返る中身・開示範囲・見た目は同じ（窓口が違うだけ）
-export function ReceivedReviews({ userId, direction, jobNumber }) {
+// showAllItems（任意・2026-08-25たきと指示「全ての評価を表示」）：件数0の項目も並べ、
+// いま評価される全項目を見せる。旧設問（legacy＝2026-08-20の再設計で使わなくなった問い）だけは
+// 0のとき出さない＝いま存在しない問いを「0件」として並べない。
+// ★注意：総数が2件以上あるのに0の項目that並ぶと「誰も肯定しなかった」＝否定的な評価が読み取れる。
+//   利用規約 第8条2（否定的な評価は他の利用者に表示されない）との緊張so、この prop を使う場所を
+//   増やすときは必ず確認を取ること（現在の使用箇所＝求人詳細の求人者情報のみ）
+export function ReceivedReviews({ userId, direction, jobNumber, showAllItems }) {
   const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
     let cancelled = false;
@@ -65,9 +71,14 @@ export function ReceivedReviews({ userId, direction, jobNumber }) {
 
   const defs = BADGE_DEFS[direction] || [];
   const badges = (data && data.badges) || {};
-  const shown = defs.filter(d => (badges[d.k] || 0) > 0);
+  const shown = showAllItems
+    ? defs.filter(d => !d.legacy || (badges[d.k] || 0) > 0) // 0件の項目も並べる（旧設問は0なら出さない）
+    : defs.filter(d => (badges[d.k] || 0) > 0);
   const comments = Array.isArray(data && data.comments) ? data.comments : [];
-  const isEmpty = data !== null && shown.length === 0 && comments.length === 0;
+  // 空の判定は「実際に届いた評価があるか」で見る（showAllItemsでは0件の項目that並ぶため、
+  // shown.lengthでは常に非空になり「まだ評価はありません」that出せなくなる）
+  const hasAny = defs.some(d => (badges[d.k] || 0) > 0) || comments.length > 0;
+  const isEmpty = data !== null && !hasAny;
   // 働き手宛＝農家からの評価＝緑／農家宛＝働き手からの評価＝橙（役割色の規約2026-07-22）
   const AC = direction === "farmer_to_worker" ? "#00A86B" : "#F76B1C";
 
@@ -76,20 +87,27 @@ export function ReceivedReviews({ userId, direction, jobNumber }) {
       {/* 見出し「🌟 受け取った評価」は削除（2026-08-07たきと指示・タブ名「評価」が見出しを兼ねる） */}
       {data === null ? (
         <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0" }}>読み込み中<Dots /></p>
-      ) : isEmpty ? (
-        <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: "12px 0", margin: 0 }}>まだ評価はありません</p>
       ) : (
         <>
-          {shown.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: comments.length > 0 ? 12 : 0 }}>
-              {shown.map(d => (
-                <span key={d.k} className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "#222", background: "#F0F7F4", border: "1px solid #CDE9DD", borderRadius: 20, padding: "4px 11px" }}>
-                  {d.icon && <NavIconInline name={d.icon} size={12} />}{d.label} <b style={{ color: AC }}>{badges[d.k]}</b>
-                </span>
-              ))}
-            </div>
+          {/* まだ1件も届いていない時の明記。showAllItemsではこの下に全項目（0件）that並ぶ＝
+              「何が評価されるのか」は見えたまま、まだ無いことも隠さない */}
+          {isEmpty && (
+            <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>まだ評価はありません</p>
           )}
           {shown.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: comments.length > 0 ? 12 : 0 }}>
+              {shown.map(d => {
+                const n = badges[d.k] || 0;
+                // 0件は控えめな見た目（届いた評価と見分けがつくように）
+                return (
+                  <span key={d.k} className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: n > 0 ? "#222" : "#B0B0B0", background: n > 0 ? "#F0F7F4" : "#FAFAFA", border: "1px solid " + (n > 0 ? "#CDE9DD" : "#EBEBEB"), borderRadius: 20, padding: "4px 11px" }}>
+                    {d.icon && <NavIconInline name={d.icon} size={12} />}{d.label} <b style={{ color: n > 0 ? AC : "#C4C4C4" }}>{n}</b>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {hasAny && shown.length > 0 && (
             /* 集計である旨の明記（利用規約 第8条3）。旧・信頼カードの「働き手の最終回答を集計」の
                役目をここが引き継ぐ（2026-08-24に一致の集計ごとカードから消したため）。この1行を外さないこと */
             <p className="f-sans" style={{ fontSize: 10, color: "#B0B0B0", margin: comments.length > 0 ? "0 0 10px" : 0 }}>相手の回答を数えたものです（運営者が認定した事実ではありません）</p>

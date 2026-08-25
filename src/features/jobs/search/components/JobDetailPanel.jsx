@@ -11,7 +11,7 @@ import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPho
 import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { ReceivedReviews } from "../../../../components/ReceivedReviews";
-import { disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, perkBadges } from "../../../../lib/utils";
+import { disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, perkBadges, ROLE_GREEN } from "../../../../lib/utils";
 import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 // 求人の主要情報（日程・勤務時間・休憩・人数・最寄り駅・報酬・支払条件・時間外）
 export function JobKeyFacts({ job }) {
@@ -182,10 +182,11 @@ export function JobRecruiterInfo({ job, employer, me, onOpenIntro }) {
   return (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 12px", letterSpacing:".06em" }}>求人者情報</p>
-      {/* アイコン・名称（タップで農園紹介＝求人者カードと同じ入口・行き先を増やさない） */}
-      <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor: onOpenIntro ? "pointer" : "default" }}>
-        <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={64} />
-        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, minWidth:0, overflowWrap:"break-word" }}>{name}さん</p>
+      {/* アイコンは緑枠で中央・その下に名称＋さん（2026-08-25たきと指示）。
+          緑＝雇い手の役割色（役割カラーの規約2026-07-22）。タップで農園紹介＝求人者カードと同じ入口 */}
+      <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, cursor: onOpenIntro ? "pointer" : "default" }}>
+        <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={72} ring={ROLE_GREEN} />
+        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word" }}>{name}さん</p>
       </div>
       {/* 代表より */}
       {comment && (<>
@@ -196,8 +197,11 @@ export function JobRecruiterInfo({ job, employer, me, onOpenIntro }) {
       {/* 評価 */}
       <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0" }} />
       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px", letterSpacing:".06em" }}>評価</p>
+      {/* showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
+          ★総数that2件以上あるのに0の項目that並ぶと否定的な評価that読み取れる＝利用規約 第8条2との緊張。
+            戻すときはこのpropを外すだけ（1語）。他の画面（プロフィールの評価面）は従来どおり0を出さない */}
       {me
-        ? <ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} />
+        ? <ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems />
         : <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>ログインすると、この求人者への評価を見られます</p>}
     </div>
   );
