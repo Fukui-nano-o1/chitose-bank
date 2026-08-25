@@ -892,18 +892,22 @@ export function JobSearchMapView({ onRegister, me }) {
   // 自分の応募が分かるまでは押させない（2026-07-27）：締切求人で一瞬「満員」が出る問題の裏返しで、
   // 逆に締切なのに「応募」を押せてしまう窓も塞ぐ。ラベルは状態を偽らない「確認中…」
   const appPending = !!(me && !myAppLoaded);
-  const applyBtnDisabled = myAppStatus === "rejected" || appPending;
+  const applyBtnDisabled = myAppStatus === "rejected" || myAppStatus === "completed" || appPending;
   const applyBtnLabel = appPending ? <>確認中<Dots /></>
     : applying ? (myAppStatus === "applied" ? <>取り消し中<Dots /></> : <>送信中<Dots /></>)
     : myAppStatus === "approved" ? "承認されました — チャットを開く"
     : myAppStatus === "rejected" ? "今回は見送りとなりました"
     : myAppStatus === "applied" ? "応募済み — 取り消す"
+    // 採用済み・作業中（2026-08-25）：ここを書いていなかったため「日程の確認」に落ち、
+    // 既に採用されている人にもう一度応募を勧める顔になっていた。行き先は承認済みと同じチャット
+    : (myAppStatus === "contracted" || myAppStatus === "working") ? "チャットを開く"
+    : myAppStatus === "completed" ? "この仕事は完了しました"
     // 仮応募中（第15弾）：意思は預かり済み。次の一手はプロフィールの仕上げ
     : (!myAppStatus && myPending) ? "仮応募中 → プロフィールを仕上げる"
     // 新規応募の基本ラベルは「日程の確認」（2026-08-16たきと指示「右下の応募ボタンは日程の確認に差し替え」）：
     // タップの実体は応募の送信でなく確認ボックス（3面・最後がが日程選択と応募）を開くことので、その通りの顔にする
     : "日程の確認";
-  const applyBtnStyle = myAppStatus === "rejected" ? { background:"#EBEBEB", color:"#717171" }
+  const applyBtnStyle = (myAppStatus === "rejected" || myAppStatus === "completed") ? { background:"#EBEBEB", color:"#717171" }
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
     : (!myAppStatus && myPending) ? { background:"#C77700" }
     : {};
@@ -958,7 +962,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // （県大会のQRから来た人の一気通貫を守る）。applyReturn は login-box成功(App:1974)・
   // AccountHolderForm.onDone(App:2239)・afterLoginGo(App:1181) の三箇所が読んで /work/job/{n} へ戻す。
   const applyBtnOnClick = !me ? (() => { if (selectedJob) setApplyReturn(selectedJob.id); visitorGuide(); })
-    : myAppStatus === "approved" ? (() => { window.location.hash = "/chat/" + myApplication.id; })
+    : (myAppStatus === "approved" || myAppStatus === "contracted" || myAppStatus === "working") ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
     : (() => { setApplyConfirmStep(0); setApplyChoice(null); setApplyConfirmOpen(true); });
@@ -968,7 +972,15 @@ export function JobSearchMapView({ onRegister, me }) {
   const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired || selectedJob.closed));
   // ★自分の応募が分かるまでは締切扱いにしない（2026-07-27たきと報告「一瞬だけ満員が映る」）。
   //   未取得の間はmyAppStatusがundefinedので、応募済みの人にも一度「満員」を出してから戻っていた
-  const hideApply = recruitClosed && myAppLoaded && !myAppStatus;
+  // ★終了した求人では「日程の確認」を出さない（2026-08-25たきと指示「終了に差し替えしタップ不能にして」）。
+  //   旧条件は !myAppStatus so、完了・失効・取り消し後の応募thatある人には応募の入口that残っていた
+  //   （応募の行は canceled 以外that返る＝completed/expired もここに来る）。
+  //   既存の応募に対する操作thatある状態（応募中の取り消し／承認・採用・作業中のチャット／
+  //   見送りの表示／仮応募）だけ従来どおり残し、それ以外＝新規応募の顔になる時は「終了」に差し替える
+  const appHasAction = myAppStatus === "applied" || myAppStatus === "approved"
+    || myAppStatus === "contracted" || myAppStatus === "working"
+    || myAppStatus === "rejected" || (!myAppStatus && myPending);
+  const hideApply = recruitClosed && myAppLoaded && !appHasAction;
   // カレンダーの日程タップから来た時は、そのまま応募ボックスを開く（2026-08-23たきと指示
   // 「日程タップで応募ボックス展開」）。合図＝sessionStorage cb_openApply（求人番号）。
   // ★自分の応募の状態が分かるまで合図を消さない＝読み込み中に消すと開く機会を失う。
