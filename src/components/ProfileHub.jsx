@@ -13,7 +13,7 @@ import { FarmerDashboard } from "./FarmerDashboard";
 import { WorkerApplications } from "./WorkerApplications";
 import { WorkerProfileEdit } from "./WorkerProfileEdit";
 import { WorkerTrustCard } from "./TrustCards";
-import { LikedJobsCard } from "./LikedJobsCard";
+import { LikedJobs } from "./LikedJobs";
 import { UpcomingSchedule } from "../features/today/components/Upcoming";
 import { RoleSwitchOverlay } from "./RoleSwitchOverlay";
 
@@ -318,25 +318,15 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                     元から機能のないプレースホルダー（タップで「準備中です」に反転するだけ）だった。
                     ★法務境界は不変（CLAUDE.md絶対遵守）：求職者情報の公開・逆オファーは
                     特定募集情報等提供の届出受理＋設計審査まで実装禁止＝作るときは審査から */}
-                <div style={{ marginTop:16 }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>わたしの記録</p>
-                  {/* 「🌟わたしの実績」カード（プレビューの記録タブ直行）は削除（2026-08-21たきと指示）＝
-                      名刺カードの反転→記録／評価タブと完全に重複するため。実績・評価の表示は
-                      名刺カード裏面（SwipeTabPages）に一本化。評価新着の🌟マークも一緒に廃止 */}
-                  {/* 「📋 経験・できること（自己申告）」カードは削除（2026-08-22たきと指示）。
-                      ★中身は消えていない：登録・編集はプロフィール編集の「経験・資格」ボックス
-                      （WorkerProfileEdit・2026-08-03にページからモーダルへ復帰）が担い、
-                      相手への表示は名刺カード裏面のプロフィール面（WorkerTrustCard）に出る。
-                      専用ページ #/experience もURL直打ちで生きている（入口だけをやめた） */}
-                  {/* 「労働条件通知書」の入口カードは削除（2026-08-22たきと指示）。
-                      ★通知書そのものは残っている：ステータスページ（#/saved）の求人カードのボタンから
-                      1件ずつ開く（applicationId付きのLaborConditionsNotice・表示と印刷）＝
-                      契約ごとの入口の方が探しやすいため、一覧カードは畳んだ */}
-                  {/* いいねした求人（2026-08-22たきと指示「マイページのわたしの記録グループにいいねした求人カードを新設」
-                      →同日「その他の求人と同じカード一覧構造に」）。データ源・キャッシュはステータスページと共用
-                      （my_job_actions／saved:rows）。一覧はJobCard（関連求人と同じ型・wide全幅）＋♥解除⇄再いいね */}
-                  <LikedJobsCard me={me} />
-                </div>
+                {/* いいねした求人（2026-08-22たきと指示で新設→2026-08-25「働き手のわたしの記録を
+                    いいねした求人に差し替え。ボックスは削除。いいねした求人を置いていこう」＝
+                    「わたしの記録」カテゴリーごとこの区画に置き換え、カードをページに直接並べる）。
+                    ★カテゴリーに入っていた他のカードは既に全部畳んである：
+                      🌟わたしの実績・📋経験・できること・📄労働条件通知書（2026-08-21〜22）。
+                      中身は名刺カード裏面（プロフィール／記録／評価）とステータスページの求人カードが担う。
+                    データ源・キャッシュはステータスページと共用（my_job_actions／saved:rows）。
+                    一覧はJobCard（関連求人と同じ型・wide全幅）＋♥解除⇄再いいね */}
+                <LikedJobs me={me} />
                 {/* つぎの予定（7日以内）。やることの格子は2026-08-25たきと指示「やること必要なくなったな。
                     他のページに移設したりしたから。削除」で撤去＝各行為の入口はカレンダーページの
                     求人カードのボタンと、名刺カードの「編集する」（プロフィールの未入力）が担う */}
