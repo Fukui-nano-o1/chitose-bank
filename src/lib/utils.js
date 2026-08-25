@@ -920,7 +920,10 @@ export function isWorkWindowOpen(a) {
   return true;
 }
 
-export const TERMS_VERSION = "v2.8-2026-08";
+// 規約v2.9 = 2026-08-25 改訂（第8条2一＝自由記述は運営の承認を経て公開、を「送信の時点で表示・
+// 運営は公開後に確認し不適切なものを非表示」に。評価コメントの承認制を廃止した実装に字面を合わせた
+// ＝migration 20260825152248。★プラポリの評価の行は承認について書いていないため改訂不要）
+export const TERMS_VERSION = "v2.9-2026-08";
 export const PRIVACY_VERSION = "v4.4-2026-08";
 
 // 分割3-B（2026-07-25）：App.jsxから移動（LandingFlow・WorkerProfileEditで共用）

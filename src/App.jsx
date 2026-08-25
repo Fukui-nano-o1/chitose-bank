@@ -583,7 +583,7 @@ export default function App(){
   const [evalRoom,setEvalRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/evaluation"); } catch { return false; } }); // 客観的評価ページ（#/admin/evaluation・管理者専用・2026-08-05）
   const [systemRoom,setSystemRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/system"); } catch { return false; } }); // システムページ（#/admin/system・管理者専用・2026-08-03）
   const [animationsRoom,setAnimationsRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/animations"); } catch { return false; } }); // アニメーションページ（#/admin/animations・管理者専用・2026-08-07）
-  const [commentRoom,setCommentRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/review-comments"); } catch { return false; } }); // 評価コメント審査（#/admin/review-comments・管理者専用・2026-08-07）
+  const [commentRoom,setCommentRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/review-comments"); } catch { return false; } }); // 評価コメントの確認（#/admin/review-comments・管理者専用。承認制は2026-08-23廃止＝即時公開）
   const [reportsRoom,setReportsRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/reports"); } catch { return false; } }); // 統合報告ページ（#/admin/reports・管理者専用・2026-08-15）
   const [farmerPagesRoom,setFarmerPagesRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/farmer-pages"); } catch { return false; } }); // 農家のアクションページ（#/admin/farmer-pages・管理者専用・見本帳・2026-08-11）
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");

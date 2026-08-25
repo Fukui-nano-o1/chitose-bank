@@ -322,7 +322,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                         </div>
                         {/* 記録＝はたらいた記録（本人は閲覧資格あり・worker_work_recordの関係ゲート） */}
                         <div>{wMini.auth_id && <WorkerWorkRecord workerId={wMini.auth_id} />}</div>
-                        {/* 評価＝受け取った評価（肯定バッジ＋審査済みコメント。公開できる評価が無ければ何も描かない） */}
+                        {/* 評価＝受け取った評価（肯定バッジ＋公開コメント。公開できる評価が無ければ何も描かない） */}
                         <div>{wMini.auth_id && <ReceivedReviews userId={wMini.auth_id} direction="farmer_to_worker" />}</div>
                       </SwipeTabPages>
                     ) : (

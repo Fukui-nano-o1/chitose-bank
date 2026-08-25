@@ -1,8 +1,9 @@
 // 受け取った評価（利用規約 第8条・2026-08-07たきと承認）。
-// 肯定的な選択項目（trueのみ）＋審査を通った公開コメントだけを表示する。
+// 肯定的な選択項目（trueのみ）＋公開コメントを表示する（コメントの承認制は2026-08-23に廃止＝即時公開。
+// 運営が非表示にしたものだけ落ちる＝判定はDB側 reviews_public_badges）。
 // 公開判定（双方の評価が揃うか完了から3日）はDB側 reviews_public_badges が担保＝ここは表示のみ。
 // 個々の評価者は出さない（誰がどう評価したかは出さない＝推薦・選別の回避）。
-// ★審査を感じさせない：作者側にはこの部品を出さない（自分の評価は MyReviewsOfWorker でそのまま見える）。
+// ★作者側にはこの部品を出さない（自分が書いた評価は MyReviewsOfWorker でそのまま見える）。
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { Dots } from "./ui";

@@ -11,7 +11,7 @@ const PAGES = [
   { key: "upcoming",    hash: "/admin/upcoming",    label: "まもなく開始" },
   { key: "evaluation",  hash: "/admin/evaluation",  label: "評価" },
   { key: "reports",     hash: "/admin/reports",     label: "報告" },
-  { key: "review-comments", hash: "/admin/review-comments", label: "コメント審査" },
+  { key: "review-comments", hash: "/admin/review-comments", label: "コメント" },
   { key: "system",      hash: "/admin/system",      label: "システム" },
   { key: "farmer-pages", hash: "/admin/farmer-pages", label: "農家のページ" },
   { key: "animations",  hash: "/admin/animations",  label: "アニメーション" },

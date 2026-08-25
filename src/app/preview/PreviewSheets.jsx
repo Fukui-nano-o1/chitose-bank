@@ -217,7 +217,7 @@ export function WorkerPreviewSheet() {
                 <WorkerWorkRecord workerId={st.worker_id} />
                 {canReport && <ProfileReportButton onOpen={()=>setRep({ source:"work_record", field:"", issue:"", detail:"", sending:false, done:false })} />}
               </div>
-              {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋審査済みコメント。DBのreviews_public_badgesが公開判定）。
+              {/* 3枚目：受け取った評価（利用規約 第8条・肯定バッジ＋公開コメント。DBのreviews_public_badgesが公開判定）。
                   公開できる評価がまだ無い時は何も描かない（2026-08-08たきと指示で案内文を撤去） */}
               <div>
                 <ReceivedReviews userId={st.worker_id} direction="farmer_to_worker" />
