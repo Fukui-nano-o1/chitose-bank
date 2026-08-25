@@ -10,6 +10,7 @@ import { JobLocationMap } from "../../../../components/JobLocationMap";
 import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar, PerkBadgeRow } from "../../../../components/ui";
 import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
+import { ReceivedReviews } from "../../../../components/ReceivedReviews";
 import { disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, perkBadges } from "../../../../lib/utils";
 import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 // 求人の主要情報（日程・勤務時間・休憩・人数・最寄り駅・報酬・支払条件・時間外）
@@ -163,6 +164,43 @@ export function JobLocationSection({ job, me }) {
       <JobInsuranceSection employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }} />
     )}
   </>);
+}
+
+// 求人者情報（保険枠の下・2026-08-25たきと指示「その下に求人者情報を明記。アイコン、名称、代表より、評価」）。
+// ★ここに出すのは4つだけ：アイコン／名称／代表より／評価。
+//   氏名・住所・連絡先は出さない（2026-08-03に募集者情報ボックスを削除した判断のまま＝
+//   それらは農園紹介の信頼カードが伏せ字つきで担う。ここで復活させない）。
+// ★代表よりは owner_comment（＝代表より枠の中身。名前の下の挨拶ではない・2026-07-14の入替のまま）。
+//   未記入なら行ごと出さない（無い情報をあるように見せない・憲法3条）。
+// ★評価は ReceivedReviews に委譲＝肯定的な選択項目と審査済みコメントだけ（規約第8条）。
+//   求人ページのクライアントは求人者のUIDを知らないので jobNumber 経由で引く。
+//   訪問者（未ログイン）はDB側that資格なしを返す＝「まだ評価はありません」と誤読させないため案内文に差し替える
+export function JobRecruiterInfo({ job, employer, me, onOpenIntro }) {
+  const name = employer?.nickname || job.employerName;
+  if (!name) return null; // 名前も分からないうちは枠ごと出さない（空の箱を置かない）
+  const comment = (employer?.owner_comment || "").trim();
+  return (
+    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
+      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 12px", letterSpacing:".06em" }}>求人者情報</p>
+      {/* アイコン・名称（タップで農園紹介＝求人者カードと同じ入口・行き先を増やさない） */}
+      <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor: onOpenIntro ? "pointer" : "default" }}>
+        <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={64} />
+        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, minWidth:0, overflowWrap:"break-word" }}>{name}さん</p>
+      </div>
+      {/* 代表より */}
+      {comment && (<>
+        <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0" }} />
+        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px", letterSpacing:".06em" }}>代表より</p>
+        <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
+      </>)}
+      {/* 評価 */}
+      <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0" }} />
+      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px", letterSpacing:".06em" }}>評価</p>
+      {me
+        ? <ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} />
+        : <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>ログインすると、この求人者への評価を見られます</p>}
+    </div>
+  );
 }
 // 写真ギャラリー（最大10枚・0枚なら求人者のアイコンを1枚）
 export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scrollerRef, onScroll }) {

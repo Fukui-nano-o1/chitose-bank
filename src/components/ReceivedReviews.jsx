@@ -44,19 +44,24 @@ const BADGE_DEFS = {
 // ★2026-08-08の「何も描かない」は撤回：評価が独立した面（タブ）になり、空だと面ごと白紙に見えるため。
 // 公開判定の仕組み自体は不変（DB側 reviews_public_badges）。
 // ★hideEmpty/onEmptyChange の2propは廃止のまま（親が中央固定で描いていた層ごと削除済み）
-export function ReceivedReviews({ userId, direction }) {
+// jobNumber（任意・2026-08-25）：求人ページから求人者の評価を出すときに渡す。求人ページの
+// クライアントは求人者のauth UIDを知らない（farmer_idは誰にも出さない）ため、求人No.で引く窓口
+// job_employer_reviews に切り替える。返る中身・開示範囲・見た目は同じ（窓口が違うだけ）
+export function ReceivedReviews({ userId, direction, jobNumber }) {
   const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
     let cancelled = false;
     setData(null);
     (async () => {
       try {
-        const { data: res } = await supabase.rpc("reviews_public_badges", { p_user_id: userId, p_direction: direction });
+        const { data: res } = jobNumber
+          ? await supabase.rpc("job_employer_reviews", { p_job_number: jobNumber })
+          : await supabase.rpc("reviews_public_badges", { p_user_id: userId, p_direction: direction });
         if (!cancelled) setData(res && res.ok ? res : { ok: false });
       } catch { if (!cancelled) setData({ ok: false }); }
     })();
     return () => { cancelled = true; };
-  }, [userId, direction]);
+  }, [userId, direction, jobNumber]);
 
   const defs = BADGE_DEFS[direction] || [];
   const badges = (data && data.badges) || {};
