@@ -1073,20 +1073,23 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               プロフィール編集の「保険の準備」ボックス（InsurancePrepBox）に一本化。
               ★申告そのものは消えていない：求人ページの保険（掲載時に凍結）・応募者への表示・
               専用ページ #/insurance（URL直打ち）は従来どおり */}
+          {/* リピート即決（2026-08-25たきと指示「記録をリピート即決に差し替え。カードは削除。アイコンは残す」）＝
+              区画の見出しをこの機能の名前にし、白いカードは畳んでアイコン（登録した働き手）を直接並べる。
+              説明は見出しの？で開く（見出し行ごと当たり判定＝丸チップだけだと外す・2026-08-18の教訓）。
+              ★中身は不変：repeat_roster の登録者＝アイコンのタップで働き手の詳細、解除はその中から。
+              法務（2026-07-16労働局回答③）も不変＝登録の効果はその求人者自身の求人の範囲だけ */}
           <div style={{ marginTop:16 }}>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>記録</p>
-            <div className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, margin:"0 0 12px" }}>
-                <p style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="heartFill" size={14} style={{ verticalAlign:"-2px", color:"#E24B4A" }} />また呼びたいリスト</p>
-                <button onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? "#00A86B" : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", border:"none", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</button>
-              </div>
-              {rosterInfoOpen && (
-                <p className="fade-in" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方のリストです。新しい求人を出すとお知らせが届き、リピート即決ONの求人には応募と同時に自動承認されます。</p>
-              )}
-              {rosterRows.length === 0
-                ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
-                : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
-            </div>
+            <button type="button" onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" aria-expanded={rosterInfoOpen}
+              style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 8px", padding:0, background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
+              <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>リピート即決</span>
+              <span className="f-sans" style={{ width:20, height:20, borderRadius:10, background: rosterInfoOpen ? ROLE_GREEN : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
+            </button>
+            {rosterInfoOpen && (
+              <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方です。新しい求人を出すとお知らせが届き、リピート即決をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。アイコンをタップすると詳細と解除ができます。</p>
+            )}
+            {rosterRows.length === 0
+              ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
+              : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} /></button>))}</div>}
             {/* 「労働条件通知書」の入口カードは削除（2026-08-22たきと指示）。
                 ★通知書そのものは残っている：求人カードのボタンから1件ずつ開く
                 （上の noticeAppId 経由・applicationId付きのLaborConditionsNotice・表示と印刷）＝
