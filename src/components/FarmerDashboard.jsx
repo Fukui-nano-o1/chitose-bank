@@ -33,7 +33,7 @@ import { Celebration } from "./Celebration";
 import { DayReportSheet } from "./DayReportSheet";
 import { FinalReviewSheet } from "./FinalReviewSheet";
 import { NavIcon, NavIconInline } from "./NavIcons";
-import { TodayTaskBoxes } from "../features/today/components/TaskBoxes";
+import { UpcomingSchedule } from "../features/today/components/Upcoming";
 
 // 応募者ページの非表示の選択（2026-08-18たきと指示「応募者ページも同じようにしろ」＝チャット一覧と同じ形）。
 // ★ピルは「見るもの」ではなく【隠すもの】の選択＝見送り／失効／取り消しの3つだけ。複数選択可。
@@ -1198,10 +1198,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 （上の noticeAppId 経由・applicationId付きのLaborConditionsNotice・表示と印刷）＝
                 雇用主が労働条件を明示・交付する手段はサイトから失われていない */}
           </div>
-          {/* やることカード群（2026-08-22たきと指示「農家も実施」＝働き手面のコピーと対）。
-              正本は今日ページ（TodayPage）＝移行中の複製。行き先の専用ページ(#/calendar/todo/*)も
-              今日ページ側に残っている（削除の段でこちらへ引っ越す）。中身・並びは共有部品が担う */}
-          <TodayTaskBoxes role="farmer" />
+          {/* つぎの予定（7日以内）。やることの格子は2026-08-25たきと指示で撤去（働き手面と対）＝
+              採用する・保険の報告・記録する・評価する・緊急連絡先はカレンダーページの求人カードの
+              ボタン、求人の修正・質問は求人カードとお知らせ、プロフィール入力は名刺カードが担う */}
+          <UpcomingSchedule role="farmer" />
           {/* 「期限切れの求人を見る」リンクは削除（2026-07-25たきと指示）。ページ自体(/profile/employer/expired)はURL直打ちで到達可 */}
         </>
       ) : (
