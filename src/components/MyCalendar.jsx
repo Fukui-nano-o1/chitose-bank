@@ -15,8 +15,9 @@ const CAL_OVERLAP = "#E24B4A";
 // 日付タップ＝その日の予定と操作を日付シートで開く（この部品の中で完結・親への通知はしない）。
 // jobsテーブルを直接読むとRLS(owner select=farmer_idのみ)で相手方の求人が読めないため、
 // get_my_calendar_jobs（SECURITY DEFINER）経由で取得する。
-// ★出すのは【公開中の求人】と【応募している求人】と【いいねした求人（公開中）】（2026-08-19たきと指示）。
-//   自分の求人は status='open' のものだけ＝終了・審査中・下書きは出さない
+// ★出すのは【公開中と終了した自分の求人】と【応募している求人（完了ぶんも含む）】と
+//   【いいねした求人（公開中）】。審査中・下書きは出さない（2026-08-25たきと指示
+//   「なぜか、終了した求人がカレンダーから消えている」で終了ぶんを戻した）
 //   （migration 20260819…_calendar_only_open_and_applied → …_calendar_restore_liked_rows で
 //    いいねだけ復元）。絞り込みはRPC側that行う＝フロントに条件を書かない。
 // canPostJob＝予定のない日のタップで「求人を出す」を出すか（2026-08-21たきと指示）。
@@ -438,6 +439,8 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
               {daySheet.idxs.map(i => {
                 const e = entries[i];
                 const own = e.relation === "own";
+                // 掲載中の求人だけ、日程の移動・内容の編集を出す（終了した求人は動かさない＝過去の求人はいじらない）
+                const ownLive = own && e.status === "open";
                 const title = ((e.crop||"") + " " + (e.task||"")).trim() || "無題";
                 return (
                   <div key={e.relation + e.job_number + (e.application_id||"")} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px" }}>
@@ -451,24 +454,30 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                       </p>
                     )}
                     <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginTop:10 }}>
+                      {ownLive && (
+                        <button onClick={()=>{ setDaySheet(null); setMoveMode({ jobNumber: e.job_number, title }); }} className="f-sans"
+                          style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>日程をうごかす</button>
+                      )}
                       {own && (
-                        <>
-                          <button onClick={()=>{ setDaySheet(null); setMoveMode({ jobNumber: e.job_number, title }); }} className="f-sans"
-                            style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>日程をうごかす</button>
-                          <button onClick={()=>copyFromSheet(e.job_number)} className="f-sans"
-                            style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピー</button>
-                          <button onClick={()=>editFromSheet(e)} className="f-sans"
-                            style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>内容を編集</button>
-                        </>
+                        <button onClick={()=>copyFromSheet(e.job_number)} className="f-sans"
+                          style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピー</button>
+                      )}
+                      {ownLive && (
+                        <button onClick={()=>editFromSheet(e)} className="f-sans"
+                          style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>内容を編集</button>
                       )}
                       <button onClick={()=>{ setDaySheet(null); window.location.hash = "/work/job/" + e.job_number; }} className="f-sans"
                         style={{ background:"none", color:"#717171", border:"none", padding:"7px 4px", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>求人ページを見る</button>
                     </div>
-                    {own && (
+                    {ownLive ? (
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
                         日程をうごかせるのは、応募が届く前だけです。届いた後の日程はチャットで相談してください。
                       </p>
-                    )}
+                    ) : own ? (
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
+                        掲載が終わった求人です。日程の変更や内容の編集はできません（記録として残ります）。
+                      </p>
+                    ) : null}
                   </div>
                 );
               })}
