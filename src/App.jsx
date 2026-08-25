@@ -178,7 +178,7 @@ const MENU_ITEMS = [
 ];
 
 // モバイル下部バー：☰(左端・アイコンのみ)＋4機能タブ。
-// ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理・ログアウト
+// ☰の中身：求人を探す・使い方・この画面を報告・お問い合わせ・管理（ログアウトは2026-08-25にマイページの「設定」へ移した）
 // （2026-08-19「求人を出す」を削除し「求人を探す」を新設／2026-08-22 お問い合わせを追加・たきと指示）。
 // 下部ナビ＝取引の時系列（第12弾・2026-07-23）：さがす→カレンダー→チャット(③約束する)→マイページ
 // アイコンは絵文字→アウトラインSVG（NavIcon・Airbnb風・2026-08-22たきと指示）。
@@ -1829,16 +1829,8 @@ export default function App(){
                   <NavIconInline name="gear" size={13} />管理
                 </button>
               )}
-              {me && (
-                <button onClick={() => { setMenuOpen(false); handleLogout(); }}
-                  className="f-sans"
-                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
-                           border:"none", cursor:"pointer", fontFamily:"inherit",
-                           fontSize:14, color:"#E24B4A", padding:"10px 16px",
-                           borderTop:"1px solid #EBEBEB", marginTop:4 }}>
-                  ログアウト
-                </button>
-              )}
+              {/* ログアウトは☰から外した（2026-08-25たきと指示「Airbnbのマイページをぱくれ」）＝
+                  マイページ下部の「設定」に1箇所だけ置く（Airbnbもアカウントの面にしか置かない） */}
             </div>
           )}
         </div>
@@ -1871,9 +1863,7 @@ export default function App(){
                 /* ログインへ行く時だけ、今いるページを覚える（戻ってこられるように・2026-07-30） */
                 <button key={item.key} onClick={()=>{ setMobileMenuOpen(false); if (item.hash === "/login") armLoginReturn(); window.location.hash = item.hash; }} className="f-sans app-header-mobile-menu-item">{item.label}</button>
               ))}
-            {me && (
-              <button onClick={()=>{ setMobileMenuOpen(false); handleLogout(); }} className="f-sans app-header-mobile-menu-item" style={{ color:"#E24B4A", borderTop:"1px solid #EBEBEB" }}>ログアウト</button>
-            )}
+            {/* ログアウトはマイページ下部の「設定」へ移した（2026-08-25・上の☰と対） */}
           </div>
         )}
       </div>}

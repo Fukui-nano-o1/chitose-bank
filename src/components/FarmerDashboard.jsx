@@ -1081,8 +1081,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           <div style={{ marginTop:16 }}>
             <button type="button" onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" aria-expanded={rosterInfoOpen}
               style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 8px", padding:0, background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
-              <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", borderLeft:"3px solid " + ROLE_GREEN, paddingLeft:8 }}>リピート即決</span>
-              <span className="f-sans" style={{ width:20, height:20, borderRadius:10, background: rosterInfoOpen ? ROLE_GREEN : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
+              <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>リピート即決</span>
+              <span className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? ROLE_GREEN : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
             </button>
             {rosterInfoOpen && (
               <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方です。新しい求人を出すとお知らせが届き、リピート即決をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。アイコンをタップすると詳細と解除ができます。</p>

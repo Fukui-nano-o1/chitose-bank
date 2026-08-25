@@ -50,7 +50,7 @@ export function UpcomingSchedule({ role = "worker" }) {
 
   return (
     <div style={{ marginTop:16 }}>
-      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid #DDD", paddingLeft:8 }}>つぎの予定（7日以内）</p>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 12px" }}>つぎの予定</p>
       <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:8 }}>
         {upcoming.map(e => {
           const label = e.date_end && e.date_end !== e.date_start ? `${calFmtDate(e.date_start)}〜${calFmtDate(e.date_end)}` : calFmtDate(e.date_start);

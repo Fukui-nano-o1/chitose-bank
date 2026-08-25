@@ -120,7 +120,7 @@ export function LikedJobs({ me }) {
 
   return (
     <div style={{ marginTop:16 }}>
-      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid " + ROLE_ORANGE, paddingLeft:8 }}>いいねした求人</p>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 12px" }}>いいねした求人</p>
       {rows === null ? (
         <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中<Dots /></p>
       ) : count === 0 ? (

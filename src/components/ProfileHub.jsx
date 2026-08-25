@@ -45,6 +45,25 @@ const WITHDRAW_DELETED_ITEMS = [
 // 退会セクション（2026-08-07たきと指示・プロフィール最下部）：タップで説明＋いいえ/はいを展開。
 // いいえ＝閉じる／はい＝退会申請を記録してログアウト。処理はProfileModal（旧・到達不能だった退会）と同一。
 // フォーカス消失バグ回避のためモジュールレベル定義（ProfileHub内に定義しない・CLAUDE.md技術メモ）。
+// マイページ下部の道具箱（骨格⑤の「下層＝自分のみ閲覧」・2026-08-25たきと指示「Airbnbのマイページをぱくれ」）。
+// ★Airbnbの実物のコード・素材は複製できない（非公開・著作物）ので、見た目の言語だけを自前で写した：
+//   見出し＝太字の黒／行＝左にアウトラインの絵・中央にラベル・右に「›」・行の間に細い区切り線。
+//   ログアウトは Airbnb と同じくアカウントの面だけに置く（☰からは外した）。
+function ToolRow({ icon, label, sub, danger, onClick, last }) {
+  return (
+    <button type="button" onClick={onClick} className="f-sans"
+      style={{ display:"flex", alignItems:"center", gap:14, width:"100%", textAlign:"left", background:"none",
+               border:"none", borderBottom: last ? "none" : "1px solid #EBEBEB", padding:"16px 2px", cursor:"pointer" }}>
+      <span style={{ flexShrink:0, display:"flex", color: danger ? "#E24B4A" : "#222" }}><NavIcon name={icon} size={22} /></span>
+      <span style={{ minWidth:0, flex:1 }}>
+        <span style={{ display:"block", fontSize:15, fontWeight:600, color: danger ? "#E24B4A" : "#222" }}>{label}</span>
+        {sub && <span style={{ display:"block", fontSize:12, color:"#717171", marginTop:2, lineHeight:1.6 }}>{sub}</span>}
+      </span>
+      <span style={{ color:"#C8C8C8", fontSize:18, flexShrink:0 }}>›</span>
+    </button>
+  );
+}
+
 function ProfileWithdrawSection({ onLogout }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,10 +84,15 @@ function ProfileWithdrawSection({ onLogout }) {
     if (onLogout) onLogout();
   };
   return (
-    <div style={{ borderTop:"1px solid #EBEBEB", marginTop:32, paddingTop:20, paddingBottom:8 }}>
+    <div style={{ marginTop:32, paddingBottom:8 }}>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>設定</p>
       {!open
-        ? <button onClick={()=>setOpen(true)} className="f-sans" style={{ width:"100%", padding:"12px", border:"none", background:"none", fontSize:13, color:"#E24B4A", cursor:"pointer", textAlign:"center" }}>退会する</button>
-        : <div style={{ padding:20, background:"#FCEBEB", borderRadius:14, border:"1px solid #E24B4A22" }}>
+        ? (<div>
+            {/* ログアウトはここが唯一の入口（2026-08-25に☰から移した）＝Airbnbと同じくアカウントの面に置く */}
+            <ToolRow icon="login" label="ログアウト" onClick={()=>{ if (window.confirm("ログアウトしますか？") && onLogout) onLogout(); }} />
+            <ToolRow icon="alert" label="退会する" sub="登録した情報の削除を申し出ます" danger last onClick={()=>setOpen(true)} />
+          </div>)
+        : <div style={{ marginTop:12, padding:20, background:"#FCEBEB", borderRadius:14, border:"1px solid #E24B4A22" }}>
             <p className="f-sans" style={{ fontSize:13, color:"#E24B4A", marginBottom:14, lineHeight:1.8, textAlign:"center" }}>
               本当に退会しますか？<br/>
               <button onClick={()=>setShowItems(v=>!v)} className="f-sans" style={{ border:"none", background:"none", padding:0, color:"#E24B4A", fontSize:13, fontWeight:700, cursor:"pointer", textDecoration:"underline" }}>登録した情報</button>
