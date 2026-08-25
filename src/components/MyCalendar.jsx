@@ -131,12 +131,28 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   });
   // 誰が来る日か＝塗りと同じ entryWorkDays で見る（働く日が確定していればその日、
   // 未確定なら働き手が申請した労働希望日、それも無ければ求人の日程どおり）
+  // マスに出す名前のチップ（2026-08-25たきと指示「終了した求人にも名称は出そう」）：
+  //   ・応募＝相手の名前。採用以降（採用・作業中）に加えて【完了】も出す＝終わった仕事の相手が消えない
+  //   ・自分の求人＝作物（無ければ作業）。掲載中は緑・終了はグレーで、終わったものと分かる
+  //   いいねは出さない（人との約束ではない＝盤面が名前で埋まらないように）
+  const CHIP_PHASES = ["contracted", "working", "completed"];
   const chipsOnDay = (dt) => {
     const ymd = ymdLocal(dt);
     return entryIdxOnDay(ymd)
       .map(i => entries[i])
-      .filter(e => e.relation === "application" && e.partner_name && HIRED_PHASES.includes(phaseOfEntry(e)));
+      .filter(e => (e.relation === "application" && e.partner_name && CHIP_PHASES.includes(phaseOfEntry(e)))
+                || (e.relation === "own" && ((e.crop || "").trim() || (e.task || "").trim())));
   };
+  // チップの見た目（名前・色・説明）を1箇所で決める＝出す場所が増えても食い違わない
+  const chipFace = (e) => e.relation === "own"
+    ? { key: "own-" + e.job_number,
+        text: (e.crop || "").trim() || (e.task || "").trim(),
+        color: e.status === "open" ? ROLE_GREEN : "#9E9E9E",
+        title: `${((e.crop||"") + " " + (e.task||"")).trim()} #${e.job_number}（${e.status === "open" ? "掲載中" : "掲載終了"}）` }
+    : { key: e.application_id,
+        text: e.partner_name,
+        color: APP_PHASE_COLOR[phaseOfEntry(e)],
+        title: `${e.partner_name}（${APP_PHASE_LABEL[phaseOfEntry(e)]}）` };
   // 確定したか＝【採用したか】（2026-08-11たきと指示「承認したらならばカレンダーに反映。採用したならば確定」）。
   // 承認（面接中）はカレンダーに出すが、まだその日に働くと決まったわけではない＝未確定。
   // 採用（両者の確認時刻が揃う＝契約成立）で確定する。
@@ -584,16 +600,17 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                     minHeight: chips.length > 0 ? 56 : 44,
                   }}>
                     <span>{dd}</span>
-                    {/* 誰が来るか（採用済みのみ）。色は段階色＝帯・チャットと同じ体系。
+                    {/* その日の名前（2026-08-25）：応募＝誰が来るか（採用・作業中・完了）／自分の求人＝作物。
+                        色は応募が段階色（帯・チャットと同じ体系）、自分の求人は掲載中=緑・終了=グレー。
                         名前はニックネーム（未設定ならメール頭2文字）で、本名は返らない（resolve_actor_name） */}
-                    {chips.slice(0, 2).map(e => (
-                      <span key={e.application_id} title={`${e.partner_name}（${APP_PHASE_LABEL[phaseOfEntry(e)]}）`}
+                    {chips.slice(0, 2).map(e => chipFace(e)).map(f => (
+                      <span key={f.key} title={f.title}
                         className="f-sans" style={{
-                          background: APP_PHASE_COLOR[phaseOfEntry(e)], color:"#fff",
+                          background: f.color, color:"#fff",
                           fontSize:9, fontWeight:700, lineHeight:1.5, borderRadius:3, padding:"0 3px",
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block",
                           minWidth:0, maxWidth:"100%", boxSizing:"border-box",
-                        }}>{e.partner_name}</span>
+                        }}>{f.text}</span>
                     ))}
                     {chips.length > 2 && (
                       <span className="f-sans" style={{ fontSize:8, fontWeight:700, color:"#717171", lineHeight:1.4 }}>＋{chips.length - 2}</span>
