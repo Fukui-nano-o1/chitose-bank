@@ -96,6 +96,29 @@ export function JobSearchMapView({ onRegister, me }) {
     window.location.hash = "/profile/employer";
   };
 
+  // ── 共有する（2026-08-25たきと指示「詳細ページの右上に共有するを新設」）──
+  // 端末の共有シート（navigator.share）thaがあればそれを開き、無ければリンクをコピーする。
+  // ★渡すのは求人ページのURLだけ＝中身は開いた相手の権限で決まる（訪問者には従来どおりマスクthaが掛かる）。
+  // ★originは実行時の値を使う（本番・プレビューのどちらでも自分のURLになる）
+  const [shareNote, setShareNote] = useState("");
+  useEffect(() => {
+    if (!shareNote) return;
+    const t = setTimeout(() => setShareNote(""), 2400);
+    return () => clearTimeout(t);
+  }, [shareNote]);
+  const shareJob = async () => {
+    if (!selectedJob) return;
+    const url = window.location.origin + "/#/work/job/" + selectedJob.id;
+    const title = `${selectedJob.crop || ""} ${selectedJob.task || ""}`.trim() + (selectedJob.region ? `｜${selectedJob.region}` : "");
+    if (navigator.share) {
+      try { await navigator.share({ title: title || "chitose-bank の求人", url }); return; }
+      // 共有シートを閉じた（キャンセル）だけの時は何も出さない。それ以外はコピーに倒す
+      catch (e) { if (e && (e.name === "AbortError" || e.name === "NotAllowedError")) return; }
+    }
+    try { await navigator.clipboard.writeText(url); setShareNote("リンクをコピーしました"); }
+    catch { setShareNote("コピーできませんでした。アドレスバーのURLをお使いください"); }
+  };
+
   // 自分の求人か（2026-07-22）：自分の求人には応募フッター（日給・応募ボタン）を出さない。
   // 一覧（myJobNums・jobsのRLS owner selectで自分の行だけ返る）から同期的に決める＝求人ごとの往復なし。
   // ownLoaded＝この判定が使える状態か。未ログインは自分の求人ではありえない＝即確定。
@@ -1076,12 +1099,26 @@ export function JobSearchMapView({ onRegister, me }) {
           : (backTo === "/saved" || (backTo || "").startsWith("/profile/employer/calendar")) ? "← カレンダーに戻る"
           : (backTo && backTo.startsWith("/profile/employer")) ? "← 求人に戻る" : "← 一覧に戻る"}</button>
         )}
-        {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示） */}
-        {!isOwnJob && canLike(selectedJob) && (
-        <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-like" style={{
-          display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-          fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}><span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={17} /></span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
+        {/* 右上は横並び1列（2026-08-25たきと指示「詳細ページの右上に共有するを新設」）＝
+            共有する ＋ いいね。いいねthaが出ない求人（自分の求人）では共有するthatが1つだけ右上に残る */}
+        <div className="job-float-right">
+          <button onClick={shareJob} aria-label="この求人を共有する" className="f-sans" style={{
+            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+            fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}><NavIcon name="share" size={16} />共有する</button>
+          {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示） */}
+          {!isOwnJob && canLike(selectedJob) && (
+          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
+            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
+            fontSize:13, fontWeight:600, color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}><span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={17} /></span>{savedIds.has(selectedJob.id) ? "いいね済み" : "いいね"}</button>
+          )}
+        </div>
+        {/* 共有の結果（コピーした・できなかった）の一言。2.4秒で消える・操作は奪わない */}
+        {shareNote && (
+          <div style={{ position:"fixed", left:0, right:0, bottom:"calc(96px + env(safe-area-inset-bottom, 0px))", zIndex:9200, display:"flex", justifyContent:"center", pointerEvents:"none" }}>
+            <span className="f-sans" style={{ background:"rgba(34,34,34,0.92)", color:"#fff", fontSize:13, fontWeight:600, borderRadius:20, padding:"10px 18px", maxWidth:"90%", textAlign:"center" }}>{shareNote}</span>
+          </div>
         )}
         <div className="appear job-detail-body-mobile">
           {/* ページ先頭右の通報リンクは削除（2026-08-19たきと指示「この求人を報告するといいねボタンが

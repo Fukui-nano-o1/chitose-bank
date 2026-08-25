@@ -1169,16 +1169,18 @@ html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height:
 
 /* 開催期間カレンダー📅の浮遊ボタン（.calendar-fab*）は削除（2026-07-24・誰も展開しないため） */
 
-/* ── 求人詳細：←戻る／♡いいねの浮遊固定（同じ高さ・スクロール追従・2026-07-16） ── */
-.job-float-back, .job-float-like {
+/* ── 求人詳細：←戻る／共有する・♡いいねの浮遊固定（同じ高さ・スクロール追従・2026-07-16） ──
+   右上は横1列（2026-08-25たきと指示で「共有する」を新設）＝.job-float-right の中に共有・いいねを並べる。
+   ★ボタン側に position:fixed を持たせない（持たせると並びから抜けて重なる） */
+.job-float-back, .job-float-right {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0px));
   z-index: 550;
 }
 .job-float-back { left: 12px; }
-.job-float-like { right: 12px; }
+.job-float-right { right: 12px; display: flex; align-items: center; gap: 8px; }
 @media (min-width: 769px) {
-  .job-float-back, .job-float-like { top: 76px; } /* PCは上部ヘッダーの下 */
+  .job-float-back, .job-float-right { top: 76px; } /* PCは上部ヘッダーの下 */
 }
 
 /* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
