@@ -70,9 +70,11 @@ export default function ContractEmergencyContact({ applicationId, showPending = 
   if (asButton) {
     return (
       <div style={{ ...style }}>
+        {/* 背景＝赤・アイコンと文字＝白（2026-08-25たきと指示）。
+            NavIcon は stroke="currentColor" なので、color:"#fff" でアイコンも一緒に白くなる */}
         <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} className="f-sans"
           style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer",
-                   background:"#fff", color:accent, border:"1.5px solid " + accent,
+                   background:accent, color:"#fff", border:"1.5px solid " + accent,
                    pointerEvents:"auto",
                    display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
           <NavIcon name="phone" size={16} />緊急連絡先
