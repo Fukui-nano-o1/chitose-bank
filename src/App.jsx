@@ -1590,9 +1590,12 @@ export default function App(){
   // 掲載（2026-08-23たきと指示「農家モードのとき、チャットの右に掲載ボタンを新設」）＝
   // 求人づくりへの最短の入口。判定は empCtx（いま農家モードか）＝カレンダーの hasEmp（面を持つか）とは別物：
   // 「出す」のは農家モードで見ている時だけの用事so、capability でなくモードで出し分ける。
-  // ★下書きは消さない（マイページの「新しく求人を出す」カードは消す）＝誤タップで書きかけthat消えないように。
-  //   hash を書くだけでフローthat開く（onHash that showJobPost を立てる）＝新しい経路を作らない
-  const postTab = { k:"post", icon:<NavIcon name="publish" />, label:"掲載", hash:"/work/new",
+  // ★下書きは消さない＝誤タップで書きかけthat消えないように。
+  //   hash を書くだけでフローthat開く（onHash that showJobPost を立てる）＝新しい経路を作らない。
+  // ★アイコンは postJob（紙＋鉛筆）＝マイページ農家面にあった「求人の掲載」カード（c6bc698で削除）と
+  //   同じもの。同じ行き先の入口がカードからナビへ移っただけso、絵柄も引き継ぐ（2026-08-23たきと指示
+  //   「求人の掲載カードのアイコンを持ってこい」）。新規に描いた publish（枠＋プラス）は不採用・削除済み
+  const postTab = { k:"post", icon:<NavIcon name="postJob" />, label:"掲載", hash:"/work/new",
     match: h => h === "work/new" || h.startsWith("work/new/") || h.startsWith("work/edit/") };
   const navTabs = !me
     ? visitorNav
