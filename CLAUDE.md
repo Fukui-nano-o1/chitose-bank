@@ -8746,3 +8746,34 @@ onDayPressStart を抜き出し、document・touch・rAFを作って node で20�
 【実機目視の残り】①長押し中に画面がスクロールしないこと（下部バーは消えないこと）②札の持ち上がり
 ③端で持つと月が送られるか ④離した日のシート ⑤短いタップ・普通のスクロールが従来どおりか
 ━━━ ここまで ━━━
+
+━━━ 2026-08-23 農家モードの下部ナビに「掲載」を新設（チャットの右）━━━
+【たきと指示】「農家モードのとき、チャットの右に掲載ボタンを新設。アイコン描いて。」
+【実装（App.jsx・NavIcons.jsx／DB不変）】
+・postTab＝{ k:"post", label:"掲載", hash:"/work/new" } を navTabs のチャットとマイページの間に挿入。
+  農家モード（empCtx）のときだけ出す＝5タブ／働き手モードは従来の4タブのまま。
+  ★判定は empCtx（いま農家モードか）＝カレンダーの hasEmp（雇い手の面を持つか）とは別物：
+   「出す」のは農家モードで見ている時だけの用事so、capability でなくモードで出し分けた。
+・行き先は hash を書くだけ＝onHash（App.jsx 684）that showJobPost を立てて求人フローthat開く（新しい経路を作らない）。
+  ★下書きは消さない：マイページの「新しく求人を出す」カードは localStorage の下書きを消すthat、
+   ナビは誤タップthat起こりうるso消さない＝書きかけthatあれば続きから、無ければ白紙。
+・アイコン publish＝角丸の枠＋プラス（新規作成）。行き先that求人づくりso意味を「新しく出す」に寄せた。
+  ★install（スマホ＋下向き矢印＝端末に入れる）と取り違えないこと：あちらは縦長、こちらは正方。
+  紙＋上向き矢印（アップロード記号）の案は見送り＝26pxで矢印と紙that重なって読みにくいため。
+・アクティブ判定 match＝work/new・work/edit/ 配下＝フロー中は掲載タブthat点灯。
+【検証】build成功・eslint 0 error（警告8=既存のみ）・並びをnodeで機械検算（農家5個＝
+さがす/カレンダー/チャット/掲載/マイページ・掲載thatチャットの右・働き手は4個のまま）・
+dist に publish のパス（uiチャンク）と label/hash（indexチャンク）の包含を確認。
+★minifyで文字列thatバッククォートになるso、二重引用符でgrepすると0件に見える（2026-08-23再確認）。
+【実機目視の残り】①農家モードで下部ナビthat5つになり、チャットの右に「掲載」that出るか
+②タップで求人フローthat開くか ③書きかけの下書きthat消えないか ④働き手モードでは出ないこと
+━━━ ここまで ━━━
+
+━━━ 2026-08-23 メモ：ローカルのビルド失敗（html2canvas）は本番と無関係 ━━━
+掲載タブの作業中に npm run build that落ちた：Rolldown failed to resolve import "html2canvas"。
+原因＝別セッションthat 8d92bf3（労働条件通知書のPDF保存）で html2canvas を package.json に追加したthat、
+私のセッションの node_modules thatその前の npm install のままで実体を持っていなかった。
+package.json・package-lock.json の両方に ^1.4.1 thatあり npm ci も通るso【本番のビルドは無罪】。
+npm install で解消。★pull で package.json thatが動いた日は node_modules も更新すること
+（「ビルドthat落ちた＝本番も落ちている」と早合点しない）。
+━━━ ここまで ━━━

@@ -1587,12 +1587,20 @@ export default function App(){
     ? { k:"emp-calendar", icon:<NavIcon name="calendar" />, label:"カレンダー", hash:"/profile/employer/calendar",
         match: h => h.startsWith("profile/employer/calendar") }
     : { k:"saved", icon:<NavIcon name="calendar" />, label:"カレンダー" };
+  // 掲載（2026-08-23たきと指示「農家モードのとき、チャットの右に掲載ボタンを新設」）＝
+  // 求人づくりへの最短の入口。判定は empCtx（いま農家モードか）＝カレンダーの hasEmp（面を持つか）とは別物：
+  // 「出す」のは農家モードで見ている時だけの用事so、capability でなくモードで出し分ける。
+  // ★下書きは消さない（マイページの「新しく求人を出す」カードは消す）＝誤タップで書きかけthat消えないように。
+  //   hash を書くだけでフローthat開く（onHash that showJobPost を立てる）＝新しい経路を作らない
+  const postTab = { k:"post", icon:<NavIcon name="publish" />, label:"掲載", hash:"/work/new",
+    match: h => h === "work/new" || h.startsWith("work/new/") || h.startsWith("work/edit/") };
   const navTabs = !me
     ? visitorNav
     : [
         { k:"search",  icon:<NavIcon name="search" />,  label:"さがす" },
         calendarTab,
         { k:"chats",   icon:<NavIcon name="chats" />,   label:"チャット" },
+        ...(empCtx ? [postTab] : []),
         { k:"profile", icon:<NavIcon name="profile" />, label:"マイページ",
           match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ];
