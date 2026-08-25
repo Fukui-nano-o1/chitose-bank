@@ -910,6 +910,21 @@ export default function App(){
     return () => { window.removeEventListener("touchstart", onStart); window.removeEventListener("touchmove", onMove); };
   }, []);
 
+  // 同じタブの再タップでリロードした直後は、ページの先頭から見せる（2026-08-23たきと指示）。
+  // 合図は1回で使い切る＝ふつうのリロード（引き下げ更新・デプロイ後の再読込）では位置を動かさない。
+  // rAFを1つ挟むのは、ブラウザのスクロール復元thatこのeffectの後に走ることthatあるため
+  useEffect(() => {
+    let raf = null;
+    try {
+      if (sessionStorage.getItem("cb_topAfterReload")) {
+        sessionStorage.removeItem("cb_topAfterReload");
+        window.scrollTo(0, 0);
+        raf = requestAnimationFrame(() => window.scrollTo(0, 0));
+      }
+    } catch {}
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, []);
+
   // モバイル専用：下部バー＋浮遊ボタン「🌱 雇う」のスクロール連動格納。
   // 下方向に30px超スクロールで格納、上方向スクロール or 最上部付近で復帰。
   // 最下部付近（残り64px以内）では方向に関係なく常に格納＝フッターがバーに隠れない。
@@ -1891,6 +1906,18 @@ export default function App(){
             <button key={t.k}
               onClick={() => {
                 setMobileMenuOpen(false);
+                // いま見ているタブをもう一度タップ＝読み直してページの先頭へ（2026-08-23たきと指示
+                // 「下部ヘッダーと同じページの場合、リロード後トップへ遷移」）。
+                // ★入力を抱えている2つは除く＝求人フロー（showJobPost）とチャット（chatAppId）。
+                //   リロードすると書きかけthat飛ぶため（day4の教訓「reloadでstateは全消去される」）。
+                // ★先頭へ戻す仕掛けは2段：ここで先に0まで戻して【その位置thatブラウザに保存される】ようにし、
+                //   起動側でも合図を見て0にする（iOSはリロード後に独自の復元thatが走ることthatあるため）
+                if (isActive && !showJobPost && !chatAppId) {
+                  try { sessionStorage.setItem("cb_topAfterReload", "1"); } catch {}
+                  window.scrollTo(0, 0);
+                  window.location.reload();
+                  return;
+                }
                 // プロフィールタップ＝現在モードのトップへ（農家モード→農家プロ入口／それ以外→働き手入口）
                 if (t.k === "profile") {
                   if (empCtx) {
