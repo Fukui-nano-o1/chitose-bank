@@ -39,9 +39,44 @@ import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobP
 // 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
 // 応募パネルの最高額 calcMaxPay・絞り込みの月 jobMonths → features/jobs/search/model.js へ移設（2026-08-17）
 
+// 求人詳細のディープリンク（#/work/job/{番号}・タブ指定つきは /questions 等）。
+// ★モジュール直下に置く理由：最初の描画の【前】に「いま求人詳細を開こうとしているか」を知りたいため。
+//   effect は描画の後に走るので、そこで初めて selectedJob を入れると1フレームだけ さがす一覧が見える
+//   （2026-08-25たきと報告「更新すると一瞬だけさがすページに遷移する」の原因）。
+const JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/;
+const readJobHash = () => {
+  try {
+    const m = window.location.hash.replace(/^#\/?/, "").match(JOB_DETAIL_HASH_RE);
+    return m ? { jn: parseInt(m[1], 10), tab: m[2] || "content" } : null;
+  } catch { return null; }
+};
+// さがす一覧のキャッシュ（localStorage・同期）を読む。★Date の再生と「無ければ既定値」はここが唯一の場所＝
+// mapJobPublicRow に項目を足したら、ここにも1行足す（2026-08-18の実害：masked_fields で詳細が真っ白になった）
+const readCachedJobs = () => {
+  const c = getCache("search:jobs");
+  return Array.isArray(c)
+    ? c.map(j => ({
+        ...j,
+        dateStart: j.dateStart ? new Date(j.dateStart) : null,
+        dateEnd: j.dateEnd ? new Date(j.dateEnd) : null,
+        maskedFields: Array.isArray(j.maskedFields) ? j.maskedFields : [],
+      }))
+    : null;
+};
+
 export function JobSearchMapView({ onRegister, me }) {
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [detailTab, setDetailTab] = useState("content"); // 求人詳細の「仕事の内容/質問」タブ（第10弾）
+  // ★最初の描画から求人詳細を出す（キャッシュに居れば往復ゼロ・2026-08-25）
+  const [selectedJob, setSelectedJob] = useState(() => {
+    const h = readJobHash(); if (!h) return null;
+    return (readCachedJobs() || []).find(j => j.id === h.jn) || null;
+  });
+  const [detailTab, setDetailTab] = useState(() => readJobHash()?.tab || "content"); // 求人詳細の「仕事の内容/質問」タブ（第10弾）
+  // 求人詳細を開こうとしているが手元にまだ姿が無い（掲載終了・一時非公開・キャッシュ無し）＝取得中。
+  // この間はさがす一覧を描かない＝「一瞬さがすに飛んで戻る」を作らない。取得が終わったら（見つからなくても）解除
+  const [deepLinkJn, setDeepLinkJn] = useState(() => {
+    const h = readJobHash(); if (!h) return null;
+    return (readCachedJobs() || []).some(j => j.id === h.jn) ? null : h.jn;
+  });
   // 別の求人を開いたら内容タブに戻す（2026-07-27：selectedJob監視のリセットeffectは廃止。
   // タブ指定つきURL #/work/job/{番号}/questions の指定を後から打ち消してしまうため、
   // 「開く側」＝openJob・戻るスタック・hash解釈のそれぞれで明示的にタブを決める）
@@ -140,17 +175,7 @@ export function JobSearchMapView({ onRegister, me }) {
   //   （実例：masked_fields は2026-08-17に追加。それ以前のキャッシュから求人詳細を開くと
   //    maskedFields.includes(...) で真っ白になった）。新しい項目を mapJobPublicRow に足したら、
   //   ここにも「無ければ既定値」を1行足すこと
-  const [dbJobs, setDbJobs] = useState(() => {
-    const c = getCache("search:jobs");
-    return Array.isArray(c)
-      ? c.map(j => ({
-          ...j,
-          dateStart: j.dateStart ? new Date(j.dateStart) : null,
-          dateEnd: j.dateEnd ? new Date(j.dateEnd) : null,
-          maskedFields: Array.isArray(j.maskedFields) ? j.maskedFields : [],
-        }))
-      : null;
-  });
+  const [dbJobs, setDbJobs] = useState(readCachedJobs);
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("search");
   const [dangerLightbox, setDangerLightbox] = useState(null);
@@ -478,13 +503,13 @@ export function JobSearchMapView({ onRegister, me }) {
   };
   // #/work/job/{番号} と、タブ指定つきの #/work/job/{番号}/questions（2026-07-27たきと指示）。
   // 農家の求人カードの❓バッジ（未回答の質問）から、その求人の質問タブへ直接入るための入口
-  const JOB_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/;
+  const JOB_HASH_RE = JOB_DETAIL_HASH_RE; // 正体はモジュール直下（最初の描画の前にも読むため）
   useEffect(() => {
     const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
     if (!m) return;
     const jn = parseInt(m[1],10);
     const found = jobList.find(j => j.id === jn);
-    if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); clearApplyReturn(); return; }
+    if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); setDeepLinkJn(null); clearApplyReturn(); return; }
     if (dbJobs && dbJobs.length > 0) clearApplyReturn();
     // 一覧の到着を待たず、該当求人だけ先に1行引いて詳細を出す（2026-08-02・求人ページの体感）。
     // ディープリンク（#/work/job/N・お仕事タブや通知からの遷移）は従来、全求人一覧の取得完了まで
@@ -498,25 +523,29 @@ export function JobSearchMapView({ onRegister, me }) {
         const { data } = await fetchPublicJobByNumber(jn);
         if (!cancelled && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
       } catch {}
+      // 見つからなくても解除する＝行き止まり（読み込み中のまま）にしない。さがす一覧に落ちる
+      if (!cancelled) setDeepLinkJn(null);
     })();
     return () => { cancelled = true; };
   }, [dbJobs]);
   useEffect(() => {
     const onHash = () => {
       const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
-      if (!m) { setSelectedJob(null); setBackTo(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
+      if (!m) { setSelectedJob(null); setDeepLinkJn(null); setBackTo(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
       const found = jobList.find(j => j.id === jn);
-      if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); return; }
+      if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); setDeepLinkJn(null); return; }
+      setDeepLinkJn(jn); // 取得の間もさがす一覧を出さない
       // 一覧に無い求人（掲載が終わった・一時非公開）でも、当事者なら開ける（2026-08-24）。
       // カードの「求人を見る」・日程のタップ・チャットや今日ページのリンクがここを通る
       (async () => {
         try {
           const { data } = await fetchPublicJobByNumber(jn);
-          if (!data) return;
           if (window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE)?.[1] !== String(jn)) return; // 待つ間に別の画面へ移っていたら置き換えない
+          setDeepLinkJn(null); // 見つからなくても解除（行き止まりにしない）
+          if (!data) return;
           setSelectedJob(mapJobPublicRow(data)); setDetailTab(m[2] || "content");
-        } catch {}
+        } catch { setDeepLinkJn(null); }
       })();
     };
     window.addEventListener("hashchange", onHash);
@@ -964,7 +993,12 @@ export function JobSearchMapView({ onRegister, me }) {
 
   return (
     <div>
-      {!selectedJob && (<>
+      {/* 求人詳細を開こうとしている間はさがす一覧を描かない（2026-08-25たきと報告
+          「更新すると一瞬だけさがすページに遷移する」）。取得が終われば詳細か一覧のどちらかに落ち着く */}
+      {!selectedJob && deepLinkJn && (
+        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
+      )}
+      {!selectedJob && !deepLinkJn && (<>
       {/* 見出し「近くの仕事を探す」は削除（2026-07-27たきと指示）。現在地は下部ナビの点灯が示すため冗長。
           支払いの注記は求人一覧の一番下へ移植（下記） */}
 
