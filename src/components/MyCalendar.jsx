@@ -2,11 +2,13 @@
 // 「今日」ページ(TodayPage)の奥の画面。プロフィール内蔵カレンダー・応募者ページ上部でも使用（backToToday無し）。
 // 予定カード（アジェンダ）は2026-07-27に廃止→2026-08-21に日付シートとして復活：
 // 日をタップすると、その日の予定と操作（日程の移動・コピー・内容の編集）をシートで出す。
+// 自分が出した求人の予定は【長押しでつかんで指について動き、離した日で「うごかす／コピー」】
+// （2026-08-25たきと指示）。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
-import { fbSuccess, fbError } from "../lib/feedback";
+import { fbSuccess, fbError, fbTap } from "../lib/feedback";
 import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
 // 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
@@ -22,7 +24,7 @@ const CAL_OVERLAP = "#E24B4A";
 //    いいねだけ復元）。絞り込みはRPC側that行う＝フロントに条件を書かない。
 // canPostJob＝予定のない日のタップで「求人を出す」を出すか（2026-08-21たきと指示）。
 // 農家の置き場所（お仕事タブのカレンダー面・応募者ページ上部）だけ true。
-// 働き手のステータスページには出さない＝求人を出すのは農家の操作so、置き場所で出し分ける
+// 働き手のステータスページには出さない＝求人を出すのは農家の操作ので、置き場所で出し分ける
 // onDayJobs(ymd, jobNumbers)＝予定のある日のタップを親へ渡す（2026-08-21たきと指示
 // 「応募者ページはカレンダーだけ。特定の日程をタップして該当する求人カードのみ表示」）。
 // 渡された置き場所では日付シートを開かず、親that求人カードの絞り込みを行う。
@@ -31,7 +33,7 @@ const CAL_OVERLAP = "#E24B4A";
 // ステータスページ用＝カレンダーの下に同じ求人のカードが常に並ぶ置き場所で、シートは二重の表示になるため
 export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noDaySheet }) {
   // ── 前回の予定で即描画（2026-08-11たきと報告「日程の反映に10秒ほどかかる。一瞬で表示」）──
-  // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果so、
+  // 鍵は今日ページと共用の "today:entries"＝同じ get_my_calendar_jobs の結果ので、
   // 今日→カレンダーの行き来はどちらから入っても前回内容that即出る（取り直しは裏で走る＝SWR）。
   // ★キャッシュに入れてよいのはJSON安全な型だけ（2026-08-03のDate事故）。RPCの日付は文字列so安全。
   //   いいねは Set だと復元できないため配列で持ち、読み出すときに Set に戻す。
@@ -50,13 +52,16 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // シートはこの部品を置いた全ての画面で開く（お仕事タブのカレンダー面・応募者ページ上部・ステータスページ）。
   const [daySheet, setDaySheet] = useState(null);   // { ymd, idxs } | null
   const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
-  // dayOwn＝親へ日を渡す置き場所（農家のカレンダー面）で選んだ日の【自分が出した求人】の予定。
-  // その置き場所は日付シートを開かない（日タップ＝求人カードの絞り込み）ため、移動・コピーの入口が
-  // 無くなっていた（2026-08-25たきと指示「自分が出した求人予定をタップで移動とコピー可能にして」）。
-  // 盤面のすぐ下に操作の行として出す＝カードを覆わない・移動モードは同じ盤面で行き先をタップできる
-  const [dayOwn, setDayOwn] = useState(null);       // "YYYY-MM-DD" | null（予定は毎回この日から引き直す＝取り直しが入っても添字がずれない）
   const [moving, setMoving] = useState(false);      // 多重送信ガード
   const [reloadKey, setReloadKey] = useState(0);    // 移動成功後に予定を取り直す合図（loadingは立てない＝骨は出ない）
+  // ── 長押しで予定をつかむ（2026-08-25たきと指示「長押しで指追従。離した日を移動とコピー表示」）──
+  // 自分が出した求人の予定がある日を長押し→その予定が指についてくる→離した日で「うごかす／コピー」を出す。
+  // ★ページのスクロールを止めるため、つかんだ時にだけ document へ passive:false の touchmove を張る
+  //   （Reactの onTouchMove は passive で preventDefault が効かない）。離したら必ず外す
+  const pressRef = useRef(null);                    // 長押し待ち { timer, x, y, ymd, idx }
+  const [drag, setDrag] = useState(null);           // つかんでいる最中 { jobNumber, title, live, fromYmd, x, y, overYmd }
+  const dragRef = useRef(null);                     // 同じ中身（document のリスナーから読む用）
+  const [dropSheet, setDropSheet] = useState(null); // 離した日の選択 { jobNumber, title, live, fromYmd, toYmd, spanDays }
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +69,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
-        // 2本は互いに独立so、awaitする前に同時に投げる（2026-07-27たきと指示「直列を並列に」）。
+        // 2本は互いに独立ので、awaitする前に同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前は getSession→予定→いいね の直列3段で、しかも盤面を出すのに
         // いいね（❤️の飾り）の到着まで待っていた
         const calP = supabase.rpc("get_my_calendar_jobs");
@@ -159,6 +164,13 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     setCalSnap(false);
   };
   const onCalTouchMove = (e) => {
+    // 長押し待ちの間に指が動いたら＝スクロール／月送り＝つかむのをやめる
+    const pr = pressRef.current;
+    if (pr && e.touches && e.touches[0]) {
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - pr.x) > 8 || Math.abs(t.clientY - pr.y) > 8) { clearTimeout(pr.timer); pressRef.current = null; }
+    }
+    if (dragRef.current) return;                               // つかんでいる間は月送りしない
     const s = calTouch.current; if (!s || !e.touches || !e.touches[0]) return;
     const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
     if (!s.lock) {
@@ -170,6 +182,8 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     setCalDx(Math.max(-w, Math.min(w, dx)));                   // 隣の月までで止める（3枚しか無いので）
   };
   const onCalTouchEnd = (e) => {
+    const pr = pressRef.current; if (pr) { clearTimeout(pr.timer); pressRef.current = null; }
+    if (dragRef.current) return;                               // 離した後の始末は document のリスナーが行う
     const s = calTouch.current; calTouch.current = null;
     if (!s || s.lock !== "h" || !e.changedTouches || !e.changedTouches[0]) { setCalDx(0); return; }
     const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
@@ -211,13 +225,15 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // ── 日程の移動（2026-08-19）：シートの「日程をうごかす」→盤面で移動先の日をタップ→確認→RPC ──
   // 壁はDB側 move_job_dates が担保（本人・draft/pending/open・進行中の応募なし・今日以降・
   // 期間と休日を同じ日数ずらす・記録は jobs の firehose that event_audit に自動で残す）
-  const confirmMove = async (ymd) => {
-    if (moving) return;
-    const mm = moveMode;
-    if (!window.confirm(`#${mm.jobNumber}「${mm.title}」を ${calFmtDate(ymd)} 開始にうごかします。期間と休日も同じ日数ずれます。よろしいですか？`)) return;
+  // 移動の実体（確認→RPC→取り直し）。移動モードのタップと、長押しで離した日のシートの両方がこれを呼ぶ
+  //   ＝同じ操作が入口ごとに違わない。返り値＝うごかせたか（reason が past_date の時だけ選び直せる）
+  const doMove = async (jobNumber, title, ymd, opts) => {
+    if (moving) return { ok: false };
+    // 離した日のシートは、それ自体が確認の画面（日付とボタンの文字で何が起きるか出ている）ので二度は聞かない
+    if (!opts?.skipConfirm && !window.confirm(`#${jobNumber}「${title}」を ${calFmtDate(ymd)} 開始にうごかします。期間と休日も同じ日数ずれます。よろしいですか？`)) return { ok: false, canceled: true };
     setMoving(true);
     try {
-      const { data, error } = await supabase.rpc("move_job_dates", { p_job_number: mm.jobNumber, p_new_start: ymd });
+      const { data, error } = await supabase.rpc("move_job_dates", { p_job_number: jobNumber, p_new_start: ymd });
       if (error || !data?.ok) {
         fbError();
         const r = data?.reason;
@@ -225,14 +241,20 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           : r === "past_date" ? "今日より前の日にはうごかせません。"
           : r === "bad_status" ? "終了した求人の日程はうごかせません。"
           : "うごかせませんでした：" + (r || error?.message || "不明"));
-        // 過去日だけは選び直せるようにモードを残す。それ以外は根本的に動かせないのでモード解除
-        if (r !== "past_date") setMoveMode(null);
-        return;
+        return { ok: false, reason: r };
       }
       fbSuccess();
-      setMoveMode(null);
       setReloadKey(k => k + 1); // 予定を取り直して盤面に反映（前回内容を出したまま裏で差し替え）
+      return { ok: true };
     } finally { setMoving(false); }
+  };
+  const confirmMove = async (ymd) => {
+    const mm = moveMode;
+    if (!mm) return;
+    const r = await doMove(mm.jobNumber, mm.title, ymd);
+    // 過去日だけは選び直せるようにモードを残す。それ以外（成功・根本的に動かせない）はモード解除
+    if (r.canceled) return;
+    if (r.ok || r.reason !== "past_date") setMoveMode(null);
   };
   // コピー＝既存 copy_job のレールそのまま（FarmerDashboard runJobAction "copy" と同じ作法・
   // sessionStorage経由で新しい下書きを即復元）。日程は引き継がれない（2026-08-16たきと指示）
@@ -255,7 +277,93 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     setDaySheet(null);
     window.location.hash = "/work/edit/" + e.job_number;
   };
+  // ── 長押しでつかむ／指について動く／離した日で選ぶ（2026-08-25）──
+  const justDraggedRef = useRef(0); // つかんで離した直後のクリック（日タップ）を無視するための時刻
+  const addYmd = (ymd, n) => {
+    const [y, m, d] = ymd.split("-").map(Number);
+    const dt = new Date(y, m - 1, d + n);
+    return ymdLocal(dt);
+  };
+  const spanOf = (e) => {
+    if (!e.date_start || !e.date_end) return 0;
+    const a = new Date(e.date_start + "T00:00:00"), b = new Date(e.date_end + "T00:00:00");
+    return Math.max(0, Math.round((b - a) / 86400000));
+  };
+  const clearPress = () => { const pr = pressRef.current; if (pr && pr.timer) clearTimeout(pr.timer); pressRef.current = null; };
+  // 指の下の日＝マスに付けた data-cal-ymd から読む（座標の計算を持たない＝盤面の形が変わっても壊れない）
+  const ymdFromPoint = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const cell = el && el.closest ? el.closest("[data-cal-ymd]") : null;
+    return cell ? cell.getAttribute("data-cal-ymd") : null;
+  };
+  const startDrag = (info) => {
+    fbTap();
+    calTouch.current = null;                         // 月送りのスワイプは取り下げる（つかんだ方が勝つ）
+    const st = { ...info, overYmd: info.fromYmd };
+    dragRef.current = st; setDrag(st);
+    let raf = 0;
+    const move = (ev) => {
+      const t = ev.touches && ev.touches[0];
+      if (!t) return;
+      ev.preventDefault();                           // ページのスクロールを止める（passive:false で張っている）
+      const next = { ...dragRef.current, x: t.clientX, y: t.clientY, overYmd: ymdFromPoint(t.clientX, t.clientY) };
+      dragRef.current = next;
+      // 描き直しは1フレーム1回（盤面は3か月ぶんがあるので、毎イベント描くと指がもたつく）
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (dragRef.current) setDrag({ ...dragRef.current }); });
+    };
+    const up = (ev) => {
+      document.removeEventListener("touchmove", move);
+      document.removeEventListener("touchend", up);
+      document.removeEventListener("touchcancel", up);
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      const st2 = dragRef.current; dragRef.current = null; setDrag(null);
+      justDraggedRef.current = Date.now();
+      if (!st2) return;
+      const t = ev.changedTouches && ev.changedTouches[0];
+      const to = (t ? ymdFromPoint(t.clientX, t.clientY) : null) || st2.overYmd;
+      if (!to || to === st2.fromYmd) return;         // 盤面の外・同じ日＝何もしない（元の位置に戻るだけ）
+      setDropSheet({ ...st2, toYmd: to });
+    };
+    document.addEventListener("touchmove", move, { passive: false });
+    document.addEventListener("touchend", up);
+    document.addEventListener("touchcancel", up);
+  };
+  // マスの長押し開始（自分が出した求人の予定がある日だけ）。450ms 動かさずに押し続けたらつかむ
+  const onDayPressStart = (ev, ymd) => {
+    clearPress();
+    if (moveMode || dragRef.current) return;
+    const t = ev.touches && ev.touches.length === 1 ? ev.touches[0] : null;
+    if (!t) return;
+    const mine = entryIdxOnDay(ymd).filter(i => entries[i] && entries[i].relation === "own");
+    if (mine.length === 0) return;
+    const e0 = entries[mine[0]];
+    const x = t.clientX, y = t.clientY;              // Touchオブジェクトは使い回されるので数値で控える
+    const title = ((e0.crop || "") + " " + (e0.task || "")).trim() || "無題";
+    pressRef.current = { x, y, timer: setTimeout(() => {
+      pressRef.current = null;
+      startDrag({ jobNumber: e0.job_number, title, live: e0.status === "open", fromYmd: ymd, x, y, spanDays: spanOf(e0) });
+    }, 450) };
+  };
+  // 離した日にコピー＝既存 copy_job のレールに、コピー先の日を入れて編集フローへ渡すだけ。
+  // ★DBの下書きの日付は空のまま（copy_job は日程を引き継がない）＝画面に入れた日は編集フローの保存で入る。
+  //   休日は元の日付のままだと違う日を休みにしてしまうので引き継がない
+  const copyToDay = async (st) => {
+    const { data, error } = await supabase.rpc("copy_job", { p_job_number: st.jobNumber });
+    if (error || !data?.ok) { fbError(); alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
+    try {
+      if (data.job) {
+        const job = { ...data.job, date_start: st.toYmd, date_end: st.spanDays > 0 ? addYmd(st.toYmd, st.spanDays) : null, holidays: [] };
+        sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(job));
+      }
+    } catch {}
+    fbSuccess();
+    setDropSheet(null); setDaySheet(null);
+    window.location.hash = "/work/edit/" + data.job_number;
+  };
+
   const onDayTap = (dt) => {
+    // つかんで離した直後のクリックは日タップにしない（離した日のシートがすぐ消えてしまうため）
+    if (Date.now() - justDraggedRef.current < 500) return;
     const ymd = ymdLocal(dt);
     // 移動モード中の日付タップ＝移動先の決定（最優先・シートや親への通知はしない）
     if (moveMode) { confirmMove(ymd); return; }
@@ -284,13 +392,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       const picked = [...new Set(idxs
         .filter(i => dayJobsAll || entries[i]?.relation === "own")
         .map(i => entries[i]?.job_number).filter(Boolean))];
-      if (picked.length > 0) {
-        onDayJobs(ymd, picked);
-        // 自分が出した求人の予定がある日は、盤面の下に移動・コピーの行を出す（親の絞り込みと同じ間隔で入り切りする）
-        const mine = idxs.filter(i => entries[i]?.relation === "own");
-        setDayOwn(prev => prev === ymd || mine.length === 0 ? null : ymd);
-        return;
-      }
+      if (picked.length > 0) { onDayJobs(ymd, picked); return; }
     }
     // ★ステータスページ（noDaySheet）は予定のある日のシートを開かない（2026-08-22たきと指示
     //   「ボックス展開しなくていい。求人カードが表示されるんだから」）＝カレンダーの下に
@@ -299,7 +401,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     // 日付タップ＝日付シートを開く（2026-08-21たきと指示）。
     // 以前は応募者ページ・ステータスページだけ「その日の求人カードへスクロール＋黄色く光らせる」
     // という別の動きをしており（onDayTapJobs）、そこではシートが永久に開かなかった。
-    // シートはその日の予定を一覧で見せ、求人ページへも行けるso、カードへ飛ばす動きは畳んだ
+    // シートはその日の予定を一覧で見せ、求人ページへも行けるので、カードへ飛ばす動きは畳んだ
     setDaySheet({ ymd, idxs });
   };
 
@@ -380,12 +482,18 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                 const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
                 const isToday = ymd === todayYmd;
                 const isSelected = selectedDay && ymdLocal(selectedDay) === ymd;
+                // つかんでいる予定の行き先＝指の下のマス（2026-08-25）。太い枠で「ここに置く」を示す
+                const isOver = drag && drag.overYmd === ymd;
+                const isFrom = drag && drag.fromYmd === ymd;
                 return (
-                  <button key={dd} onClick={() => onDayTap(dt)} style={{
+                  <button key={dd} data-cal-ymd={ymd} onTouchStart={(ev)=>onDayPressStart(ev, ymd)} onClick={() => onDayTap(dt)} style={{
                     position:"relative", padding:"7px 2px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, textAlign:"center",
+                    // 長押しで文字の選択・コールアウトが出ないようにする（つかむ操作の邪魔になる）
+                    userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
                     background: fillBg || (isSelected ? "#E6F7EF" : "transparent"),
                     color: fillFg, fontWeight: (baseColor || isToday) ? 700 : 400,
-                    boxShadow: isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
+                    opacity: isFrom && drag ? 0.4 : 1,
+                    boxShadow: isOver ? "inset 0 0 0 2.5px #0E8A6B" : isToday ? "inset 0 0 0 1.5px #00A86B" : "none",
                     // minWidth:0＝中身（名前チップ）で列を押し広げない。長い名前は下の…省略で収める
                     display:"flex", flexDirection:"column", alignItems:"stretch", gap:2, minWidth:0, overflow:"hidden",
                     // マスの高さ（2026-08-23たきと指示「カレンダーを縦に伸ばして」）：名前チップが乗る日だけ
@@ -424,32 +532,49 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           {flashNoPlan && (
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", textAlign:"center", margin:"10px 0 0" }}>この日の予定はありません。</p>
           )}
-          {/* 選んだ日の「自分が出した求人」の操作（2026-08-25）：移動は掲載中だけ・コピーは終了した求人でも可
-              （日付シートの規則と揃える＝同じ操作が画面ごとに違わない）。実行は同じ関数を呼ぶ */}
-          {!moveMode && dayOwn && entryIdxOnDay(dayOwn).some(i => entries[i]?.relation === "own") && (
-            <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:8 }}>
-              {entryIdxOnDay(dayOwn).filter(i => entries[i]?.relation === "own").map(i => {
-                const e = entries[i];
-                if (!e) return null;
-                const title = ((e.crop||"") + " " + (e.task||"")).trim() || "無題";
-                const live = e.status === "open";
-                return (
-                  <div key={"own-act-" + e.job_number} style={{ display:"flex", alignItems:"center", flexWrap:"wrap", gap:8, background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 12px" }}>
-                    <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                      {title} <span style={{ color:"#B0B0B0", fontWeight:600, fontSize:11 }}>#{e.job_number}</span>
-                    </span>
-                    {live && (
-                      <button onClick={()=>setMoveMode({ jobNumber: e.job_number, title })} className="f-sans"
-                        style={{ flexShrink:0, background:"#0E8A6B", color:"#fff", border:"none", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>日程をうごかす</button>
-                    )}
-                    <button onClick={()=>copyFromSheet(e.job_number)} className="f-sans"
-                      style={{ flexShrink:0, background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピー</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </>
+      )}
+      {/* つかんでいる予定が指についてくる（2026-08-25たきと指示「長押しで指追従」）。
+          pointer-events:none＝下のマスの当たり判定を邪魔しない（指の下の日は elementFromPoint で読む） */}
+      {drag && (
+        <div className="f-sans" style={{
+          position:"fixed", left: drag.x, top: drag.y - 44, transform:"translate(-50%,0)", zIndex:9000, pointerEvents:"none",
+          background:"#0E8A6B", color:"#fff", borderRadius:20, padding:"8px 14px", fontSize:13, fontWeight:700,
+          boxShadow:"0 6px 18px rgba(0,0,0,0.22)", whiteSpace:"nowrap", maxWidth:"70vw", overflow:"hidden", textOverflow:"ellipsis",
+        }}>
+          {drag.title} <span style={{ opacity:0.8, fontWeight:600, fontSize:11 }}>#{drag.jobNumber}</span>
+        </div>
+      )}
+      {/* 離した日の選択（2026-08-25たきと指示「離した日を移動とコピー表示」）。
+          規格＝cb-box-overlay + cb-lock-scroll 併用・✕なし・外タップで閉じる（2026-08-15/19）。
+          「うごかす」は掲載中の求人だけ＝終了した求人は動かさない（日付シートと同じ規則・壁はDB側が担保） */}
+      {dropSheet && (
+        <div onClick={()=>setDropSheet(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{calFmtDate(dropSheet.toYmd)} へ</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"6px 0 0" }}>
+              {dropSheet.title} <span style={{ color:"#B0B0B0", fontWeight:600, fontSize:12 }}>#{dropSheet.jobNumber}</span>
+            </p>
+            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {dropSheet.live ? (
+                <button onClick={async ()=>{ const st = dropSheet; const r = await doMove(st.jobNumber, st.title, st.toYmd, { skipConfirm: true }); if (r.ok) setDropSheet(null); }} disabled={moving} className="f-sans"
+                  style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:12, padding:"14px 16px", fontSize:14, fontWeight:700, cursor:"pointer", opacity: moving ? 0.6 : 1 }}>
+                  {moving ? <>うごかしています<Dots /></> : "この日にうごかす"}
+                </button>
+              ) : (
+                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:0 }}>掲載が終わった求人ので、日程はうごかせません（コピーはできます）。</p>
+              )}
+              <button onClick={()=>copyToDay(dropSheet)} className="f-sans"
+                style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                この日にコピー
+              </button>
+            </div>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>
+              うごかすと期間と休日も同じ日数ずれます。コピーは新しい下書きになり、編集ページが開きます。
+            </p>
+          </div>
+        </div>
       )}
       {/* 日付シート（2026-08-19たきと指示＝TimeTree式）：日をタップ→その日の予定と操作。
           規格＝cb-box-overlay + cb-lock-scroll 併用（2026-08-15）・✕なし・外タップで閉じる（2026-08-19）。
