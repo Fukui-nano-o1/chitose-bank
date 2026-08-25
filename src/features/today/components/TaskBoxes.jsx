@@ -19,16 +19,22 @@ import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { BOX_FACE, BOX_ICON_SIZE } from "../boxFace";
 
 // 今日ページから箱を消した用件（TodayPage の REMOVED_STAGES の写し・対で管理）
-const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
+// ★hire・insurance は「該当ありでも出さない」＝2026-08-25たきと指示「保険の報告と採用するカードも削除」。
+//   カタログから外すだけでは、DBのやること一覧（my_todo_items）に該当があると下の activeOrder が
+//   拾って箱が復活する。この2つはカレンダーページの求人カードのボタン（採用する／保険の報告）が
+//   唯一の入口so、格子には出さない。実行の窓口は不変＝ボタンの行き先は従来の用件ページのまま。
+const REMOVED_STAGES = new Set(["approve", "interview", "w_interview", "hire", "insurance"]);
 
 
 // 役割ごとの全用件カタログ（並びは正規フロー順・TodayPage の TODO_STAGE_CATALOG の写し）
 const STAGE_CATALOG = {
   // 2026-08-22たきと指示「採用する、緊急連絡先、今日の記録、バイトの評価カード削除。
-  // アイコンはカレンダーページの各ボタンに配置」＝この4つの行為はカレンダーページの求人カードの
-  // ボタン（採用する／記録する／評価する・緊急連絡先）が担う＝入口が二重にならない。
-  // ★該当ありなら出る（下の activeOrder は my_todo_items の中身から作る）＝用件を取りこぼさない
-  farmer: ["revision", "question", "insurance"],
+  // アイコンはカレンダーページの各ボタンに配置」＋2026-08-25「保険の報告と採用するカードも削除」＝
+  // これらの行為はカレンダーページの求人カードのボタン（採用する／保険の報告／記録する／評価する・
+  // 緊急連絡先）が担う＝入口が二重にならない。
+  // ★該当ありなら出る（下の activeOrder は my_todo_items の中身から作る）＝用件を取りこぼさない。
+  //   ただし hire・insurance だけは上の REMOVED_STAGES で「該当ありでも出さない」に倒してある
+  farmer: ["revision", "question"],
   // w_revision（求職の修正）は格子から外した（2026-08-22たきと指示「求職の修正カード非表示」）＝
   // 求職カード（求職一覧・Phase2b）が未実装で、DBのやること一覧も返さない＝常に薄い空箱だったため。
   // ★該当ありなら出る：下の activeOrder は my_todo_items の中身から作るので、将来DBが

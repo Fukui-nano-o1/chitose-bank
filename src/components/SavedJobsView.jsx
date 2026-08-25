@@ -565,13 +565,19 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                   // ★日程は行の値をそのまま使う（agreed_dates・date_start/end・work_time＝my_job_actions が返す）。
                   //   休日（jobs.holidays）はこのRPCが返さないので、休日を挟む求人は最終日の判定が
                   //   その日数ぶん後ろにずれることがある（＝記録するが少し長く出る）。評価の道は塞がらない
-                  const rec = k === "completed"
-                    ? (reviewed ? null : { label:"評価する", green:true, on:()=>openReview(a.id) })
-                    : isFinalWorkDone(r, r)
-                    ? { label:"評価する", green:true, on:()=>openReview(a.id) }
-                    // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24たきと指示）。
-                    // 窓の外は灰色の押せないボタンで残す＝どこにあるかは見えたまま
-                    : { label:"記録する", green:false, closed: !dayReportOpen(r, r), on:()=>setDayReportApp({ id: a.id }) };
+                  // ★記録する（その日の記録）は仕事が始まってから（2026-08-24たきと指示）＝
+                  //   採用済み・未開始の間は右のボタンを出さない（保険の報告は農家の操作なので働き手には無い）。
+                  //   開始の判定は段階＝status='working'（自動開始のcronが立てる）。
+                  //   開始したあとも押せる窓は「作業の開始〜終了＋3時間」＝窓の外は灰色の押せないボタンで残す
+                  let rec = null, doneText = null;
+                  if (k === "completed") {
+                    if (reviewed) doneText = "評価済み";
+                    else rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
+                  } else if (isFinalWorkDone(r, r)) {
+                    rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
+                  } else if (k === "working") {
+                    rec = { label:"記録する", green:false, closed: !dayReportOpen(r, r), on:()=>setDayReportApp({ id: a.id }) };
+                  }
                   return (
                     <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
                       <div style={{ display:"flex", gap:8 }}>
@@ -590,9 +596,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                             : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
                             <NavIconInline name={rec.green ? "star" : "clipboard"} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
                           </button>
-                        ) : (
-                          <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color:"#F76B1C" }}>評価済み</span>
-                        )}
+                        ) : doneText ? (
+                          <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color:"#F76B1C" }}>{doneText}</span>
+                        ) : null}
                       </div>
                       {/* 緊急連絡先＝チャット・記録するの下（2026-08-23たきと指示）。窓口は
                           contract_emergency_contact 1本のまま＝採用成立後・当事者だけ。未登録なら何も出ない */}
