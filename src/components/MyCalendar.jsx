@@ -381,7 +381,8 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     if (!to || to === st2.fromYmd) return;           // 盤面の外・同じ日＝何もしない（元の位置に戻るだけ）
     setDropSheet({ ...st2, toYmd: to });
   };
-  // マスの長押し開始（自分が出した求人の予定がある日だけ）。350ms 動かさずに押し続けたらつかむ
+  // マスの長押し開始（自分が出した求人の予定がある日だけ）。350ms 動かさずに押し続けたらつかむ。
+  // 応募（相手のいる約束）は動かせないので、つかむ対象は常に自分の求人だけ＝重なった日でも迷わない
   const onDayPressStart = (ev, ymd) => {
     clearPress();
     if (moveMode || dragRef.current) return;
@@ -394,6 +395,15 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     const title = ((e0.crop || "") + " " + (e0.task || "")).trim() || "無題";
     pressRef.current = { x, y, timer: setTimeout(() => {
       pressRef.current = null;
+      // ★同じ日に自分の求人が2件以上ある時は、つかまずに「どれをうごかす？」＝日付シートを出す
+      //   （2026-08-25たきと裁定）。どれをつかんだか分からないまま動かす事故を作らない。
+      //   応募が同じ日にあっても迷いはない＝応募は相手のいる約束なので動かせず、つかめるのは自分の求人だけ
+      if (mine.length > 1) {
+        fbTap();
+        justDraggedRef.current = Date.now();          // 離した時のクリック（日タップ）をシートで打ち消さない
+        setDaySheet({ ymd, idxs: mine, at: Date.now() });
+        return;
+      }
       startDrag({ jobNumber: e0.job_number, title, live: e0.status === "open", fromYmd: ymd, x, y, spanDays: spanOf(e0) });
     }, 350) };
   };
@@ -654,7 +664,10 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           操作は 移動（新設 move_job_dates）／コピー（既存 copy_job）／内容の編集（既存の
           一時非公開→編集レール）＝実行の壁は全てDB側that担保。応募の行は見るだけ（相手thatいる予定）。 */}
       {daySheet && (
-        <div onClick={()=>setDaySheet(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>
+        // ★外タップで閉じるのは開いてから400ms後（長押しで開いた直後は、指を離したクリックがこの被せに
+        //   落ちてその場で閉じてしまう＝2026-08-19の「すり抜けタップ」と同じ型。App.jsx の共通の受け止め
+        //   （cbPopGate 中のクリックを捨てる）もあるが、この部品だけでも成り立つようにしておく）
+        <div onClick={()=>{ if (!daySheet.at || Date.now() - daySheet.at > 400) setDaySheet(null); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{calFmtDate(daySheet.ymd)} の予定</p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
