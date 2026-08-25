@@ -53,9 +53,13 @@ const BADGE_DEFS = {
 // ★注意：総数が2件以上あるのに0の項目that並ぶと「誰も肯定しなかった」＝否定的な評価が読み取れる。
 //   利用規約 第8条2（否定的な評価は他の利用者に表示されない）との緊張so、この prop を使う場所を
 //   増やすときは必ず確認を取ること（現在の使用箇所＝求人詳細の求人者情報のみ）
-export function ReceivedReviews({ userId, direction, jobNumber, showAllItems }) {
-  const [data, setData] = useState(null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
+// preloaded（任意・2026-08-25）：親that既に同じ内容を引いている時に渡す＝同じ往復を2回しない。
+// 求人詳細の求人者情報カードthat、上の数字（また働きたい）と下の評価欄で同じ値を使うために渡している。
+// ★渡された時はここでは引かない（数字that食い違わない）。null（読み込み中）はそのまま読み込み中として描く
+export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, preloaded }) {
+  const [data, setData] = useState(preloaded !== undefined ? preloaded : null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
+    if (preloaded !== undefined) { setData(preloaded); return; }
     let cancelled = false;
     setData(null);
     (async () => {
@@ -67,7 +71,7 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems }) 
       } catch { if (!cancelled) setData({ ok: false }); }
     })();
     return () => { cancelled = true; };
-  }, [userId, direction, jobNumber]);
+  }, [userId, direction, jobNumber, preloaded]);
 
   const defs = BADGE_DEFS[direction] || [];
   const badges = (data && data.badges) || {};

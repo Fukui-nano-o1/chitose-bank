@@ -5,6 +5,8 @@
 //   この層はそれを作らないための境界。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 
+import { useState, useEffect } from "react";
+import { supabase } from "../../../../lib/supabase";
 import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
 import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar } from "../../../../components/ui";
@@ -175,10 +177,38 @@ export function JobLocationSection({ job, me }) {
 // ★評価は ReceivedReviews に委譲＝肯定的な選択項目と審査済みコメントだけ（規約第8条）。
 //   求人ページのクライアントは求人者のUIDを知らないので jobNumber 経由で引く。
 //   訪問者（未ログイン）はDB側that資格なしを返す＝「まだ評価はありません」と誤読させないため案内文に差し替える
-export function JobRecruiterInfo({ job, employer, me, onOpenIntro }) {
+export function JobRecruiterInfo({ job, employer, trust, me, onOpenIntro }) {
+  // 評価は1回だけ引いて、上の数字（また働きたい）と下の評価欄で同じ値を使う（2026-08-25）。
+  // ★別々に引くと published ゲート（双方の評価that揃うか完了3日）の有無で数字that食い違う。
+  //   employer_trust_info の want_again_workers は全件so、ここでは使わない
+  const [reviews, setReviews] = useState(null);
+  useEffect(() => {
+    if (!me || !job?.id) { setReviews(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("job_employer_reviews", { p_job_number: job.id });
+        if (!cancelled) setReviews(data && data.ok ? data : { ok: false });
+      } catch { if (!cancelled) setReviews({ ok: false }); }
+    })();
+    return () => { cancelled = true; };
+  }, [me, job?.id]);
+
   const name = employer?.nickname || job.employerName;
   if (!name) return null; // 名前も分からないうちは枠ごと出さない（空の箱を置かない）
   const comment = (employer?.owner_comment || "").trim();
+  // ── Airbnbの「ホストについて（Meet your host）」の3つの数字を、うちの物差しで置き換える
+  //    （2026-08-25たきと指示「真似しろ」）：
+  //      レビュー件数 → 受け入れた働き手の人数（completed_hires）
+  //      ★評価       → 「また働きたい」の件数（点数化はしない＝運営that点を付ける形は禁止）
+  //      ホスト歴     → chitose-bank利用の開始（member_since）
+  //    ★値の無い列は並べない（ダミー禁止・憲法3条）。全部無ければ数字の行ごと出さない
+  const wantAgain = reviews && reviews.ok && reviews.badges ? (reviews.badges.want_again || 0) : null;
+  const stats = [
+    trust?.ok && trust.completed_hires > 0 ? { v: `${trust.completed_hires}人`, l: "受け入れた働き手" } : null,
+    wantAgain != null ? { v: String(wantAgain), l: "また働きたい" } : null,
+    trust?.ok && trust.member_since ? { v: trust.member_since, l: "から利用" } : null,
+  ].filter(Boolean);
   return (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 12px", letterSpacing:".06em" }}>求人者情報</p>
@@ -188,20 +218,31 @@ export function JobRecruiterInfo({ job, employer, me, onOpenIntro }) {
         <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={72} ring={ROLE_GREEN} />
         <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word" }}>{name}さん</p>
       </div>
+      {/* 数字の行（Airbnbのホストカードと同じ横一列・縦の区切り線） */}
+      {stats.length > 0 && (
+        <div style={{ display:"flex", alignItems:"stretch", justifyContent:"center", marginTop:14 }}>
+          {stats.map((s, i) => (
+            <div key={s.l} style={{ flex:"1 1 0", minWidth:0, padding:"2px 6px", textAlign:"center", borderLeft: i > 0 ? "1px solid #EBEBEB" : "none" }}>
+              <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:0, lineHeight:1.3, overflowWrap:"break-word" }}>{s.v}</p>
+              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"2px 0 0", lineHeight:1.4 }}>{s.l}</p>
+            </div>
+          ))}
+        </div>
+      )}
       {/* 代表より */}
       {comment && (<>
         <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0" }} />
         <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px", letterSpacing:".06em" }}>代表より</p>
         <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{comment}</p>
       </>)}
-      {/* 評価 */}
+      {/* 評価（Airbnbの「レビュー」に当たる内訳。上の数字は要約so、同じ「また働きたい」that上下に出る） */}
       <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0" }} />
       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px", letterSpacing:".06em" }}>評価</p>
       {/* showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
           ★総数that2件以上あるのに0の項目that並ぶと否定的な評価that読み取れる＝利用規約 第8条2との緊張。
             戻すときはこのpropを外すだけ（1語）。他の画面（プロフィールの評価面）は従来どおり0を出さない */}
       {me
-        ? <ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems />
+        ? <ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems preloaded={reviews} />
         : <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>ログインすると、この求人者への評価を見られます</p>}
     </div>
   );

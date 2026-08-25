@@ -1236,7 +1236,7 @@ export function JobSearchMapView({ onRegister, me }) {
 
           {/* 求人者情報（保険枠の下・2026-08-25たきと指示）：アイコン・名称・代表より・評価。
               アイコン／名称のタップ先は求人者カードと同じ農園紹介モーダル＝入口を増やさない */}
-          <JobRecruiterInfo job={selectedJob} employer={empEmployer} me={me} onOpenIntro={setFarmIntroOpen} />
+          <JobRecruiterInfo job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenIntro={setFarmIntroOpen} />
 
           {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 
