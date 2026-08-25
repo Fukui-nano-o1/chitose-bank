@@ -907,9 +907,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {/* モーダルフッター：保存する（全項目upsert）→格子に戻る。
-          緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
-          両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
-      {editBox !== "emergency" && (
+          ★自分でDBに書くボックスでは出さない＝同じ文言のボタンが2つ並ぶため
+          （2026-08-05たきと指示・緊急連絡先／2026-08-25たきと報告「保存するが2つある」・保険の準備）：
+            緊急連絡先＝別テーブル emergency_contacts
+            保険の準備＝employer_profiles の insurance_items / insurance_notes だけを自分でupsert
+              （委託レーンにこの2列が無いので共通payloadに載せられない） */}
+      {!["emergency", "insurance"].includes(editBox) && (
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       )}
       </div>
