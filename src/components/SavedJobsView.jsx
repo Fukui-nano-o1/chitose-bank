@@ -605,7 +605,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                             暗幕（zIndex:2）より上の zIndex:3。暗幕はタップを飲み込まない（pointerEvents:none）ので
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
-                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}>労働条件通知書</button>
+                        style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>
                       {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                           日の集合は appWorkDates（agreed_dates ＞ 求人の期間）＝カレンダー・最終日の判定と
                           同じソース。進み具合はボックスの中と同じ共有部品 FlowBar＝段の点き方が枝分かれしない */}

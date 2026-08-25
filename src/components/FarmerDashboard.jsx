@@ -1593,6 +1593,9 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                               const ended = ENDED_K.includes(phase);
                               const beforeHire = phase === "interview";
                               const rec = beforeHire
+                                // アイコンは消した「やること」の箱と同じ絵に揃える（2026-08-22たきと指示
+                                // 「アイコンはカレンダーページの各ボタンに配置」）：採用する=hire／
+                                // バイトの評価=check／今日の記録=clipboard（既定は下の三項）
                                 ? { label:"採用する →", green:true, icon:"hire", on: goHirePage }
                                 : phase === "completed"
                                 ? ((a.attended === false || reviewedAppIds.has(a.id)) ? null : { label:"評価する", green:true, on:()=>openCompleteModal(a) })
@@ -1625,7 +1628,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                                         : rec.green
                                         ? { background:"#00A86B", color:"#fff", border:"none", pointerEvents:"auto" }
                                         : { background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A" })}>
-                                        <NavIconInline name={rec.icon || (rec.green ? "star" : "clipboard")} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
+                                        <NavIconInline name={rec.icon || (rec.green ? "check" : "clipboard")} size={12} style={{ verticalAlign:"-2px" }} />{rec.label}
                                       </button>
                                     ) : (
                                       <span className="f-sans" style={{ flex:1, textAlign:"center", alignSelf:"center", fontSize:12, fontWeight:700, color: a.attended === false ? "#E24B4A" : "#00A86B" }}>{a.attended === false ? "欠勤記録済み" : "評価済み"}</span>
@@ -1645,7 +1648,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, applicantsBadge }) {
                             暗幕（zIndex:5）より上の zIndex:6。暗幕はタップを飲み込まない（pointerEvents:none）ので
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
                                   {!beforeHire && !ended && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
-                                    style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}>労働条件通知書</button>}
+                                    style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>}
                                   {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                                       日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
                                       カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
