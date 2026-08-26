@@ -154,6 +154,7 @@ import { peekApplyReturn } from "./lib/applyReturn";
 import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
 import { saveLastRoute } from "./lib/lastRoute";
+import { prefetchChatBody } from "./lib/chatBodyCache";
 import { getCache, setCache, clearCache } from "./lib/viewCache";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
@@ -663,6 +664,11 @@ export default function App(){
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
   const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/(admin|[0-9a-f-]+)$/); return m?m[1]:null; });
+
+  // チャットの前回の会話の先読み（2026-08-26 Speed-4B）：ChatViewは遅れて読み込まれるチャンクなので、
+  // URLがチャットだと分かったこの時点で復号を始めておく＝画面が立ち上がった瞬間に本文を出せる。
+  // 表示専用の控えを読むだけ（ネットワークは使わない・送信権限や既読の正には一切関わらない）
+  useEffect(() => { if (chatAppId) prefetchChatBody(chatAppId); }, [chatAppId]);
 
   // ↓ここに置く理由：この中で使う state（openAccountForm・showJobPost 等）の宣言より後ろでないと
   //   宣言前参照になる（no-use-before-define。2026-07-29に並べ替え・中身は不変）

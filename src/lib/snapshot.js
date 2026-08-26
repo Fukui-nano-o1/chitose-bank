@@ -4,6 +4,7 @@
 // 規則：①保存するのは本人の自分用データのみ ②ログアウトで全消去（clearSnapshots）③壊れたJSONは黙って捨てる
 import { clearCache } from "./viewCache";
 import { clearLastRoute } from "./lastRoute";
+import { clearChatBodies } from "./chatBodyCache";
 const PREFIX = "cb_snap_";
 
 export const snapGet = (key) => {
@@ -22,4 +23,7 @@ export const clearSnapshots = () => {
   // 前回見ていた画面（cb_lastRoute）も消す（2026-08-26 Speed-4A）＝別の人がログインした時に
   // 前の人の画面へ戻らない。復元側も本人の照合をするので二重の壁
   clearLastRoute();
+  // チャット本文の端末キャッシュ（暗号化・IndexedDB）も消す（2026-08-26 Speed-4B）。
+  // 鍵ごと消すので、記録が残っていても復号できない＝別の人が前の人の会話を見ることはない
+  clearChatBodies();
 };

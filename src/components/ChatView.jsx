@@ -10,6 +10,7 @@ import { useSheetDragClose } from "../lib/sheetDrag";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
+import { readChatBody, writeChatBody } from "../lib/chatBodyCache";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { Avatar, Dots } from "./ui";
 import ContractPartyName from "./ContractPartyName";
@@ -17,6 +18,12 @@ import { NavIcon, NavIconInline } from "./NavIcons";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
+  // 前回の会話の先出し（2026-08-26 Speed-4B）。暗号化した直近30件を端末から復号して即描画し、
+  // 裏で走るサーバー取得が届いたら静かに置き換える（stale-while-revalidate）。
+  // ★表示専用＝送信権限・採用・契約・既読の正はすべて従来どおりサーバー側が決める
+  const cacheReqRef = useRef(0);            // スレッドを切り替えた後に古い復号結果が届いても捨てる
+  const restoredFromCacheRef = useRef(false); // いま画面に出ているのが控えか（サーバー結果で置き換える時の目印）
+  const pinBottomRef = useRef(false);         // 控え→本物の置き換えで、最下部に貼り直す
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
   const nearBottomRef = useRef(true); // 利用者が下端の近く(80px以内)にいるか。onScrollで更新・自動スクロールの条件（2026-08-07）
   const [text, setText] = useState("");
@@ -216,9 +223,15 @@ export function ChatView({ applicationId, onBack }) {
       });
       setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
       // 中身が変わったか（変わっていない時は後始末の書き込みを省く＝5秒ごとの無駄な往復を減らす）
+      // 控えを出していた画面に本物が入った時は、次の描画で最下部へ貼り直す（Speed-4B）。
+      // 控えは直近30件なので、サーバーの一覧のほうが長いと上に行が増えて位置がずれるため
+      if (data && restoredFromCacheRef.current) { restoredFromCacheRef.current = false; pinBottomRef.current = true; }
       const sig = data ? data.length + ":" + (data.length ? data[data.length-1].id : "") : "";
       const changed = sig !== msgSigRef.current;
       msgSigRef.current = sig;
+      // 控えの更新（Speed-4B）：DBから確定取得できた一覧だけ・中身が変わった時だけ書く。
+      // 送信中の仮の吹き出し(_pending)は data に入っていないので控えに載らない
+      if (data && changed) writeChatBody(applicationId, data);
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
         {
@@ -274,6 +287,15 @@ export function ChatView({ applicationId, onBack }) {
     //   手元の行でapplyActive→messagesの読込だけ行う（体感が一気に縮む）
     setMsgs([]); setMsgsLoading(true); // 切替＝前の残像を消し、仮配置に戻す
     nearBottomRef.current = true; // 開いた直後・スレッド切替は必ず最下部から（前のスレッドで遡った状態を引き継がない）
+    // 前回の会話を端末から先出し（Speed-4B）。ネットワークを待たずにここで始める＝
+    // 下のサーバー取得と並列。届くのが遅れてサーバーが先に入っていたら、控えでは上書きしない
+    restoredFromCacheRef.current = false;
+    const _cacheReq = ++cacheReqRef.current;
+    readChatBody(applicationId).then(list => {
+      if (cacheReqRef.current !== _cacheReq || !list || !list.length) return;
+      setMsgs(prev => { if (prev.length) return prev; restoredFromCacheRef.current = true; return list; });
+      setMsgsLoading(false);
+    }).catch(() => { /* 読めなければ通常のネットワーク取得のまま */ });
     const localRow = threadApps.find(r => r.id === applicationId);
     if (localRow && myId) {
       setAppIds([applicationId]);
@@ -397,7 +419,9 @@ export function ChatView({ applicationId, onBack }) {
   const lastMsgIdRef = useRef(null);
   useEffect(() => {
     const last = msgs.length ? msgs[msgs.length - 1].id : null;
-    if (last === lastMsgIdRef.current) return; // 末尾が増えていない＝再描画のみ
+    // 末尾が増えていない＝再描画のみ。ただし控え→本物の置き換え（pinBottom）の時だけは貼り直す
+    if (last === lastMsgIdRef.current && !pinBottomRef.current) return;
+    pinBottomRef.current = false;
     lastMsgIdRef.current = last;
     const el = msgScrollRef.current;
     if (!el) return;
