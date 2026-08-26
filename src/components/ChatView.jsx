@@ -4,16 +4,14 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
-  CHAT_ELIGIBLE_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow, photoThumb,
+  CHAT_ELIGIBLE_STATUSES, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
-import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
+import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { readChatBody, writeChatBody } from "../lib/chatBodyCache";
-import { snapGet, snapSet } from "../lib/snapshot";
 import { Avatar, Dots } from "./ui";
-import ContractPartyName from "./ContractPartyName";
 import { NavIcon, NavIconInline } from "./NavIcons";
 export function ChatView({ applicationId, onBack }) {
   const [msgs, setMsgs] = useState([]);
@@ -151,12 +149,10 @@ export function ChatView({ applicationId, onBack }) {
   const [activeAvail, setActiveAvail] = useState(() => _cr?.available_dates ?? null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
   const [activeAgreed, setActiveAgreed] = useState(() => _cr?.agreed_dates ?? null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
-  // 求人No.帯の段階チップを「いま」で出すための日程（2026-08-19たきと指示）：作業日でない日は
-  // 「作業中」でなく「次は M/D(曜)」。{ job_number: {work_time,date_start,date_end,holidays} }。
-  // 本文の表示より後に取る（段階表示の原則＝最初は最低限）。届くまでは従来どおり段階名が出る
+  // 求人の軽い日程（日程案の候補日・確認カードの材料）：
+  // { job_number: {work_time,date_start,date_end,holidays} }。本文の表示より後に取る
+  // （段階表示の原則＝最初は最低限）。★段階チップの材料でもあったが、帯ごと削除（2026-08-24）
   const [jobSchedMap, setJobSchedMap] = useState({});
-  // 応募行＋求人の日程＝appPhaseLabelNow の材料（応募者ページ・チャット一覧と同じ形）
-  const phaseEntry = (r) => ({ ...r, ...(jobSchedMap[r.job_number] || {}) });
   // タブのラベル（8/20(木)）は本文から拾ったものので、保存に使う "YYYY-MM-DD" に戻す。
   // 材料は日程案を作った時と同じ求人の期間（confirmJob ?? jobSchedMap）＝送る側と受ける側で同じ日を指す
   const planYmds = (labels) => {
@@ -485,72 +481,6 @@ export function ChatView({ applicationId, onBack }) {
   // 触っていない求人は新しく開いたものに押されて自然に右へ流れる（＝今いる求人が必ず左端）。
   // 記録は表示専用（snapshot＝本人のみ・ログアウトのclearSnapshotsで消える。並びが消えても
   // 下の未記録ぶんの規則に落ちるだけで壊れない）。一度も開いていない求人は従来の応募日順で後ろに続く
-  const CHAT_MRU_MAX = 60;
-  const [chatMru, setChatMru] = useState(() => { const v = snapGet("chatMru"); return Array.isArray(v) ? v : []; });
-  useEffect(() => {
-    if (!activeAppId) return;
-    setChatMru(prev => {
-      const next = [activeAppId, ...prev.filter(id => id !== activeAppId)].slice(0, CHAT_MRU_MAX);
-      snapSet("chatMru", next);
-      return next;
-    });
-  }, [activeAppId]);
-  const orderedApps = (() => {
-    const rank = new Map(chatMru.map((id, i) => [id, i]));
-    const opened = threadApps.filter(r => rank.has(r.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id));
-    const never = threadApps.filter(r => !rank.has(r.id)); // 未訪問は従来どおり応募日の新しい順で後ろへ
-    return [...opened, ...never];
-  })();
-  // 詰めた先頭が実際に目に入るよう、切り替えのたび帯の横スクロールを左端へ戻す
-  // （並びを変えても、器のスクロール位置は前のまま残るため）
-  const jobStripRef = useRef(null);
-  useEffect(() => { const el = jobStripRef.current; if (el) el.scrollLeft = 0; }, [activeAppId]);
-  // ── 横スワイプで求人No.を切り替える（2026-07-30たきと指示「指に連動させてほしい」）──
-  // ★スワイプは帯の並び（orderedApps）ではなく threadApps＝応募日順の【動かない並び】を辿る。
-  //   帯は開いた順ので、開くたびに並びが変わる＝スワイプをこれに乗せると「今の1件」と「直前の1件」を
-  //   往復するだけになり、3件目より奥の求人へ永久に辿り着けなくなるため（左へ引く＝次／右へ引く＝前）。
-  //   帯はタップで選ぶ・スワイプは全件を順に送る、と役割を分けている。
-  // 端では引きしろを1/4に落として「これ以上は無い」を手で伝える（ゴムの手応え）。
-  // 縦スクロールは邪魔しない＝最初の動きで軸を決め、横と決まった時だけ追従する。
-  const goThread = (id) => {
-    // 帯のボタンと同じ行き先。location.replaceはアプリ全体の再読込を起こすためhashだけ差し替える
-    try { window.history.replaceState(null, "", "#/chat/" + id); } catch { window.location.hash = "/chat/" + id; }
-    window.dispatchEvent(new Event("hashchange"));
-  };
-  const chatSwipe = useRef(null);
-  const [swipeDx, setSwipeDx] = useState(0);
-  const [swipeSnap, setSwipeSnap] = useState(false); // true=指を離した後の戻り（アニメで戻す）
-  const threadNeighbor = (dir) => { // dir=+1 次 / -1 前
-    const i = threadApps.findIndex(r => r.id === activeAppId);
-    if (i < 0) return null;
-    const n = threadApps[i + dir];
-    return n ? n.id : null;
-  };
-  const onChatSwipeStart = (e) => {
-    if (threadApps.length < 2 || !e.touches || e.touches.length !== 1) { chatSwipe.current = null; return; }
-    chatSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null };
-    setSwipeSnap(false);
-  };
-  const onChatSwipeMove = (e) => {
-    const s = chatSwipe.current; if (!s || !e.touches || !e.touches[0]) return;
-    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;      // まだ方向が定まっていない
-      s.lock = Math.abs(dx) > Math.abs(dy) * 1.2 ? "h" : "v"; // 一度決めたら最後まで変えない
-    }
-    if (s.lock !== "h") return;                               // 縦スクロールはそのまま通す
-    const hasNext = !!threadNeighbor(dx < 0 ? 1 : -1);
-    setSwipeDx(Math.max(-140, Math.min(140, hasNext ? dx : dx * 0.25))); // 端はゴムの手応え
-  };
-  const onChatSwipeEnd = () => {
-    const s = chatSwipe.current; chatSwipe.current = null;
-    if (!s || s.lock !== "h") { setSwipeDx(0); return; }
-    const dx = swipeDx;
-    const target = Math.abs(dx) >= 60 ? threadNeighbor(dx < 0 ? 1 : -1) : null;
-    setSwipeSnap(true); setSwipeDx(0);                        // 指を離したら必ず元の位置へ戻す
-    setTimeout(() => setSwipeSnap(false), 240);
-    if (target) goThread(target);
-  };
   // 送信（2026-08-19たきと報告「チャットの送信と更新が遅すぎる」の根治）：
   // 旧＝getSession → insert → load（本文の全取得＋既読化＋chat_reads書き込み＋相手の既読取得）を
   //   1つずつ順番に待っていた＝最大6往復。nanoインスタンスなので1往復数百ms＝送信のたび数秒固まっていた。
@@ -659,37 +589,15 @@ export function ChatView({ applicationId, onBack }) {
           <button onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : <><NavIconInline name="flag" size={12} style={{ verticalAlign:"-1.5px" }} />報告する</>}</button>
         </>) : <span style={{ flex:1 }} />}
       </div>
-      {/* 求人No.の帯（横スワイプ）。右端に固定していた採用ボックスは削除（2026-08-19たきと指示） */}
-      {chatJobNumber != null && (
-        <div style={{ display:"flex", gap:8, alignItems:"stretch", padding:"10px 0 4px" }}>
-          {/* 求人No.ボックス群（横スワイプ） */}
-          <div ref={jobStripRef} style={{ flex:1, minWidth:0, display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorX:"contain" }}>
-            {orderedApps.map(r => {
-              const isActive = r.id === activeAppId;
-              // 別の求人はその求人の別チャットへ遷移（求人ごとに分離・2026-07-23）。
-              // replaceで履歴を積まない＝←（戻る）が求人切替の履歴を辿らず、ちゃんとチャットから出る
-              return (
-                <button key={r.id} onClick={()=>{
-                  if (isActive) return;
-                  // location.replace はブラウザによってページ全体の再読込を起こし、切替に十数秒かかっていた
-                  // （2026-07-27たきと報告）。履歴を積まずhashだけ差し替え＝アプリは再起動しない。
-                  // replaceStateはhashchangeを発火しないので手動で通知する（Appのハッシュ監視が拾う）
-                  try { window.history.replaceState(null, "", "#/chat/" + r.id); } catch { window.location.hash = "/chat/" + r.id; }
-                  window.dispatchEvent(new Event("hashchange"));
-                }} className="f-sans" style={{ flexShrink:0, textAlign:"left", background: isActive ? "#F0F7F3" : "#fff", border:"1px solid " + (isActive ? "#00A86B" : "#EBEBEB"), borderRadius:12, padding:"8px 14px", cursor: isActive ? "default" : "pointer", minWidth:120 }}>
-                  <span style={{ display:"block", fontSize:13, fontWeight:700, color: isActive ? "#0B6B4F" : "#222" }}>#{r.job_number}</span>
-                  {/* 帯統一（2026-07-25）：段階名は応募者リストと同じ段階色で表示 */}
-                  <span style={{ display:"block", fontSize:11, marginTop:2 }}><span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(r)); }} role="button" style={{ color: appPhaseColorNow(r, phaseEntry(r)) || "#999", fontWeight:700, cursor:"pointer" }}>{appPhaseLabelNow(r, phaseEntry(r)) || r.status}</span><span style={{ color:"#999" }}>{isActive ? "・表示中" : "・開く"}</span></span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)）。未契約は案内文を出す */}
-      {activeAppId && CHAT_ELIGIBLE_STATUSES.includes(activeStatus) && (
-        <ContractPartyName applicationId={activeAppId} style={{ padding:"2px 0 0" }} />
-      )}
+      {/* 求人No.の帯（#N・段階・横スワイプでの求人切替）は削除（2026-08-24たきと指示）。
+          ★同じ相手の別の求人へは、それぞれの求人のチャットのリンク（応募者ページ・カード・お知らせ）から入る。
+            メッセージ自体は従来どおり相手ごとにまとめて表示している（表示は変えていない）。
+            帯と対だった横スワイプの求人切替も同時に外した＝帯が無いと、いま何番の求人かが画面に出ないまま
+            指の動きで別の応募に切り替わる（送信先も変わる）ため */}
+      {/* 相手の本名の表示はチャットから削除（2026-08-24たきと指示「氏名は契約時に明記されればよい」）。
+          ★消えたのはチャットの表示だけ＝開示の窓口（contract_party_name RPC・契約成立後・当事者のみ）と、
+            労働条件通知書・応募者シート・今日ページの表示は従来どおり不変
+            （2026-07-30たきと裁定(B)＝雇用の法定手続きのため契約の相手方には氏名を示す、は生きている） */}
       {/* 相手の緊急連絡先カードはチャットから削除（2026-08-18たきと指示）。
           ★消えたのはチャットの表示だけ＝登録（プロフィールの🆘ボックス）・開示の窓口
           （contract_emergency_contact RPC）・今日ページの緊急連絡シート／応募者シートの
@@ -789,14 +697,9 @@ export function ChatView({ applicationId, onBack }) {
       {/* 失効した求人のチャット（2026-07-25たきと指示）：メッセージ領域を薄暗くし中央に「失効中」ラベル。
           オーバーレイはpointerEvents:noneなので背後のチャットは従来どおりスクロール・閲覧できる（履歴保全と整合） */}
       <div style={{ flex:1, minHeight:0, position:"relative", display:"flex", flexDirection:"column" }}>
-      {/* 横スワイプで求人No.を切り替える（2026-07-30たきと指示）。指に連動＝引いた分だけ中身がずれ、
-          離すと切り替わる／戻る。上部の求人No.帯のタップと同じ行き先（hash差し替え＝再読込しない） */}
       <div ref={msgScrollRef}
         onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; }}
-        onTouchStart={onChatSwipeStart} onTouchMove={onChatSwipeMove} onTouchEnd={onChatSwipeEnd} onTouchCancel={onChatSwipeEnd}
-        style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8,
-                 transform: swipeDx ? `translateX(${swipeDx}px)` : undefined,
-                 transition: swipeSnap ? "transform .22s cubic-bezier(.22,.8,.36,1)" : "none" }}>
+        style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {/* 読み込み中は吹き出しの仮配置（2026-07-27たきと指示）。「まだメッセージはありません」を
             先に出すと、履歴があるのに一瞬「無い」と誤読させるため、読込中と空を分ける */}
