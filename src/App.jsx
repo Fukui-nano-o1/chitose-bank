@@ -11,17 +11,13 @@ import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
 import { installFixedRepin } from "./lib/fixedRepin";
 import { Celebration } from "./components/Celebration";
 import { PublishChoiceCard } from "./components/PublishChoiceCard";
-import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { NavIcon, NavIconInline } from "./components/NavIcons";
-import { SavedJobsView } from "./components/SavedJobsView";
 import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { logAppError } from "./app/diagnostics/errorLog";
 import { lazyChunk, prepareFreshReload } from "./app/chunkReload";
 import { AppErrorBoundary } from "./app/AppErrorBoundary";
 import { PRIVACY_SECTIONS, PrivacyDataTable, PrivacyPolicy } from "./app/legal/PrivacyPolicy";
-import { DataConstitution } from "./app/legal/DataConstitution";
-import { HelpCenter, InstallGuide } from "./app/help/HelpCenter";
 import { FeedbackModal } from "./app/diagnostics/FeedbackModal";
 import { WorkerPreviewSheet, EmployerPreviewSheet } from "./app/preview/PreviewSheets";
 // ルート分割の自己修復（lazyChunk / prepareFreshReload / ChunkUpdating）→ app/chunkReload.jsx へ移設（2026-08-17）
@@ -122,13 +118,9 @@ const AdminChatPage = lazyChunk(() => import("./components/AdminChat").then(m =>
 const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
 // 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面ので遅延読み込み
 const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
-import { ChatList } from "./components/ChatList";
-import { AdminErrorChatReporter } from "./components/AdminErrorChatReporter";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
 import PrivacyReconsent from "./components/PrivacyReconsent";
-import { ProfileModal } from "./components/ProfileModal";
-import { OnboardingModal } from "./components/OnboardingModal";
 import { JobSearchMapView } from "./components/JobSearchMapView";
 const LandingFlow = lazyChunk(() => import("./features/jobs/create/LandingFlow").then(m => ({ default: m.LandingFlow })));
 const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
@@ -145,9 +137,24 @@ const AdminAnimationsRoom = lazyChunk(() => import("./components/admin/AdminAnim
 // プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
 // プロフィール編集・カレンダーがぶら下がる大きな塊ので、開いた時に初めて読む＝起動のJSを軽くする
 const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
+// 初期チャンクから外した画面（2026-08-26 Speed-3B）。どれも「さがす」の初回描画には使わない＝
+// その画面を開いた時に読む。★precache対象なので、開く時の読み込みはネットワークではなく
+// Cache Storage から（vite.config の globIgnores に入れないこと）。
+// fallback は null＝読み込みの一瞬に別の画面を出さない（下部バー・ヘッダーは外側so消えない）
+const TodayPage = lazyChunk(() => import("./components/TodayPage").then(m => ({ default: m.TodayPage })));
+const SavedJobsView = lazyChunk(() => import("./components/SavedJobsView").then(m => ({ default: m.SavedJobsView })));
+const ChatList = lazyChunk(() => import("./components/ChatList").then(m => ({ default: m.ChatList })));
+const HelpCenter = lazyChunk(() => import("./app/help/HelpCenter").then(m => ({ default: m.HelpCenter })));
+const InstallGuide = lazyChunk(() => import("./app/help/HelpCenter").then(m => ({ default: m.InstallGuide })));
+const VisitEntrance = lazyChunk(() => import("./components/VisitAndInsurance").then(m => ({ default: m.VisitEntrance })));
+const InsurancePrepPage = lazyChunk(() => import("./components/VisitAndInsurance").then(m => ({ default: m.InsurancePrepPage })));
+const VisitorQRPage = lazyChunk(() => import("./components/VisitAndInsurance").then(m => ({ default: m.VisitorQRPage })));
+const WorkerExperiencePage = lazyChunk(() => import("./components/WorkerExperiencePage").then(m => ({ default: m.WorkerExperiencePage })));
+const DataConstitution = lazyChunk(() => import("./app/legal/DataConstitution").then(m => ({ default: m.DataConstitution })));
+const AdminErrorChatReporter = lazyChunk(() => import("./components/AdminErrorChatReporter").then(m => ({ default: m.AdminErrorChatReporter })));
+const ProfileModal = lazyChunk(() => import("./components/ProfileModal").then(m => ({ default: m.ProfileModal })));
+const OnboardingModal = lazyChunk(() => import("./components/OnboardingModal").then(m => ({ default: m.OnboardingModal })));
 import { CSS } from "./appStyles";
-import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
-import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
 
 import { syncAppBadge, closeReadNotifications } from "./lib/push";
 import { peekApplyReturn } from "./lib/applyReturn";
@@ -291,7 +298,7 @@ function CalendarRouter({ me, defaultRole }) {
   // TodayPage は用件の専用ページ（#/calendar/todo/{stage}）だけを描く（2026-08-22改造）。
   // #/calendar 単体（メールの「今日の仕事を見る」リンク・古いブックマーク）は
   // TodayPage 内のリダイレクトがマイページへ送る＝DBのメール6箇所はmigration不要
-  return <TodayPage me={me} defaultRole={defaultRole} />;
+  return <Suspense fallback={null}><TodayPage me={me} defaultRole={defaultRole} /></Suspense>;
 }
 
 
@@ -1968,7 +1975,7 @@ export default function App(){
         <AppErrorBoundary>
         {/* 管理者専用エラー帯（2026-08-07）：どのタブでも画面上部に出る。システムページ表示中は
             自分自身を指すだけなので出さない。一般ユーザーには描画も取得も走らない（isAdminゲート） */}
-        {me&&isAdmin(me)&&<AdminErrorChatReporter/>}
+        {me&&isAdmin(me)&&<Suspense fallback={null}><AdminErrorChatReporter/></Suspense>}
         {me&&!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab!=="terms"&&safeTab!=="privacy"&&showLegalV2Banner&&(
           <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
             <span>利用規約とプライバシーポリシーを全面改訂しました（7/21）</span>
@@ -2016,10 +2023,10 @@ export default function App(){
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="new-applicants"&&me&&
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><NewApplicantsPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="chats"&&(me
-          ? <ChatList />
+          ? <Suspense fallback={null}><ChatList /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="saved"&&(me
-          ? <SavedJobsView me={me} />
+          ? <Suspense fallback={null}><SavedJobsView me={me} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>いいねを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="calendar"&&(me
           ? <CalendarRouter me={me} defaultRole={empCtx ? "farmer" : "worker"} />
@@ -2120,12 +2127,12 @@ export default function App(){
             </div>
           </div>
         )}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="install"&&<InstallGuide me={me} />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="experience"&&me&&<WorkerExperiencePage />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="qr"&&isAdmin(me)&&<VisitorQRPage />}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="help"&&<Suspense fallback={null}><HelpCenter me={me} onReportClick={() => setShowFeedback(true)} /></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="install"&&<Suspense fallback={null}><InstallGuide me={me} /></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="visit"&&<Suspense fallback={null}><VisitEntrance /></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<Suspense fallback={null}><InsurancePrepPage me={me} /></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="experience"&&me&&<Suspense fallback={null}><WorkerExperiencePage /></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="qr"&&isAdmin(me)&&<Suspense fallback={null}><VisitorQRPage /></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="privacy"&&(
           <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
             <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
@@ -2285,20 +2292,20 @@ export default function App(){
         /></Suspense></AppErrorBoundary>
       )}
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
-      {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
+      {showConstitution&&<Suspense fallback={null}><DataConstitution onClose={()=>setShowConstitution(false)}/></Suspense>}
       {showPrivacy&&<PrivacyPolicy onClose={()=>setShowPrivacy(false)}/>}
       {me&&!me.isWorker&&!me.viaAccountHolder&&showOnboarding&&(
-        <OnboardingModal
+        <Suspense fallback={null}><OnboardingModal
           key={obModalKey}
           me={me}
           setMe={setMe}
           onComplete={completeOnboarding}
           isEditing={showOnboarding&&!!(me.name?.trim()&&me.prefecture)}
           onClose={()=>setShowOnboarding(false)}
-        />
+        /></Suspense>
       )}
       {showProfile&&me&&(
-        <ProfileModal
+        <Suspense fallback={null}><ProfileModal
           me={me}
           recs={recs}
           isContributor={isContributor}
@@ -2307,7 +2314,7 @@ export default function App(){
           onEditProfile={()=>{setShowProfile(false);setShowOnboarding(true);setObModalKey(k=>k+1);}}
           onLogout={handleLogout}
           onAvatarChange={url=>setAvatarUrl(url)}
-        />
+        /></Suspense>
       )}
     </div>
   );
