@@ -615,7 +615,15 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                     {chips.length > 2 && (
                       <span className="f-sans" style={{ fontSize:8, fontWeight:700, color:"#717171", lineHeight:1.4 }}>＋{chips.length - 2}</span>
                     )}
-                    {liked && <span aria-hidden="true" style={{ position:"absolute", top:1, right:2, display:"flex", color:"#E24B4A" }}><NavIcon name="heartFill" size={8} /></span>}
+                    {/* いいね（2026-08-25たきと指示「いいねの背景は白にしよう」）：濃い塗りの日は赤い❤️が埋もれて
+                        見えなくなるので、白い丸を敷いて上に置く＝どの塗りの上でも見える */}
+                    {liked && (
+                      <span aria-hidden="true" style={{
+                        position:"absolute", top:2, right:2, width:13, height:13, borderRadius:"50%",
+                        background:"#fff", color:"#E24B4A", boxShadow:"0 0 0 1px rgba(0,0,0,0.08)",
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                      }}><NavIcon name="heartFill" size={8} /></span>
+                    )}
                   </button>
                 );
               })}
