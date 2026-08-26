@@ -123,7 +123,9 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // 段階は appPhaseKey（帯の唯一のソース）で導く。statusは承認後も'approved'のままで、
   // 面接中と採用の区別は terms_confirmed_*_at にしか無いため、RPCにこの2列を返させている
   // （migration 20260729…_calendar_terms_confirmed_for_phase）。
-  const HIRED_PHASES = ["contracted", "working"];
+  // 採用が確定した段階＝採用・作業中・完了（2026-08-25たきと指示「採用が確定した過去の求人も緑」）。
+  // 過去か未来かでは変えない＝確定したかどうかだけで濃さを決める
+  const HIRED_PHASES = ["contracted", "working", "completed"];
   const phaseOfEntry = (e) => appPhaseKey({
     status: e.application_status,
     terms_confirmed_worker_at: e.terms_confirmed_worker_at,
@@ -132,15 +134,14 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // 誰が来る日か＝塗りと同じ entryWorkDays で見る（働く日が確定していればその日、
   // 未確定なら働き手が申請した労働希望日、それも無ければ求人の日程どおり）
   // マスに出す名前のチップ（2026-08-25たきと指示「終了した求人にも名称は出そう」）：
-  //   ・応募＝相手の名前。採用以降（採用・作業中）に加えて【完了】も出す＝終わった仕事の相手が消えない
+  //   ・応募＝相手の名前（採用・作業中・完了）＝終わった仕事の相手も消えない
   //   ・自分の求人＝作物（無ければ作業）。掲載中は緑・終了はグレーで、終わったものと分かる
   //   いいねは出さない（人との約束ではない＝盤面が名前で埋まらないように）
-  const CHIP_PHASES = ["contracted", "working", "completed"];
   const chipsOnDay = (dt) => {
     const ymd = ymdLocal(dt);
     return entryIdxOnDay(ymd)
       .map(i => entries[i])
-      .filter(e => (e.relation === "application" && e.partner_name && CHIP_PHASES.includes(phaseOfEntry(e)))
+      .filter(e => (e.relation === "application" && e.partner_name && HIRED_PHASES.includes(phaseOfEntry(e)))
                 || (e.relation === "own" && ((e.crop || "").trim() || (e.task || "").trim())));
   };
   // チップの見た目（名前・色・説明）を1箇所で決める＝出す場所が増えても食い違わない
@@ -153,13 +154,11 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
         text: e.partner_name,
         color: APP_PHASE_COLOR[phaseOfEntry(e)],
         title: `${e.partner_name}（${APP_PHASE_LABEL[phaseOfEntry(e)]}）` };
-  // 確定したか＝【採用したか】（2026-08-11たきと指示「承認したらならばカレンダーに反映。採用したならば確定」）。
-  // 承認（面接中）はカレンダーに出すが、まだその日に働くと決まったわけではない＝未確定。
-  // 採用（両者の確認時刻が揃う＝契約成立）で確定する。
+  // 塗りの濃さの物差し（2026-08-25たきと指示）＝【採用が確定したか】だけで決める。過去・未来は見ない。
+  //   濃い＝その日に採用が確定した応募がある（採用・作業中・完了）
+  //   薄い＝それ以外（自分の求人だけの日・承認済みで採用前・いいね）
   // ★確定の分かれ目は段階であって、農家が「働く日を決める」を押したか（agreed_dates の有無）ではない。
-  //   働く日を決めるのは日を絞る操作で、契約の成立とは別（採用前に決めても確定にはならない）。
-  // 求人期間の行（own＝自分の出した公開中の求人／liked＝いいね）は人との約束ではないので従来どおりの塗り。
-  const isConfirmedEntry = (e) => e.relation !== "application" || HIRED_PHASES.includes(phaseOfEntry(e));
+  const isHiredEntry = (e) => e.relation === "application" && HIRED_PHASES.includes(phaseOfEntry(e));
 
   const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
   const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
@@ -560,23 +559,13 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                 const workerEs = es.filter(e => e.my_role === "worker");
                 const hasFarmer = farmerEs.length > 0;
                 const hasWorker = workerEs.length > 0;
-                const isOpen = es.some(e => e.status === "open"); // 公開中が1件でもあれば濃色
                 const baseColor = (hasFarmer && hasWorker) ? CAL_OVERLAP : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
-                // 名前チップが乗る日は塗りを薄くする（2026-07-29たきと指示）＝濃い地に濃いチップを重ねない。
-                // 濃淡の既存ルール（濃い=公開中）はチップの無い日でそのまま維持される
                 const chips = chipsOnDay(dt);
-                // まだ確定していない日（2026-08-11）＝この日に出ている予定が全部「承認済み・採用前」。
-                // 承認された時点で希望日はカレンダーに出すが、採用までは働くと決まっていない＝
-                // ベタ塗りにすると決まったように見えるので、斜線にして見た目で分ける。
-                // 採用（確定）が1件でもあればその日は確定扱い＝斜線にしない
-                const onlyWish = idxs.length > 0 && idxs.every(k => !isConfirmedEntry(entries[k]));
-                // 薄色＝同じ色の8%（+"14"）。文字は色に沿った濃い字にして読めるようにする
-                const solid = isOpen && chips.length === 0 && !onlyWish;
-                const fillBg = baseColor
-                  ? (onlyWish
-                      ? `repeating-linear-gradient(135deg, ${baseColor}3D 0 4px, ${baseColor}0F 4px 8px)`
-                      : (solid ? baseColor : baseColor + "22"))
-                  : null;
+                // 濃さは2段だけ（2026-08-25たきと指示）：採用が確定していれば濃い／していなければ薄い。
+                // 過去・未来では変えない＝「採用が確定した過去の求人も緑」「確定しなかった過去も薄い緑」。
+                // 斜線（承認済み・採用前）は廃止＝薄い色に統一した
+                const solid = !!baseColor && es.some(isHiredEntry);
+                const fillBg = baseColor ? (solid ? baseColor : baseColor + "22") : null;
                 const fillFg = baseColor ? (solid ? "#fff" : baseColor) : "#222";
                 const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
                 const isToday = ymd === todayYmd;
