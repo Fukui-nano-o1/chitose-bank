@@ -2006,8 +2006,11 @@ export default function App(){
         ) : needsPrivacyReconsent ? (
           <PrivacyReconsent authId={me?.id} onAgreed={()=>setNeedsPrivacyReconsent(false)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : chatAppId === "admin" ? (
-          /* 運営チャット（#/chat/admin）＝当事者チャットと同じ器に相乗り（AdminChat.jsx冒頭の注記） */
-          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/chats"); }} /></Suspense>
+          /* 運営チャット（#/chat/admin）＝当事者チャットと同じ器に相乗り（AdminChat.jsx冒頭の注記）。
+             ★←は history.back() でなく行き先を名指しする：この部屋の入口はチャット一覧の行so戻り先は必ず一覧。
+             back() は直前の履歴（＝プッシュ通知から開いた時や、hashを二度書いた時のマイページ等）へ飛び、
+             「戻るを押すとマイページに行く／押しても何も起きない」になっていた（2026-08-24たきと報告） */
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage onBack={()=>{ window.location.hash = "/chats"; }} /></Suspense>
         ) : chatAppId ? (
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
         ) : showApplyPending ? (
