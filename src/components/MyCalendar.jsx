@@ -11,7 +11,9 @@ import { getCache, setCache } from "../lib/viewCache";
 import { fbSuccess, fbError, fbTap } from "../lib/feedback";
 import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
-// 重複日の色（2026-07-27たきと指示）：求人期間と求職期間が同じ日に重なる＝二重予約の警告色（既存の警告赤と同色）
+// 重複日の色（2026-07-27）：二重予約の警告色（既存の警告赤と同色）。
+// ★2026-08-25たきと裁定で「本当にぶつかっている日」だけに絞った＝同じ日に、自分の求人にも人が入り
+//   （農家として採用確定）、かつ自分も働き手として採用確定。予定が並んでいるだけでは赤くしない
 const CAL_OVERLAP = "#E24B4A";
 // #/calendar：自分（農家・働き手どちらの立場でも）の予定を月グリッドに塗る。
 // 日付タップ＝その日の予定と操作を日付シートで開く（この部品の中で完結・親への通知はしない）。
@@ -559,12 +561,21 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                 const workerEs = es.filter(e => e.my_role === "worker");
                 const hasFarmer = farmerEs.length > 0;
                 const hasWorker = workerEs.length > 0;
-                const baseColor = (hasFarmer && hasWorker) ? CAL_OVERLAP : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
                 const chips = chipsOnDay(dt);
                 // 濃さは2段だけ（2026-08-25たきと指示）：採用が確定していれば濃い／していなければ薄い。
                 // 過去・未来では変えない＝「採用が確定した過去の求人も緑」「確定しなかった過去も薄い緑」。
                 // 斜線（承認済み・採用前）は廃止＝薄い色に統一した
-                const solid = !!baseColor && es.some(isHiredEntry);
+                const hiredEs = es.filter(isHiredEntry);
+                const solid = hiredEs.length > 0;
+                // ★赤（二重予約の警告）は【本当にぶつかっている日】だけ（2026-08-25たきと裁定）：
+                //   こちらの求人にも人が入り、同じ日に自分も働き手として採用されている＝両方とも採用が確定。
+                //   片方だけ確定なら、その確定した側の役割の色（農家=緑／働き手=橙）。
+                //   どちらも未確定なら、その日にある予定の役割の色（自分の求人があれば緑）
+                const hiredFarmer = hiredEs.some(e => e.my_role === "farmer");
+                const hiredWorker = hiredEs.some(e => e.my_role === "worker");
+                const baseColor = (hiredFarmer && hiredWorker) ? CAL_OVERLAP
+                  : solid ? (hiredFarmer ? ROLE_GREEN : ROLE_ORANGE)
+                  : hasFarmer ? ROLE_GREEN : hasWorker ? ROLE_ORANGE : null;
                 const fillBg = baseColor ? (solid ? baseColor : baseColor + "22") : null;
                 const fillFg = baseColor ? (solid ? "#fff" : baseColor) : "#222";
                 const liked = es.some(e => e.relation === "liked" || likedIds.has(e.job_number)); // いいね済み＝右上に小さく❤️
