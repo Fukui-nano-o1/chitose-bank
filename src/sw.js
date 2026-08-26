@@ -31,7 +31,12 @@ precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
 // ── ページ本体（ナビゲーション）＝NetworkFirst
-// 常に最新のindex.htmlを取りに行き、3秒で見切って直近の成功分（pages-cache）に落ちる。
+// 常に最新のindex.htmlを取りに行き、150msで見切って直近の成功分（pages-cache）に落ちる。
+// ★3秒→0.15秒（2026-08-26 Speed-3D）：実機で通常画面の起動に約3秒かかっており、この待ち時間と
+//   一致していた。体感0.5秒が目標なので、ページ本体の取得だけに3秒（＝予算の6倍）を使わせない。
+//   JS側の前回画面の復元は100〜200msで終わっている（Speed-3A/3Bの実測）ため、150msを超えて
+//   応答が無いなら手元のHTMLで起動する方が速い。NetworkFirst自体は変えない＝回線が普通なら
+//   従来どおり最新のindex.htmlが載り、遅い時だけ直近の成功分に落ちる。
 // precacheにindex.htmlが無いので、この経路を先取りするものは他に無い。
 // ★NavigationRouteで包むのは「ナビゲーションだけを確実に捕まえる」ため（request.mode判定と同義だが、
 //   Workboxの正規の入口なので将来の実装差で取りこぼさない）
@@ -39,7 +44,7 @@ cleanupOutdatedCaches()
 //   返す使い捨てのHTMLso、キャッシュに溜めない（古い求人の姿を返さない）
 registerRoute(
   new NavigationRoute(
-    new NetworkFirst({ cacheName: 'pages-cache', networkTimeoutSeconds: 3 }),
+    new NetworkFirst({ cacheName: 'pages-cache', networkTimeoutSeconds: 0.15 }),
     { denylist: [/^\/j\//] }
   )
 )
