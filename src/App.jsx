@@ -153,6 +153,7 @@ import { syncAppBadge, closeReadNotifications } from "./lib/push";
 import { peekApplyReturn } from "./lib/applyReturn";
 import { armLoginReturn, takeLoginReturn } from "./lib/loginReturn";
 import { snapGet, snapSet, clearSnapshots } from "./lib/snapshot";
+import { saveLastRoute } from "./lib/lastRoute";
 import { getCache, setCache, clearCache } from "./lib/viewCache";
 
 import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
@@ -668,6 +669,10 @@ export default function App(){
   useEffect(() => {
     const onHash = () => {
       const rawHash = window.location.hash.replace(/^#\/?/, "");
+      // 前回見ていた画面を端末に控える（2026-08-26 Speed-4A）。ハッシュを書き換える経路は
+      // すべて hashchange を通るので、記録はここ1箇所でよい。一時画面（ログイン・応募の完了・
+      // 求人作成の途中等）と既定のさがすは lib/lastRoute.js 側で弾く＝控えない
+      saveLastRoute(rawHash);
       const _em = rawHash.match(/^emergency\/([0-9a-fA-F-]+)$/);
       if (_em) { resolveEmergencyLink(_em[1]); return; }
       // 現在モード（雇い手/働き手）はempCtxに集約（同一ソース・二重状態を作らない）。プロフィールの側に入った時だけ
@@ -728,6 +733,10 @@ export default function App(){
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // 起動した時の画面も控える（hashchange は初回ロードでは発火しないため・2026-08-26 Speed-4A）。
+  // 起動直後は snapshot の me がまだ無いこともあるので、me が入った時にも控え直す
+  useEffect(() => { saveLastRoute(window.location.hash.replace(/^#\/?/, "")); }, [me?.id]);
 
   // #/account 直打ち（初回ロード）の認証チェック。hashchangeイベントは初回ロードでは発火しないため別途判定
   useEffect(() => {
