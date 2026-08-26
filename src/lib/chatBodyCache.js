@@ -128,7 +128,10 @@ export async function writeChatBody(appId, list) {
   try {
     d = await conn();
     const out = trimForCache(list);
-    if (!out.length) { await wrap(tx(d, ST_BODY, "readwrite").delete(recKey(uid, appId))); return; }
+    // 空では既存の控えを消さない（2026-08-26 Speed-4B.1）：messages はDBで削除できない恒久ルールなので、
+    // 通常の同期結果が空でも「履歴が無くなった」ことにはならない。控えの削除は clearChatBodies（ログアウト・
+    // セッション消失・アカウント停止）だけが行う
+    if (!out.length) return;
     const key = await getKey(d, true);
     if (!key) return;
     const iv = crypto.getRandomValues(new Uint8Array(12));

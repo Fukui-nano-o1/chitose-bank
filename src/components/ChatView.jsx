@@ -23,6 +23,10 @@ export function ChatView({ applicationId, onBack }) {
   // ★表示専用＝送信権限・採用・契約・既読の正はすべて従来どおりサーバー側が決める
   const cacheReqRef = useRef(0);            // スレッドを切り替えた後に古い復号結果が届いても捨てる
   const restoredFromCacheRef = useRef(false); // いま画面に出ているのが控えか（サーバー結果で置き換える時の目印）
+  // このスレッドに履歴があると一度でも確認できたか（控えから復元 or サーバーから1件以上取得）。
+  // messages はDB側で削除できない（messages_history_lock・2026-07-19恒久ルール）ので、
+  // 一度あった履歴が後から0件になることはない＝空応答・通信エラーで消さないための印（2026-08-26 Speed-4B.1）
+  const knownHistoryRef = useRef(false);
   const pinBottomRef = useRef(false);         // 控え→本物の置き換えで、最下部に貼り直す
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
   const nearBottomRef = useRef(true); // 利用者が下端の近く(80px以内)にいるか。onScrollで更新・自動スクロールの条件（2026-08-07）
@@ -205,6 +209,22 @@ export function ChatView({ applicationId, onBack }) {
       ]);
       const data = msgRes.data;
       if (!msgRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
+      // ★一度確認できた履歴は、空配列・通信エラーでは消さない（2026-08-26 Speed-4B.1）。
+      //   messages はDBで削除できない恒久ルールなので、「0件になった」という値だけは正として採用しない
+      //  （サーバーが正の原則は、非空が返ってきた時に従来どおり働く）
+      if (msgRes.error) {
+        // 通信エラーを「メッセージ0件」に化けさせない。出せているものはそのまま残し、
+        // まだ何も出せていない時は仮配置のまま次の再取得（復帰・5秒ポーリング）を待つ
+        if (knownHistoryRef.current) setMsgsLoading(false);
+        return;
+      }
+      if (data && data.length === 0 && knownHistoryRef.current) {
+        // 履歴があると分かっているスレッドの空応答＝一時的なものとして捨てる。
+        // 画面・signature・控えのどれも触らない（次の正常取得で置き換わる）
+        setMsgsLoading(false);
+        return;
+      }
+      if (data && data.length) knownHistoryRef.current = true;
       // ★内容が同じなら前の配列を保つ（2026-08-07たきと報告「3〜5秒静止で最下部に自動遷移する」の根治）：
       //   5秒間隔の保険ポーリングが毎回新しい配列でsetMsgsし、下の自動スクロール（[msgs]依存）が
       //   毎回発火して、履歴を読んでいる最中でも数秒ごとに最下部へ引き戻していた。
@@ -231,7 +251,7 @@ export function ChatView({ applicationId, onBack }) {
       msgSigRef.current = sig;
       // 控えの更新（Speed-4B）：DBから確定取得できた一覧だけ・中身が変わった時だけ書く。
       // 送信中の仮の吹き出し(_pending)は data に入っていないので控えに載らない
-      if (data && changed) writeChatBody(applicationId, data);
+      if (data && data.length && changed) writeChatBody(applicationId, data);
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
         {
@@ -290,9 +310,11 @@ export function ChatView({ applicationId, onBack }) {
     // 前回の会話を端末から先出し（Speed-4B）。ネットワークを待たずにここで始める＝
     // 下のサーバー取得と並列。届くのが遅れてサーバーが先に入っていたら、控えでは上書きしない
     restoredFromCacheRef.current = false;
+    knownHistoryRef.current = false; // 別のスレッド＝まだ何も知らない状態から始める
     const _cacheReq = ++cacheReqRef.current;
     readChatBody(applicationId).then(list => {
       if (cacheReqRef.current !== _cacheReq || !list || !list.length) return;
+      knownHistoryRef.current = true; // 控えがある＝このスレッドには履歴がある
       setMsgs(prev => { if (prev.length) return prev; restoredFromCacheRef.current = true; return list; });
       setMsgsLoading(false);
     }).catch(() => { /* 読めなければ通常のネットワーク取得のまま */ });
