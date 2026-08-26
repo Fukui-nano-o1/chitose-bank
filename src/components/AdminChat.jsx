@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { closeReadNotifications } from "../lib/push";
 import { supabase } from "../lib/supabase";
 import { fmtJstShort } from "../lib/utils";
+import { useSwipeBack } from "../lib/swipeBack";
 import { LinkifiedText, Dots } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
@@ -75,6 +76,9 @@ export function AdminChatPage({ onBack }) {
   const [sending, setSending] = useState(false);
   const uidRef = useRef(null);
   const scrollRef = useRef(null);
+  // 右スワイプで一覧へ戻る（LINEと同じ・2026-08-24たきと指示）。←と同じ行き先
+  const pageRef = useRef(null);
+  useSwipeBack(pageRef, onBack);
   const load = async (markRead) => {
     const r = await fetchDm();
     setLoading(false);
@@ -118,7 +122,7 @@ export function AdminChatPage({ onBack }) {
     setSending(false);
   };
   return (
-    <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
+    <div ref={pageRef} className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
       <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0 10px", borderBottom:"1px solid #EEE" }}>
         <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
         <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}><NavIconInline name="support" size={15} />chitose-bank運営</p>

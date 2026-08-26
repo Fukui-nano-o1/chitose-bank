@@ -7,6 +7,7 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
   CHAT_ELIGIBLE_STATUSES, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
+import { useSwipeBack } from "../lib/swipeBack";
 import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
 import { chatCache, hydrateChatCache } from "../lib/chatCache";
@@ -579,8 +580,11 @@ export function ChatView({ applicationId, onBack }) {
     canceled:  "この応募は取り消されました",
   };
   const chatClosed = !!CHAT_CLOSED_NOTE[activeStatus];
+  // 右スワイプで一覧へ戻る（LINEと同じ・2026-08-24たきと指示）。←と同じ行き先＝入口を増やしていない
+  const pageRef = useRef(null);
+  useSwipeBack(pageRef, onBack);
   return (
-    <div className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
+    <div ref={pageRef} className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
       {/* 上部フッター（LINE式・2026-07-22）：← / 名前さん / 報告する の1行ヘッダー。求人No.は下の帯へ移動 */}
       <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0 10px", borderBottom:"1px solid #EEE" }}>
         <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
