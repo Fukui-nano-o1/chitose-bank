@@ -576,10 +576,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                「開くと先頭へ飛ぶ」も起きない。戻るはブラウザの戻る（iOSのスワイプバックも効く） ═══ */}
       {editBox && (
       <div className="fade-in">
+        {/* 見出し（2026-08-25たきと指示「各項目ページもAirbnbをパクれ」）＝Airbnbのサブ画面と同じ形：
+            「‹」は小さく単独、その下に大きな題名、下に細い区切り線。どの項目に居るかが一目で分かる */}
         <button onClick={closeEditBox} className="f-sans" aria-label="戻る"
-          style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", padding:"2px 0 14px", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222" }}>
-          <span style={{ fontSize:20, lineHeight:1 }}>‹</span>{EDIT_TITLES[editBox] || "編集"}
-        </button>
+          style={{ display:"block", background:"none", border:"none", padding:"2px 0 6px", cursor:"pointer", fontSize:22, lineHeight:1, color:"#222" }}>‹</button>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 16px", paddingBottom:16, borderBottom:"1px solid #EBEBEB", letterSpacing:"-.01em" }}>{EDIT_TITLES[editBox] || "編集"}</h2>
 
       {editBox==="avatar" && (<>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
@@ -788,44 +789,53 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           {WORKER_QA_PAGES.map(({ group, questions }, i) => (
             <div key={group} style={{ flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" }}>
               <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:"#222", margin:"0 0 10px", letterSpacing:".02em" }}>{group}</p>
-              {/* 質問はタブ（横に並ぶ・2026-08-19たきと指示「質問はタブ化。タップで入力欄表示」）。
-                  タブは1行（はみ出す分はCSSの…で省略）。選んだ質問の全文と入力欄を下に出す。
-                  ★文字数での切り出しはしない：半角混じりの問い（chitose-bank…）で意味が切れるため、
-                    maxWidth＋ellipsis に任せて自然な位置で省く
-                  答えた問いには✓。選ぶまで入力欄は出さない（タップで表示） */}
-              <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch",
-                            scrollbarWidth:"none", margin:"0 -2px 10px", padding:"2px" }}>
-                {questions.map(q => {
+              {/* 質問は【縦一列の行】（2026-08-25たきと指示「…はだめだ。全て表示させろ」＋「各項目ページも
+                  Airbnbをパクれ」）＝横に並ぶチップだと問いが「…」で切れて何を聞かれているか読めなかった。
+                  行なら長い問いも折り返して全文が出る。見た目はプロフィール編集の行（ProfileEditRow）と同じ作法：
+                  問い／答えの下書き／右に「›」／行の間に細い区切り線。タップでその場に入力欄が開く。
+                  答えた問いは役割色＋レ点、修正のお願いの指摘は赤（従来どおり） */}
+              <div style={{ marginBottom:10 }}>
+                {questions.map((q, qi) => {
                   const ans = prQa.find(x => x.q === q)?.a || "";
                   const on = openQaQ === q;
                   const revFlaggedQ = revTargets.includes(q); // 修正のお願いの指摘対象は赤で明示（2026-07-19）
                   return (
-                    <button key={q} type="button" onClick={()=>setOpenQaQ(on ? null : q)} className="f-sans"
-                      style={{ flexShrink:0, maxWidth:200, padding:"7px 13px", borderRadius:20, cursor:"pointer", whiteSpace:"nowrap",
-                               overflow:"hidden", textOverflow:"ellipsis", fontSize:12, fontWeight:700,
-                               border:"1px solid " + (revFlaggedQ ? "#E24B4A" : on ? ROLE_ORANGE : ans.trim() ? ROLE_ORANGE + "66" : "#EBEBEB"),
-                               background: revFlaggedQ ? "#FDECEC" : on ? ROLE_ORANGE : "#fff",
-                               color: revFlaggedQ ? "#E24B4A" : on ? "#fff" : ans.trim() ? ROLE_ORANGE : "#717171" }}>
-                      {revFlaggedQ ? <NavIconInline name="alert" size={12} style={{ verticalAlign:"-1.5px", marginRight:3 }} /> : ans.trim() ? "✓ " : ""}{q}
-                    </button>
+                    <div key={q}>
+                      <button type="button" onClick={()=>setOpenQaQ(on ? null : q)} className="f-sans"
+                        style={{ display:"flex", alignItems:"flex-start", gap:10, width:"100%", textAlign:"left",
+                                 background: revFlaggedQ ? "#FDECEC" : "none", border:"none",
+                                 borderBottom: qi === questions.length - 1 ? "none" : "1px solid #EBEBEB",
+                                 padding:"14px 2px", cursor:"pointer" }}>
+                        <span style={{ minWidth:0, flex:1 }}>
+                          <span style={{ display:"block", fontSize:14, fontWeight:600, lineHeight:1.6,
+                                         color: revFlaggedQ ? "#E24B4A" : on ? ROLE_ORANGE : "#222" }}>
+                            {revFlaggedQ ? <NavIconInline name="alert" size={13} style={{ verticalAlign:"-2px", marginRight:3 }} /> : ans.trim() ? <NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px", marginRight:3, color:ROLE_ORANGE }} /> : null}{q}
+                          </span>
+                          {ans.trim() && !on && (
+                            <span style={{ display:"block", fontSize:12.5, color:"#717171", marginTop:3, lineHeight:1.6,
+                                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ans}</span>
+                          )}
+                        </span>
+                        <span style={{ color: on ? ROLE_ORANGE : "#C8C8C8", fontSize:18, flexShrink:0, lineHeight:1.4 }}>{on ? "▾" : "›"}</span>
+                      </button>
+                      {on && (
+                        <div className="fade-in" style={{ padding:"0 2px 14px" }}>
+                          <textarea
+                            value={ans}
+                            onChange={e=>setQaAnswer(q, e.target.value)}
+                            onFocus={()=>setQaTyping(true)}
+                            onBlur={()=>setQaTyping(false)}
+                            rows={3}
+                            autoFocus
+                            className="field f-sans"
+                            style={{ width:"100%", fontSize:16, resize:"vertical", boxSizing:"border-box" }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
-              {questions.includes(openQaQ) && (
-                <div className="fade-in" style={{ marginBottom:12 }}>
-                  <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 6px", lineHeight:1.6 }}>{openQaQ}</p>
-                  <textarea
-                    value={prQa.find(x => x.q === openQaQ)?.a || ""}
-                    onChange={e=>setQaAnswer(openQaQ, e.target.value)}
-                    onFocus={()=>setQaTyping(true)}
-                    onBlur={()=>setQaTyping(false)}
-                    rows={3}
-                    autoFocus
-                    className="field f-sans"
-                    style={{ width:"100%", fontSize:16, resize:"vertical", boxSizing:"border-box" }}
-                  />
-                </div>
-              )}
               {/* 「← 戻る／次へ →」は削除（2026-08-25たきと指示・はたらき方の希望と対）＝
                   移動は指の横スワイプと、下の進み具合のドット（タップでそのグループへ） */}
             </div>

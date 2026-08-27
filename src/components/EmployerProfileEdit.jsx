@@ -617,10 +617,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
                「開くと先頭へ飛ぶ」も起きない。戻るはブラウザの戻る（iOSのスワイプバックも効く） ═══ */}
       {editBox && (
       <div className="fade-in">
+        {/* 見出し（2026-08-25たきと指示「各項目ページもAirbnbをパクれ」）＝Airbnbのサブ画面と同じ形：
+            「‹」は小さく単独、その下に大きな題名、下に細い区切り線。どの項目に居るかが一目で分かる */}
         <button onClick={closeEditBox} className="f-sans" aria-label="戻る"
-          style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", padding:"2px 0 14px", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222" }}>
-          <span style={{ fontSize:20, lineHeight:1 }}>‹</span>{EDIT_TITLES[editBox] || "編集"}
-        </button>
+          style={{ display:"block", background:"none", border:"none", padding:"2px 0 6px", cursor:"pointer", fontSize:22, lineHeight:1, color:"#222" }}>‹</button>
+        <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 16px", paddingBottom:16, borderBottom:"1px solid #EBEBEB", letterSpacing:"-.01em" }}>{EDIT_TITLES[editBox] || "編集"}</h2>
 
       {editBox==="avatar" && (<>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
