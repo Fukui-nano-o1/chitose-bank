@@ -7,7 +7,7 @@ import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/pr
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
-import { Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD } from "./ui";
+import { Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD, CHAT_ROW_DIVIDER } from "./ui";
 import { AdminChatRow } from "./AdminChat";
 import { NavIcon } from "./NavIcons";
 
@@ -298,13 +298,13 @@ export function ChatList() {
            画面が狭いと列ごとカードが画面より広くなっていた（body の overflow-x:clip で
            右が切れ、段階チップが画面外に消える）。0 を下限にすれば列は器を超えない */
         <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:CHAT_ROW_GAP }}>
-          {shownRows.map(a => {
+          {shownRows.map((a, i) => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
                 className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
-                  border:"1px solid #EBEBEB", borderRadius:12, padding:CHAT_ROW_PAD, cursor:"pointer" }}>
+                  border:"none", borderBottom: i < shownRows.length - 1 ? CHAT_ROW_DIVIDER : "none", borderRadius:0, padding:CHAT_ROW_PAD, cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
                 <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
                   <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={40} ring={a._role === "farmer" ? ROLE_ORANGE : ROLE_GREEN} />

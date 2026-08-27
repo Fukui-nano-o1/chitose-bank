@@ -9,12 +9,16 @@ import { readShape, writeShape, measureShape } from "../lib/skeletonShape";
 import { CropIcon } from "./CropIcon";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
-// チャット一覧の行の寸法（2026-08-24たきと指示「チャット一覧の空白を詰めろ。上下の余白は残す」）。
+// チャット一覧の行の寸法（2026-08-24たきと指示「チャット一覧の空白を詰めろ。上下の余白は残す」→
+// 同日「隙間ゼロにして、枠を削除。運営だけ枠あり」）。
 // ★ここだけに置く＝当事者の行（ChatList）と運営の行（AdminChat）が同じ値を読む＝高さが揃う。
 //   ページの外側の上下の余白（ChatListの padding:"5px 0 8px"）は指示どおり不変。
 //   共有アトムに置いたのは、互いをimportし合う輪（ChatList⇄AdminChat）を作らないため
-export const CHAT_ROW_GAP = 6;
+export const CHAT_ROW_GAP = 0;            // 行と行のすき間はゼロ（切れ目は下の細い線が示す）
 export const CHAT_ROW_PAD = "10px 14px";
+// 相手とのチャットの行は枠なし＝すき間ゼロで並べると1枚の名簿に見える。
+// 行の切れ目は髪の毛ほどの線（最後の行には引かない）。運営の行だけは枠つき＝一目で別物と分かる
+export const CHAT_ROW_DIVIDER = "1px solid #F0F0F0";
 
 // メルカリSOLD風の斜めリボン（写真の右上角）。農家の求人一覧の状態表示（作成中/公開間近/公開中）
 export function StatusRibbon({ label, color }) {
