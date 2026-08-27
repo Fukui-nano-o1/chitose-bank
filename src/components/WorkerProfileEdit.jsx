@@ -582,7 +582,6 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         </button>
 
       {editBox==="avatar" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + ROLE_ORANGE, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
           <Avatar url={avatarUrl} name={nickname} size={64} />
@@ -600,25 +599,21 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </>)}
 
       {editBox==="nickname" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ニックネーム</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>呼び名です。本名でなくてかまいません。</p>
       <input value={nickname} onChange={e=>setNickname(e.target.value)} placeholder="例：たき" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       </>)}
 
       {editBox==="residence" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>居住地</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>通える範囲の確認に使われます。</p>
       <input value={residenceCity} onChange={e=>setResidenceCity(e.target.value)} placeholder="例：吉野川市（市町村まで）" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
       </>)}
 
       {editBox==="transport" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>移動手段</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>集合場所までの足の確認に使われます。</p>
       <LFPillSelect options={["車","バイク","自転車","公共交通"]} value={transport} onSelect={setTransport} accent={ROLE_ORANGE} />
       </>)}
 
       {editBox==="exp" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:8 }}>農業就労の経験</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>未経験でも大丈夫。正直に選んでください。</p>
       <LFPillSelect options={["未経験","経験あり"]} value={farmExperience} onSelect={setFarmExperience} accent={ROLE_ORANGE} />
       </>)}
@@ -724,7 +719,6 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </>)}
 
       {editBox==="pr" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>自己紹介・PR</label>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 8px", lineHeight:1.6 }}>承認の判断でいちばん読まれます。</p>
       <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
         {PR_PROMPTS.map((p, i) => (

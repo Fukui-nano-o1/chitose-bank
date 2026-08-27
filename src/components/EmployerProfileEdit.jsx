@@ -623,7 +623,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         </button>
 
       {editBox==="avatar" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>
         <div style={{ width:64, height:64, borderRadius:"50%", border:"1.5px solid " + AC, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", flexShrink:0 }}>
           <Avatar url={avatarUrl} name={nickname} size={64} bg={black ? "#111111" : undefined} />
@@ -833,7 +832,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             </button>
             {/* 氏名・名称は「✏️氏名・名称」ボックスへ移した（2026-07-27・重複解消） */}
             {/* 住所・所在地は「📍住所・所在地」ボックスへ移した（2026-07-27・重複解消） */}
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>連絡先</label>
             <input value={recruiterContact} onChange={e=>setRecruiterContact(e.target.value)} placeholder="例：088-000-0000" maxLength={100}
               className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:16, lineHeight:1.7 }}>
@@ -865,9 +863,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
 
       {editBox==="intro" && (<>
             {/* 農園紹介→代表よりに改名・代表よりの入力を最上段へ（2026-07-16） */}
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>代表より</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>働き手への一言と、書きたいお題だけ記入してください（任意）</p>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>代表より（任意）</label>
             <textarea
               value={ownerComment}
               onChange={e => setOwnerComment(e.target.value)}
@@ -898,7 +894,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {editBox==="ask" && (<>
-            <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>働き手への問いかけ</label>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたい問いだけ、記入してください（任意）</p>
             <div className="employer-intro-grid" style={{ marginBottom:16 }}>
               {[

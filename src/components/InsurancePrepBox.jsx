@@ -76,7 +76,8 @@ export function InsurancePrepBox({ accent = "#00A86B", onSaved }) {
 
   return (
     <>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>保険の準備（自己申告）</label>
+      {/* 見出しはページ側（「‹ 保険の準備」）が出す＝二重にしない（2026-08-25たきと報告）。
+          自己申告であることは下の説明文が言う */}
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 12px", lineHeight:1.7 }}>
         働き手のケガに備える保険の準備方針です。当てはまるものを選べます（複数可）。
         あなたの求人ページとプロフィールに「農家の自己申告」として表示されます。運営が確認するものではありません。

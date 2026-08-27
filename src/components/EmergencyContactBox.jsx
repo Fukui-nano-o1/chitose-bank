@@ -77,7 +77,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
   return (
     <>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-        <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222" }}>緊急連絡先</label>
+        {/* 見出しはページ側（「‹ 緊急連絡先」）が出す＝二重にしない（2026-08-25たきと報告） */}
         {/* 説明は既定でたたむ（2026-08-19たきと指示「これは？ボタンタップで展開」）＝
             画面を文字で埋めない。中身は消していない＝押せばいつでも読める */}
         <button type="button" onClick={()=>setShowHelp(v => !v)} aria-expanded={showHelp} className="f-sans"
