@@ -295,9 +295,23 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       }
     } catch {}
   }, []);
+  // 項目を開くと背景が先頭へ飛ぶ件の修理（2026-08-25たきと指示「編集ページのトップに自動遷移する。遷移させるな」）。
+  // 原因＝オーバーレイに付ける .cb-lock-scroll が html/body に overflow:hidden + height:100% を掛けるため、
+  // 画面をその高さに切り詰めた時点でスクロール位置が0に戻る（iOSで顕著）。
+  // ★CSSは触らない：この規則は約50箇所のボックスが共有していて、背後が動かない担保そのものだから。
+  //   代わりに「開く直前の位置を覚えて、閉じた後に戻す」＝閉じたときに同じ行の場所へ帰ってくる。
+  //   連鎖（保存→次の未入力へ）の途中では覚え直さない＝最初に開いた場所に帰る
+  const scrollBeforeBox = useRef(0);
+  const openEditBox = (k) => {
+    if (editBox === null) scrollBeforeBox.current = window.scrollY || window.pageYOffset || 0;
+    setEditBox(k);
+  };
   const closeEditBox = () => {
     setEditBox(null);
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
+    // クラスが外れて高さが戻ってから位置を書き戻す（描画2フレーム待つ）
+    const y = scrollBeforeBox.current;
+    requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
   // ★並びは【応募に必要な3項目が先】（ニックネーム→居住地→自己紹介）。
@@ -333,7 +347,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     if (!want) return;
     fillGuideRef.current = true;
     const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力（nextUnfilledBoxは「次」ので先頭を飛ばす）
-    if (k) setEditBox(k);
+    if (k) openEditBox(k);
   }, [loading]);   // eslint-disable-line react-hooks/exhaustive-deps -- 読み込み完了の1回だけ走らせる（入力途中の再判定はしない）
   // 保存失敗を運営が追えるように記録（app_errors・システムページに出る）。失敗しても保存フローは妨げない
   const logSaveError = (msg) => {
@@ -435,7 +449,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
           // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
           const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
-          if (nxt) setEditBox(nxt); else closeEditBox();
+          if (nxt) openEditBox(nxt); else closeEditBox();
           setTimeout(() => setSaved(false), 2200);
         }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
@@ -474,7 +488,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
             <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この3つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
             <div style={{ display:"grid", gap:8 }}>
               {steps.map(s => (
-                <button key={s.k} onClick={()=>setEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?ROLE_ORANGE:"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
+                <button key={s.k} onClick={()=>openEditBox(s.k)} className="f-sans" style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"1px solid "+(s.done?ROLE_ORANGE:"#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer" }}>
                   <span style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, background: s.done?ROLE_ORANGE:"#F0F0F0", color: s.done?"#fff":"#B0B0B0" }}>{s.done ? <NavIcon name="tick" size={13} /> : ""}</span>
                   <span style={{ fontSize:14, fontWeight:700, color: s.done?ROLE_ORANGE:"#222", flex:1 }}>{s.l}</span>
                   {!s.done && <span style={{ fontSize:12, color:ROLE_ORANGE, fontWeight:700, flexShrink:0 }}>入力する →</span>}
@@ -490,12 +504,12 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
              タップでモーダル編集する仕組み（editBox）は不変＝中身は1行も変えていない ═══ */}
       {/* アイコン＝Airbnbと同じく先頭に大きく1つ。タップでアイコンの編集へ */}
       <div style={{ textAlign:"center", padding:"4px 0 20px" }}>
-        <button type="button" onClick={()=>setEditBox("avatar")} aria-label="アイコンを変更"
+        <button type="button" onClick={()=>openEditBox("avatar")} aria-label="アイコンを変更"
           style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}>
           <Avatar url={avatarUrl} name={nickname} size={96} ring={ROLE_ORANGE} />
         </button>
         <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"12px 0 0" }}>{nickname || "名前未設定"}</p>
-        <button type="button" onClick={()=>setEditBox("avatar")} className="f-sans"
+        <button type="button" onClick={()=>openEditBox("avatar")} className="f-sans"
           style={{ marginTop:6, background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:700, color:ROLE_ORANGE, textDecoration:"underline" }}>
           {avatarUrl ? "写真を変更" : "写真を追加"}
         </button>
@@ -521,7 +535,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           const revFlagged = revTargets.length > 0 && (b.k === "pr" ? revTargets.includes("自己紹介本文") : b.k === "qa" ? revTargets.some(t => t !== "自己紹介本文") : false);
           return (
             <ProfileEditRow key={b.k} label={b.l} value={b.v} required={b.req} flagged={revFlagged}
-              accent={ROLE_ORANGE} onClick={()=>setEditBox(b.k)} last={i === arr.length - 1} />
+              accent={ROLE_ORANGE} onClick={()=>openEditBox(b.k)} last={i === arr.length - 1} />
           );
         })}
       </div>
@@ -745,7 +759,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         // 共通の save() を通らないので、保存→次の未入力へ進む連鎖もここで繋ぐ（2026-08-17）。
         // hasEmg の反映は非同期so nextUnfilledBox が emergency 自身を返すことがある＝いま埋めた側so閉じる
         const nxt = nextUnfilledBox("emergency");
-        if (nxt && nxt !== "emergency") setEditBox(nxt); else closeEditBox();
+        if (nxt && nxt !== "emergency") openEditBox(nxt); else closeEditBox();
       }} />
       <div style={{ marginBottom:8 }} />
       </>)}
@@ -847,7 +861,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"calc(48px + env(safe-area-inset-top, 0px))", bottom:"calc(48px + env(safe-area-inset-bottom, 0px))", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:20, padding:"20px", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y" }}>
             <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 8px" }}>プレビュー（保存済みの内容）・項目をタップで編集できます</p>
             <WorkerProfilePreview me={me} onEdit={()=>setShowPreview(false)}
-              onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); setEditBox(key); }} />
+              onEditItem={(key)=>{ setShowPreview(false); setEditFromPreview(true); openEditBox(key); }} />
           </div>
         </div>
       )}

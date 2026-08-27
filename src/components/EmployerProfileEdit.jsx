@@ -367,7 +367,20 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
   // editFromPreview（プレビュー発の編集の往復）は削除（2026-07-31）：プレビューの項目タップ編集の
   // 廃止（2026-07-25）で発火元が消え、永久にfalseの死に状態だった
-  const closeEditBox = () => setEditBox(null);
+  // 項目を開くと背景が先頭へ飛ぶ件の修理（2026-08-25たきと指示「編集ページのトップに自動遷移する。
+  // 遷移させるな」・働き手側と同じ）。原因＝.cb-lock-scroll の overflow:hidden + height:100% で
+  // 画面が切り詰められ、スクロール位置が0に戻る。CSSは約50箇所が共有so触らず、
+  // 「開く直前の位置を覚えて、閉じた後に戻す」で帰る場所を保つ
+  const scrollBeforeBox = useRef(0);
+  const openEditBox = (k) => {
+    if (editBox === null) scrollBeforeBox.current = window.scrollY || window.pageYOffset || 0;
+    setEditBox(k);
+  };
+  const closeEditBox = () => {
+    setEditBox(null);
+    const y = scrollBeforeBox.current;
+    requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+  };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
@@ -406,7 +419,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     if (!want) return;
     fillGuideRef.current = true;
     const k = BOX_ORDER.find(b => !boxFilled(b));   // 先頭から最初の未入力
-    if (k) setEditBox(k);
+    if (k) openEditBox(k);
   }, [loading]);   // eslint-disable-line react-hooks/exhaustive-deps -- 読み込み完了の1回だけ
   // 保存失敗を運営が追えるように記録（app_errors・システムページに出る）。失敗しても保存フローは妨げない
   const logSaveError = (msg) => {
@@ -506,7 +519,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
           // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
           const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
-          if (nxt) setEditBox(nxt); else closeEditBox();
+          if (nxt) openEditBox(nxt); else closeEditBox();
           setTimeout(() => setSaved(false), 2200);
         }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
@@ -534,13 +547,13 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       {/* ロゴ・アイコン＝Airbnbと同じく先頭に大きく1つ。委託レーンではアイコンを出さない（従来どおり） */}
       <div style={{ textAlign:"center", padding:"4px 0 20px" }}>
         {!black && (
-          <button type="button" onClick={()=>setEditBox("avatar")} aria-label="ロゴ・アイコンを変更"
+          <button type="button" onClick={()=>openEditBox("avatar")} aria-label="ロゴ・アイコンを変更"
             style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}>
             <Avatar url={avatarUrl} name={nickname} size={96} ring={AC} />
           </button>
         )}
         <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin: black ? "0" : "12px 0 0" }}>{recruiterName || nickname || "名称未設定"}</p>
-        <button type="button" onClick={()=>setEditBox("avatar")} className="f-sans"
+        <button type="button" onClick={()=>openEditBox("avatar")} className="f-sans"
           style={{ marginTop:6, background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:700, color:AC, textDecoration:"underline" }}>
           {avatarUrl ? "写真を変更" : "写真を追加"}
         </button>
@@ -562,7 +575,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           { k:"style",    l:"関わり方",       v: styleAnswered.join("・") },
         ].filter(b => !black || !["intro","ask","style","insurance"].includes(b.k)).map((b, i, arr) => (
           <ProfileEditRow key={b.k} label={b.l} value={b.v} required={b.req}
-            accent={AC} onClick={()=>setEditBox(b.k)} last={i === arr.length - 1} />
+            accent={AC} onClick={()=>openEditBox(b.k)} last={i === arr.length - 1} />
         ))}
       </div>
       {saved && (
