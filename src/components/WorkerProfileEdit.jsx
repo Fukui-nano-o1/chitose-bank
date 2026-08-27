@@ -1,7 +1,6 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手プロフィール編集＋プレビュー（WorkerProfilePreviewは本ファイル専用）。
 // 専用定数（PR_PROMPTS・Q&A20問・興味/言語/作業強度の選択肢）も同居。
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
@@ -76,6 +75,13 @@ const WORKER_QA_PAGES = (() => {
 // 旧ラベル（軽めの作業希望/どちらでも/力仕事もOK）で保存済みの値は書き換えない＝そのまま表示される
 const INTEREST_OPTIONS = ["釣り","料理","ランニング","筋トレ","読書","音楽","映画","ゲーム","旅行","キャンプ","園芸","DIY","動物","写真","スポーツ観戦","ショッピング","ドライブ","ネットサーフィン"];
 const LANGUAGE_OPTIONS = ["日本語","英語","中国語","ベトナム語","インドネシア語","タガログ語","ポルトガル語","その他"];
+
+// 項目ページの見出し（行のラベルと同じ言葉＝どこに居るかが分かる）
+const EDIT_TITLES = {
+  avatar:"アイコン", nickname:"ニックネーム", pr:"自己紹介", residence:"居住地", transport:"移動手段",
+  exp:"農業経験", intensity:"はたらき方の希望", interests:"趣味", languages:"言語",
+  declared:"経験・資格", qa:"質問に答える", emergency:"緊急連絡先",
+};
 
 export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [nickname, setNickname] = useState("");
@@ -283,34 +289,53 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       } catch {}
     })();
   }, []);
-  const [editBox, setEditBox] = useState(() => { try { const b = sessionStorage.getItem("cb_wkOpenBox"); if (b) { sessionStorage.removeItem("cb_wkOpenBox"); return b; } } catch {} return null; }); // avatar|nickname|residence|transport|exp|intensity|interests|languages|declared|pr|qa（declaredは2026-08-02にボックスへ復帰）
+  // 項目の編集は【1項目＝1ページ】（2026-08-25たきと指示「Airbnbはボックス展開か？ページ遷移か？ぱくれ」＝
+  // Airbnbのプロフィール編集は行タップで別画面へ進む）。URLは #/profile/worker/profile/{項目}。
+  // ★URLに乗せる利点：ブラウザの戻る・iOSのスワイプバックがそのまま効き、リロードでも同じ項目が開く。
+  //   ボックス展開をやめたので .cb-lock-scroll も使わない＝「開くと先頭へ飛ぶ」（2026-08-25に位置の復元で
+  //   しのいでいた件）が構造ごと消えた。
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→WorkerProfilePreviewをモーダル展開
   const [editFromPreview, setEditFromPreview] = useState(false); // プレビュー発の編集：閉じたらプレビューへ戻る（往復）
-  // 承認ポップアップ「プレビューを見る🔗」からの着地：編集ページを開いた直後にプレビューを自動展開
-  useEffect(() => {
+  const EDIT_BASE = "profile/worker/profile";
+  const boxFromHash = () => {
     try {
-      if (sessionStorage.getItem("cb_openWorkerPreview") === "1") {
-        sessionStorage.removeItem("cb_openWorkerPreview");
-        setShowPreview(true);
-      }
-    } catch {}
+      const h = window.location.hash.replace(/^#\/?/, "");
+      if (!h.startsWith(EDIT_BASE + "/")) return null;
+      const k = h.slice(EDIT_BASE.length + 1);
+      return k || null;
+    } catch { return null; }
+  };
+  const [editBox, setEditBox] = useState(() => {
+    // 旧・別画面から「この項目を開いて」と渡される合図（cb_wkOpenBox）は残す＝呼び出し元を壊さない
+    try { const b = sessionStorage.getItem("cb_wkOpenBox"); if (b) { sessionStorage.removeItem("cb_wkOpenBox"); return b; } } catch {}
+    return boxFromHash();
+  });
+  // 合図で開いた時はURLも項目のページに揃える（リロード・戻るの行き先を実際の画面と一致させる）
+  useEffect(() => {
+    if (editBox && !boxFromHash()) window.location.replace(window.location.pathname + window.location.search + "#/" + EDIT_BASE + "/" + editBox);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // 項目を開くと背景が先頭へ飛ぶ件の修理（2026-08-25たきと指示「編集ページのトップに自動遷移する。遷移させるな」）。
-  // 原因＝オーバーレイに付ける .cb-lock-scroll が html/body に overflow:hidden + height:100% を掛けるため、
-  // 画面をその高さに切り詰めた時点でスクロール位置が0に戻る（iOSで顕著）。
-  // ★CSSは触らない：この規則は約50箇所のボックスが共有していて、背後が動かない担保そのものだから。
-  //   代わりに「開く直前の位置を覚えて、閉じた後に戻す」＝閉じたときに同じ行の場所へ帰ってくる。
-  //   連鎖（保存→次の未入力へ）の途中では覚え直さない＝最初に開いた場所に帰る
-  const scrollBeforeBox = useRef(0);
+  // 戻る・進む・直リンクに追従
+  useEffect(() => {
+    const onHash = () => setEditBox(boxFromHash());
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onHash); };
+  }, []);
+  // 一覧に戻った時、開く前に見ていた場所へ帰す（項目が下の方でも探し直さなくていい）
+  const listScrollRef = useRef(0);
   const openEditBox = (k) => {
-    if (editBox === null) scrollBeforeBox.current = window.scrollY || window.pageYOffset || 0;
+    if (!editBox) listScrollRef.current = window.scrollY || window.pageYOffset || 0;
+    window.location.hash = "/" + EDIT_BASE + "/" + k;   // 履歴を1つ進める＝戻るで一覧に帰る
+  };
+  const replaceEditBox = (k) => {                        // 保存の連鎖＝履歴を積まずに次の項目へ
+    window.location.replace(window.location.pathname + window.location.search + "#/" + EDIT_BASE + "/" + k);
     setEditBox(k);
   };
   const closeEditBox = () => {
-    setEditBox(null);
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
-    // クラスが外れて高さが戻ってから位置を書き戻す（描画2フレーム待つ）
-    const y = scrollBeforeBox.current;
+    const y = listScrollRef.current;
+    if (boxFromHash()) window.history.back(); else setEditBox(null);
     requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16）
@@ -449,7 +474,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
           // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
           const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
-          if (nxt) openEditBox(nxt); else closeEditBox();
+          if (nxt) replaceEditBox(nxt); else closeEditBox();
           setTimeout(() => setSaved(false), 2200);
         }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
@@ -499,6 +524,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         );
       })()}
 
+      {!editBox && (<>
       {/* ═══ 項目の一覧（2026-08-25たきと指示「プロフィール編集ページもAirbnbをぱくれ」）＝
              2列の格子カード → Airbnb型の縦一列の行。上にアイコン、その下に行が並ぶ。
              タップでモーダル編集する仕組み（editBox）は不変＝中身は1行も変えていない ═══ */}
@@ -539,22 +565,21 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           );
         })}
       </div>
-      {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:14 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} />{savedInReview ? "　自己紹介も公開されました" : ""}</p>
-      )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
       )}
+      </>)}
 
-      {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
-      {/* document.bodyへポータル（2026-08-01）：祖先がtransformを持つとfixedの基準がその祖先になり、
-          オーバーレイが画面下端まで届かず白い帯が出る（AdminJobPreviewと同じ不具合・同じ根治法） */}
-      {editBox && createPortal(
-      /* cb-lock-scroll＝展開中は背後ページのスクロールを固定し、下部バー・浮遊☰・役割トグルを隠す
-         （2026-08-01たきと指示「ボックスが前面・展開中は画面スクロール停止」・雇い手側と同作法） */
-      <div onClick={closeEditBox} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 16px", animation:"fadeIn .2s ease" }}>{/* 上下40pxの余白を残して中央（2026-08-01たきと指示・30px→40px・雇い手側と同一）。maxHeight:100%＝余白を差し引いた高さが上限 */}
-      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-      {/* ✕は削除（2026-08-14たきと指示）＝閉じるはボックス外タップ（overlayのonClick=closeEditBox・内側はstopPropagation） */}
+      {/* ═══ 項目のページ（2026-08-25たきと指示「Airbnbはボックス展開か？ページ遷移か？ぱくれ」）＝
+             行タップで【別ページ】に進む。上に「←」と項目名、その下に中身（中身は1行も変えていない）。
+             ★ボックス展開（portal＋cb-lock-scroll）はやめた＝背後を固定しないので下部バー・☰も出たまま、
+               「開くと先頭へ飛ぶ」も起きない。戻るはブラウザの戻る（iOSのスワイプバックも効く） ═══ */}
+      {editBox && (
+      <div className="fade-in">
+        <button onClick={closeEditBox} className="f-sans" aria-label="戻る"
+          style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", padding:"2px 0 14px", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222" }}>
+          <span style={{ fontSize:20, lineHeight:1 }}>‹</span>{EDIT_TITLES[editBox] || "編集"}
+        </button>
 
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>アイコン</label>
@@ -759,7 +784,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         // 共通の save() を通らないので、保存→次の未入力へ進む連鎖もここで繋ぐ（2026-08-17）。
         // hasEmg の反映は非同期so nextUnfilledBox が emergency 自身を返すことがある＝いま埋めた側so閉じる
         const nxt = nextUnfilledBox("emergency");
-        if (nxt && nxt !== "emergency") openEditBox(nxt); else closeEditBox();
+        if (nxt && nxt !== "emergency") replaceEditBox(nxt); else closeEditBox();
       }} />
       <div style={{ marginBottom:8 }} />
       </>)}
@@ -850,8 +875,12 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4, background:ROLE_ORANGE }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       )}
       </div>
-      </div>
-      , document.body)}
+      )}
+
+      {/* 保存の合図は一覧・項目ページのどちらでも出す（項目ページで保存した時に見えないと不安になる） */}
+      {saved && (
+        <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:14 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} />{savedInReview ? "　自己紹介も公開されました" : ""}</p>
+      )}
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (

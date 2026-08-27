@@ -77,7 +77,8 @@ const FARMER_TRAIT_TAGS = {
 export function FarmerDashboard({ onNewJob, onResume, me }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
-    if (h === "profile/employer/profile") return "profile";
+    // 項目の編集は1項目=1ページ（#/profile/employer/profile/{項目}・2026-08-25）ので前方一致で見る
+    if (h === "profile/employer/profile" || h.startsWith("profile/employer/profile/")) return "profile";
     if (h === "profile/employer/drafts") return "draft";
     if (h === "profile/employer/active") return "active";
     if (h === "profile/employer/applicants") return "applicants";

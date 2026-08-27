@@ -1,6 +1,5 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。雇い手プロフィール編集＋プレビュー（FarmerProfilePreviewは本ファイル専用）。
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
@@ -19,6 +18,13 @@ import { snapSet } from "../lib/snapshot";
 // black=委託の黒テーマ（2026-07-31たきと指示）：ボックスのアイコンを消し、縁をブラックに。既定false＝雇い手側は不変
 // seedFrom=初回の引き継ぎ元テーブル（2026-07-31たきと指示「はじめは農家プロフィールの入力内容を引き継ぐ。保存先は別々」）。
 // 自分の行が未作成のときだけ seedFrom から読んでフォームに初期値を入れる。保存は本人が押した時だけ・保存先は table のまま
+// 項目ページの見出し（行のラベルと同じ言葉＝どこに居るかが分かる）
+const EDIT_TITLES = {
+  avatar:"ロゴ・アイコン", nickname:"氏名・名称", place:"住所・所在地", perks:"待遇",
+  recruiter:"連絡先", emergency:"緊急連絡先", insurance:"保険の準備",
+  intro:"代表より", ask:"問いかけ", style:"関わり方",
+};
+
 export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer", black = false, seedFrom = null }) {
   // アクセント色（2026-07-31たきと指示「すべて、ブラックで統一」）：black時は緑→黒・淡緑→淡グレー
   const AC = black ? "#111111" : "#00A86B";
@@ -348,8 +354,26 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     } catch { alert("削除に失敗しました。"); }
     setUploading(false);
   };
-  // ホームの「🛡 保険の準備」から来た時は、その場で保険ボックスを開く（移植・2026-07-23）
-  const [editBox, setEditBox] = useState(null);
+  // 項目の編集は【1項目＝1ページ】（2026-08-25たきと指示・働き手側と同じ）。
+  // URLは #/profile/employer/profile/{項目}＝戻る・スワイプバック・リロードがそのまま効く。
+  // ★委託レーン（black）はこのURLの下では開かないので、hash連動は雇い手の面だけ（black は従来どおり状態だけ）
+  const EDIT_BASE = "profile/employer/profile";
+  const boxFromHash = () => {
+    try {
+      const h = window.location.hash.replace(/^#\/?/, "");
+      if (!h.startsWith(EDIT_BASE + "/")) return null;
+      const k = h.slice(EDIT_BASE.length + 1);
+      return k || null;
+    } catch { return null; }
+  };
+  const [editBox, setEditBox] = useState(() => (black ? null : boxFromHash()));
+  useEffect(() => {
+    if (black) return;
+    const onHash = () => setEditBox(boxFromHash());
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onHash); };
+  }, [black]);
   // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
   // 別テーブル（emergency_contacts・self-only）のでこのページの本体読み込みとは独立に読む。
   // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった
@@ -367,18 +391,21 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [showPreview, setShowPreview] = useState(false); // 右上「プレビュー」→FarmerProfilePreviewをモーダル展開
   // editFromPreview（プレビュー発の編集の往復）は削除（2026-07-31）：プレビューの項目タップ編集の
   // 廃止（2026-07-25）で発火元が消え、永久にfalseの死に状態だった
-  // 項目を開くと背景が先頭へ飛ぶ件の修理（2026-08-25たきと指示「編集ページのトップに自動遷移する。
-  // 遷移させるな」・働き手側と同じ）。原因＝.cb-lock-scroll の overflow:hidden + height:100% で
-  // 画面が切り詰められ、スクロール位置が0に戻る。CSSは約50箇所が共有so触らず、
-  // 「開く直前の位置を覚えて、閉じた後に戻す」で帰る場所を保つ
-  const scrollBeforeBox = useRef(0);
+  // 一覧に戻った時、開く前に見ていた場所へ帰す（項目が下の方でも探し直さなくていい）
+  const listScrollRef = useRef(0);
   const openEditBox = (k) => {
-    if (editBox === null) scrollBeforeBox.current = window.scrollY || window.pageYOffset || 0;
+    if (!editBox) listScrollRef.current = window.scrollY || window.pageYOffset || 0;
+    if (black) { setEditBox(k); return; }                 // 委託レーンはURLを持たない（状態だけ）
+    window.location.hash = "/" + EDIT_BASE + "/" + k;     // 履歴を1つ進める＝戻るで一覧に帰る
+  };
+  const replaceEditBox = (k) => {                          // 保存の連鎖＝履歴を積まずに次の項目へ
+    if (black) { setEditBox(k); return; }
+    window.location.replace(window.location.pathname + window.location.search + "#/" + EDIT_BASE + "/" + k);
     setEditBox(k);
   };
   const closeEditBox = () => {
-    setEditBox(null);
-    const y = scrollBeforeBox.current;
+    const y = listScrollRef.current;
+    if (!black && boxFromHash()) window.history.back(); else setEditBox(null);
     requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
@@ -519,7 +546,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
           // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
           const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
-          if (nxt) openEditBox(nxt); else closeEditBox();
+          if (nxt) replaceEditBox(nxt); else closeEditBox();
           setTimeout(() => setSaved(false), 2200);
         }
         else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
@@ -540,6 +567,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>プレビュー</span>
       </button>
 
+      {!editBox && (<>
       {/* ═══ 項目の一覧（2026-08-25たきと指示「プロフィール編集ページもAirbnbをぱくれ」）＝
              2列の格子カード → Airbnb型の縦一列の行。上にアイコン、その下に行が並ぶ。
              タップでモーダル編集する仕組み（editBox）は不変＝中身は1行も変えていない。
@@ -578,22 +606,21 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             accent={AC} onClick={()=>openEditBox(b.k)} last={i === arr.length - 1} />
         ))}
       </div>
-      {saved && (
-        <p className="f-sans" style={{ fontSize:12, color:AC, textAlign:"center", marginTop:14 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>
-      )}
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
       )}
+      </>)}
 
-      {/* ═══ 編集モーダル（各ボックスの中身。保存はモーダル内の「保存する」＝全項目upsert） ═══ */}
-      {/* document.bodyへポータル（2026-08-01）：祖先がtransformを持つとfixedの基準がその祖先になり、
-          オーバーレイが画面下端まで届かず白い帯が出る（AdminJobPreviewと同じ不具合・同じ根治法） */}
-      {editBox && createPortal(
-      /* cb-lock-scroll＝展開中は背後ページのスクロールを固定し、下部バー・浮遊☰・役割トグルを隠す
-         （2026-08-01たきと指示「ボックスが前面・展開中は画面スクロール停止」・FarmerDashboardの各シートと同作法） */
-      <div onClick={closeEditBox} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 16px", animation:"fadeIn .2s ease" }}>{/* 上下40pxの余白を残して中央（2026-08-01たきと指示・30px→40px）。maxHeight:100%＝余白を差し引いた高さが上限 */}
-      <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:520, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-      {/* ✕は削除（2026-08-14たきと指示）＝閉じるはボックス外タップ（overlayのonClick=closeEditBox・内側はstopPropagation） */}
+      {/* ═══ 項目のページ（2026-08-25たきと指示「Airbnbはボックス展開か？ページ遷移か？ぱくれ」）＝
+             行タップで【別ページ】に進む。上に「←」と項目名、その下に中身（中身は1行も変えていない）。
+             ★ボックス展開（portal＋cb-lock-scroll）はやめた＝背後を固定しないので下部バー・☰も出たまま、
+               「開くと先頭へ飛ぶ」も起きない。戻るはブラウザの戻る（iOSのスワイプバックも効く） ═══ */}
+      {editBox && (
+      <div className="fade-in">
+        <button onClick={closeEditBox} className="f-sans" aria-label="戻る"
+          style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", padding:"2px 0 14px", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222" }}>
+          <span style={{ fontSize:20, lineHeight:1 }}>‹</span>{EDIT_TITLES[editBox] || "編集"}
+        </button>
 
       {editBox==="avatar" && (<>
       <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>ロゴ・アイコン</label>
@@ -937,8 +964,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       )}
       </div>
-      </div>
-      , document.body)}
+      )}
+
+      {/* 保存の合図は一覧・項目ページのどちらでも出す（項目ページで保存した時に見えないと不安になる） */}
+      {saved && (
+        <p className="f-sans" style={{ fontSize:12, color:AC, textAlign:"center", marginTop:14 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>
+      )}
 
       {/* ═══ プレビューモーダル（保存済みの内容を表示） ═══ */}
       {showPreview && (

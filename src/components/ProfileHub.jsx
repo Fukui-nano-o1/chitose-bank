@@ -128,7 +128,8 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [pTab, setPTab] = useState(() => { try { return hashToPTab(); } catch { return "worker"; } });
   const hashToWTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
-    if (h === "profile/worker/profile") return "wprofile";
+    // 項目の編集は1項目=1ページ（#/profile/worker/profile/{項目}・2026-08-25）ので前方一致で見る
+    if (h === "profile/worker/profile" || h.startsWith("profile/worker/profile/")) return "wprofile";
     if (h === "profile/worker/applying") return "applying";
     if (h === "profile/worker/approved") return "approved";
     // 働き手のカレンダーページは廃止（2026-07-27たきと指示）＝カレンダーはステータスページ(#/saved)に移植。
