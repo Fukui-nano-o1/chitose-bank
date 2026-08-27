@@ -617,11 +617,15 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
                「開くと先頭へ飛ぶ」も起きない。戻るはブラウザの戻る（iOSのスワイプバックも効く） ═══ */}
       {editBox && (
       <div className="fade-in">
-        {/* 見出し（2026-08-25たきと指示「各項目ページもAirbnbをパクれ」）＝Airbnbのサブ画面と同じ形：
-            「‹」は小さく単独、その下に大きな題名、下に細い区切り線。どの項目に居るかが一目で分かる */}
+        {/* 見出し（2026-08-25たきと指示「各項目ページもAirbnbをパクれ」→同日「タイトルタップでも戻れ」）＝
+            「‹」と題名をひとつのボタンにする＝どちらを押しても一覧に戻る（指の当たり判定を広く取る）。
+            下に細い区切り線＝Airbnbのサブ画面と同じ形 */}
         <button onClick={closeEditBox} className="f-sans" aria-label="戻る"
-          style={{ display:"block", background:"none", border:"none", padding:"2px 0 6px", cursor:"pointer", fontSize:22, lineHeight:1, color:"#222" }}>‹</button>
-        <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 16px", paddingBottom:16, borderBottom:"1px solid #EBEBEB", letterSpacing:"-.01em" }}>{EDIT_TITLES[editBox] || "編集"}</h2>
+          style={{ display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"none", border:"none",
+                   padding:"2px 0 16px", marginBottom:16, borderBottom:"1px solid #EBEBEB", cursor:"pointer" }}>
+          <span style={{ fontSize:24, lineHeight:1, color:"#222", flexShrink:0 }}>‹</span>
+          <span style={{ fontSize:22, fontWeight:800, color:"#222", letterSpacing:"-.01em", minWidth:0 }}>{EDIT_TITLES[editBox] || "編集"}</span>
+        </button>
 
       {editBox==="avatar" && (<>
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:16 }}>

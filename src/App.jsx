@@ -1911,6 +1911,14 @@ export default function App(){
             <button key={t.k}
               onClick={() => {
                 setMobileMenuOpen(false);
+                // 項目ページ（#/profile/{worker|employer}/profile/{項目}）を開いている時の「マイページ」＝
+                // 編集ページ（項目の一覧）へ戻る（2026-08-25たきと指示）。
+                // ★下の「同じタブをもう一度タップ＝読み直し」より先に見る＝読み直すと書きかけが飛ぶため
+                if (t.k === "profile") {
+                  const _h = window.location.hash.replace(/^#\/?/, "");
+                  const _m = _h.match(/^(profile\/(?:worker|employer)\/profile)\/.+/);
+                  if (_m) { window.location.hash = "/" + _m[1]; return; }
+                }
                 // いま見ているタブをもう一度タップ＝読み直してページの先頭へ（2026-08-23たきと指示
                 // 「下部ヘッダーと同じページの場合、リロード後トップへ遷移」）。
                 // ★入力を抱えている2つは除く＝求人フロー（showJobPost）とチャット（chatAppId）。
