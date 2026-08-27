@@ -7,7 +7,7 @@ import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/pr
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
-import { Avatar } from "./ui";
+import { Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD } from "./ui";
 import { AdminChatRow } from "./AdminChat";
 import { NavIcon } from "./NavIcons";
 
@@ -255,7 +255,7 @@ export function ChatList() {
           上の空白は15px固定のまま（main 10px＋この箱 5px） */}
       {/* 通知をオンにする案内（2026-07-19）：未許可かつ対応環境のみ。granted/denied/未対応では出さない */}
       {!pushDismissed && (pushSt === "default" || pushSt === "need-standalone") && (
-        <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:10 }}>
+        <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:CHAT_ROW_GAP }}>
           <span style={{ flexShrink:0, display:"flex", color:"#0B6B4F" }}><NavIcon name="bell" size={22} /></span>
           <div style={{ flex:1, minWidth:0 }}>
             <p style={{ fontSize:13, fontWeight:700, color:"#222", margin:0 }}>メッセージの通知を受け取る</p>
@@ -269,7 +269,7 @@ export function ChatList() {
       )}
       {/* ステータス絞り込みバー（2026-08-07たきと指示）：応募者ページと同じCSSクラスを共用＝
           モバイルは下部の浮遊バー・PCは本文中の並び。格納・入力中退避・チャット表示中の非表示も同じ作法 */}
-      <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:10, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
+      <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:CHAT_ROW_GAP, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
       <div className="cb-applicant-filter-bar">{filterButtons}</div>
       {/* 運営チャット＝一覧の最上部の行（2026-08-19たきと指示「浮遊ボックスは撤回。チャット一覧に移植」）。
           読み込み中・チャット0件でも出す＝運営への連絡口はいつでもここにある */}
@@ -297,20 +297,20 @@ export function ChatList() {
            下の「求人 #… 作物 作業」が whiteSpace:nowrap＝1行で全文ぶんの幅を要求し、
            画面が狭いと列ごとカードが画面より広くなっていた（body の overflow-x:clip で
            右が切れ、段階チップが画面外に消える）。0 を下限にすれば列は器を超えない */
-        <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:10 }}>
+        <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:CHAT_ROW_GAP }}>
           {shownRows.map(a => {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
             return (
               <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
                 className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
-                  border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer" }}>
+                  border:"1px solid #EBEBEB", borderRadius:12, padding:CHAT_ROW_PAD, cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
                 <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
                   <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={40} ring={a._role === "farmer" ? ROLE_ORANGE : ROLE_GREEN} />
                 </span>
                 <div style={{ minWidth:0, flex:1 }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:2 }}>
                     {/* 名前が長くても段階チップを押し出さない＝はみ出す側は名前（…で畳む） */}
                     <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
                     {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}

@@ -10,8 +10,9 @@ import { closeReadNotifications } from "../lib/push";
 import { supabase } from "../lib/supabase";
 import { fmtJstShort } from "../lib/utils";
 import { useSwipeBack } from "../lib/swipeBack";
-import { LinkifiedText, Dots } from "./ui";
+import { LinkifiedText, Dots, CHAT_ROW_GAP, CHAT_ROW_PAD } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
+
 
 export const ADMIN_CHAT_HASH = "/chat/admin";
 
@@ -52,10 +53,10 @@ export function AdminChatRow() {
     <button onClick={()=>{ window.location.hash = ADMIN_CHAT_HASH; }}
       className={"f-sans" + (unread > 0 ? " cb-urgent-card" : "")}
       style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
-        border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", cursor:"pointer", marginBottom:10 }}>
+        border:"1px solid #EBEBEB", borderRadius:12, padding:CHAT_ROW_PAD, cursor:"pointer", marginBottom:CHAT_ROW_GAP }}>
       <span style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", display:"flex", alignItems:"center", justifyContent:"center", color:"#00A86B" }}><NavIcon name="support" size={20} /></span>
       <div style={{ minWidth:0, flex:1 }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:6 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:2 }}>
           <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>chitose-bank運営</p>
           {unread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{unread}</span>}
           {/* 段階チップの位置には役割を出す（当事者チャットと見分けがつくように） */}
