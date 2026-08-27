@@ -647,20 +647,9 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                 if (!next) return;                 // 取り消しでは進めない
                 if (i < WORKER_STYLE_QUESTIONS.length - 1) setTimeout(() => goStyle(i + 1), 220);
               }} />
-              {/* 既定は「戻る／次へ」（2026-08-19たきと指示）。選ばずに飛ばしたい人もボタンで進める
-                  ＝任意の項目が行き止まりにならない。保存はモーダル下部の共通ボタンが担う */}
-              <div style={{ display:"flex", gap:8, marginTop:14 }}>
-                {i > 0 && (
-                  <button type="button" onClick={()=>goStyle(i - 1)} className="f-sans"
-                    style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 戻る</button>
-                )}
-                {/* 最後の項目に「保存する」は置かない（2026-08-19たきと指示）＝
-                    モーダル下部の共通「保存する」と同じ文言のボタンが2つ並ぶため（緊急連絡先と同じ判断） */}
-                {i < WORKER_STYLE_QUESTIONS.length - 1 && (
-                  <button type="button" onClick={()=>goStyle(i + 1)} className="f-sans"
-                    style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>次へ →</button>
-                )}
-              </div>
+              {/* 「← 戻る／次へ →」は削除（2026-08-25たきと指示）＝移動は指の横スワイプと、
+                  下の進み具合のドット（タップでその質問へ）が担う。選ばずに飛ばす道も残っている
+                  （2026-08-19に置いた「行き止まりにしない」役目はドットが引き継ぐ） */}
             </div>
           );
         })}
@@ -843,17 +832,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                   />
                 </div>
               )}
-              <div style={{ display:"flex", gap:8, marginTop:4 }}>
-                {i > 0 && (
-                  <button type="button" onClick={()=>goQa(i - 1)} className="f-sans"
-                    style={{ flex:"0 0 auto", padding:"10px 16px", background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer" }}>← 戻る</button>
-                )}
-                {/* 最後のページに「保存する」は置かない（2026-08-19たきと指示・下部の共通ボタンと二重になるため） */}
-                {i < WORKER_QA_PAGES.length - 1 && (
-                  <button type="button" onClick={()=>goQa(i + 1)} className="f-sans"
-                    style={{ flex:1, padding:"10px", background: ROLE_ORANGE, color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:700, cursor:"pointer" }}>次へ →</button>
-                )}
-              </div>
+              {/* 「← 戻る／次へ →」は削除（2026-08-25たきと指示・はたらき方の希望と対）＝
+                  移動は指の横スワイプと、下の進み具合のドット（タップでそのグループへ） */}
             </div>
           ))}
         </div>
