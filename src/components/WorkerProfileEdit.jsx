@@ -73,7 +73,20 @@ const WORKER_QA_PAGES = (() => {
 // 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
 // はたらき方の希望4問の正は lib/utils の WORKER_STYLE_QUESTIONS（2026-08-14拡充）。
 // 旧ラベル（軽めの作業希望/どちらでも/力仕事もOK）で保存済みの値は書き換えない＝そのまま表示される
-const INTEREST_OPTIONS = ["釣り","料理","ランニング","筋トレ","読書","音楽","映画","ゲーム","旅行","キャンプ","園芸","DIY","動物","写真","スポーツ観戦","ショッピング","ドライブ","ネットサーフィン"];
+// 趣味タグ（最大3つ・任意）。2026-08-27たきと指示「趣味タグもっとあってもいいんじゃない？」で18→44に増やし、
+// 数が増えたぶん、見出しつきの群れに分けた（選ぶときに目で追える形にする）。
+// ★既存の18語は文字を1字も変えていない＝すでに保存されている選択がそのまま残る（並び順は保存に関係しない）。
+// ★入れない語（CLAUDE.md「絶対禁止」＝雇用文脈の差別リスク）：宗教・国籍・出身・在留資格・年代・学校・
+//   家族構成を推し量れるもの（例：宗教行事・母国料理・子育て）。飲酒・ギャンブルも、雇用の場面で
+//   偏見の材料になるため置かない。語を足すときは必ずこの物差しで確かめること
+const INTEREST_GROUPS = [
+  { g:"からだを動かす", items:["ランニング","筋トレ","ウォーキング","サイクリング","登山","ヨガ・ストレッチ","水泳","野球","サッカー","ダンス"] },
+  { g:"外で過ごす",     items:["釣り","キャンプ","旅行","ドライブ","温泉","サウナ","カフェめぐり","バーベキュー","園芸"] },
+  { g:"つくる",         items:["料理","お菓子づくり","DIY","手芸・裁縫","絵を描く","楽器","写真"] },
+  { g:"見る・聴く",     items:["読書","音楽","映画","アニメ・マンガ","スポーツ観戦","ラジオ","動画を見る"] },
+  { g:"ゲーム・室内",   items:["ゲーム","ボードゲーム","将棋・囲碁","パズル","ネットサーフィン"] },
+  { g:"そのほか",       items:["動物","ショッピング","車・バイク","鉄道","天体観測","掃除・片づけ"] },
+];
 const LANGUAGE_OPTIONS = ["日本語","英語","中国語","ベトナム語","インドネシア語","タガログ語","ポルトガル語","その他"];
 
 // 項目ページの見出し（行のラベルと同じ言葉＝どこに居るかが分かる）
@@ -665,21 +678,28 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </>)}
 
       {editBox==="interests" && (<>
-      <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6, marginTop:16 }}>趣味（最大3つ）</label>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
-        {INTEREST_OPTIONS.map(v => {
-          const selected = interests.includes(v);
-          const disabled = !selected && interests.length >= 3;
-          return (
-            <button key={v} type="button" onClick={()=>toggleInterest(v)} disabled={disabled} className="f-sans" style={{
-              padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor: disabled ? "default" : "pointer",
-              border:"1px solid " + (selected ? ROLE_ORANGE : "#EBEBEB"),
-              background: selected ? "#FFF1E8" : "#F7F7F7",
-              color: selected ? ROLE_ORANGE : (disabled ? "#D0D0D0" : "#717171"),
-            }}>{v}</button>
-          );
-        })}
-      </div>
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"16px 0 14px", lineHeight:1.7 }}>
+        当てはまるものを最大3つまで選べます（任意）。<span style={{ color: ROLE_ORANGE, fontWeight:700 }}>{interests.length} / 3</span>
+      </p>
+      {INTEREST_GROUPS.map(grp => (
+        <div key={grp.g} style={{ marginBottom:14 }}>
+          <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 6px" }}>{grp.g}</p>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {grp.items.map(v => {
+              const selected = interests.includes(v);
+              const disabled = !selected && interests.length >= 3;
+              return (
+                <button key={v} type="button" onClick={()=>toggleInterest(v)} disabled={disabled} className="f-sans" style={{
+                  padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor: disabled ? "default" : "pointer",
+                  border:"1px solid " + (selected ? ROLE_ORANGE : "#EBEBEB"),
+                  background: selected ? "#FFF1E8" : "#F7F7F7",
+                  color: selected ? ROLE_ORANGE : (disabled ? "#D0D0D0" : "#717171"),
+                }}>{v}</button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
       </>)}
 
       {editBox==="languages" && (<>
