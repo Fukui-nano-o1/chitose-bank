@@ -123,7 +123,7 @@ export function JobSearchMapView({ onRegister, me }) {
   };
   const ownUnpublishJob = async () => {
     // 再掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「もう一度審査を通ります」は誤り）
-    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・あとから再掲載できます（そのまま公開されます）\n・応募中・面接中の方は見送りになり、その旨のお知らせが届きます（採用が決まっている方はそのままです）")) return;
+    if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・あとから再掲載できます（そのまま公開されます）\n・作業が始まっていない応募（応募中・面接中・採用済み）は見送りになり、その旨のお知らせが届きます（作業が始まっている方・完了した方はそのままです）")) return;
     const { data, error } = await unpublishJob(selectedJob.id);
     if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
     setOwnMenuOpen(false);

@@ -313,10 +313,10 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
   };
   // 内容の編集＝既存レール（公開中は一時非公開にしてから編集フローへ・FarmerDashboardと同じ確認文言）。
-  // ★unpublish_job は応募中・面接中を見送りにする（migration 20260808004900）＝確認文に明記
+  // ★unpublish_job は作業前の応募（応募中・面接中・採用済み）を見送りにする（20260828050552で採用済みも対象に）＝確認文に明記
   const editFromSheet = async (e) => {
     if (e.status === "open") {
-      if (!window.confirm("内容を編集するには、いったん一時非公開にします。（さがすに表示されなくなります。応募中・面接中の方は見送りになります。編集後にもう一度掲載できます）よろしいですか？")) return;
+      if (!window.confirm("内容を編集するには、いったん一時非公開にします。（さがすに表示されなくなります。作業が始まっていない応募（応募中・面接中・採用済み）は見送りになります。編集後にもう一度掲載できます）よろしいですか？")) return;
       const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: e.job_number });
       if (error || !data?.ok) { fbError(); alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
     }
