@@ -212,23 +212,39 @@ export function JobRecruiterInfo({ job, employer, trust, me, onOpenIntro }) {
   return (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
       <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 12px", letterSpacing:".06em" }}>求人者情報</p>
-      {/* アイコンは緑枠で中央・その下に名称＋さん（2026-08-25たきと指示）。
-          緑＝雇い手の役割色（役割カラーの規約2026-07-22）。タップで農園紹介＝求人者カードと同じ入口 */}
-      <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, cursor: onOpenIntro ? "pointer" : "default" }}>
-        <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={72} ring={ROLE_GREEN} />
-        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word" }}>{name}さん</p>
-      </div>
-      {/* 数字の行（Airbnbのホストカードと同じ横一列・縦の区切り線） */}
-      {stats.length > 0 && (
-        <div style={{ display:"flex", alignItems:"stretch", justifyContent:"center", marginTop:14 }}>
-          {stats.map((s, i) => (
-            <div key={s.l} style={{ flex:"1 1 0", minWidth:0, padding:"2px 6px", textAlign:"center", borderLeft: i > 0 ? "1px solid #EBEBEB" : "none" }}>
-              <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:0, lineHeight:1.3, overflowWrap:"break-word" }}>{s.v}</p>
-              <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"2px 0 0", lineHeight:1.4 }}>{s.l}</p>
-            </div>
-          ))}
+      {/* Airbnbの「ホストについて」のパスポート型カード（2026-08-25たきと指示「パクれ」）：
+          白いカードに影・左＝大きなアイコン＋名前（縦中央）・右＝数字の縦積み（横線区切り）の2カラム。
+          旧・横一列の数字はこの形に置き換えた。Airbnbの実アセットは流用できない（プロプライエタリ）ため、
+          同じ視覚言語を自前で描く（NavIconと同じ判断）。
+          アイコン右下のバッジ＝連絡先確認済み（trust.id_checked・Airbnbの本人確認バッジに当たる位置）。
+          タップで農園紹介＝求人者カードと同じ入口（行き先を増やさない） */}
+      <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button"
+        style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", borderRadius:24,
+                 boxShadow:"0 6px 16px rgba(0,0,0,0.14)", padding:"22px 18px", margin:"4px 2px 6px",
+                 cursor: onOpenIntro ? "pointer" : "default" }}>
+        <div style={{ flex:"1 1 0", minWidth:0, display:"flex", flexDirection:"column", alignItems:"center" }}>
+          <div style={{ position:"relative" }}>
+            <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={96} ring={ROLE_GREEN} />
+            {trust?.ok && trust.id_checked && (
+              <span title="連絡先確認済み" style={{ position:"absolute", right:-2, bottom:2, width:26, height:26, borderRadius:"50%", background:ROLE_GREEN, border:"2.5px solid #fff", boxSizing:"border-box", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
+                <NavIcon name="tick" size={13} />
+              </span>
+            )}
+          </div>
+          <p className="f-sans" style={{ fontSize:21, fontWeight:800, color:"#222", margin:"10px 0 0", textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word", lineHeight:1.3 }}>{name}さん</p>
+          <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>募集主</p>
         </div>
-      )}
+        {stats.length > 0 && (
+          <div style={{ flex:"0 0 41%", maxWidth:150, minWidth:0 }}>
+            {stats.map((s, i) => (
+              <div key={s.l} style={{ padding: i === 0 ? "0 0 10px" : (i === stats.length - 1 ? "10px 0 0" : "10px 0"), borderTop: i > 0 ? "1px solid #EBEBEB" : "none" }}>
+                <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:0, lineHeight:1.25, overflowWrap:"break-word" }}>{s.v}</p>
+                <p className="f-sans" style={{ fontSize:10, color:"#717171", margin:"1px 0 0", lineHeight:1.4 }}>{s.l}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       {/* 代表より */}
       {comment && (<>
         <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0" }} />
