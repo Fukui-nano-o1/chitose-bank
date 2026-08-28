@@ -1117,9 +1117,13 @@ body:has(.cb-farmer-walk-page) .app-header-mobile-float { display: none !importa
 
 /* 働き手／雇い手プレビュー表示中：ページ側スクロールを止め、スクロールをプレビュー内に統一（2026-07-23）。
    .cb-lock-scroll＝同じ効果の汎用クラス（2026-07-26たきと指示）。ボックス/シートを全画面で被せる
-   オーバーレイに付けると、背後のページが動かずボックス内だけがスクロールする */
+   オーバーレイに付けると、背後のページが動かずボックス内だけがスクロールする。
+   ★height:100% は付けない（2026-08-28たきと報告「ボックスが展開されると自動でトップに遷移する」の根治）：
+     高さを画面1枚ぶんに潰すとスクロール上限that0になり、開いた瞬間に背後のページthatトップへ飛んで
+     閉じた後も戻らなかった。overflow:hidden だけならスクロールは止まり、位置も保たれる（実CSSで実測）。
+     ※.chat-full（1069行）は全画面のページ置き換えので height:100% のまま＝ここと混同しない */
 html:has(.cb-preview-overlay), body:has(.cb-preview-overlay),
-html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; height: 100%; overscroll-behavior: none; }
+html:has(.cb-lock-scroll), body:has(.cb-lock-scroll) { overflow: hidden; overscroll-behavior: none; }
 
 /* カレンダーで予定をつかんでいる間だけのスクロール止め（2026-08-25たきと指示「長押し中は画面スクロール解除。
    カレンダーのみ」）。★cb-lock-scroll とは別物＝下部バー・浮遊ボタンは消さない（つかんでいる最中に
