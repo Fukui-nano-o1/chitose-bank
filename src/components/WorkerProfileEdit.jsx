@@ -73,7 +73,7 @@ const WORKER_QA_PAGES = (() => {
 // 15秒カード用プリセット（2026-07-14たきと判断でCLAUDE.md許可リストに追加。詳細はCLAUDE.md参照）
 // はたらき方の希望4問の正は lib/utils の WORKER_STYLE_QUESTIONS（2026-08-14拡充）。
 // 旧ラベル（軽めの作業希望/どちらでも/力仕事もOK）で保存済みの値は書き換えない＝そのまま表示される
-// 趣味タグ（最大3つ・任意）。2026-08-27たきと指示「趣味タグもっとあってもいいんじゃない？」で18→44に増やし、
+// 趣味タグ（任意・数の上限なし＝2026-08-28たきと裁定）。2026-08-27「趣味タグもっとあってもいいんじゃない？」で18→44に増やし、
 // 数が増えたぶん、見出しつきの群れに分けた（選ぶときに目で追える形にする）。
 // ★既存の18語は文字を1字も変えていない＝すでに保存されている選択がそのまま残る（並び順は保存に関係しない）。
 // ★入れない語（CLAUDE.md「絶対禁止」＝雇用文脈の差別リスク）：宗教・国籍・出身・在留資格・年代・学校・
@@ -164,11 +164,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       setLoading(false);
     })();
   }, []);
-  const toggleInterest = (v) => setInterests(prev => {
-    if (prev.includes(v)) return prev.filter(x => x !== v);
-    if (prev.length >= 3) return prev;
-    return [...prev, v];
-  });
+  // 趣味は数の上限なし（2026-08-28たきと裁定「趣味は無制限しておこう。問題があれば規制する」＝
+  // 旧「最大3つ」を撤回。CLAUDE.mdの許可リスト9番の記載もこれに合わせて更新すること）。
+  // ★上限を戻すときは、ここと下の項目ページの2箇所だけ直せばよい（保存はそのまま配列を入れる）
+  const toggleInterest = (v) => setInterests(prev =>
+    prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const toggleLanguage = (v) => setLanguages(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   // 1問1ページ版の書き込み（打つそばから prQa に入れる。保存はモーダルの「保存する」＝既存の作法）。
   // 空にしたらその問いの行ごと消す＝「未回答」に戻る（空文字の行を残さない）
@@ -679,7 +679,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
 
       {editBox==="interests" && (<>
       <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"16px 0 14px", lineHeight:1.7 }}>
-        当てはまるものを最大3つまで選べます（任意）。<span style={{ color: ROLE_ORANGE, fontWeight:700 }}>{interests.length} / 3</span>
+        当てはまるものを、いくつでも選べます（任意）。{interests.length > 0 && <span style={{ color: ROLE_ORANGE, fontWeight:700 }}>選択中 {interests.length}</span>}
       </p>
       {INTEREST_GROUPS.map(grp => (
         <div key={grp.g} style={{ marginBottom:14 }}>
@@ -687,13 +687,12 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
             {grp.items.map(v => {
               const selected = interests.includes(v);
-              const disabled = !selected && interests.length >= 3;
               return (
-                <button key={v} type="button" onClick={()=>toggleInterest(v)} disabled={disabled} className="f-sans" style={{
-                  padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor: disabled ? "default" : "pointer",
+                <button key={v} type="button" onClick={()=>toggleInterest(v)} className="f-sans" style={{
+                  padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
                   border:"1px solid " + (selected ? ROLE_ORANGE : "#EBEBEB"),
                   background: selected ? "#FFF1E8" : "#F7F7F7",
-                  color: selected ? ROLE_ORANGE : (disabled ? "#D0D0D0" : "#717171"),
+                  color: selected ? ROLE_ORANGE : "#717171",
                 }}>{v}</button>
               );
             })}
