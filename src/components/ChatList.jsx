@@ -225,17 +225,21 @@ export function ChatList() {
   // ピルは【隠すもの】3つだけ＝見送り／失効／取り消し。選ぶとその段階のチャットが一覧から消える。
   // 3つとも同時に選べる（複数選択）。「すべて」ピルは廃止＝全部表示したい時は選択を1つずつ外す
   //   （空状態からは「すべて表示する」で一度に戻せる）。
-  // 既定は3つとも選んだ状態＝終わった取引（見送り・失効・取り消し）that日常の一覧を埋めない。
-  // 隠すのは表示だけ＝記録・並び・未読・データ取得は不変（行動記録の憲法：記録は消さない）
+  // 既定＝すべて表示（2026-08-28たきと報告「完了ラベルのままだ」の根治）：
+  // 従来は見送り・失効・取り消しを既定で隠していたため、求人を取り下げて見送りになったチャットが
+  // 一覧から【消え】、同じ相手の別の求人の行（完了）だけが残って「取り下げても変わらない」ように
+  // 見えていた。LINEは終わったチャットを隠さない＝並びで下へ沈むだけ。応募者一覧（2026-08-22）・
+  // 働き手のカレンダー（2026-08-23「見送り・失効・取り消しであっても表示して」）と同じ既定に揃えた。
+  // 隠したい人のためにピルは残す（隠すのは表示だけ＝記録・未読・データ取得は不変）
   const [chatHidden, setChatHidden] = useState(() => {
-    // 保存キーは_v2＝取り消しを足した既定thatすぐ効く（旧cb_chatHiddenの値は引き継がない）
+    // 保存キーは_v3＝既定を「すべて表示」に変えたので、旧v2の既定（3つとも非表示）を引き継がない
     try {
-      const raw = sessionStorage.getItem("cb_chatHidden_v2");
+      const raw = sessionStorage.getItem("cb_chatHidden_v3");
       if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => CHAT_HIDABLE.includes(k)); }
     } catch {}
-    return [...CHAT_HIDABLE]; // 既定＝3つとも非表示
+    return []; // 既定＝すべて表示
   });
-  useEffect(() => { try { sessionStorage.setItem("cb_chatHidden_v2", JSON.stringify(chatHidden)); } catch {} }, [chatHidden]);
+  useEffect(() => { try { sessionStorage.setItem("cb_chatHidden_v3", JSON.stringify(chatHidden)); } catch {} }, [chatHidden]);
   const shownRows = sortedRows.filter(a => !chatHidden.includes(appPhaseKey(a)));
   const filterButtons = CHAT_HIDABLE.map(k => ({
     k, label: APP_PHASE_LABEL[k], on: chatHidden.includes(k),
