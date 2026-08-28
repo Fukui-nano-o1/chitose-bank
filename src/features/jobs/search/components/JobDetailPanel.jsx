@@ -13,6 +13,7 @@ import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPho
 import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { ReceivedReviews } from "../../../../components/ReceivedReviews";
+import { BelongingChips } from "../../../../components/BelongingTags";
 import { EMPTY_MARK, disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, ROLE_GREEN } from "../../../../lib/utils";
 import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 // 求人の主要情報（日程・勤務時間・休憩・人数・最寄り駅・報酬・支払条件・時間外）
@@ -62,7 +63,7 @@ export function JobDescription({ job }) {
     {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16・確認/プレビューと同設計） */}
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
       {[
-        { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
+        { label:"持ち物",     value: disp(job.items), chips:true },
         { label:"備考・注意", value: disp(job.cautions) },
         // 時間外労働（2026-08-03たきと指示・持ち物／備考の下）。未設定は他項目と同じ「ー」
         { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
@@ -74,14 +75,9 @@ export function JobDescription({ job }) {
       ].map(row => (
         <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
           <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>
+          {/* 持ち物＝アイコンつきタグチップ（2026-08-28・旧📌チップの置き換え。分割・アイコン対応は BelongingChips に一本化） */}
           {row.chips && row.value !== "ー"
-            ? (
-              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
-                {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                  <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
-                ))}
-              </div>
-            )
+            ? <BelongingChips text={String(row.value)} />
             : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
         </div>
       ))}

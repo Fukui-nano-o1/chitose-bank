@@ -946,6 +946,33 @@ export const TASK_OPTIONS = [
   { name:"片付け",   icon:"" },
 ];
 
+// 持ち物のタグ（2026-08-28たきと指示「持ち物はタグにしよう。自由記述は極力避けよう」）。
+// 入力＝BelongingTagPicker（プリセットの選択＋短い言葉の追加）／表示＝BelongingChips（アイコンつきチップ）。
+// ★保存の形は従来どおり jobs.belongings の1本の文字列（「軍手、長靴」と「、」で連結）＝
+//   DB・下書き・凍結（terms_snapshot）・労働条件通知書はすべて無改修で互換。旧求人の自由記述もそのまま出る。
+// icon は components/NavIcons.jsx のパス名。タグを足すときはここに1行＋（新しい絵なら）NavIconsに1つ。
+export const BELONGING_TAGS = [
+  { label: "軍手",       icon: "glove" },
+  { label: "長靴",       icon: "boots" },
+  { label: "帽子",       icon: "hat" },
+  { label: "タオル",     icon: "towel" },
+  { label: "飲み物",     icon: "bottle" },
+  { label: "お弁当",     icon: "bento" },
+  { label: "長袖の服",   icon: "longSleeve" },
+  { label: "雨具",       icon: "raincoat" },
+  { label: "虫よけ",     icon: "bugSpray" },
+  { label: "日焼け止め", icon: "sunscreen" },
+  { label: "マスク",     icon: "mask" },
+];
+// belongings文字列⇄タグ配列。区切りは表示チップが従来使ってきた記号と同じ（旧データの自由記述も割れる）
+export function splitBelongings(text) {
+  return String(text || "").split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean);
+}
+export function belongingIconName(label) {
+  const hit = BELONGING_TAGS.find(b => b.label === label);
+  return hit ? hit.icon : null;
+}
+
 // 就業の場所・従事すべき業務の【変更の範囲】（2026-08-21・労基則5条1項1の3号＝2024-04からの明示事項）。
 // 求人入力（LandingFlow step3/step2）の選択肢。未選択のまま掲載するとDBトリガー（job_publish_zscope）が
 // 「変更なし」に倒す＝何も選ばなくても働き手に最も有利な約束になる側。

@@ -8,6 +8,7 @@ import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel
 import { getCache, setCache } from "../../../lib/viewCache";
 import { snapGet } from "../../../lib/snapshot";
 import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "../../../components/ui";
+import { BelongingChips } from "../../../components/BelongingTags";
 import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { CalendarView } from "../../../components/CalendarView";
 import { JobLocationMap } from "../../../components/JobLocationMap";
@@ -1984,7 +1985,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                       <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                     </div>
                     {[
-                      { label:"持ち物",     value: jobNotes, chips:true, pin:true },
+                      { label:"持ち物",     value: jobNotes, chips:true },
                       { label:"備考・注意", value: jobCautions },
                       // 時間外労働（2026-08-03たきと指示・表示は持ち物／備考の下のまま）。
                       // 入力は勤務条件(step5)へ移したので、このブロックの「編集」(step10)ではなく
@@ -2003,14 +2004,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                               <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ marginLeft:6, background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
                             )}
                           </span>
+                          {/* 持ち物＝アイコンつきタグチップ（2026-08-28・旧📌チップの置き換え。BelongingChips に一本化） */}
                           {row.chips && has
-                            ? (
-                              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
-                                {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                                  <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
-                                ))}
-                              </div>
-                            )
+                            ? <BelongingChips text={String(row.value)} />
                             : <span className="f-sans" style={{ fontSize:15, color: has ? "#222" : "#B0B0B0", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap", display:"block", textAlign:"center" }}>{has ? row.value : "未設定"}</span>}
                         </div>
                       );

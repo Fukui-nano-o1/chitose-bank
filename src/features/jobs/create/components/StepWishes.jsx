@@ -4,6 +4,7 @@
 import { lfStyles } from "../lfStyles";
 import { LFWizCard } from "../../../../components/ui";
 import { NavIconInline } from "../../../../components/NavIcons";
+import { BelongingTagPicker } from "../../../../components/BelongingTags";
 
 export function StepWishes({ jobNotes, setJobNotes, jobCautions, setJobCautions, beginnerOk, setBeginnerOk, experiencedPreferred, setExperiencedPreferred, instantApproveRepeat, setInstantApproveRepeat, flagInfoOpen, setFlagInfoOpen }) {
   return (<>
@@ -12,8 +13,10 @@ export function StepWishes({ jobNotes, setJobNotes, jobCautions, setJobCautions,
     <p className="f-sans" style={lfStyles.subtitle}>持ち物や注意など、働き手へ伝えたいことを入力できます（任意）。安全への備えは農家側でご用意ください。</p>
     <LFWizCard>
       <div style={{ marginBottom:14 }}>
-        <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物（任意）</label>
-        <textarea value={jobNotes} onChange={e => setJobNotes(e.target.value)} placeholder="例：長靴、軍手、飲み物" className="field f-sans" rows={2} style={{ fontSize:13, resize:"vertical" }} />
+        <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>持ち物（任意・タップで選ぶ）</label>
+        {/* タグ選択式（2026-08-28たきと指示「持ち物はタグにしよう。自由記述は極力避けよう」）。
+            値は従来どおり jobNotes（belongings文字列）＝保存・下書き・表示は無改修で互換 */}
+        <BelongingTagPicker value={jobNotes} onChange={setJobNotes} />
       </div>
       <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>注意事項（任意）</label>

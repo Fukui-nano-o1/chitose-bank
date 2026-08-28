@@ -22,7 +22,7 @@ import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
 import { JobInsuranceSection } from "./InsurancePanel";
 import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
-import { NavIconInline } from "./NavIcons";
+import { BelongingChips } from "./BelongingTags";
 
 export function JobDetailBody({ job, me, onBack }) {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -242,7 +242,7 @@ export function JobDetailBody({ job, me, onBack }) {
       {/* 経験・持ち物・備考（配列駆動・未入力は「ー」） */}
       <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
         {[
-          { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
+          { label:"持ち物",     value: disp(job.items), chips:true },
           { label:"備考・注意", value: disp(job.cautions) },
           { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
           // 労働条件の明示・掲載時凍結の3項目（2026-08-21）。値の無い旧求人は「ー」（憶測で埋めない）。
@@ -253,14 +253,9 @@ export function JobDetailBody({ job, me, onBack }) {
         ].map(row => (
           <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
             <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>
+            {/* 持ち物＝アイコンつきタグチップ（2026-08-28・旧📌チップの置き換え。分割・アイコン対応は BelongingChips に一本化） */}
             {row.chips && row.value !== "ー"
-              ? (
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
-                  {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                    <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
-                  ))}
-                </div>
-              )
+              ? <BelongingChips text={String(row.value)} />
               : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
           </div>
         ))}

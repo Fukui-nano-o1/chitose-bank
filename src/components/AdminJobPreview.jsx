@@ -10,6 +10,7 @@ import { Carousel, JobFlagBadges, DangerItem, Dots, LinkifiedText, MaskedAddress
 import { getCache, setCache } from "../lib/viewCache";
 import { CalendarView } from "./CalendarView";
 import { JobLocationMap } from "./JobLocationMap";
+import { BelongingChips } from "./BelongingTags";
 import { JobInsuranceSection } from "./InsurancePanel";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
 const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的な条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","写真が不適切","その他"];
@@ -411,7 +412,7 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
           <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("持ち物・備考") }}>
             {revChip("持ち物・備考")}
             {[
-              { label:"持ち物",     value: disp(job.items), chips:true, pin:true },
+              { label:"持ち物",     value: disp(job.items), chips:true },
               { label:"備考・注意", value: disp(job.cautions) },
               // 時間外労働（2026-08-03たきと指示・詳細/確認ページと同じ位置・同じ体裁）
               { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
@@ -422,14 +423,9 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
             ].map(row => (
               <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
                 <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>
+                {/* 持ち物＝アイコンつきタグチップ（2026-08-28・旧📌チップの置き換え。分割・アイコン対応は BelongingChips に一本化） */}
                 {row.chips && row.value !== "ー"
-                  ? (
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:2, justifyContent:"center" }}>
-                      {String(row.value).split(/[、,・\n／/]+/).map(s => s.trim()).filter(Boolean).map((c, i) => (
-                        <span key={i} className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", background:"#F7F7F7", borderRadius:20, padding:"6px 14px" }}>{row.pin && <NavIconInline name="bag" size={13} />}{c}</span>
-                      ))}
-                    </div>
-                  )
+                  ? <BelongingChips text={String(row.value)} />
                   : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
               </div>
             ))}
