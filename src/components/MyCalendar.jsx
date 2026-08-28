@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
+import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { fbSuccess, fbError, fbTap } from "../lib/feedback";
 import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
@@ -56,6 +57,10 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
   const [moving, setMoving] = useState(false);      // 多重送信ガード
   const [reloadKey, setReloadKey] = useState(0);    // 移動成功後に予定を取り直す合図（loadingは立てない＝骨は出ない）
+  // 応募の状態が変わったら（応募・承認・採用・完了…）その場で取り直す（2026-08-28たきと指示
+  // 「リアルタイムで反映だ」）。合図の出どころは App.jsx＝applications のRealtime購読と画面の復帰。
+  // 求人の側（掲載・非公開・終了）も同じ合図で拾う。取り直しても loading は立てない＝盤面は消えない
+  const refreshTick = useRefreshTick([REFRESH_APPLICATIONS, REFRESH_JOBS]);
   // ── 長押しで予定をつかむ（2026-08-25たきと指示「長押しで指追従。離した日を移動とコピー表示」）──
   // 自分が出した求人の予定がある日を長押し→その予定が指についてくる→離した日で「うごかす／コピー」を出す。
   // ★ページのスクロールを止めるため、つかんだ時にだけ document へ passive:false の touchmove を張る
@@ -105,7 +110,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       } catch { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [reloadKey]);
+  }, [reloadKey, refreshTick]);
 
   const todayYmd = ymdLocal(new Date());
   // その予定が占める日は lib/utils の entryWorkDays に一本化（2026-08-11）。
@@ -136,14 +141,16 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // 誰が来る日か＝塗りと同じ entryWorkDays で見る（働く日が確定していればその日、
   // 未確定なら働き手が申請した労働希望日、それも無ければ求人の日程どおり）
   // マスに出す名前のチップ（2026-08-25たきと指示「終了した求人にも名称は出そう」）：
-  //   ・応募＝相手の名前（採用・作業中・完了）＝終わった仕事の相手も消えない
+  //   ・応募＝相手の名前。段階は問わない（応募中・面接中・採用・作業中・完了）＝
+  //     応募が届いた時点で盤面に出る（2026-08-28たきと指示「応募したのに反映されてない」）。
+  //     色は段階色なので、まだ決めていない人（応募中）と採用済みは色で見分けられる
   //   ・自分の求人＝作物（無ければ作業）。掲載中は緑・終了はグレーで、終わったものと分かる
   //   いいねは出さない（人との約束ではない＝盤面が名前で埋まらないように）
   const chipsOnDay = (dt) => {
     const ymd = ymdLocal(dt);
     return entryIdxOnDay(ymd)
       .map(i => entries[i])
-      .filter(e => (e.relation === "application" && e.partner_name && HIRED_PHASES.includes(phaseOfEntry(e)))
+      .filter(e => (e.relation === "application" && e.partner_name)
                 || (e.relation === "own" && ((e.crop || "").trim() || (e.task || "").trim())));
   };
   // チップの見た目（名前・色・説明）を1箇所で決める＝出す場所が増えても食い違わない
