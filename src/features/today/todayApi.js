@@ -37,9 +37,8 @@ export const fetchMyApplicationTerms = (uid) =>
 // 用件カードのその場実行（confirm_insurance）。どのRPCかは TODO_META が持つ
 export const runTodoRpc = (rpc, applicationId) =>
   supabase.rpc(rpc, { p_application_id: applicationId });
-// 採用の確定（採用するページ・応募者シートと同じ confirm_terms＝人数上限・見送りの波及はDB側）
-export const confirmTerms = (applicationId, acceptDoubleBooking) =>
-  supabase.rpc("confirm_terms", { p_application_id: applicationId, p_accept_double_booking: acceptDoubleBooking });
+// 採用の確定（confirm_terms）はここには置かない＝共有部品 components/HireConfirm がが撃つ
+// （2026-08-28に窓口を1つへ集約。判定・文言・実行・演出をあの部品にまとめた）
 
 // ── 段階パネルが引く付随データ ─────────────────────────
 export const fetchPublicJobByNumber = (jobNumber) => fetchJobRowForMe(jobNumber);

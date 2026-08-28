@@ -23,8 +23,9 @@ import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
 import LaborConditionsNotice from "./LaborConditionsNotice";
+import { HireConfirm } from "./HireConfirm";
 import { getCache, setCache } from "../lib/viewCache";
-import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
+import { useRefreshTick, emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
@@ -601,10 +602,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     })();
     return () => { dead = true; };
   }, [sheetApplicantId]); // eslint-disable-line react-hooks/exhaustive-deps -- sheetJobFullは取得済み判定のみ（依存に入れると再取得ループ）
-  // 採用の実行窓口は「採用するページ」1箇所に一本化（2026-08-06たきと指示「器と機能の役割は一つに絞れ」）。
-  // シートの役割は判断材料を見せることに徹し、採用ボタンは採用ページへのリンク。
-  // 最終確認・二重予約警告・本名開示の明示・実行（confirm_terms）はすべて採用ページ側が担う。
-  const goHirePage = () => { window.location.hash = "/calendar/todo/hire"; };
+  // 採用は【その場で最終確認→OKで採用】（2026-08-28たきと指示「採用するボタンタップしたら最終確認を出して。
+  // OKなら採用だ。ページ遷移するな。」）。最終確認・二重予約の警告・本名開示の明示・実行（confirm_terms）・
+  // 祝いの演出は共有部品 components/HireConfirm がまとめて持つ＝採用するページ（TodayPage）と同じもの。
+  // ★ここで confirm_terms を自前に撃たない（判定と文言と実行を1箇所に保つ）
+  const [hireApp, setHireApp] = useState(null);   // 最終確認に渡す応募（null＝出さない）
+  const openHire = (a) => {
+    const wp = workerProfiles[a.worker_id] || {};
+    const info = jobInfoMap[a.job_number] || {};
+    setHireApp({
+      application_id: a.id, partner_id: a.worker_id,
+      partner_name: wp.nickname || "", partner_avatar: wp.avatar_url || "",
+      job_number: a.job_number, crop: info.crop, task: info.task,
+      date_start: info.date_start, date_end: info.date_end, work_time: info.work_time,
+    });
+  };
   // 保険の準備の報告も、実行するのは今日の用件ページ（confirm_insurance を撃つ窓口はそこ1箇所）。
   // カードのボタンはその入口＝新しい書き込み経路を作らない（2026-08-24たきと指示）
   const goInsurancePage = () => { window.location.hash = "/calendar/todo/insurance"; };
@@ -874,7 +886,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 if (phase === "interview") return (
                   <div style={{ display:"flex", gap:8 }}>
                     {chatBtn}
-                    <button onClick={goHirePage} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="hire" size={13} style={{ verticalAlign:"-2px" }} />採用する →</button>
+                    <button onClick={()=>openHire(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="hire" size={13} style={{ verticalAlign:"-2px" }} />採用する</button>
                   </div>
                 );
                 // 採用〜作業中（＝作業日が来ている／来る応募）に「完了・欠勤を記録」を置く（2026-07-30たきと指摘
@@ -1492,7 +1504,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                               // 採用する=hire／保険の報告=shield／評価=star／今日の記録=clipboard
                               const started = phase === "working" || !!a.started_at;
                               let rec = null, doneText = null;
-                              if (beforeHire) rec = { label:"採用する →", green:true, icon:"hire", on: goHirePage };
+                              if (beforeHire) rec = { label:"採用する", green:true, icon:"hire", on: ()=>openHire(a) };
                               else if (phase === "completed") {
                                 if (a.attended === false) doneText = "欠勤記録済み";
                                 else if (reviewedAppIds.has(a.id)) doneText = "評価済み";
@@ -1652,6 +1664,21 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           </DragSheet>
         );
       })()}
+
+      {/* 採用の最終確認＋実行＋祝いの演出（2026-08-28）＝共有部品。採用するページ（TodayPage）と同じもの。
+          ページ遷移せず、この画面の上に出す。採用が成立したら手元の応募も直して、合図で他の画面も追従させる */}
+      <HireConfirm app={hireApp} meId={me?.id}
+        onClose={()=>setHireApp(null)}
+        onHired={(id, data)=>{
+          const closed = new Set(Array.isArray(data?.closed_ids) ? data.closed_ids : []);
+          const now = new Date().toISOString();
+          // 採用した応募＝募集主の確認時刻が入る（＝段階が「採用」になる）。人数に達した時、
+          // 残りの応募はDB側が見送りにするので、手元の表示も合わせる（記録から導出の原則どおり）
+          setDbApplicants(prev => prev.map(x => x.id === id ? { ...x, terms_confirmed_farmer_at: now }
+            : closed.has(x.id) ? { ...x, status: "rejected" } : x));
+          setHireApp(null);
+          emitRefresh(REFRESH_APPLICATIONS, "hire");   // カレンダー・今日ページ等も取り直す
+        }} />
 
       {/* 完了・評価モーダル（Part1） */}
       {/* 働く日を決めるモーダル（2026-07-24 追記3）：来られる日をプリセット→農家がタップ選択→set_agreed_dates */}
