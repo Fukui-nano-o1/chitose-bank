@@ -3,125 +3,67 @@
 // worker_profiles の experience_entries / self_declared / experienced_tasks を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
 import { NavIconInline } from "./NavIcons";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS, ROLE_ORANGE } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { AutoSkeleton, Dots } from "./ui";
 
-// 経験＋免許・資格・保険方針のタブ切替スワイプ（2026-08-03たきと指示）：
-// ページは2枚だけ＝[経験タブ（カードを縦積み＋追加ボタン）][資格タブ（免許・資格・保険方針）]。
-// 横スワイプ1回でタブが切り替わる（ネイティブ横スクロール＝指に追従・scroll-snapで1ページずつ）。
-// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品
-export function WorkerExperienceEntriesSwipe({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
-  const scrollRef = useRef(null);
-  const [pageIdx, setPageIdx] = useState(0);
-  // 自由記述の入力中は横スワイプ（snap）を一時停止する（2026-08-03たきと報告「ボックス展開だと自由記述ができない」対策）。
-  // iOSはscroll-snapコンテナ内のinputにフォーカスすると、キーボード表示のレイアウト変化で再スナップが走り
-  // 入力が奪われることがある。入力中だけ overflow:hidden＋snap無効＝ページ1に固定して打鍵を守る。blurで復帰
-  const [typing, setTyping] = useState(false);
+// 経験＋免許・資格・保険方針（2026-08-28たきと指示「経験項目はAirbnbをパクれ」）：
+// 旧・2タブ横スワイプ（経験⇄資格・2026-08-03）を畳み、Airbnbのサブ画面と同じ【縦1本】にした＝
+// 経験＝白いカードの縦積み＋下線の「＋ 経験を追加」／資格＝細い区切り線のトグル行（タップで展開する箱は廃止）。
+// スワイプが消えたので、iOSのキーボードで再スナップが走る対策（typing）も不要になった。
+// WorkerProfileEditの経験・資格ページと#/experienceページの両方から使う共有部品＝申告の形をサイト内で2種類にしない
+export function WorkerExperienceEntries({ expEntries, setExpEntries, selfDeclared, setSelfDeclared }) {
   // 経験0件で開いたときは「経験 1」の空カードを最初から1枚出しておく（2026-08-03たきと指示「この状態がデフォルト」）。
   // 空カード（作物が空）は保存側のfilterで除外される＝未入力のまま保存してもDBは汚れない
   useEffect(() => {
     if (expEntries.length === 0) setExpEntries([{ crop:"", task:"", duration:"" }]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const hasDecl = !!(selfDeclared && setSelfDeclared);
-  const pageCount = hasDecl ? 2 : 1;
-  const onScroll = () => {
-    const el = scrollRef.current;
-    if (!el || el.clientWidth === 0) return;
-    setPageIdx(Math.max(0, Math.min(pageCount - 1, Math.round(el.scrollLeft / el.clientWidth))));
-  };
-  // タブ：タップでそのページへスクロール、スワイプ中は現在ページからタブの点灯を導出
-  const activeTab = hasDecl && pageIdx >= 1 ? "decl" : "exp";
-  const goTo = (idx) => { const el = scrollRef.current; if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" }); };
-  // ページの器（全幅・snap）。隣ページとの見た目の隙間はpaddingRightで作る（幅計算を1ページ=clientWidthに保つ）
-  const paneStyle = { flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", paddingRight:10, alignSelf:"flex-start" };
   return (
     <div>
-      {hasDecl && (
-        <div style={{ display:"flex", borderBottom:"1px solid #EBEBEB", marginBottom:12 }}>
-          {[{ k:"exp", l:"経験" }, { k:"decl", l:"資格" }].map(t => (
-            <button key={t.k} type="button" onClick={()=>goTo(t.k === "exp" ? 0 : 1)} className="f-sans"
-              style={{ flex:1, padding:"10px 0", background:"none", border:"none", borderBottom: activeTab === t.k ? "2px solid " + ROLE_ORANGE : "2px solid transparent", marginBottom:-1, fontSize:14, fontWeight:700, color: activeTab === t.k ? ROLE_ORANGE : "#717171", cursor:"pointer" }}>{t.l}</button>
+      <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
+      {/* 経験（最大5）：白いカードを縦積み。×は削除の意味so消さない（2026-08-19規則）＝枠なしの薄いボタンに */}
+      <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"4px 0 10px" }}>経験</p>
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {expEntries.map((e, i) => (
+          <div key={i} style={{ background:"#fff", border:"1px solid #DDD", borderRadius:12, padding:"14px 16px", position:"relative" }}>
+            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 8px" }}>経験 {i + 1}</p>
+            <button type="button" onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ position:"absolute", top:8, right:8, width:28, height:28, background:"none", border:"none", color:"#999", fontSize:16, cursor:"pointer" }}>×</button>
+            <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))}
+              placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8, background:"#fff" }} />
+            <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8, background:"#fff" }}>
+              <option value="">作業</option>
+              {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+            </select>
+            <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:0, background:"#fff" }}>
+              <option value="">どのくらい</option>
+              {["少し","1〜2シーズン","3シーズン以上"].map(dv => <option key={dv} value={dv}>{dv}</option>)}
+            </select>
+          </div>
+        ))}
+      </div>
+      {expEntries.length < 5 && (
+        /* Airbnbの「追加」＝黒い下線の文字ボタン（破線の大きな枠は廃止） */
+        <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
+          style={{ background:"none", border:"none", padding:"14px 0 2px", fontSize:14, fontWeight:700, color:"#222", textDecoration:"underline", cursor:"pointer" }}>＋ 経験を追加</button>
+      )}
+      {/* 免許・資格・保険方針：Airbnbのアメニティ選択と同じ＝ラベル＋スイッチの行を細い線で区切るだけ。
+          旧・タップで開いて申告する箱（2026-08-02）は畳んだ＝その場でONにできる方が1手少ない。
+          保存は従来どおりページ/モーダル共通の「保存する」 */}
+      {hasDecl && (<>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"24px 0 2px" }}>免許・資格・保険方針</p>
+        <div>
+          {WORKER_DECLARATIONS.map((it, i) => (
+            <div key={it.k} style={{ borderBottom: i < WORKER_DECLARATIONS.length - 1 ? "1px solid #EBEBEB" : "none" }}>
+              <ToggleSwitch label={it.label} accent={ROLE_ORANGE} checked={selfDeclared.includes(it.k)}
+                onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
+            </div>
           ))}
         </div>
-      )}
-      <div ref={scrollRef} onScroll={onScroll} style={{ display:"flex", alignItems:"flex-start", overflowX: typing ? "hidden" : "auto", WebkitOverflowScrolling:"touch", scrollSnapType: typing ? "none" : "x mandatory" }}>
-        <datalist id="cb-crop-opts-expswipe">{CROP_OPTIONS.map(c => <option key={c.name} value={c.name} />)}</datalist>
-        {/* 経験ページ（1枚）：カードを縦積み＋末尾に追加ボタン（最大5） */}
-        <div style={paneStyle}>
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {expEntries.map((e, i) => (
-              <div key={i} style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"12px 14px", position:"relative" }}>
-                <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", margin:"0 0 8px" }}>経験 {i + 1}</p>
-                <button type="button" onClick={()=>setExpEntries(prev => prev.filter((_,j)=>j!==i))} aria-label="削除" className="f-sans" style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:8, background:"#fff", border:"1px solid #EBEBEB", color:"#999", fontSize:14, cursor:"pointer" }}>×</button>
-                <input list="cb-crop-opts-expswipe" value={e.crop || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, crop: ev.target.value } : x))}
-                  onFocus={()=>setTyping(true)} onBlur={()=>setTyping(false)}
-                  placeholder="作物（選択・自由入力）" className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
-                <select value={e.task || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, task: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:8 }}>
-                  <option value="">作業</option>
-                  {TASK_OPTIONS.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
-                </select>
-                <select value={e.duration || ""} onChange={ev=>setExpEntries(prev => prev.map((x,j)=> j===i ? { ...x, duration: ev.target.value } : x))} className="field f-sans" style={{ fontSize:13, width:"100%", boxSizing:"border-box", marginBottom:0 }}>
-                  <option value="">どのくらい</option>
-                  {["少し","1〜2シーズン","3シーズン以上"].map(dv => <option key={dv} value={dv}>{dv}</option>)}
-                </select>
-              </div>
-            ))}
-            {expEntries.length < 5 && (
-              <button type="button" onClick={()=>setExpEntries(prev => [...prev, { crop:"", task:"", duration:"" }])} className="f-sans"
-                style={{ display:"block", width:"100%", background:"none", border:"1px dashed #C8C8C8", borderRadius:14, padding:"12px", fontSize:13, color:ROLE_ORANGE, cursor:"pointer", fontWeight:600, minHeight:72, boxSizing:"border-box" }}>＋ 経験を追加</button>
-            )}
-          </div>
-        </div>
-        {/* 資格ページ（1枚）：免許・資格・保険方針の縦一列ボックス */}
-        {hasDecl && (
-          <div style={paneStyle}>
-            <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>免許・資格・保険方針</p>
-            <WorkerDeclarationBoxes selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// 免許・資格・保険方針の申告ボックス（2026-08-02たきと指示「保険申告と同じ構造に」）：
-// 雇い手の保険の準備（FarmerDashboard 2026-07-29）と同じ横1列の箱＋タップでその場に開いて申告する構造。
-// 箱の色の規則も同じ（既定=グレー／申告ずみ=縁だけ緑／開いている=全体が緑）。申告ずみを先頭に並べる
-// （並びは開いた時点で固定＝保険側がsaved基準で並べ替えるのと同じく、入力中に箱が飛び跳ねない）。
-// WorkerProfileEditの経験・資格ボックスと#/experienceページの両方から使う共有部品
-export function WorkerDeclarationBoxes({ selfDeclared, setSelfDeclared }) {
-  const [openKey, setOpenKey] = useState(null);
-  const [ordered] = useState(() => [
-    ...selfDeclared.map(k => WORKER_DECLARATIONS.find(x => x.k === k)).filter(Boolean),
-    ...WORKER_DECLARATIONS.filter(it => !selfDeclared.includes(it.k)),
-  ]);
-  return (
-    /* 縦一列・全幅（2026-08-03たきと指示「縦一列だ。横幅は大きくとろう」）。展開はタップした箱の直下 */
-    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-      {ordered.map(it => {
-        const on = selfDeclared.includes(it.k);
-        const open = openKey === it.k;
-        return (
-          <div key={it.k}>
-            <button type="button" onClick={()=>setOpenKey(open ? null : it.k)}
-              className="f-sans" style={{ display:"block", width:"100%", boxSizing:"border-box", background: open ? ROLE_ORANGE : "#F7F7F7", border:"1px solid " + (open || on ? ROLE_ORANGE : "#EBEBEB"), borderRadius:12, padding:"12px 14px", cursor:"pointer", textAlign:"left" }}>
-              <span style={{ display:"block", fontSize:14, fontWeight:700, color: open ? "#fff" : "#222" }}>{it.label}</span>
-              <span style={{ display:"block", fontSize:11, color: open ? "rgba(255,255,255,.85)" : on ? ROLE_ORANGE : "#B0B0B0", marginTop:2 }}>{on ? <>申告ずみ <NavIconInline name="tick" size={11} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></> : "未申告"}</span>
-            </button>
-            {open && (
-              /* 展開したボックス：この申告のON/OFFをその場で切り替える（保存はページ/モーダル共通の「保存する」） */
-              <div className="fade-in" style={{ marginTop:8, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:14, padding:"6px 14px 14px" }}>
-                <ToggleSwitch label={it.label} checked={on} onChange={(v)=>setSelfDeclared(prev => v ? [...new Set([...prev, it.k])] : prev.filter(x => x !== it.k))} />
-                <button type="button" onClick={()=>setOpenKey(null)} className="f-sans" style={{ marginTop:10, padding:"11px 16px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>閉じる</button>
-                <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0", lineHeight:1.5 }}>自己申告です。運営が確認するものではありません。</p>
-              </div>
-            )}
-          </div>
-        );
-      })}
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0", lineHeight:1.5 }}>自己申告です。運営が確認するものではありません。</p>
+      </>)}
     </div>
   );
 }
@@ -176,9 +118,9 @@ export function WorkerExperiencePage() {
       {loading ? (
         <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */
       ) : (<>
-        {/* 経験（最大5）／免許・資格・保険方針：タブ＋全幅ページ切替スワイプ（2026-08-03たきと指示） */}
+        {/* 経験（最大5）／免許・資格・保険方針：縦１本（2026-08-28「経験項目はAirbnbをパクれ」） */}
         <div style={{ marginBottom:20 }}>
-          <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+          <WorkerExperienceEntries expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
         </div>
 
         {/* その他の作業（旧「経験のある作業」＝既存データがある人だけ残置。空の人には構造化のみ） */}

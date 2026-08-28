@@ -5,9 +5,9 @@ import { supabase } from "../lib/supabase";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
-import { Avatar, LFPillSelect, AutoSkeleton, Dots, FieldHelp, ProfileEditRow } from "./ui";
+import { Avatar, LFPillSelect, AutoSkeleton, Dots, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
-import { WorkerExperienceEntriesSwipe } from "./WorkerExperiencePage"; // 免許・資格・保険方針パネルは帯の末尾に内蔵（props経由）
+import { WorkerExperienceEntries } from "./WorkerExperiencePage"; // 経験カード＋免許・資格・保険方針のトグル行（共有部品）
 import { WorkerTrustCard } from "./TrustCards";
 import { EmergencyContactBox } from "./EmergencyContactBox";
 
@@ -269,7 +269,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const goStyle = (i) => { const el = styleScrollRef.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }); };
   // 質問に答える＝1問1ページの送り（2026-08-19）。はたらき方の希望と同じ作法。
   // ★入力中は snap と横スクロールを止める：iOSはscroll-snapコンテナ内のtextareaにフォーカスすると
-  //   キーボード表示のレイアウト変化で再スナップが走り、打鍵が奪われる（WorkerExperienceEntriesSwipeと同じ対策）
+  //   キーボード表示のレイアウト変化で再スナップが走り、打鍵が奪われる（旧・経験タブスワイプで確立した対策）
   const [openQaQ, setOpenQaQ] = useState(null);   // いま入力欄を開いている問い（1つずつ・2026-08-19）
   const qaScrollRef = useRef(null);
   const [qaIdx, setQaIdx] = useState(0);
@@ -639,7 +639,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       {/* はたらき方の希望＝4問（2026-08-14拡充・雇い手の関わり方4問と対）。
           2026-08-19たきと指示「項目ごとに分ける。タップで右にスワイプ。全て入力で保存」＝
           縦に4問並べるのをやめ、1問1ページにした。選ぶと次の質問へ送り、4問目を選ぶとそのまま保存して閉じる。
-          送りはネイティブ横スクロール＋scroll-snap（WorkerExperienceEntriesSwipe と同じ作法）＝
+          送りはネイティブ横スクロール＋scroll-snap（AdminSystemRoom等と同じ作法）＝
           指でも戻れる。答えたい質問だけでよい性質は不変＝下の共通「保存する」で保存する */}
       {editBox==="intensity" && (<>
       <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"8px 0 10px", lineHeight:1.6 }}>答えたい質問だけ選んでください（任意）。答えた内容は応募先の農家に表示されます。</p>
@@ -721,10 +721,11 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           （save()が experience_entries / self_declared / experienced_tasks を含む・配線済み）。
           専用ページ #/experience（WorkerExperiencePage）はURL直打ち・ProfileHub経由用に残置 */}
       {editBox==="declared" && (<>
-      <FieldHelp label="経験・資格（自己申告）" accent={ROLE_ORANGE}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</FieldHelp>
-      {/* 経験／免許・資格・保険方針：タブ＋全幅ページ切替スワイプ（2026-08-03たきと指示・指連動＝ネイティブ横スクロール＋snap） */}
+      {/* 見出し「経験・資格」はページ側that出す＝二重にしない（2026-08-25の型）。説明の1行だけ置く */}
+      <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"0 0 14px", lineHeight:1.6 }}>あなたのプロフィールに「ご本人の申告」として表示されます。運営が確認するものではありません。</p>
+      {/* 経験／免許・資格・保険方針：Airbnb型の縦1本（2026-08-28「経験項目はAirbnbをパクれ」・旧2タブスワイプは廃止） */}
       <div style={{ marginBottom:16 }}>
-        <WorkerExperienceEntriesSwipe expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
+        <WorkerExperienceEntries expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
       </div>
       {/* 旧「経験のある作業」＝既存データがある人だけ残置表示（専用ページと同じ扱い） */}
       {experiencedTasks.length > 0 && (<>
