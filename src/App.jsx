@@ -636,12 +636,22 @@ export default function App(){
   // 各オーバーレイ（53箇所・23ファイル）のコードは1行も触らずに全部に効く。
   // 判定は「実際に押せない状態か」をブラウザに聞く（computed pointer-events）＝アニメ長を写経しない。
   // 本物の黒幕タップ（閉じる意図）が捨てられるのはアニメ中だけ＝もう一度タップすれば閉じる。
+  // ★2026-08-29修理（たきと報告「掲載前の確認で、チェックをタップするとボックスが非表示になるだけで
+  //   進まない」）：黒幕の判定を .cb-box-overlay クラス限定 → 【ゲート中のシートを抱えた固定の黒幕
+  //   すべて】に一般化。求人フローの掲載モーダル・作業場所ボックス・チャットの確認ボックスなどは
+  //   黒幕が cb-lock-scroll だけ（cb-box-overlay 無し）でこのガードの外にいた＝開いた直後の0.8秒に
+  //   チェックへ伸びた指がシートを素通りして黒幕に当たり、閉じるだけが走っていた。
+  //   判定＝クリックの当たり先が position:fixed で、その中に pointer-events:none の .cb-sheet-up が
+  //   いる時だけ捨てる。押せる状態になったシートの中身へのクリックは、当たり先がシートの子孫になる
+  //   （＝querySelector で下に .cb-sheet-up は見つからない）ので一切影響しない。
   useEffect(() => {
     const swallowPopThrough = (e) => {
       const t = e.target;
-      if (!t || typeof t.classList?.contains !== "function") return;
-      if (!t.classList.contains("cb-box-overlay")) return; // 黒幕への直撃だけを見る（中身のタップは無関係）
-      const sheet = t.querySelector(".cb-sheet-up");        // ゲートを持つのはこのクラスだけ
+      if (!t || typeof t.querySelector !== "function") return;
+      let fixed = false;
+      try { fixed = getComputedStyle(t).position === "fixed"; } catch { return; }
+      if (!fixed) return;                            // 黒幕（全画面の被せ）への直撃だけを見る
+      const sheet = t.querySelector(".cb-sheet-up"); // ゲートを持つのはこのクラスだけ
       if (!sheet) return;
       try { if (getComputedStyle(sheet).pointerEvents !== "none") return; } catch { return; }
       e.stopPropagation(); e.preventDefault();
