@@ -1134,13 +1134,17 @@ export function workerUnsetCount(w, opts) {
     Array.isArray(w.interests) && w.interests.length > 0,
     Array.isArray(w.languages) && w.languages.length > 0,
     (Array.isArray(w.pr_qa_pending) ? w.pr_qa_pending.length : (Array.isArray(w.pr_qa) ? w.pr_qa.length : 0)) > 0,
+    // 経験・資格（2026-08-28に合流）＝編集ページに行があるのに数えていなかった＝
+    // 行の赤い点の数と名刺の数バッジが合わなくなるため入れた。経験カード1件でも資格1つでも設定済み
+    (Array.isArray(w.experience_entries) ? w.experience_entries.filter(e => e && (e.crop || "").trim()).length : 0) > 0
+      || (Array.isArray(w.self_declared) ? w.self_declared.length : 0) > 0,
   ].filter(x => !x).length;
   return { req, total: req + opt };
 }
 // opts.hasEmergency＝emergency_contacts（別テーブル・self-only RLS）の登録有無。呼び出し側が引いて渡す
 // （2026-08-07たきと承認：募集者の連絡先＋緊急連絡先＝掲載時必須なのにバッジに数えられていなかった2つを合流）
 export function employerUnsetCount(e, { hasEmergency = false } = {}) {
-  if (!e) return { req: 3, total: 9 };      // 編集ページの9ボックス基準（従業員数は2026-08-01に削除）
+  if (!e) return { req: 3, total: 10 };     // 編集ページの項目基準（従業員数は2026-08-01に削除・保険の準備は2026-08-28に合流）
   // ★編集ページ（EmployerProfileEdit の boxFilled）と同じ物差しで数える（2026-08-03）：
   //   氏名・名称＝recruiter_name（保存時に nickname へも写るので両方見る）
   //   住所・所在地＝recruiter_* の分割値、無ければ1行の recruiter_address
@@ -1162,10 +1166,13 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
     !!(e.interaction_style || e.teaching_style || e.chat_style || e.question_style),
     !!(e.recruiter_contact || "").trim(), // 募集者の連絡先（掲載時必須・2026-08-07）
     hasEmergency,                          // 🆘緊急連絡先（2026-08-07）
+    // 保険の準備（2026-08-28に合流）＝2026-08-25に編集ページの行になったのに数えていなかった＝
+    // 行の赤い点の数と名刺の数バッジが合わなくなるため入れた
+    Array.isArray(e.insurance_items) && e.insurance_items.length > 0,
   ].filter(x => !x).length;
   return { req, total: req + opt };
 }
 // 上の判定に必要な列だけ（今日ページはプロフィール全列を読まない＝転送量を増やさない）。
 // ★項目を足したら、上の関数と一緒にこの列リストも直すこと
-export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,work_mood,learning_pref,work_pattern,interests,languages,pr_qa,pr_qa_pending";
-export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,has_raise,has_severance_pay,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style";
+export const WORKER_UNSET_COLUMNS = "avatar_url,nickname,pr,pr_pending,residence_city,transport,farm_experience,physical_level,work_mood,learning_pref,work_pattern,interests,languages,pr_qa,pr_qa_pending,experience_entries,self_declared";
+export const EMPLOYER_UNSET_COLUMNS = "avatar_url,nickname,recruiter_name,recruiter_contact,recruiter_address,recruiter_prefecture,recruiter_city,recruiter_address_detail,smoking_policy,has_transport,has_parking,has_commute_allowance,has_bonus,has_raise,has_severance_pay,employer_pays_supplies,accessory_ok,intro_path,intro_joy,intro_crops,intro_atmosphere,intro_message,owner_comment,unique_point,always_do,break_style,interaction_style,teaching_style,chat_style,question_style,insurance_items";

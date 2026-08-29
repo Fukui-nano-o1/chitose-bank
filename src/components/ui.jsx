@@ -82,6 +82,12 @@ export function ProfileEditRow({ label, value, required, flagged, accent = "#00A
       {flagged && (
         <span className="f-sans" style={{ flexShrink:0, background:"#E24B4A", color:"#fff", fontSize:11, fontWeight:700, borderRadius:10, padding:"3px 8px" }}>修正のお願い</span>
       )}
+      {/* 未設定の目印（2026-08-28たきと指示「通知バッチつけよう」）＝下部ナビの赤バッジと同じ色・同じ意味
+          （＝あなたの宿題）。名刺カードの「編集する」の数バッジと数が合うように、数え方は
+          lib/utils の workerUnsetCount / employerUnsetCount に揃えてある（数の出どころを2つにしない） */}
+      {!value && !flagged && (
+        <span aria-label="未設定" style={{ flexShrink:0, width:8, height:8, borderRadius:"50%", background:"#E24B4A" }} />
+      )}
       <span style={{ color: accent, fontSize:18, flexShrink:0 }}>›</span>
     </button>
   );

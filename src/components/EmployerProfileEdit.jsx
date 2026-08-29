@@ -581,9 +581,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           </button>
         )}
         <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin: black ? "0" : "12px 0 0" }}>{recruiterName || nickname || "名称未設定"}</p>
+        {/* 未設定の赤い点は行と同じ意味（2026-08-28「通知バッチつけよう」）。
+            アイコンは行ではなくここに出ているので、この1つだけ別に置く＝名刺の数バッジと数が合う */}
         <button type="button" onClick={()=>openEditBox("avatar")} className="f-sans"
-          style={{ marginTop:6, background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:700, color:AC, textDecoration:"underline" }}>
-          {avatarUrl ? "写真を変更" : "写真を追加"}
+          style={{ marginTop:6, background:"none", border:"none", padding:0, cursor:"pointer", fontSize:13, fontWeight:700, color:AC, textDecoration:"underline",
+                   display:"inline-flex", alignItems:"center", gap:6 }}>
+          {avatarUrl ? "写真を変更" : <>写真を追加<span aria-label="未設定" style={{ width:8, height:8, borderRadius:"50%", background:"#E24B4A" }} /></>}
         </button>
       </div>
       <div>
