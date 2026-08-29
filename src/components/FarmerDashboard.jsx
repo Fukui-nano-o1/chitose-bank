@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
   fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
-  unpublishJob, copyJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
+  unpublishJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
   markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
+import { copyJobToEdit } from "../lib/copyJobFlow";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
@@ -498,13 +499,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       return;
     }
     if (kind === "copy") {
-      const { data, error } = await copyJob(num);
-      if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-      // コピーした行をそのまま次の画面へ渡す（2026-08-03）：jobsの読み直しを待たずに復元できる
-      try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
-      // コピーは期間のみリセット（2026-08-16たきと指示）：日程・休日は常に空＝新しく選び直す。他は全部引き継ぎ
-      if (data.dates_cleared) alert("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
-      window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+      // 唯一のレール（lib/copyJobFlow・2026-08-29）：多重実行の錠前つき。
+      // 失敗の案内・sessionStorage受け渡し・編集フローへの遷移もレール側が担う
+      await copyJobToEdit(num);
     }
   };
   // ピルのタップ＝モードの入/切。対象が1件も無い時はモードに入らず理由を案内

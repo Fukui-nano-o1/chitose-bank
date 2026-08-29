@@ -6,6 +6,7 @@
 // （2026-08-25たきと指示）。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
+import { copyJobToEdit } from "../lib/copyJobFlow";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
@@ -305,12 +306,9 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // コピー＝既存 copy_job のレールそのまま（FarmerDashboard runJobAction "copy" と同じ作法・
   // sessionStorage経由で新しい下書きを即復元）。日程は引き継がれない（2026-08-16たきと指示）
   const copyFromSheet = async (n) => {
-    const { data, error } = await supabase.rpc("copy_job", { p_job_number: n });
-    if (error || !data?.ok) { fbError(); alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
-    if (data.dates_cleared) alert("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
-    setDaySheet(null);
-    window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+    // 唯一のレール（lib/copyJobFlow・2026-08-29）：多重実行の錠前つき
+    const r = await copyJobToEdit(n);
+    if (r.ok) setDaySheet(null);
   };
   // 内容の編集＝既存レール（公開中は一時非公開にしてから編集フローへ・FarmerDashboardと同じ確認文言）。
   // ★unpublish_job は作業前の応募（応募中・面接中・採用済み）を見送りにする（20260828050552で採用済みも対象に）＝確認文に明記
@@ -435,17 +433,13 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // ★DBの下書きの日付は空のまま（copy_job は日程を引き継がない）＝画面に入れた日は編集フローの保存で入る。
   //   休日は元の日付のままだと違う日を休みにしてしまうので引き継がない
   const copyToDay = async (st) => {
-    const { data, error } = await supabase.rpc("copy_job", { p_job_number: st.jobNumber });
-    if (error || !data?.ok) { fbError(); alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    try {
-      if (data.job) {
-        const job = { ...data.job, date_start: st.toYmd, date_end: st.spanDays > 0 ? addYmd(st.toYmd, st.spanDays) : null, holidays: [] };
-        sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(job));
-      }
-    } catch {}
-    fbSuccess();
-    setDropSheet(null); setDaySheet(null);
-    window.location.hash = "/work/edit/" + data.job_number;
+    // 唯一のレール（lib/copyJobFlow・2026-08-29）。離した日を sessionStorage の受け渡しに重ねる
+    //（DBの下書きは copy_job の仕様どおり日程なし＝画面に入れた日は編集フローの保存で入る）
+    const r = await copyJobToEdit(st.jobNumber, {
+      presetDates: { date_start: st.toYmd, date_end: st.spanDays > 0 ? addYmd(st.toYmd, st.spanDays) : null, holidays: [] },
+      quietDates: true,
+    });
+    if (r.ok) { setDropSheet(null); setDaySheet(null); }
   };
 
   // ★盤面に常設する touchmove（passive:false）。iOS Safari は触り始めた時点でこのリスナーが無いと、

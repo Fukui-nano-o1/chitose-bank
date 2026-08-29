@@ -5,6 +5,7 @@ import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
 import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
+import { copyJobToEdit } from "../lib/copyJobFlow";
 import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
@@ -27,7 +28,7 @@ import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/Se
 import { JobKeyFacts, JobDescription, JobDangerZones, JobLocationSection, JobRecruiterInfo,
   JobPhotoGallery, JobEmployerCard, JobReviews, RelatedJobs } from "../features/jobs/search/components/JobDetailPanel";
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile, ApplyConfirmBox } from "../features/jobs/search/components/ApplyPanel";
-import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, copyJob, unpublishJob,
+import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
   fetchMyApplicationForJob, fetchMyPendingForJob, applyToJob, createPendingApplication, cancelApplication,
@@ -114,12 +115,8 @@ export function JobSearchMapView({ onRegister, me }) {
   useSheetDragClose(ownMenuSheetRef, ownMenuScrollRef, ()=>setOwnMenuOpen(false), ownMenuOpen);
   const ownCopyJob = async () => {
     setOwnMenuOpen(false);
-    const { data, error } = await copyJob(selectedJob.id);
-    if (error || !data?.ok) { alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-    try { if (data.job) sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job)); } catch {}
-    // コピーは期間のみリセット（2026-08-16たきと指示）：日程・休日は常に空＝新しく選び直す。他は全部引き継ぎ
-    if (data.dates_cleared) alert("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
-    window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+    // 唯一のレール（lib/copyJobFlow・2026-08-29）：多重実行の錠前つき
+    await copyJobToEdit(selectedJob.id);
   };
   const ownUnpublishJob = async () => {
     // 再掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「もう一度審査を通ります」は誤り）
