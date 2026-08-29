@@ -788,7 +788,14 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   //   ※2026-08-03「更新は完了させるが、ページ遷移はさせるな」は本日の指示で置き換え
   const handleTopSave = async ({ exit = false } = {}) => {
     if (draftSaving) return;
+    const t0 = Date.now();
     setDraftSaving(true); setDraftMsg("");
+    // ★タップした瞬間にクルクルを出す（2026-08-29たきと指示「保存ボックスはタップで
+    //   リロードのクルクルを表示させよう」）。従来は【保存が終わってから】1.1秒の演出として
+    //   出していたので、実際に待たされる保存中（冷えたDBで数秒）は小さなボタン文字だけで、
+    //   押せたのか分からず再タップを誘っていた（コピーの多重実行と同じ形）。
+    //   ★どの経路でも必ず消すこと（失敗・未ログインの枝でも消す＝白い幕に閉じ込めない）
+    if (exit) setDraftOverlay(true);
     const res = await saveDraftToSupabase();
     setDraftSaving(false);
     if (res.ok) {
@@ -799,18 +806,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         return;
       }
       try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
-      setDraftOverlay(true);
       // 行き先は親（App）that控えている入口の画面へ委ねる＝「戻る」（onSkip）と同じ作法（2026-08-21）。
       // ここで hash を書くと、親that入口の画面へ書き直す前に一瞬別の画面へ飛び、
-      // 入口の控え（flowBackToRef）まで上書きされてしまう。onComplete を持たない呼び出しだけ従来の行き先に倒す
+      // 入口の控え（flowBackToRef）まで上書きされてしまう。onComplete を持たない呼び出しだけ従来の行き先に倒す。
+      // 保存が速い時（温まったDBで数十ms）にクルクルが点滅して見えないよう、最低600msは出す
       setTimeout(() => {
         setDraftOverlay(false);
         if (typeof onComplete === "function") onComplete();
         else window.location.hash = "/profile/employer";
-      }, 1100);
+      }, Math.max(0, 600 - (Date.now() - t0)));
     } else if (res.reason === "no_session") {
+      setDraftOverlay(false);
       saveDraft(); onLogin();
     } else {
+      setDraftOverlay(false);
       setDraftMsg("保存に失敗しました：" + res.reason);
       alert("保存に失敗しました：" + res.reason);
     }
