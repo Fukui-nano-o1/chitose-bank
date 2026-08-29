@@ -6,11 +6,12 @@ import { fbSuccess, fbError } from "../lib/feedback";
 import { Celebration } from "./Celebration";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow } from "../lib/utils";
+import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow, photoThumb } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
-import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots, StatusRibbon, JobRow } from "./ui";
-import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
+import { AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
+import { JobCard } from "./JobCard";
+import { CropIcon } from "./CropIcon";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
@@ -44,50 +45,8 @@ export function WorkerApplications({ filter, me }) {
   };
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   // 過去の応募の折りたたみ（pastOpen）は廃止＝常に展開（2026-08-22たきと指示「過去の応募は閉じないで」）
-  // あなたの求人ページと同じ構造（2026-08-22たきと指示「あなたの求人ページと同じ構造にしよう。文言は編集するな」）：
-  // 応募中⇄過去の応募の上部タブ＋指に追従するページャー＋正方形カードの横3列グリッド。
-  // ★ページャーは FarmerDashboard（作成中⇄公開中）の写し＝挙動を変えるときは両方を揃える。
-  //   タブはこのページの中の面切替ので hash は書かない（URLは /profile/worker/applying の1本のまま）
-  const [wapTab, setWapTab] = useState("now"); // "now"=応募中 / "past"=過去の応募
-  const pagerTrackRef = useRef(null);
-  const pagerDrag = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
-  const pagerBasePct = () => (wapTab === "now" ? 0 : -50);
-  const onPagerStart = (e) => {
-    // グループの横スライド（.carousel-scroll）の中で始まったタッチは掴まない（2026-08-23・
-    // あなたの求人ページと同じ守り）＝カードを送る指theタブ切替に取られない。
-    // はみ出していない（1枚だけの）グループは従来どおりページャーに譲る
-    const hs = e.target.closest && e.target.closest(".carousel-scroll");
-    if (hs && hs.scrollWidth > hs.clientWidth + 1) { pagerDrag.current = null; return; }
-    pagerDrag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
-  };
-  const onPagerMove = (e) => {
-    const s = pagerDrag.current, el = pagerTrackRef.current;
-    if (!s || !el) return;
-    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 方向が定まるまで様子見
-      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
-    }
-    if (s.lock !== "h") return; // 縦スクロール中は関与しない
-    const atEdge = (wapTab === "now" && dx > 0) || (wapTab === "past" && dx < 0);
-    s.dx = atEdge ? dx / 3 : dx;
-    el.style.transition = "none";
-    el.style.transform = `translateX(calc(${pagerBasePct()}% + ${s.dx}px))`;
-  };
-  const onPagerEnd = () => {
-    const s = pagerDrag.current, el = pagerTrackRef.current;
-    pagerDrag.current = null;
-    if (!s || !el || s.lock !== "h") return;
-    el.style.transition = "transform .3s ease"; // dragで消したtransitionはReactが復元しないので手で戻す
-    const threshold = Math.min(80, s.w / 4);
-    if (wapTab === "now" && s.dx < -threshold) {
-      el.style.transform = "translateX(-50%)"; setWapTab("past");
-    } else if (wapTab === "past" && s.dx > threshold) {
-      el.style.transform = "translateX(0%)"; setWapTab("now");
-    } else {
-      el.style.transform = `translateX(${pagerBasePct()}%)`; // 届かなければ元の位置へスナップバック
-    }
-  };
+  // タブ＋ページャー＋横カルーセル（あなたの求人ページの写し・2026-08-22〜23）は廃止＝
+  // Airbnbの旅行（Trips）一覧の型へ（2026-08-25たきと指示「あなたの応募ページはAirbnbをパクれ」・下記renderTripRow）
   // 評価（Part2）：フォームと保存は共有部品 WorkerReviewSheet が持つ（今日ページの「仕事の評価」と
   // 同じ入力を使う＝2箇所で枝分かれさせない・2026-08-19）。ここが持つのは「どの応募を開いているか」だけ
   const [reviewModalApp, setReviewModalApp] = useState(null);
@@ -332,40 +291,47 @@ export function WorkerApplications({ filter, me }) {
       </div>
     );
   };
-  // 応募のカード（応募中／過去の応募）＝「その他の求人」と同じ設計（2026-08-23たきと指示
-  // 「あなたの応募ページも同じ構造に」）。あなたの求人ページ（renderOwnJobCard）と同じ組み立て：
-  // 本物の JobCard（related）を、グループごとの横スライド（JobRow）に並べる。
-  // ・応募中面＝タブ名と同じ帯は出さない（重複排除＝求人ページと同じ規則）。
-  //   終了帯（募集終了・満員）はJobCardthat出す＝応募thatまもなく失効する正直な情報（2026-08-22の判断を維持）
-  // ・過去面＝終端の事実を帯で（見送り・取り消し・失効・掲載取り下げ＝従来のチップと同じ語）。
-  //   JobCardの終了帯は出さない（hideEndLabel）＝帯thatが二重にならない
-  // ・タップ＝応募中はボトムシート（詳細・操作）／過去は求人ページへ（終わった応募に操作は無い）
-  const renderAppJobCard = (a, opts = {}) => {
-    const j = appJob(a);
+  // あなたの応募の行（2026-08-25たきと指示「あなたの応募ページはAirbnbをパクれ」）＝
+  // Airbnbの旅行（Trips）一覧の言語を自前で写した：縦一列の行・左に角丸の写真・
+  // 中央に太字のタイトル＋灰色の1行（日付・場所）＋#No.・右に「›」・行の間に細い区切り線。
+  // ★Airbnbの実物のコード・素材は複製できない（非公開・著作物）ので、見た目の言語だけ＝
+  //   マイページのToolRow・プロフィール編集のProfileEditRowと同じ判断（2026-08-25）。行の寸法もそこに揃えた。
+  // ・応募中の行＝タップで従来のボトムシート（3段プログレス・期限の約束・取り消し）
+  // ・過去の行＝灰色の1行の先頭に終端の事実（見送り・取り消し・失効・掲載取り下げ＝従来と同じ語）＋
+  //   写真は薄いグレースケール。タップで求人ページへ（終わった応募に操作は無い）
+  // ・写真が無い求人は作物アイコン（最新のフルカラー・CropIcon）。材料は appJob と同じ2段
+  //   （jobs_public の行 → my_job_actions の記録）＝どちらも無くても #No. で行は出す（一覧から落とさない）
+  const renderTripRow = (a, opts = {}) => {
+    const raw = jobDates[a.job_number];
+    const fb = !raw && Array.isArray(actionRows) ? actionRows.find(r => r.job_number === a.job_number) : null;
+    const src = raw || fb || {};
+    const photo = photoThumb(src.photos?.[0]);
+    const title = [src.crop, src.task].filter(Boolean).join(" ") || ("求人 #" + a.job_number);
+    const dateStr = src.date_start ? calFmtDate(src.date_start) + (src.date_end && src.date_end !== src.date_start ? "〜" : "") : "";
+    const place = [src.city, src.town].filter(Boolean).join("");
+    const term = opts.past
+      ? (a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効")
+      : null;
+    const sub = [term, dateStr, place].filter(Boolean).join("・") || `応募日 ${new Date(a.created_at).toLocaleDateString("ja-JP")}`;
     const open = opts.past
       ? () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; }
       : () => setSheetAppId(a.id);
-    const ribbon = opts.past
-      ? { label: a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効", color:"#757575" }
-      : null;
     return (
-      // 包む側にもカードと同じ幅を持たせる（JOB_CARD_RELATED_SIZE）＝横並び（JobRow）で潰れない
-      <div key={a.id} style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
-        {j ? <JobCard job={j} variant="related" hideEndLabel={!!opts.past} onOpen={open} /> : (
-          // 求人の姿thatどこからも引けなかった時：#No.だけの最小カード＝一覧から落とさない
-          <button onClick={open} className="f-sans"
-            style={{ display:"block", width:"100%", height:220, textAlign:"left", background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
-            <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>求人</span>
-            <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{a.job_number}</span>
-          </button>
-        )}
-        {ribbon && (
-          // カードの角丸(16)で切り抜いて写真の中に収める（あなたの求人ページと同じ作法）
-          <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
-            <StatusRibbon label={ribbon.label} color={ribbon.color} />
-          </div>
-        )}
-      </div>
+      <button key={a.id} type="button" onClick={open} className="f-sans"
+        style={{ display:"flex", alignItems:"center", gap:14, width:"100%", textAlign:"left", background:"none",
+                 border:"none", borderBottom: opts.last ? "none" : "1px solid #EBEBEB", padding:"14px 2px", cursor:"pointer" }}>
+        <span style={{ flexShrink:0, width:64, height:64, borderRadius:12, overflow:"hidden", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          {photo
+            ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: opts.past ? "grayscale(50%)" : "none" }} />
+            : <CropIcon crop={src.crop} size={30} />}
+        </span>
+        <span style={{ minWidth:0, flex:1 }}>
+          <span style={{ display:"block", fontSize:15, fontWeight:600, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</span>
+          <span style={{ display:"block", fontSize:13, color: opts.past ? "#999" : "#717171", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</span>
+          <span style={{ display:"block", fontSize:11, color:"#B0B0B0", marginTop:2 }}>#{a.job_number}</span>
+        </span>
+        <span style={{ color:"#C8C8C8", fontSize:18, flexShrink:0 }}>›</span>
+      </button>
     );
   };
   // ── 返事待ちページの役割強化（第9弾・2026-07-22）───────────────────────────
@@ -531,44 +497,31 @@ export function WorkerApplications({ filter, me }) {
             <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
           </div>
         ) : (
-          // あなたの求人ページと同じ構造（2026-08-22たきと指示）：上部タブ（応募中⇄過去の応募）＋
-          // 指に追従するページャー＋正方形カードの横3列グリッド。文言は既存の語のみ
+          // Airbnbの旅行（Trips）一覧の型（2026-08-25たきと指示「あなたの応募ページはAirbnbをパクれ」）：
+          // タブ・ページャー・横カルーセルを廃止し、縦一列のセクションに＝
+          // 仮応募 → 応募中の行 → 待っている間にできること → 過去の応募の行。
+          // 見出しは太字の黒（マイページの「設定」と同じ寸法）・行の見た目は renderTripRow
           <>
-            <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
-              {[
-                { k:"now",  l:"応募中",     n:apps.length },
-                { k:"past", l:"過去の応募", n:pastApps.length },
-              ].map(t => (
-                <button key={t.k} onClick={()=>setWapTab(t.k)} className="f-sans"
-                  style={{ flex:1, padding:"11px 0", borderRadius:12, border: wapTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: wapTab===t.k ? 800 : 600, color: wapTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
-                  {t.l}{t.n > 0 ? `（${t.n}）` : ""}
-                </button>
-              ))}
-            </div>
-            <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
-              <div ref={pagerTrackRef} style={{ display:"flex", width:"200%", transform: wapTab==="now" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
-                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>{/* 応募中パネル */}
-                  {pendingBlock}
-                  {(apps.length === 0 && pendingApps.length === 0) ? (
-                    <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-                      <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
-                      <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
-                      <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
-                    </div>
-                  ) : (
-                    apps.length > 0 && <div ref={skelRef}><JobRow count={apps.length}>{apps.map(a => renderAppJobCard(a))}</JobRow></div>
-                  )}
-                  {waitingTodoBox}
-                </div>
-                <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>{/* 過去の応募パネル */}
-                  {pastApps.length > 0 && (
-                    <JobRow count={pastApps.length}>
-                      {pastApps.map(a => renderAppJobCard(a, { past: true }))}
-                    </JobRow>
-                  )}
-                </div>
+            {pendingBlock}
+            {(apps.length === 0 && pendingApps.length === 0) ? (
+              <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
+                <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
+                <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
+                <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
               </div>
-            </div>
+            ) : apps.length > 0 && (
+              <div ref={skelRef}>
+                <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 2px" }}>応募中（{apps.length}）</p>
+                {apps.map((a, i) => renderTripRow(a, { last: i === apps.length - 1 }))}
+              </div>
+            )}
+            {waitingTodoBox}
+            {pastApps.length > 0 && (
+              <div style={{ marginTop:28 }}>
+                <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 2px" }}>過去の応募（{pastApps.length}）</p>
+                {pastApps.map((a, i) => renderTripRow(a, { past: true, last: i === pastApps.length - 1 }))}
+              </div>
+            )}
           </>
         )
       ) : apps.length === 0 ? (
