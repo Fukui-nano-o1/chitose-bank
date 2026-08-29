@@ -451,11 +451,33 @@ export function WorkerApplications({ filter, me }) {
       <button onClick={()=>{ window.location.hash = "/apply/pending"; }} className="f-sans" style={{ display:"block", width:"100%", marginTop:10, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>プロフィールを仕上げる →</button>
     </div>
   );
+  // 待っている間にできること＝Airbnbの行リストの型（2026-08-25たきと指示「ここもAirbnbをパクれ」）：
+  // 緑の色付きボックスをやめ、太字の黒い見出し（応募中・過去の応募と同じ寸法）＋
+  // アイコン左・太字ラベル・右に›・1pxの区切り線の行（マイページの設定＝ToolRowと同じ寸法）。
+  // 文言は従来のまま（行末の「→」「→さがす」は›が置き換えるので落とした）
+  const waitingRow = (icon, label, onClick, last) => (
+    <button type="button" onClick={onClick} className="f-sans"
+      style={{ display:"flex", alignItems:"center", gap:14, width:"100%", textAlign:"left", background:"none", border:"none", borderBottom: last ? "none" : "1px solid #EBEBEB", padding:"16px 2px", cursor:"pointer" }}>
+      <span style={{ flexShrink:0, display:"flex", color:"#222" }}><NavIcon name={icon} size={22} /></span>
+      <span style={{ minWidth:0, flex:1, fontSize:15, fontWeight:600, color:"#222" }}>{label}</span>
+      <span style={{ color:"#C8C8C8", fontSize:18, flexShrink:0 }}>›</span>
+    </button>
+  );
   const waitingTodoBox = (
-    <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:14, padding:"14px 16px", marginTop:16 }}>
-      <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 10px" }}><NavIconInline name="clip" size={13} style={{ verticalAlign:"-2px" }} />待っている間にできること</p>
-      <button onClick={()=>{ window.location.hash = "/profile/worker/profile"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, fontWeight:700, color:"#00A86B", cursor:"pointer", marginBottom:8 }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />農家がよく見る質問に答える →</button>
-      <button onClick={()=>{ window.location.hash = "/search"; }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #DDEDE5", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#222", cursor:"pointer", lineHeight:1.6 }}>同じ日の別の求人にも応募できます <span style={{ color:"#00A86B", fontWeight:700 }}>→さがす</span></button>
+    <div style={{ marginTop:28 }}>
+      <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 2px" }}>待っている間にできること</p>
+      {waitingRow("star", "農家がよく見る質問に答える", ()=>{ window.location.hash = "/profile/worker/profile"; }, false)}
+      {waitingRow("search", "同じ日の別の求人にも応募できます", ()=>{ window.location.hash = "/search"; }, true)}
+    </div>
+  );
+  // 空状態＝Airbnbの旅行（Trips）の空状態の型（同指示）：中央寄せの芽アイコンをやめ、
+  // 左寄せの太字見出し＋灰色の説明＋黒枠の「求人をさがす」ボタン（語はいいねした求人の空状態と同じ）
+  const emptyApplyState = (
+    <div style={{ padding:"8px 0 24px" }} className="f-sans">
+      <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
+      <p style={{ fontSize:13, color:"#717171", margin:"6px 0 16px", lineHeight:1.7 }}>「さがす」から求人に応募できます。</p>
+      <button type="button" onClick={()=>{ window.location.hash = "/search"; }} className="f-sans"
+        style={{ padding:"13px 24px", fontSize:14, fontWeight:700, background:"#fff", color:"#222", border:"1.5px solid #222", borderRadius:10, cursor:"pointer" }}>求人をさがす</button>
     </div>
   );
   // 過去の応募：折りたたみは廃止し常に展開（2026-08-22たきと指示「過去の応募は閉じないで」）。
@@ -478,9 +500,11 @@ export function WorkerApplications({ filter, me }) {
           「あなたが応募した求人の状況です。は応募状況の下に移植」）。
           ※同日「ラベルが最前線」を取り違えて一度ここから下へ移したが、指す先は求人カードの
           状態ラベル（失効・見送り等）のz順だったので元に戻した。見出し「あなたの応募」はProfileHub側で非表示 */}
+      {/* 先頭はAirbnbの大見出しの型（2026-08-25たきと指示「ここもAirbnbをパクれ」）＝
+          小さな灰色ラベルをやめ、太字の黒いページ見出し＋灰色の説明。文言は不変 */}
       {filter !== "approved" && (<>
-        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", letterSpacing:".08em", marginBottom:4 }}>応募状況</p>
-        <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:20, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
+        <h2 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:"0 0 6px" }}>応募状況</h2>
+        <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:24, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
       </>)}
       {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
           同じ7段は各求人カードの流れバーが出しているので重複 */}
@@ -491,11 +515,7 @@ export function WorkerApplications({ filter, me }) {
       ) : filter !== "approved" ? (
         // 返事待ちタブ（第9弾）：仮応募＋応募中カード（再設計）＋待っている間にできること＋過去の応募
         (apps.length === 0 && pastApps.length === 0 && pendingApps.length === 0) ? (
-          <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-            <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
-            <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
-            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
-          </div>
+          emptyApplyState
         ) : (
           // Airbnbの旅行（Trips）一覧の型（2026-08-25たきと指示「あなたの応募ページはAirbnbをパクれ」）：
           // タブ・ページャー・横カルーセルを廃止し、縦一列のセクションに＝
@@ -504,11 +524,7 @@ export function WorkerApplications({ filter, me }) {
           <>
             {pendingBlock}
             {(apps.length === 0 && pendingApps.length === 0) ? (
-              <div style={{ textAlign:"center", padding:"32px 20px", color:"#999" }} className="f-sans">
-                <div style={{ display:"flex", justifyContent:"center", marginBottom:10, color:"#00A86B" }}><NavIcon name="sprout" size={36} /></div>
-                <p style={{ fontSize:14, margin:0, lineHeight:1.7 }}>いまは待つだけ。作業日の前日までに必ず結果が届きます</p>
-                <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>「さがす」から求人に応募できます。</p>
-              </div>
+              emptyApplyState
             ) : apps.length > 0 && (
               <div ref={skelRef}>
                 <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 2px" }}>応募中（{apps.length}）</p>
