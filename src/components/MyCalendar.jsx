@@ -284,7 +284,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
       if (error || !data?.ok) {
         fbError();
         const r = data?.reason;
-        alert(r === "has_applications" ? "応募が届いているため、日程はうごかせません。日程の相談はチャットで行ってください。"
+        alert(r === "has_applications" ? "応募が届いているため、日程はうごかせません。日程を変える場合はコピーで新しい求人として出してください。"
           : r === "past_date" ? "今日より前の日にはうごかせません。"
           : r === "bad_status" ? "終了した求人の日程はうごかせません。"
           : "うごかせませんでした：" + (r || error?.message || "不明"));
@@ -410,7 +410,16 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     if (moveMode || dragRef.current) return;
     const t = ev.touches && ev.touches.length === 1 ? ev.touches[0] : null;
     if (!t) return;
-    const mine = entryIdxOnDay(ymd).filter(i => entries[i] && entries[i].relation === "own");
+    // つかめるのは【自分が出した求人】＝own の行と、応募が届いた自分の求人（relation='application'
+    // かつ my_role='farmer'。応募があると own の行は application の行に置き換わる＝RPCの重複排除）。
+    // ★応募がある求人は動かせない（2026-08-28たきと指示「応募者はその期間を見て判断して応募している。
+    //   雇用主の都合で勝手に動かすのは運営のリスク」）＝離した日では【コピーだけ】を出す
+    const cand = entryIdxOnDay(ymd).filter(i => {
+      const e = entries[i];
+      return e && (e.relation === "own" || (e.relation === "application" && e.my_role === "farmer"));
+    });
+    const seen = new Set(); const mine = [];
+    for (const i of cand) { const jn = entries[i].job_number; if (!seen.has(jn)) { seen.add(jn); mine.push(i); } }
     if (mine.length === 0) return;
     const e0 = entries[mine[0]];
     const x = t.clientX, y = t.clientY;              // Touchオブジェクトは使い回されるので数値で控える
@@ -426,7 +435,8 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
         setDaySheet({ ymd, idxs: mine, at: Date.now() });
         return;
       }
-      startDrag({ jobNumber: e0.job_number, title, live: e0.status === "open", fromYmd: ymd, x, y, spanDays: spanOf(e0) });
+      const hasApps = e0.relation === "application";
+      startDrag({ jobNumber: e0.job_number, title, live: e0.status === "open" && !hasApps, hasApps, fromYmd: ymd, x, y, spanDays: spanOf(e0) });
     }, 350) };
   };
   // 離した日にコピー＝既存 copy_job のレールに、コピー先の日を入れて編集フローへ渡すだけ。
@@ -666,7 +676,11 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
             </p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {dropSheet.live ? (
+              {dropSheet.hasApps ? (
+                <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", background:"#FFF6EE", border:"1px solid #F3D3B5", borderRadius:10, padding:"10px 12px", lineHeight:1.7, margin:0 }}>
+                  応募が届いている求人なので、日程はうごかせません（応募した方はこの日程を見て決めています）。日程を変える場合は、コピーで新しい求人として出してください。
+                </p>
+              ) : dropSheet.live ? (
                 <button onClick={async ()=>{ const st = dropSheet; const r = await doMove(st.jobNumber, st.title, st.toYmd, { skipConfirm: true }); if (r.ok) setDropSheet(null); }} disabled={moving} className="f-sans"
                   style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:12, padding:"14px 16px", fontSize:14, fontWeight:700, cursor:"pointer", opacity: moving ? 0.6 : 1 }}>
                   {moving ? <>うごかしています<Dots /></> : "この日にうごかす"}
@@ -680,7 +694,9 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
               </button>
             </div>
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>
-              うごかすと期間と休日も同じ日数ずれます。コピーは新しい下書きになり、編集ページが開きます。
+              {dropSheet.hasApps
+                ? "コピーは新しい下書きになり、編集ページが開きます。いまの求人と応募はそのまま残ります。"
+                : "うごかすと期間と休日も同じ日数ずれます。コピーは新しい下書きになり、編集ページが開きます。"}
             </p>
           </div>
         </div>
@@ -712,6 +728,9 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
               {daySheet.idxs.map(i => {
                 const e = entries[i];
                 const own = e.relation === "own";
+                // 応募が届いた自分の求人（自分の求人の行は application の行に置き換わっている）＝
+                // 動かせないが、コピーで出し直す道は開けておく（2026-08-28たきと指示）
+                const ownWithApps = e.relation === "application" && e.my_role === "farmer";
                 // 掲載中の求人だけ、日程の移動・内容の編集を出す（終了した求人は動かさない＝過去の求人はいじらない）
                 const ownLive = own && e.status === "open";
                 const title = ((e.crop||"") + " " + (e.task||"")).trim() || "無題";
@@ -731,7 +750,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                         <button onClick={()=>{ setDaySheet(null); setMoveMode({ jobNumber: e.job_number, title }); }} className="f-sans"
                           style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>日程をうごかす</button>
                       )}
-                      {own && (
+                      {(own || ownWithApps) && (
                         <button onClick={()=>copyFromSheet(e.job_number)} className="f-sans"
                           style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>コピー</button>
                       )}
@@ -744,7 +763,11 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                     </div>
                     {ownLive ? (
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
-                        日程をうごかせるのは、応募が届く前だけです。届いた後の日程はチャットで相談してください。
+                        日程をうごかせるのは、応募が届く前だけです。届いた後に日程を変える場合は、コピーで新しい求人として出してください。
+                      </p>
+                    ) : ownWithApps ? (
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
+                        応募が届いているため、日程はうごかせません（応募した方はこの日程を見て決めています）。日程を変える場合はコピーで新しい求人として出してください。
                       </p>
                     ) : own ? (
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
