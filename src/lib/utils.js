@@ -715,9 +715,14 @@ export const HOST_STYLE_QUESTIONS = [
     { value:"memo_ok", label:"メモに書いて渡してもOK" },
   ]},
 ];
-// 回答済みの質問だけラベルの配列で返す（表示チップ用）。未回答は出さない（ダミー禁止）
+// 関わり方は複数選択可（2026-08-28たきと指示）。列は text のまま、値コードを「,」で連結して保存する
+// （DBにCHECK制約なし・他の読み手は真偽しか見ないことを実測してこの形にした＝migration不要）。
+// 旧データ（単一コード）もこの分解でそのまま通る。★区切りを変えるならここと編集側のトグルを対で
+export const hostStyleValues = (v) => String(v || "").split(",").map(s => s.trim()).filter(Boolean);
+// 回答済みの質問だけラベルの配列で返す（表示チップ用）。未回答は出さない（ダミー禁止）。
+// 並び＝選んだ順（保存された順）。知らないコードは黙って落とす（旧ビルド・改ざん対策）
 export const hostStyleChips = (e) => HOST_STYLE_QUESTIONS
-  .map(q => (q.options.find(o => o.value === e?.[q.k]) || {}).label || null)
+  .flatMap(q => hostStyleValues(e?.[q.k]).map(val => (q.options.find(o => o.value === val) || {}).label || null))
   .filter(Boolean);
 
 // 「chitose-bank利用〇年〇ヶ月」用。開始日からの経過を年月で返す

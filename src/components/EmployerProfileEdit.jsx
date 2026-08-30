@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { uploadAvatarResilient } from "../lib/avatarUpload";
-import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, farmIntroTopics, perkBadges, splitTextsForReview, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, splitTextsForReview, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
@@ -441,7 +441,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   // 関わり方4問の回答済みラベル（格子サマリー用・2026-08-14）。ローカルstateから引く＝保存前でも即反映
   const styleLocal = { interaction_style: interactionStyle, teaching_style: teachingStyle, chat_style: chatStyle, question_style: questionStyle };
-  const styleAnswered = HOST_STYLE_QUESTIONS.map(q => (q.options.find(o => o.value === styleLocal[q.k]) || {}).label).filter(Boolean);
+  // 複数選択可（2026-08-28）＝選んだ順に全ラベルを並べる（表示チップhostStyleChipsと同じ規則）
+  const styleAnswered = HOST_STYLE_QUESTIONS.flatMap(q => hostStyleValues(styleLocal[q.k]).map(v => (q.options.find(o => o.value === v) || {}).label)).filter(Boolean);
 
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
@@ -947,32 +948,38 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {editBox==="style" && (<>
-            {/* 関わり方の質問セット（2026-08-14たきと指示で4問に拡充）。1問=1択・もう一度タップで解除。
+            {/* 関わり方の質問セット（2026-08-14たきと指示で4問に拡充）。
+                2026-08-28たきと指示「複数選択可能にしよう」＝1問=複数選択（タップで入り切り）。
+                値は同じtext列に「,」連結で保存（lib/utils hostStyleValues参照・旧の単一値もそのまま通る）。
                 答えた質問だけがプレビューのチップに出る（未回答は出ない＝ダミー禁止） */}
             <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:14, lineHeight:1.6 }}>
-              答えたい質問だけ選んでください（任意）。答えた内容はプロフィールにチップで表示されます。
+              答えたい質問だけ選んでください（任意・いくつでも）。答えた内容はプロフィールにチップで表示されます。
             </p>
             {HOST_STYLE_QUESTIONS.map(q => {
-              const cur = styleLocal[q.k];
+              const curVals = hostStyleValues(styleLocal[q.k]);
               const set = { interaction_style: setInteractionStyle, teaching_style: setTeachingStyle, chat_style: setChatStyle, question_style: setQuestionStyle }[q.k];
+              const toggle = (val) => set(c => { const arr = hostStyleValues(c); return (arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]).join(","); });
               return (
                 <div key={q.k} style={{ marginBottom:16 }}>
                   <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:8 }}>{q.label}（任意）</label>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-                    {q.options.map(opt => (
+                    {q.options.map(opt => {
+                      const on = curVals.includes(opt.value);
+                      return (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => set(c => c === opt.value ? "" : opt.value)}
+                        onClick={() => toggle(opt.value)}
                         className="f-sans"
                         style={{
                           padding:"8px 16px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
-                          border: cur === opt.value ? "1.5px solid " + AC : "1px solid #EBEBEB",
-                          background: cur === opt.value ? ACS : "#fff",
-                          color: cur === opt.value ? AC : "#222",
+                          border: on ? "1.5px solid " + AC : "1px solid #EBEBEB",
+                          background: on ? ACS : "#fff",
+                          color: on ? AC : "#222",
                         }}
                       >{opt.label}</button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
