@@ -11,7 +11,7 @@ import { ToggleSwitch } from "./ToggleSwitch";
 import { EmergencyContactBox } from "./EmergencyContactBox";
 import { InsurancePrepBox, insuranceSummary } from "./InsurancePrepBox";
 import { getCache, setCache } from "../lib/viewCache";
-import { snapSet } from "../lib/snapshot";
+import { snapGet, snapSet } from "../lib/snapshot";
 
 // table/avatarDir で保存先を差し替え可能（2026-07-31たきと指示・委託専用プロフィールが同じ項目/配置で
 // 別テーブルに保存するため）。既定は雇い手プロフィール（employer_profiles・avatarは avatars/employer/）＝現行不変
@@ -173,12 +173,111 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // 項目ページを一度でも開いたら真（＝入力が始まりうる）。ネット取得の完了時、キャッシュで
+  // 即時復元済みならもう上書きしない＝書きかけを消さない（2026-08-28）。リセットしない片道の旗
+  const editBoxOpenedRef = useRef(false);
+  // ── 行→state の写し（唯一の適用関数・2026-08-28たきと指示「一瞬で復元しろ。体感0.5秒で」）──
+  // 即時復元（キャッシュ）とネット取得の両方がこれを通る＝写し方を2箇所に持たない。
+  // 新規登録からのプリフィル（account_holders＝ネット越し）はここに入れない＝ネット取得側だけの仕事
+  const applyRow = (data, seeded = false) => {
+      setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
+      setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
+      setPlaceTown(data.place_town || ""); setPlaceAddr(data.place_address || "");
+      setHasTransport(data.has_transport ?? false);
+      setHasParking(data.has_parking ?? false);
+      setHasCommuteAllowance(data.has_commute_allowance ?? false);
+      setHasBonus(data.has_bonus ?? false);
+      setHasRaise(data.has_raise ?? false);
+      setHasSeverancePay(data.has_severance_pay ?? false);
+      setConsultationContact(data.consultation_contact || "");
+      setLaborInsuranceStatus(data.labor_insurance_status || "");
+      setInsSummary(insuranceSummary(data.insurance_items));
+      setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
+      setAccessoryOk(data.accessory_ok ?? false);
+      setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
+      // 自由記述は texts_pending 優先で編集欄へ＝自分が書いた最新が見える（2026-07-16）。
+      // 承認プロセス削除後は保存の瞬間に畳まれるので実際は常に空だが、読み込み側は残しておく
+      // ＝万一トリガーを外した時（審査を戻す時）に、書きかけが編集欄から消えない
+      const tp = data.texts_pending || {};
+      approvedTextsRef.current = {
+        owner_comment: data.owner_comment ?? "", intro_path: data.intro_path ?? "", intro_joy: data.intro_joy ?? "",
+        intro_crops: data.intro_crops ?? "", intro_atmosphere: data.intro_atmosphere ?? "", intro_message: data.intro_message ?? "",
+        unique_point: data.unique_point ?? "", always_do: data.always_do ?? "", break_style: data.break_style ?? "",
+        transport_area: data.transport_area ?? "", commute_allowance_detail: data.commute_allowance_detail ?? "", supplies_cap: data.supplies_cap ?? "",
+        raise_detail: data.raise_detail ?? "", bonus_detail: data.bonus_detail ?? "", severance_detail: data.severance_detail ?? "",
+      };
+      if (seeded) approvedTextsRef.current = {};
+      setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
+      setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
+      setTransportArea(tp.transport_area ?? (data.transport_area || ""));
+      setRaiseDetail(tp.raise_detail ?? (data.raise_detail || ""));
+      setBonusDetail(tp.bonus_detail ?? (data.bonus_detail || ""));
+      setSeveranceDetail(tp.severance_detail ?? (data.severance_detail || ""));
+      setIntroPath(tp.intro_path ?? data.intro_path ?? "");
+      setIntroJoy(tp.intro_joy ?? data.intro_joy ?? "");
+      setIntroCrops(tp.intro_crops ?? data.intro_crops ?? "");
+      setIntroAtmosphere(tp.intro_atmosphere ?? data.intro_atmosphere ?? "");
+      setIntroMessage(tp.intro_message ?? data.intro_message ?? "");
+      setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
+      setRecruiterName(data.recruiter_name || "");
+      setRecruiterNameKana(data.recruiter_name_kana || "");
+      setSmokingPolicy(data.smoking_policy || ""); setSmokingArea(data.smoking_area || "");
+      setRecruiterAddress(data.recruiter_address || "");
+      setRecruiterContact(data.recruiter_contact || "");
+      setRecruiterZip(data.recruiter_zip || ""); setRecruiterPref(data.recruiter_prefecture || "");
+      setRecruiterCity(data.recruiter_city || ""); setRecruiterDetail(data.recruiter_address_detail || "");
+      setUniquePoint(tp.unique_point ?? data.unique_point ?? "");
+      setAlwaysDo(tp.always_do ?? data.always_do ?? "");
+      setBreakStyle(tp.break_style ?? data.break_style ?? "");
+      setInteractionStyle(data.interaction_style ?? "");
+      setTeachingStyle(data.teaching_style ?? ""); setChatStyle(data.chat_style ?? ""); setQuestionStyle(data.question_style ?? "");
+      // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
+      const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.unique_point || data.always_do || data.break_style || data.interaction_style);
+      if (hasIntroContent) setIntroOpen(true);
+  };
+  // 新規登録①の内容で未入力欄を埋める（従来の挙動そのまま・ネット取得の後だけ呼ぶ）。
+  // data=null は「プロフィール行がまだ無い新規の求人者」＝全欄プリフィル（2026-08-03）
+  const prefillFromAccount = async (data, session) => {
+    try {
+      const { data: ah } = await supabase.from("account_holders")
+        .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
+        .eq("auth_id", session.user.id).maybeSingle();
+      if (!ah) return;
+      const nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
+      const ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
+      if (!data) {
+        if (nm) setRecruiterName(nm);
+        await fillSplitFromAccount(ah);
+        if (ct) setRecruiterContact(ct);
+        return;
+      }
+      // 入っている値は上書きしない＝本人が直した内容を消さない（2026-07-27）。保存は本人が押した時だけ
+      if (!(data.recruiter_name || "").trim() && nm) setRecruiterName(nm);
+      const partsEmpty = !((data.recruiter_zip || "").trim() || (data.recruiter_prefecture || "").trim() || (data.recruiter_city || "").trim() || (data.recruiter_address_detail || "").trim());
+      if (!(data.recruiter_address || "").trim() && partsEmpty) await fillSplitFromAccount(ah);
+      if (!(data.recruiter_contact || "").trim() && ct) setRecruiterContact(ct);
+    } catch {}
+  };
   useEffect(() => {
+    // ① 即時復元（2026-08-28）：マイページが取ってある自分の全列キャッシュ
+    //   （farm:empMini＝viewCache／empMini＝snapshot・本人スコープ・ログアウトで消える）から
+    //   その場で描く＝完全終了からでも骨（スケルトン）を見せない。表示専用の使い方（2026-08-02規則）
+    //   ＝正しさは下の②ネット取得が担保。委託レーン（consignment_profiles）はこのキャッシュと
+    //   別テーブルなので使わない（従来どおり取得を待つ）
+    let hydrated = false;
+    if (table === "employer_profiles") {
+      try {
+        const cached = getCache("farm:empMini") ?? snapGet("empMini");
+        if (cached && typeof cached === "object") { applyRow(cached); hydrated = true; setLoading(false); }
+      } catch {}
+    }
+    // ② ネット取得（従来どおり・正しさの担保）
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         let { data } = await supabase.from(table).select("*").eq("auth_id", session.user.id).maybeSingle();
+
         // 初回引き継ぎ：自分の行が無ければ seedFrom（農家プロフィール）を初期値として読む。
         // 行は作らない＝保存は本人が押した時だけ。承認済み控えは空にする（この表にはまだ何も保存されていない）
         let seeded = false;
@@ -187,100 +286,21 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           if (sd) { data = sd; seeded = true; }
         }
         if (data) {
-          setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
-          setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
-          setPlaceTown(data.place_town || ""); setPlaceAddr(data.place_address || "");
-          setHasTransport(data.has_transport ?? false);
-          setHasParking(data.has_parking ?? false);
-          setHasCommuteAllowance(data.has_commute_allowance ?? false);
-          setHasBonus(data.has_bonus ?? false);
-          setHasRaise(data.has_raise ?? false);
-          setHasSeverancePay(data.has_severance_pay ?? false);
-          setConsultationContact(data.consultation_contact || "");
-          setLaborInsuranceStatus(data.labor_insurance_status || "");
-          setInsSummary(insuranceSummary(data.insurance_items));
-          setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
-          setAccessoryOk(data.accessory_ok ?? false);
-          setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
-          // 自由記述は texts_pending 優先で編集欄へ＝自分が書いた最新が見える（2026-07-16）。
-          // 承認プロセス削除後は保存の瞬間に畳まれるので実際は常に空だが、読み込み側は残しておく
-          // ＝万一トリガーを外した時（審査を戻す時）に、書きかけが編集欄から消えない
-          const tp = data.texts_pending || {};
-          approvedTextsRef.current = {
-            owner_comment: data.owner_comment ?? "", intro_path: data.intro_path ?? "", intro_joy: data.intro_joy ?? "",
-            intro_crops: data.intro_crops ?? "", intro_atmosphere: data.intro_atmosphere ?? "", intro_message: data.intro_message ?? "",
-            unique_point: data.unique_point ?? "", always_do: data.always_do ?? "", break_style: data.break_style ?? "",
-            transport_area: data.transport_area ?? "", commute_allowance_detail: data.commute_allowance_detail ?? "", supplies_cap: data.supplies_cap ?? "",
-            raise_detail: data.raise_detail ?? "", bonus_detail: data.bonus_detail ?? "", severance_detail: data.severance_detail ?? "",
-          };
-          if (seeded) approvedTextsRef.current = {};
-          setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
-          setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
-          setTransportArea(tp.transport_area ?? (data.transport_area || ""));
-          setRaiseDetail(tp.raise_detail ?? (data.raise_detail || ""));
-          setBonusDetail(tp.bonus_detail ?? (data.bonus_detail || ""));
-          setSeveranceDetail(tp.severance_detail ?? (data.severance_detail || ""));
-          setIntroPath(tp.intro_path ?? data.intro_path ?? "");
-          setIntroJoy(tp.intro_joy ?? data.intro_joy ?? "");
-          setIntroCrops(tp.intro_crops ?? data.intro_crops ?? "");
-          setIntroAtmosphere(tp.intro_atmosphere ?? data.intro_atmosphere ?? "");
-          setIntroMessage(tp.intro_message ?? data.intro_message ?? "");
-          setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
-          setRecruiterName(data.recruiter_name || "");
-          setRecruiterNameKana(data.recruiter_name_kana || "");
-          setSmokingPolicy(data.smoking_policy || ""); setSmokingArea(data.smoking_area || "");
-          setRecruiterAddress(data.recruiter_address || "");
-          setRecruiterContact(data.recruiter_contact || "");
-          setRecruiterZip(data.recruiter_zip || ""); setRecruiterPref(data.recruiter_prefecture || "");
-          setRecruiterCity(data.recruiter_city || ""); setRecruiterDetail(data.recruiter_address_detail || "");
-          // 未入力なら新規登録の内容を初期値として入れる（2026-07-27たきと指示「自動挿入」）。
-          // 入っている値は上書きしない＝本人が直した内容を消さない。保存は本人が押した時だけ
-          if (!(data.recruiter_name || "").trim() || !(data.recruiter_address || "").trim() || !(data.recruiter_contact || "").trim()) {
-            try {
-              const { data: ah } = await supabase.from("account_holders")
-                .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
-                .eq("auth_id", session.user.id).maybeSingle();
-              if (ah) {
-                const nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
-                const ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
-                if (!(data.recruiter_name || "").trim() && nm) setRecruiterName(nm);
-                // 住所：分割欄も1行値も空のときだけ、新規登録の住所を分割欄へ流し込む（2026-08-01）
-                const partsEmpty = !((data.recruiter_zip || "").trim() || (data.recruiter_prefecture || "").trim() || (data.recruiter_city || "").trim() || (data.recruiter_address_detail || "").trim());
-                if (!(data.recruiter_address || "").trim() && partsEmpty) await fillSplitFromAccount(ah);
-                if (!(data.recruiter_contact || "").trim() && ct) setRecruiterContact(ct);
-              }
-            } catch {}
+          // キャッシュで復元済みかつ項目ページを開いた後なら上書きしない（書きかけを守る）。
+          // キャッシュは直前のマイページ表示が書いた自分の行so、残るズレは他端末での同時編集だけ
+          if (!(hydrated && editBoxOpenedRef.current)) {
+            applyRow(data, seeded);
+            await prefillFromAccount(data, session);
           }
-          setUniquePoint(tp.unique_point ?? data.unique_point ?? "");
-          setAlwaysDo(tp.always_do ?? data.always_do ?? "");
-          setBreakStyle(tp.break_style ?? data.break_style ?? "");
-          setInteractionStyle(data.interaction_style ?? "");
-          setTeachingStyle(data.teaching_style ?? ""); setChatStyle(data.chat_style ?? ""); setQuestionStyle(data.question_style ?? "");
-          // 既に1つでも入力済みなら初期状態でアコーディオンを開く（値が見えず消えたと誤解されるのを防ぐ）
-          const hasIntroContent = !!(data.intro_path || data.intro_joy || data.intro_crops || data.intro_atmosphere || data.intro_message || data.owner_comment || data.unique_point || data.always_do || data.break_style || data.interaction_style);
-          if (hasIntroContent) setIntroOpen(true);
+          // 次回の即時復元のために最新を写す（正本の行だけ＝seedFrom由来の初期値は写さない）
+          if (table === "employer_profiles" && !seeded) { try { setCache("farm:empMini", data); snapSet("empMini", data); } catch {} }
         } else {
-          // プロフィール行がまだ無い新規の求人者（2026-08-03たきと指示「求人者のプロフィールも新規登録から引き継ごう」）：
-          // 氏名・名称／住所（分割）／連絡先を新規登録①の内容で初期値プリフィルする。
-          // 従来この自動挿入は「行がある場合の未入力欄」にしか効いておらず、初回は全欄空だった。
-          // 保存は本人が押した時だけ＝本人が内容を確認して公開する形（2026-07-27の設計原則）は不変
-          try {
-            const { data: ah } = await supabase.from("account_holders")
-              .select("full_name,company_name,postal_code,address,contact_phone,contact_email")
-              .eq("auth_id", session.user.id).maybeSingle();
-            if (ah) {
-              const nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
-              const ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
-              if (nm) setRecruiterName(nm);
-              await fillSplitFromAccount(ah);
-              if (ct) setRecruiterContact(ct);
-            }
-          } catch {}
+          await prefillFromAccount(null, session);
         }
       } catch {}
       setLoading(false);
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
   const convertToJpeg = (file) => new Promise((resolve, reject) => {
     const img = new Image();
@@ -374,6 +394,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     window.addEventListener("popstate", onHash);
     return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onHash); };
   }, [black]);
+  // 項目ページが一度でも開いたら旗を立てる（deep link で最初から開いている場合も拾う）
+  useEffect(() => { if (editBox) editBoxOpenedRef.current = true; }, [editBox]);
   // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
   // 別テーブル（emergency_contacts・self-only）のでこのページの本体読み込みとは独立に読む。
   // 従来は v:"" 固定＝保存してもカードが永久に「未設定」＋赤影のままだった

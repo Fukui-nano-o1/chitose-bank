@@ -10,6 +10,8 @@ import { NavIcon, NavIconInline } from "./NavIcons";
 import { WorkerExperienceEntries } from "./WorkerExperiencePage"; // 経験カード＋免許・資格・保険方針のトグル行（共有部品）
 import { WorkerTrustCard } from "./TrustCards";
 import { EmergencyContactBox } from "./EmergencyContactBox";
+import { getCache, setCache } from "../lib/viewCache";
+import { snapGet, snapSet } from "../lib/snapshot";
 
 const PR_PROMPTS = [
   { q:"農作業に興味を持ったきっかけは？", placeholder:"きっかけを、あなたの言葉で" },
@@ -133,32 +135,54 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   // 住所を直しただけの保存でも審査がやり直し（申請時刻がリセット＝48時間の自動公開も後ろにずれる）になっていた。
   // 審査中の内容と同じなら、申請時刻を据え置いて出し直さない＝運営の承認待ちの列に並び直さない
   const pendingRef = useRef({ pr: null, pr_qa: null, submitted_at: null });
+  // 項目ページを一度でも開いたら真（＝入力が始まりうる）。ネット取得の完了時、キャッシュで
+  // 即時復元済みならもう上書きしない＝書きかけを消さない（2026-08-28）。リセットしない片道の旗
+  const editBoxOpenedRef = useRef(false);
+  // ── 行→state の写し（唯一の適用関数・2026-08-28たきと指示「一瞬で復元しろ。体感0.5秒で」）──
+  // 即時復元（キャッシュ）とネット取得の両方がこれを通る＝写し方を2箇所に持たない
+  const applyRow = (data) => {
+    setNickname(data.nickname || "");
+    // 自由記述は確認待ち(pending)があればそちらを編集継続、無ければ公開版を初期値に
+    setPr(data.pr_pending ?? data.pr ?? "");
+    setAvatarUrl(data.avatar_url || "");
+    setPrQa(Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : (Array.isArray(data.pr_qa) ? data.pr_qa : []));
+    approvedRef.current = { pr: data.pr || "", pr_qa: Array.isArray(data.pr_qa) ? data.pr_qa : [] };
+    pendingRef.current = { pr: data.pr_pending ?? null, pr_qa: Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : null, submitted_at: data.pr_submitted_at ?? null };
+    setResidenceCity(data.residence_city || "");
+    setTransport(data.transport || "");
+    setFarmExperience(data.farm_experience || "");
+    setPhysicalLevel(data.physical_level || "");
+    setWorkMood(data.work_mood || ""); setLearningPref(data.learning_pref || ""); setWorkPattern(data.work_pattern || "");
+    setInterests(Array.isArray(data.interests) ? data.interests : []);
+    setLanguages(Array.isArray(data.languages) ? data.languages : []);
+    setSelfDeclared(Array.isArray(data.self_declared) ? data.self_declared : []);
+    setExpEntries(Array.isArray(data.experience_entries) ? data.experience_entries : []);
+    setExperiencedTasks(Array.isArray(data.experienced_tasks) ? data.experienced_tasks : []);
+    // 修正依頼の指摘対象（2026-07-19）：該当ボックスに赤帯を出す。再提出（保存）で消える
+    setRevTargets(Array.isArray(data.pr_revision_targets) ? data.pr_revision_targets : []);
+  };
   useEffect(() => {
+    // ① 即時復元：マイページが取ってある自分の全列キャッシュ（hub:wMini＝viewCache／wMini＝snapshot・
+    //   本人スコープ・ログアウトで消える）からその場で描く＝完全終了からでも骨（スケルトン）を見せない。
+    //   表示専用の使い方（2026-08-02規則）＝正しさは下の②ネット取得が担保。
+    //   ★審査系の控え（approvedRef/pendingRef）はキャッシュ由来でも、save()が保存直前に
+    //     取り直す既存の守り（2026-08-14）があるので古い控えのまま審査に出ることはない
+    let hydrated = false;
+    try {
+      const cached = getCache("hub:wMini") ?? snapGet("wMini");
+      if (cached && typeof cached === "object") { applyRow(cached); hydrated = true; setLoading(false); }
+    } catch {}
+    // ② ネット取得（従来どおり・正しさの担保）
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
         const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
         if (data) {
-          setNickname(data.nickname || "");
-          // 自由記述は確認待ち(pending)があればそちらを編集継続、無ければ公開版を初期値に
-          setPr(data.pr_pending ?? data.pr ?? "");
-          setAvatarUrl(data.avatar_url || "");
-          setPrQa(Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : (Array.isArray(data.pr_qa) ? data.pr_qa : []));
-          approvedRef.current = { pr: data.pr || "", pr_qa: Array.isArray(data.pr_qa) ? data.pr_qa : [] };
-          pendingRef.current = { pr: data.pr_pending ?? null, pr_qa: Array.isArray(data.pr_qa_pending) ? data.pr_qa_pending : null, submitted_at: data.pr_submitted_at ?? null };
-          setResidenceCity(data.residence_city || "");
-          setTransport(data.transport || "");
-          setFarmExperience(data.farm_experience || "");
-          setPhysicalLevel(data.physical_level || "");
-          setWorkMood(data.work_mood || ""); setLearningPref(data.learning_pref || ""); setWorkPattern(data.work_pattern || "");
-          setInterests(Array.isArray(data.interests) ? data.interests : []);
-          setLanguages(Array.isArray(data.languages) ? data.languages : []);
-          setSelfDeclared(Array.isArray(data.self_declared) ? data.self_declared : []);
-          setExpEntries(Array.isArray(data.experience_entries) ? data.experience_entries : []);
-          setExperiencedTasks(Array.isArray(data.experienced_tasks) ? data.experienced_tasks : []);
-          // 修正依頼の指摘対象（2026-07-19）：該当ボックスに赤帯を出す。再提出（保存）で消える
-          setRevTargets(Array.isArray(data.pr_revision_targets) ? data.pr_revision_targets : []);
+          // キャッシュで復元済みかつ項目ページを開いた後なら上書きしない（書きかけを守る）
+          if (!(hydrated && editBoxOpenedRef.current)) applyRow(data);
+          // 次回の即時復元のために最新を写す
+          try { setCache("hub:wMini", data); snapSet("wMini", data); } catch {}
         }
       } catch {}
       setLoading(false);
@@ -335,6 +359,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     window.addEventListener("popstate", onHash);
     return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onHash); };
   }, []);
+  // 項目ページが一度でも開いたら旗を立てる（deep link で最初から開いている場合も拾う）
+  useEffect(() => { if (editBox) editBoxOpenedRef.current = true; }, [editBox]);
   // 一覧に戻った時、開く前に見ていた場所へ帰す（項目が下の方でも探し直さなくていい）
   const listScrollRef = useRef(0);
   const openEditBox = (k) => {
