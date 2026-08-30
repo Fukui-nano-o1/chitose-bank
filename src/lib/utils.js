@@ -597,15 +597,27 @@ export const qaShort = (q) => {
 // ★「希望する作業の強さ」のラベルは必ずこの名称（「体力」等の身体属性を想起させる表現は禁止・2026-07-14規則）。
 // ★追加3問（作業中の雰囲気・教わり方の希望・希望する働き方）は公開許可リストへの追加＝2026-08-14たきと裁定。
 //   判断理由：いずれも労働条件の希望／業務上の意思疎通に必要な情報（身体属性・年代等の禁止項目に非該当）
+// ★選択肢は2026-08-28たきと指示「今の3倍くらいボキャブラリー増やしてほしい」で各3→9に拡充。
+//   既存の3つは文字を1字も変えず先頭に残す（値=ラベル文字列で保存されているため＝旧値がそのまま表示される）。
+//   増やすときの物差し＝すべて【労働条件・職場の相性の希望】の言葉で書く。身体属性（体力・年齢等）を
+//   想起させる言い回し・評価の言葉は禁止（2026-07-14規則・CLAUDE.md収集禁止事項）
 export const WORKER_STYLE_QUESTIONS = [
   { k:"physical_level", label:"希望する作業の強さ", q:"希望する作業の強さは？",
-    options:["軽めの作業がうれしい","どちらでもOK","力仕事も歓迎"] },
+    options:["軽めの作業がうれしい","どちらでもOK","力仕事も歓迎",
+             "細かい手作業がすき","座ってできる作業がうれしい","外での作業がすき",
+             "屋内・選果場の作業がすき","重いものは少なめだと助かる","こまめに休憩があると助かる"] },
   { k:"work_mood", label:"作業中の雰囲気", q:"作業中の雰囲気は？",
-    options:["おしゃべり歓迎","ほどよく会話","黙々と集中"] },
+    options:["おしゃべり歓迎","ほどよく会話","黙々と集中",
+             "にぎやかな現場がすき","静かな現場がすき","音楽やラジオがあるとうれしい",
+             "休憩中の雑談は歓迎","あいさつ程度がちょうどいい","その日の空気に合わせます"] },
   { k:"learning_pref", label:"教わり方の希望", q:"教わり方の希望は？",
-    options:["やって見せてほしい","口頭での説明がいい","やりながら覚えたい"] },
+    options:["やって見せてほしい","口頭での説明がいい","やりながら覚えたい",
+             "手順を分けて少しずつ教えてほしい","メモや写真があるとうれしい","お手本を何度か見たい",
+             "まず自分で試して直してもらいたい","質問しながら進めたい","ゆっくりのペースだと助かる"] },
   { k:"work_pattern", label:"希望する働き方", q:"希望する働き方は？",
-    options:["単発で働きたい","気に入った農園に続けて通いたい","季節ごとに働きたい"] },
+    options:["単発で働きたい","気に入った農園に続けて通いたい","季節ごとに働きたい",
+             "週1〜2日くらい通いたい","平日を中心に働きたい","週末を中心に働きたい",
+             "午前だけ・短時間で働きたい","農繁期に集中して働きたい","いろいろな農園を経験したい"] },
 ];
 
 // 働き手プレビューのQ&A（コメント形式）に流す項目の唯一のソース（2026-08-07たきと指示）。
@@ -642,10 +654,18 @@ export const farmHostQa = (e) => [
 ].filter(x => x.a && x.a.trim());
 
 // 作業中の関わり方（EmployerProfileEdit・FarmerTrustCard共通）
+// ★選択肢は2026-08-28たきと指示で3→9に拡充（下のHOST_STYLE_QUESTIONSの注記参照）。
+//   既存3つの value・label は不変＝保存済みの回答がそのまま表示される
 export const INTERACTION_STYLE_OPTIONS = [
   { value:"together", label:"一緒に作業する" },
   { value:"explain_then_leave", label:"最初に説明して任せる" },
   { value:"on_call", label:"必要な時だけ声かけ" },
+  { value:"morning_brief", label:"朝に段取りを共有してスタート" },
+  { value:"check_ins", label:"ときどき様子を見にいく" },
+  { value:"pair_until_used", label:"慣れるまでは隣で一緒に" },
+  { value:"remote_contact", label:"離れた場所から連絡でやり取り" },
+  { value:"end_review", label:"終わりにその日をふり返る" },
+  { value:"flexible", label:"その日の作業に合わせて柔軟に" },
 ];
 export const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.value === v)?.label || "";
 
@@ -655,22 +675,44 @@ export const interactionStyleLabel = v => INTERACTION_STYLE_OPTIONS.find(o => o.
 // 列は employer_profiles にそれぞれ text で保存（値=value・表示=label）。
 // ★質問・選択肢を足す時はここに1行足すだけ（DB列の追加と、employer_profiles_public／
 //   job_employer_profile への列追加も忘れずに＝2026-08-14 migration host_style_questions 参照）
+// ★選択肢は2026-08-28たきと指示「今の3倍くらいボキャブラリー増やしてほしい」で各3→9に拡充。
+//   既存の value・label は1字も変えない（列に value 文字列で保存済み＝変えると旧回答のチップが消える）。
+//   増やすときの物差し＝現場のやり方・意思疎通の事実だけ。評価・売り文句の言葉は書かない
+//   （2026-07-16「運営の主観を混ぜない」）。値のコードは英小文字スネークで一意に
 export const HOST_STYLE_QUESTIONS = [
   { k:"interaction_style", label:"作業中の関わり方", options: INTERACTION_STYLE_OPTIONS },
   { k:"teaching_style", label:"教え方", options:[
     { value:"show_first", label:"やって見せてから任せる" },
     { value:"verbal", label:"口頭でていねいに説明" },
     { value:"learn_by_doing", label:"一緒にやりながら覚えてもらう" },
+    { value:"step_by_step", label:"手順を分けて少しずつ" },
+    { value:"photo_memo", label:"写真や手順メモを用意している" },
+    { value:"demo_repeat", label:"何度でもやって見せる" },
+    { value:"senior_support", label:"慣れた人がそばでサポート" },
+    { value:"try_then_answer", label:"まずやってもらい質問に答える" },
+    { value:"fit_pace", label:"その人のペースに合わせる" },
   ]},
   { k:"chat_style", label:"作業中の雰囲気", options:[
     { value:"chatty", label:"おしゃべり歓迎" },
     { value:"moderate", label:"ほどよく会話" },
     { value:"quiet", label:"黙々と集中" },
+    { value:"lively", label:"わいわいにぎやか" },
+    { value:"calm", label:"落ち着いてマイペース" },
+    { value:"music_on", label:"音楽・ラジオを流している" },
+    { value:"family_like", label:"家族的なあたたかさ" },
+    { value:"brisk", label:"てきぱき仕事優先" },
+    { value:"depends_day", label:"日によっていろいろ" },
   ]},
   { k:"question_style", label:"質問・相談のしかた", options:[
     { value:"anytime", label:"いつでもその場で聞いてOK" },
     { value:"at_breaks", label:"休憩のときにまとめて" },
     { value:"try_first", label:"まず試してみてから相談" },
+    { value:"chat_later", label:"チャットであとからでもOK" },
+    { value:"ask_senior", label:"近くの慣れた人に聞ける" },
+    { value:"morning_meeting", label:"朝の段取りのときに" },
+    { value:"end_of_day", label:"作業の終わりにまとめて" },
+    { value:"call_when_stuck", label:"困ったら手を止めて呼んでほしい" },
+    { value:"memo_ok", label:"メモに書いて渡してもOK" },
   ]},
 ];
 // 回答済みの質問だけラベルの配列で返す（表示チップ用）。未回答は出さない（ダミー禁止）
