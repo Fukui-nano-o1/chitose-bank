@@ -10,6 +10,7 @@ import { zipLookup } from "../../lib/zipLookup";
 import { Avatar, VineCorner, Dots } from "../../components/ui";
 import { CalendarView } from "../../components/CalendarView";
 import { AdminNav } from "../../components/admin/AdminNav";
+import { FarmTimelessRoom } from "../../components/admin/FarmTimelessRoom";
 import {
   CONSIGN_STEPS, consignStepState, CONSIGN_STATUS, consignRecruitState, parseYmd, deadlineLabel,
   CONSIGN_FIXED_CLAUSES, CONSIGN_CROP, CONSIGN_EMPTY, CONSIGN_BASIC_FIELDS, CONSIGN_TASKS,
@@ -72,9 +73,12 @@ export function ConsignmentRoom() {
     // 受託面（2026-08-05たきと指示）：委託＝出す側／受託＝受ける側の2面。求人求職のトグルと同じ構造ので
     // 面ごとにURLを持たせる（#/profile/worker ⇄ #/profile/employer と同じ作法）＝戻る・スワイプ・直打ちが効く
     if (h === "admin/consignment/contractor") return { view: "contractor" };
+    // 農タイムレス（2026-08-30たきと指示）：日本地図に病害虫・栽培アクションを記録する運営専用ページ。
+    // 委託面の「新しく委託を出す」カードの下が入口。URLは admin/consignment 前方一致の既存レールに乗る
+    if (h === "admin/consignment/timeless") return { view: "timeless" };
     return { view: "list" };
   };
-  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "contractor" ? "contractor" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=委託面（一覧）/ contractor=受託面 / deal=案件ダッシュボード / profile=委託専用プロフィール
+  const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "contractor" ? "contractor" : v === "profile" ? "profile" : v === "new" ? "new" : v === "timeless" ? "timeless" : "deal"; }); // list=委託面（一覧）/ contractor=受託面 / deal=案件ダッシュボード / profile=委託専用プロフィール / timeless=農タイムレス
   // 委託⇄受託の反転アニメ（ProfileHubのpTab切替と同じ2段階：pflip-out 0.4s→面切替→pflip-in 0.4s）
   const [cAnim, setCAnim] = useState("");
   const [contractorFlip, setContractorFlip] = useState(false); // 「委託をさがす」カードの反転（掲載板は準備中）
@@ -559,6 +563,7 @@ export function ConsignmentRoom() {
       else if (c.view === "profile") { setProfilePane("info"); setCTab("profile"); }
       // 受託面（2026-08-05）：委託面と同じ「一覧の世界」ので帰還演出（ウィザード・プロフィールからの逆再生）は挟まない
       else if (c.view === "contractor") { setCTab("contractor"); }
+      else if (c.view === "timeless") { setCTab("timeless"); consignScrollTop(); }
       else { const d = dealsRef.current.find(x => x.id === c.id); if (d) openDealState(d); }
     };
     window.addEventListener("hashchange", onHash);
@@ -1051,6 +1056,15 @@ export function ConsignmentRoom() {
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:17.6, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
         <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>5つのステップで掲載まで進みます。</span>
       </button>
+
+      {/* 農タイムレス（2026-08-30たきと指示・「新しく委託を出す」カードの下）。
+          日本地図（都道府県タイル）に病害虫・栽培アクションを写真と一言で記録する運営専用ページへの入口。
+          管理者専用の二重の壁＝この部屋のadminゲート＋farm_timeless_posts のRLS（app_admins限定）。
+          配色は白地に黒枠＝黒ベタの「新しく委託を出す」と並べたときの濃淡で見分ける（受託者ピルと同じ作法） */}
+      <button onClick={()=>{ window.location.hash = "/admin/consignment/timeless"; }} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", margin:"0 0 16px", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
+        <span className="f-sans" style={{ display:"block", fontSize:17.6, fontWeight:800, color:"#111111", letterSpacing:".02em" }}>農タイムレス</span>
+        <span className="f-sans" style={{ display:"block", fontSize:14.3, color:"#717171", marginTop:4, lineHeight:1.6 }}>日本地図に、病害虫や栽培アクションを写真と一言で記録します（管理者専用）。</span>
+      </button>
       </div>)}
 
       {/* ═══ 受託面（#/admin/consignment/contractor・2026-08-05たきと指示）═══
@@ -1143,6 +1157,9 @@ export function ConsignmentRoom() {
           {profilePane === "lend" && <ConsignLendPane consignor={consignor} onSaved={(merged)=>{ setConsignor(merged); setCache("consign:consignor", merged); }} />}
         </div>
       )}
+
+      {/* 農タイムレス（#/admin/consignment/timeless・2026-08-30たきと指示）：中身は専用部品が全部持つ */}
+      {cTab === "timeless" && <FarmTimelessRoom />}
 
       {/* 委託機能利用特約（2026-08-02たきと指示）：「新しく委託を出す」タップ時に展開する初回ゲート。
           本文はたきと起草の文言そのまま。同意で consignment_terms_consent* に版数付きで記録 */}
