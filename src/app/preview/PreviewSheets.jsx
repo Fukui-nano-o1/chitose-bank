@@ -101,7 +101,7 @@ export function EmployerPreviewSheet() {
                   働き手の「はたらいた記録」と対の面。カードのタップ＝この全画面を閉じてから求人ページへ
                   （開いたままだと遷移先が白幕の下に隠れる）。戻り先はいまのURL（cb_jobBackToの既存の作法） */}
               <div>
-                <FarmerRecord trust={st.trust} farmerId={st.farmer_id}
+                <FarmerRecord trust={st.trust} profile={st.profile} farmerId={st.farmer_id}
                   onOpenJob={(jn) => {
                     try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "") || "/search"); } catch { /* 保存できなくても遷移は続ける */ }
                     setSt(null);
