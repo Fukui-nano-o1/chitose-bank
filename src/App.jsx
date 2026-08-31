@@ -910,11 +910,18 @@ export default function App(){
     };
     const onStart = (e) => {
       fired = false;
+      // ピンチ（2本目の指）は「引き下げ」ではない（2026-08-31たきと報告「一気にズームすると強制更新される」）：
+      // 2本目のtouchstartでも発火するので、既に構えた分も解除する
+      if (e.touches.length > 1) { startY = null; return; }
+      // 地図（Leaflet）の上は地図が指を使う（パン・ピンチ）＝引き下げ更新は構えない。
+      // .leaflet-container は touch-action:none でページは動かないが、このリスナーは指を見てしまうため
+      if (e.target?.closest?.(".leaflet-container")) { startY = null; return; }
       if (window.scrollY > 0 || inScrollableOrFixed(e.target)) { startY = null; return; }
       startY = e.touches[0].clientY; startX = e.touches[0].clientX;
     };
     const onMove = (e) => {
       if (startY == null || fired) return;
+      if (e.touches.length > 1) { startY = null; return; } // 途中から2本目が乗ってもピンチ＝解除
       if (window.scrollY > 0) { startY = null; return; }
       const dy = e.touches[0].clientY - startY;
       const dx = Math.abs(e.touches[0].clientX - startX);
