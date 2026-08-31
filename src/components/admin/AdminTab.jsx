@@ -459,7 +459,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
             <button onClick={()=>setReorderPicks([])} className="f-sans" style={{ padding:"7px 14px", fontSize:12, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:16, cursor:"pointer" }}>並び替え</button>
           )}
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:12, marginBottom:24 }}>
+        {/* 列数は画面幅から自然に決まる（2026-08-31たきと指示「カード幅と画面幅は自然に調節」）：
+            3列固定だと狭い画面でカードが痩せ、広い画面で間延びする＝auto-fill＋最小幅で追従させる */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(150px, 1fr))", gap:12, marginBottom:24 }}>
           {orderedOtherCards(otherOrder).map(c => {
             const pickIdx = reorderPicks ? reorderPicks.indexOf(c.k) : -1;
             return (
@@ -559,7 +561,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
           {accounts.length > 0 && acctList.length === 0 && (
             <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>このタブに該当するアカウントはありません</p>
           )}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(110px, 1fr))", gap:10 }}>
             {acctList.map(u => (
               <button key={u.auth_id} onClick={()=>{ setEmailShown(null); setExpandedAccount(u.auth_id); }}
                 className="f-sans"
