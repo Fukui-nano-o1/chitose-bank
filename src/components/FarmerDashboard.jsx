@@ -420,6 +420,19 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (f) { sessionStorage.removeItem("cb_appFilter"); if (APP_HIDABLE.includes(f)) setAppHidden(prev => prev.filter(k => k !== f)); }
     } catch {}
   }, [jobTab]);
+  // 求人詳細「応募者一覧を見る」からの合図（2026-08-31たきと指示「いるなら該当する求人カードのみを表示」）：
+  // cb_applicantsJobNo＝その求人番号。応募者一覧をこの求人だけに絞る。応募がゼロでもその求人のカードを出し、
+  // 「この求人への応募はまだありません」と明記する（カードの既存の空表示がそのまま担う）。
+  // 合図は1回で使い切り＝リロード・別経路からの着地では全件に戻る。ページ内は「すべて表示」で解除
+  const [appJobFocus, setAppJobFocus] = useState(null);
+  useEffect(() => {
+    if (jobTab !== "applicants") return;
+    try {
+      const jn = sessionStorage.getItem("cb_applicantsJobNo");
+      if (jn) { sessionStorage.removeItem("cb_applicantsJobNo"); const n = Number(jn); if (Number.isFinite(n) && n > 0) setAppJobFocus(n); }
+    } catch {}
+  }, [jobTab]);
+  useEffect(() => { if (jobTab !== "applicants") setAppJobFocus(null); }, [jobTab]); // ページを離れたら解除（calDayと同じ作法）
   const [appLegendOpen, setAppLegendOpen] = useState(false); // 応募者一覧・カレンダー下部「帯の意味」の説明ボックス開閉
   // カレンダータブのカレンダー（2026-08-19たきと指示「カレンダーは常時展開。ステータスページと同じ設計を」）
   // ＝ステータスページ（SavedJobsView）と同じ形にした：常に展開・畳む道は無い。
@@ -1255,7 +1268,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             {jobTab==="calendar" && calendarTop}
             <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmList:applicants" /></div>
           </>
-        ) : dbApplicants.length === 0 ? (
+        ) : (dbApplicants.length === 0 && !(jobTab === "applicants" && appJobFocus)) ? (
+          /* ★求人詳細から絞り込みで来た時（appJobFocus）は、応募ゼロでもこの全体の空状態には落とさず
+             下のIIFEでその求人のカード（「この求人への応募はまだありません」）を出す（2026-08-31） */
           <>
             {jobTab==="calendar" && calendarTop}
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
@@ -1283,7 +1298,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             //   order＝応募者がいる求人だけので、それだけで絞ると応募の無い求人・絞り込みで全員隠れた求人のカードが消える。
             //   応募者ありを先（order順＝新しい応募の順）・無しを後ろに。jobInfoMap に無い番号＝自分の求人でない
             //   （働き手として応募した求人・いいね）ので出さない
-            const dayOrder = !calMode
+            // ★求人詳細「応募者一覧を見る」からの絞り込み（2026-08-31）：その求人のカードだけを出す。
+            //   応募がゼロでもカードは出す（byJobに無くてもflatMap側that apps=[] で受け、
+            //   「この求人への応募はまだありません」と明記する）。jobInfoMap未着でもタイトルは #No. に倒れる
+            const focus = (!calMode && appJobFocus) ? appJobFocus : null;
+            const dayOrder = focus
+              ? [focus]
+              : !calMode
               ? order
               : calDay
               ? [...order.filter(jn => dayJobs.has(jn)), ...calDay.jobs.filter(jn => jobInfoMap[jn] && !byJob[jn])]
@@ -1309,6 +1330,14 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                 {filterButtons}
               </div>
             );
+            // 絞り込み中の帯（2026-08-31）：どの求人に絞っているかと、全件へ戻る道を明示
+            // （帯that無いと「応募者that1求人ぶんしかない」ように見える誤解の元）
+            const focusBar = focus ? (
+              <div key="app-focus" className="f-sans" style={{ gridColumn:"1/-1", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#F0F7F3", border:"1px solid #DDEDE5", borderRadius:10, padding:"9px 12px" }}>
+                <span style={{ fontSize:13, fontWeight:700, color:"#1B7A55" }}>No.{focus} の応募だけを表示しています</span>
+                <button onClick={()=>setAppJobFocus(null)} className="f-sans" style={{ flexShrink:0, padding:"6px 12px", fontSize:12, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:8, cursor:"pointer" }}>すべて表示</button>
+              </div>
+            ) : null;
             const floatingFilterBar = (
               <div key="app-tabs-float" className="cb-applicant-filter-bar">{filterButtons}</div>
             );
@@ -1606,7 +1635,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               </div>
             );
             return !calMode
-              ? [tabBar, floatingFilterBar, ...body, legend]
+              ? [tabBar, floatingFilterBar, focusBar, ...body, legend]
               : calDay
               // カレンダータブでは絞り込みのピルを出さない（2026-08-23たきと指示・浮遊バーが
               // カードの「応募の進み具合」と重なっていた）。応募者一覧では従来どおり出す

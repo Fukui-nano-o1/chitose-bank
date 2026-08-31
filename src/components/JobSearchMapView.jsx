@@ -1299,7 +1299,9 @@ export function JobSearchMapView({ onRegister, me }) {
               {!selectedJob.closed && (
                 <button onClick={ownUnpublishJob} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#fff", color:"#C77700", border:"1.5px solid #FFB020", borderRadius:12, cursor:"pointer" }}>一時非公開にする</button>
               )}
-              <button onClick={()=>{ setOwnMenuOpen(false); window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>応募者一覧を見る</button>
+              {/* この求人の応募だけに絞って開く（2026-08-31たきと指示）：cb_applicantsJobNo を置いて着地側
+                  （FarmerDashboard）that絞り込む。応募ゼロならその求人のカードで「まだありません」と明記される */}
+              <button onClick={()=>{ setOwnMenuOpen(false); try { sessionStorage.setItem("cb_applicantsJobNo", String(selectedJob.id)); } catch {} window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>応募者一覧を見る</button>
             </div>
           </div>
         </div>
