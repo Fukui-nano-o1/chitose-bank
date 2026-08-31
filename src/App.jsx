@@ -24,6 +24,7 @@ import { DataConstitution } from "./app/legal/DataConstitution";
 import { HelpCenter, InstallGuide } from "./app/help/HelpCenter";
 import { FeedbackModal } from "./app/diagnostics/FeedbackModal";
 import { WorkerPreviewSheet, EmployerPreviewSheet } from "./app/preview/PreviewSheets";
+import { openWorkerPreview } from "./lib/previewBus";
 // ルート分割の自己修復（lazyChunk / prepareFreshReload / ChunkUpdating）→ app/chunkReload.jsx へ移設（2026-08-17）
 
 // 掲載完了アニメの後の「60秒ノーアクションで さがす へ」の見張り（2026-08-07たきと指示）。
@@ -1362,7 +1363,7 @@ export default function App(){
   }, [me?.id, realtimeBootReady]);
   // 段階お祝いボックス（2026-07-19）：②承認・⑤仕事・⑥評価を、働き手/農家の両側に1回だけ展開。
   // ①応募=apply/done・④採用=hiredBox は別で担当ので除外。applications変化をRealtime購読＋起動時チェック
-  const [stageBox, setStageBox] = useState(null); // {emoji,head,body,link,hash}
+  const [stageBox, setStageBox] = useState(null); // {iconName,head,body,link, hash または action}（actionがあればページ遷移せずその場で実行）
   useEffect(() => {
     if (!me?.id) return;
     let cancelled = false;
@@ -1415,7 +1416,12 @@ export default function App(){
         const defs = {
           "w:approved": { iconName:"party", head:"承認されました！", body:`「${title}」に承認されました。打ち合わせ・面接をチャットで進めましょう。`, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
           "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
-          "w:reviewed": { iconName:"star", head:"評価を送りました", body:`ありがとうございました。「${title}」の実績が、あなたのプロフィールに反映されます。`, link:"実績を見る →", hash:"/profile/worker" },
+          // ★w:reviewed の行き先はページ遷移でなく【いまの画面の上に実績の面を開く】（2026-08-31たきと指示
+          //   「マイページに遷移するだけだ。Airbnbはどうしている？パクれ」）＝Airbnbは評価後の「見る」に
+          //   新しいページを作らず、既存のプロフィールのレビュー欄へ直行させる。うちの同じ場所＝
+          //   自分のプロフィールプレビューの記録タブ（わたしの実績カードと同じ openWorkerPreview(me.id, 1)）。
+          //   新ページは作らない・マイページの入口にも落とさない
+          "w:reviewed": { iconName:"star", head:"評価を送りました", body:`ありがとうございました。「${title}」の実績が、あなたのプロフィールに反映されます。`, link:"実績を見る →", action: () => openWorkerPreview(me.id, 1) },
           "f:applied":  { iconName:"inbox", head:"新しい応募が届きました", body:`「${title}」に新しい応募があります。プロフィールを見て、承認するか決めましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
           "f:worked":   { iconName:"check", head:"作業が完了しました", body:`「${title}」の作業が完了しました。働き手を評価しましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
         };
@@ -1662,7 +1668,7 @@ export default function App(){
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={stageBox.head} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{stageBox.body}</p>
-            <button onClick={()=>{ const h = stageBox.hash; setStageBox(null); window.location.hash = h; }} className="f-sans" style={{ marginTop:16, background:"none", border:"none", borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>{stageBox.link}</button>
+            <button onClick={()=>{ const { hash: h, action } = stageBox; setStageBox(null); if (action) action(); else window.location.hash = h; }} className="f-sans" style={{ marginTop:16, background:"none", border:"none", borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>{stageBox.link}</button>
           </div>
         </div>
       )}

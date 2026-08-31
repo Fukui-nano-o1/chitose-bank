@@ -15,6 +15,8 @@ import { NavIconInline } from "../NavIcons";
 const STAGE_BOX_PREVIEWS = {
   "w:approved": { iconName:"party", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。打ち合わせ・面接をチャットで進めましょう。", link:"チャットを開く →" },
   "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。最後に、お互いを評価しましょう。", link:"評価する →" },
+  // ★w:reviewed の「実績を見る →」はページ遷移でなく、自分のプロフィールプレビューの記録タブを
+  //   その場で開く（App.jsx側は hash でなく action・2026-08-31）。見た目はこの写しのとおり
   "w:reviewed": { iconName:"star", head:"評価を送りました",         body:"ありがとうございました。「ブロッコリー 収穫」の実績が、あなたのプロフィールに反映されます。", link:"実績を見る →" },
   "f:applied":  { iconName:"inbox", head:"新しい応募が届きました",   body:"「ブロッコリー 収穫」に新しい応募があります。プロフィールを見て、承認するか決めましょう。", link:"応募者を見る →" },
   "f:worked":   { iconName:"check", head:"作業が完了しました",       body:"「ブロッコリー 収穫」の作業が完了しました。働き手を評価しましょう。", link:"応募者を見る →" },
