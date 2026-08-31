@@ -261,7 +261,12 @@ export const JobPhotoFallback = ({ url, name }) => (
 );
 
 // ── Carousel ─────────────────────────────────────────────────
-export function Carousel({ children, style, className, wrapperStyle, onScroll, scrollerRef }) {
+// arrowInset（任意・2026-08-31）：‹ › の左右の位置。既定は -16＝容器の外へ半分はみ出す見た目。
+// ★ページャー（作成中⇄公開中）の中で使う時は 0 にする：はみ出した矢印が【隣のページ】の領域に
+//   入り込み、切り替え後もその矢印だけ画面に残って見えるため（2026-08-31たきと報告
+//   「作成中の〉ボタンが公開中まで来てしまっている」）。トラックは幅200%so、外側の
+//   overflow:hidden では隣のページに入った16pxを切り落とせない
+export function Carousel({ children, style, className, wrapperStyle, onScroll, scrollerRef, arrowInset = -16 }) {
   const ref = useRef(null);
   const [atLeft, setAtLeft] = useState(true);
   const [atRight, setAtRight] = useState(true);
@@ -316,7 +321,7 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
     <div style={{ position:'relative', ...wrapperStyle }}>
       {!atLeft && (
         <button onClick={() => scroll(-1)} className="f-sans"
-          style={{ ...btnStyle, left:-16 }}>‹</button>
+          style={{ ...btnStyle, left:arrowInset }}>‹</button>
       )}
       {/* touchAction:pan-x pan-y（2026-07-16）：横ドラッグ=カルーセル／縦ドラッグ=ページスクロールに変換。
           最初の指の向きでブラウザが軸を1つに確定するため、斜めに両方動く事故は起きない */}
@@ -325,7 +330,7 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
       </div>
       {!atRight && (
         <button onClick={() => scroll(1)} className="f-sans"
-          style={{ ...btnStyle, right:-16 }}>›</button>
+          style={{ ...btnStyle, right:arrowInset }}>›</button>
       )}
     </div>
   );
@@ -343,6 +348,8 @@ export function JobRow({ children, count }) {
   useHorizontalDrag(ref, count);
   return (
     <Carousel className="carousel-scroll" scrollerRef={ref}
+      /* 矢印は容器の内側に置く（arrowInset:0）＝ページャーの隣のページへはみ出させない */
+      arrowInset={0}
       wrapperStyle={{ minWidth:0 }}
       style={{ display:"flex", gap:12, overflowX:"auto", paddingBottom:4 }}>
       {children}
