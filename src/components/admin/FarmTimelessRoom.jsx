@@ -8,6 +8,8 @@
 // ★日本地図は【本物の地図】（Leaflet＋国土地理院タイル＝JobLocationMapと同じ道具・2026-08-31たきと
 //   「日本地図を表示できるか？ズームできるか？」）：日本全体から指でパン・ピンチズームできる。
 //   県の選択は地図上のマーカー（47都道府県の県庁所在地に置いた丸）のタップ。位置の正は PREFS の1箇所だけ。
+//   県を選ぶと、その県の個々のリポート（lat/lngを持つ行）が面の色のピンで散らばり、ピンの範囲へズームする。
+//   ピンのタップで日付・市町村・カテゴリ・コメントのポップアップ（2026-08-31たきと「いつどこでなにがあったか一目で」）。
 //   ★JobLocationMapは「位置を示す図」なので操作を全部殺しているが、ここは地図として触る画面なので
 //     dragging・ズームを生かす（升目のタイルマップは2026-08-31に本物の地図へ差し替えて廃止）。
 // ★リポートの型（2026-08-31たきと指示「Weather newsのレポートページのリポートアクションをパクれ。
@@ -87,6 +89,7 @@ export function FarmTimelessRoom() {
   const mapEl = useRef(null);     // 地図を描くdiv
   const mapRef = useRef(null);    // Leafletの地図本体
   const layerRef = useRef(null);  // 県マーカーの層（作り直しはこの層だけ＝地図ごと作り直さない）
+  const pinsRef = useRef(null);   // 個々のリポートのピンの層（県を選んだ時だけ中身を持つ）
   const LRef = useRef(null);      // 動的importしたLeaflet
   const [mapReady, setMapReady] = useState(0); // 地図ができた合図（マーカー側のeffectを起こす）
 
@@ -146,10 +149,11 @@ export function FarmTimelessRoom() {
         map.fitBounds(JAPAN_BOUNDS, { animate: false });
         mapRef.current = map;
         layerRef.current = L.layerGroup().addTo(map);
+        pinsRef.current = L.layerGroup().addTo(map);
         setMapReady(x => x + 1);
       } catch (e) { console.error("FarmTimelessRoom map:", e); }
     })();
-    return () => { cancelled = true; try { mapRef.current?.remove(); } catch {} mapRef.current = null; layerRef.current = null; };
+    return () => { cancelled = true; try { mapRef.current?.remove(); } catch {} mapRef.current = null; layerRef.current = null; pinsRef.current = null; };
   }, []);
 
   // 県マーカー（記録の件数・選択の見た目が変わるたびに、この層だけ描き直す）。
@@ -174,6 +178,63 @@ export function FarmTimelessRoom() {
       mk.addTo(lg);
     });
   }, [mapReady, pref, kind, JSON.stringify(countByPref)]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 個々のリポートのピン（県を選んだ時だけ）──「いつどこでなにがあったか一目で」（2026-08-31たきと指示）。
+  // 面（kind）×選択中の県のリポートのうち lat/lng を持つものを、面の色の小さな点で地図に散らす。
+  // タップでポップアップ＝日付・市町村・カテゴリ・コメント。★ポップアップの中身は createElement＋
+  // textContent で組む（innerHTMLに利用者由来の文字列を渡さない＝HTML直挿入の禁止・2026-08-02規則）。
+  // ★リポート作成では city/lat/lng は入れていない（pref のみ）＝手入力のピンは出ない。
+  //   位置つきの行（いまはデモ）だけがピンになる。位置の無い行は一覧が受け持つ
+  useEffect(() => {
+    const L = LRef.current, lg = pinsRef.current;
+    if (!L || !lg) return;
+    lg.clearLayers();
+    if (!pref) return;
+    const faceColor = KIND_COLOR[kind];
+    shown.filter(p => !p._pending && p.lat != null && p.lng != null).forEach(p => {
+      const html = `<div style="width:14px;height:14px;border-radius:50%;background:${faceColor};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.35);box-sizing:border-box"></div>`;
+      const icon = L.divIcon({ className: "", html, iconSize: [14, 14], iconAnchor: [7, 7] });
+      const mk = L.marker([p.lat, p.lng], { icon, keyboard: false });
+      const box = document.createElement("div");
+      box.className = "f-sans";
+      box.style.cssText = "font-size:12.5px;line-height:1.6;max-width:210px";
+      const head = document.createElement("div");
+      head.style.cssText = "font-weight:800;color:#111111";
+      head.textContent = p.category;
+      const sub = document.createElement("div");
+      sub.style.cssText = "color:#777777";
+      sub.textContent = `${dateLabel(p.created_at)}・${p.city || p.pref}`;
+      box.append(head, sub);
+      if (p.comment) {
+        const c = document.createElement("div");
+        c.style.cssText = "color:#111111;margin-top:2px;word-break:break-word";
+        c.textContent = p.comment.length > 60 ? p.comment.slice(0, 60) + "…" : p.comment;
+        box.appendChild(c);
+      }
+      // closeButton:false＝✕は置かない（地図の別の場所をタップすると閉じる＝2026-08-19の規約に揃える）
+      mk.bindPopup(box, { closeButton: false, offset: [0, -6], maxWidth: 230 });
+      mk.addTo(lg);
+    });
+  }, [mapReady, pref, kind, posts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 県を選んだらピンの範囲へズーム・解除で日本全体へ（animate:false＝2026-07-16の_leaflet_pos事故予防）。
+  // 動かすのは【選択が変わった時だけ】＝投稿の増減・面の切替では、手でパン・ズームした地図を勝手に動かさない
+  useEffect(() => {
+    const L = LRef.current, map = mapRef.current;
+    if (!L || !map) return;
+    try {
+      if (!pref) { map.fitBounds(JAPAN_BOUNDS, { animate: false }); return; }
+      const pts = facePosts.filter(p => p.pref === pref && p.lat != null && p.lng != null).map(p => [p.lat, p.lng]);
+      const hit = PREFS.find(([name]) => name === pref);
+      if (pts.length) {
+        // ★県庁の点も範囲に含める＝解除の丸（県のマーカー）がズーム後も必ず画面内に残る
+        if (hit) pts.push([hit[1], hit[2]]);
+        map.fitBounds(L.latLngBounds(pts).pad(0.15), { animate: false, maxZoom: 11 });
+      } else if (hit) {
+        map.setView([hit[1], hit[2]], 9.5, { animate: false });
+      }
+    } catch (e) { console.error("FarmTimelessRoom fit:", e); }
+  }, [mapReady, pref]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPickPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -259,7 +320,7 @@ export function FarmTimelessRoom() {
       <div style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: 16, overflow: "hidden", marginBottom: 16, position: "relative", zIndex: 0 }}>
         <div ref={mapEl} style={{ height: 360, background: "#EAF0F2" }} />
         <p className="f-sans" style={{ fontSize: 12.1, color: "#999999", textAlign: "center", margin: 0, padding: "9px 10px" }}>
-          {pref ? `${pref} を選んでいます（丸をもう一度タップで解除）` : "地図は指で動かして拡大できます。丸をタップして都道府県を選んでください"}
+          {pref ? `${pref} を選んでいます。点をタップすると内容が出ます（丸をもう一度タップで解除）` : "地図は指で動かして拡大できます。丸をタップして都道府県を選んでください"}
         </p>
       </div>
 
@@ -285,7 +346,8 @@ export function FarmTimelessRoom() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ width: 8, height: 8, borderRadius: 4, background: KIND_COLOR[p.kind] || "#999", flexShrink: 0 }} />
                   <span className="f-sans" style={{ fontSize: 14.3, fontWeight: 800, color: "#111111" }}>{p.category}</span>
-                  <span className="f-sans" style={{ fontSize: 11.5, color: "#999999" }}>{p.pref}・{p._pending ? "送信中…" : dateLabel(p.created_at)}</span>
+                  {/* 場所は市町村まで分かればそれを出す（無ければ県）＝「いつどこでなにが」の「どこ」 */}
+                  <span className="f-sans" style={{ fontSize: 11.5, color: "#999999" }}>{p.city || p.pref}・{p._pending ? "送信中…" : dateLabel(p.created_at)}</span>
                 </div>
                 {p.comment && <p className="f-sans" style={{ fontSize: 13.2, color: "#111111", margin: "6px 0 0", lineHeight: 1.7, wordBreak: "break-word" }}>{p.comment}</p>}
                 {!p._pending && (
