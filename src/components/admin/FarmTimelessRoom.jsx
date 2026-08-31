@@ -50,10 +50,13 @@ const PREFS = [
 ];
 // 日本全体が納まる範囲（北海道〜沖縄）＝県の選択を解除した時の表示
 const JAPAN_BOUNDS = [[24.0, 122.9], [45.8, 146.0]];
-// 拠点＝徳島県（たきとの居住地は吉野川市・2026-08-31指示「デフォルトはその地域から」）。
+// 拠点＝徳島県吉野川市（2026-08-31指示「デフォルトはその地域から」→「各市町村から始められるか？僕なら吉野川市だ」）。
 // 開いた瞬間からこの県が選択済み＝県内のピンと一覧が最初から出て、リポート作成の場所も入っている。
-// 丸をもう一度タップすれば従来どおり解除＝日本全体へ
+// ★地図の初期表示は【市町村スケール】＝HOME_CITY を中心に zoom 12（吉野川市とその周辺が1画面に納まる）。
+//   県全体を見たい時はピンチで引く。丸をもう一度タップすれば従来どおり解除＝日本全体へ。
+//   拠点を変える時は HOME_PREF / HOME_CITY の2つだけ（座標はデモの市町村中心と同じ物差し）
 const HOME_PREF = "徳島県";
+const HOME_CITY = { name: "吉野川市", lat: 34.066, lng: 134.358, zoom: 12 };
 
 // 病害虫の種類（選択肢＝プリセットのみ・自由入力は置かない）。前半=害虫／後半=病気。
 const PEST_KINDS = [
@@ -225,11 +228,20 @@ export function FarmTimelessRoom() {
   }, [mapReady, pref, kind, posts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 県を選んだらピンの範囲へズーム・解除で日本全体へ（animate:false＝2026-07-16の_leaflet_pos事故予防）。
-  // 動かすのは【選択が変わった時だけ】＝投稿の増減・面の切替では、手でパン・ズームした地図を勝手に動かさない
+  // 動かすのは【選択が変わった時だけ】＝投稿の増減・面の切替では、手でパン・ズームした地図を勝手に動かさない。
+  // ★開いた瞬間（1回目）だけは拠点の市町村（HOME_CITY＝吉野川市）を中心に市町村スケールで始める。
+  //   解除→再選択したら従来どおり県内のピンの範囲へ（県全体を見たい時の道）
+  const bootViewRef = useRef(true);
   useEffect(() => {
     const L = LRef.current, map = mapRef.current;
     if (!L || !map) return;
+    const boot = bootViewRef.current;
+    bootViewRef.current = false;
     try {
+      if (boot && pref === HOME_PREF) {
+        map.setView([HOME_CITY.lat, HOME_CITY.lng], HOME_CITY.zoom, { animate: false });
+        return;
+      }
       if (!pref) { map.fitBounds(JAPAN_BOUNDS, { animate: false }); return; }
       const pts = facePosts.filter(p => p.pref === pref && p.lat != null && p.lng != null).map(p => [p.lat, p.lng]);
       const hit = PREFS.find(([name]) => name === pref);
@@ -327,7 +339,15 @@ export function FarmTimelessRoom() {
       <div style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: 16, overflow: "hidden", marginBottom: 16, position: "relative", zIndex: 0 }}>
         <div ref={mapEl} style={{ height: 360, background: "#EAF0F2" }} />
         <p className="f-sans" style={{ fontSize: 12.1, color: "#999999", textAlign: "center", margin: 0, padding: "9px 10px" }}>
-          {pref ? `${pref} を選んでいます。点をタップすると内容が出ます（丸をもう一度タップで解除）` : "地図は指で動かして拡大できます。丸をタップして都道府県を選んでください"}
+          {pref ? (
+            /* ★「解除」は文字ボタンでも置く＝初期表示が市町村スケールになり、県の丸（県庁の位置）が
+               画面の外にあることがあるため（丸のタップでも従来どおり解除できる） */
+            <>
+              {pref} を選んでいます。点をタップすると内容が出ます
+              <button type="button" onClick={() => { setPref(""); setFormErr(""); }} className="f-sans"
+                style={{ marginLeft: 8, background: "none", border: "none", padding: 0, fontSize: 12.1, fontWeight: 700, color: "#717171", textDecoration: "underline", cursor: "pointer" }}>解除</button>
+            </>
+          ) : "地図は指で動かして拡大できます。丸をタップして都道府県を選んでください"}
         </p>
       </div>
 
