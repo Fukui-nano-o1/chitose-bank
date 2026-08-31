@@ -17,7 +17,6 @@
 // ★1画面=STEPSの1要素。画面を足す・消す・並べ替えるのは STEPS だけを直す（他を壊さない）。
 //   url は必ず実コードにgrepで当ててから書く（2026-08-11：旧#/roleを載せて旧遺物を指摘された）。
 import { useState, useEffect } from "react";
-import { AdminNav } from "./AdminNav";
 import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon, JobRow } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
 import { JobCard, JOB_CARD_RELATED_SIZE } from "../JobCard";
@@ -721,7 +720,6 @@ export function AdminFarmerPagesRoom() {
     /* cb-admin-page＝サイトフッターを隠す目印／cb-farmer-walk-page＝下部バーと浮遊☰を
        「戻る／次へ」に差し替える目印（appStyles） */
     <div className="fade-in cb-admin-page cb-farmer-walk-page" style={{ maxWidth:560, margin:"0 auto", padding:"24px 16px 120px" }}>
-      <AdminNav current="farmer-pages" />
 
       {/* いま何章の何枚目か */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>

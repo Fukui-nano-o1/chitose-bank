@@ -14,7 +14,6 @@ import { supabase } from "../../lib/supabase";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
 import { WorkerWorkRecord, workRecordMinutesLabel as hm } from "../WorkerWorkRecord";
-import { AdminNav } from "./AdminNav";
 
 // URLから働き手を読む（#/admin/evaluation/{worker_id}）。無ければ一覧
 function readWorkerId() {
@@ -55,7 +54,6 @@ export function AdminEvaluationRoom() {
   return (
     /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05） */
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
-      <AdminNav current="evaluation" />
 
       {workerId && (
         <button type="button" className="f-sans" onClick={() => { window.location.hash = "/admin/evaluation"; }}

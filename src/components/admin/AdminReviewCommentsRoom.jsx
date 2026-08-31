@@ -9,7 +9,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { Dots } from "../ui";
-import { AdminNav } from "./AdminNav";
 
 const DIR_LABEL = { farmer_to_worker: "農家 → 働き手", worker_to_farmer: "働き手 → 農家" };
 
@@ -38,7 +37,6 @@ export function AdminReviewCommentsRoom() {
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 14px 80px" }}>
-      <AdminNav current="review-comments" />
       <p className="f-sans" style={{ fontSize: 12, color: "#717171", lineHeight: 1.7, margin: "0 0 14px" }}>
         評価に書かれたコメントの一覧です。コメントは書かれた時点で公開されます（相手に見えるのは、双方の評価が揃うか完了から3日たった後）。
         不適切なものがあれば、ここで非表示にできます。

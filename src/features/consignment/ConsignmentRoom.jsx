@@ -9,7 +9,6 @@ import { uploadJobPhoto } from "../../lib/image";
 import { zipLookup } from "../../lib/zipLookup";
 import { Avatar, VineCorner, Dots } from "../../components/ui";
 import { CalendarView } from "../../components/CalendarView";
-import { AdminNav } from "../../components/admin/AdminNav";
 import {
   CONSIGN_STEPS, consignStepState, CONSIGN_STATUS, consignRecruitState, parseYmd, deadlineLabel,
   CONSIGN_FIXED_CLAUSES, CONSIGN_CROP, CONSIGN_EMPTY, CONSIGN_BASIC_FIELDS, CONSIGN_TASKS,
@@ -1025,8 +1024,6 @@ export function ConsignmentRoom() {
       {(cTab === "list" || cTab === "contractor") && (
       <div key={cTab} className={cAnim || undefined} onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && cAnim === "pflip-in") setCAnim(""); }}>
       {cTab === "list" && (<div className="consign-list-content">
-      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02）。一覧側だけに出す（ウィザード・印刷は出さない） */}
-      <AdminNav current="consignment" />
       {/* 戻り先は雇い手プロフィール入口（2026-07-31たきと指示・管理タブではない）：
           入口カード「新しく委託を出す」が置いてある場所へ帰る。ラベルも「← 戻る」に */}
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
@@ -1062,7 +1059,6 @@ export function ConsignmentRoom() {
           CLAUDE.md「保存・入力機能の取り扱い」に従い、たきとの確認を取ってから別途実装する。
           表示にダミーは置かない（憲法3条）＝実データが無い箇所は「まだありません」と理由を明記する */}
       {cTab === "contractor" && (<div className="consign-list-content">
-      <AdminNav current="consignment" />
       {/* 戻り先は委託面と同じ雇い手プロフィール入口＝「新しく委託を出す」カードが置いてある場所 */}
       <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
       {/* 名刺（受託者）。委託面の名刺と同じ寸法・同じ枠で、役割ピルだけ濃淡を反転させる

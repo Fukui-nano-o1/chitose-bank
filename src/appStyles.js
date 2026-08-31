@@ -535,7 +535,8 @@ input:focus { outline: none; }
     transition: transform .25s ease;
   }
   .cb-applicant-filter-bar::-webkit-scrollbar { display: none; }
-  /* 管理画面の共通ナビ（AdminNav）：チップ列のスクロールバーは隠す（横スワイプは生きる） */
+  /* .admin-nav＝横スクロール列のスクロールバーを隠す（横スワイプは生きる）。
+     共通ナビ（AdminNav）は2026-08-31に完全削除＝いまの使い手は報告ページのタブ列（AdminReportsRoom） */
   .admin-nav { scrollbar-width: none; }
   .admin-nav::-webkit-scrollbar { display: none; }
   /* モバイルは浮遊バーだけを見せる（本文中の並びは重複ので隠す） */

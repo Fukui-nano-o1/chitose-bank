@@ -11,7 +11,6 @@ import { supabase } from "../../lib/supabase";
 import { dateRangeLabel, isUpcomingSoon } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
-import { AdminNav } from "./AdminNav";
 
 
 // 作業日程：agreed_dates（当事者が合意した実施日の配列）があればそれ、無ければ求人の日程
@@ -90,8 +89,6 @@ export function AdminUpcomingRoom() {
   return (
     /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05） */
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
-      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02たきと指示）。見出し等は置かない方針のまま、導線のみ */}
-      <AdminNav current="upcoming" />
       {state === null && (
         <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
       )}

@@ -9,7 +9,6 @@
 import { useState } from "react";
 import { Celebration } from "../Celebration";
 import { PublishChoiceCard } from "../PublishChoiceCard";
-import { AdminNav } from "./AdminNav";
 
 // 本番で祝祭（Celebration）が出る全場面（2026-08-19時点・10場面）。
 // where＝どの画面のどの操作で出るか／src＝呼び出し元ファイル
@@ -44,7 +43,6 @@ export function AdminAnimationsRoom() {
   return (
     /* cb-admin-page＝サイトフッターを隠す目印。下余白＝下部バー＋☰ぶん（2026-08-07規約） */
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
-      <AdminNav current="animations" />
       <div style={{ marginBottom:14 }}>
         <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>アニメーション</p>
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>本番と同じ部品（Celebration）を同じ文言で再生します。音と振動も本番どおり</p>

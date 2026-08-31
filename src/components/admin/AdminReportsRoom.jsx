@@ -14,7 +14,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { Dots } from "../ui";
-import { AdminNav } from "./AdminNav";
 import { openWorkerPreview } from "../../lib/previewBus";
 import { getCache, setCache } from "../../lib/viewCache";
 
@@ -204,7 +203,6 @@ export function AdminReportsRoom() {
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 14px 80px" }}>
-      <AdminNav current="reports" />
 
       {/* 頭＝Airbnb型（契約記録と同じ）：「← 報告（N）」タップで管理へ・説明は右端の？に集約 */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "0 0 12px" }}>

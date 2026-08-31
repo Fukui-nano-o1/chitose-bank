@@ -11,7 +11,6 @@ import { supabase } from "../../lib/supabase";
 import { dateRangeLabel, isTodayWork } from "../../lib/utils";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
-import { AdminNav } from "./AdminNav";
 
 // 作業当日の判定（isTodayWork）は lib/utils に集約（2026-08-03）。
 // まもなく開始ページの表示フィルタ・App.jsxのトップページ着地判定と同じ関数を使う＝二重展開もズレも起きない
@@ -131,8 +130,6 @@ export function AdminWorkingRoom() {
   return (
     /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05） */
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
-      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02） */}
-      <AdminNav current="working" />
       <div style={{ marginBottom:6 }}>
         <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>仕事中</p>
         <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>いま進行中の仕事の見守り（作業中と本日開始）</p>

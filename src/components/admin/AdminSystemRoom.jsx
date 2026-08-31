@@ -10,7 +10,6 @@ import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 // エラーの辞書・分類・グループ化は lib/errorCatalog に集約（2026-08-07・画面上部の管理者帯と共有）
 import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, buildErrorReport } from "../../lib/errorCatalog";
 import { Dots } from "../ui";
-import { AdminNav } from "./AdminNav";
 import { NavIconInline } from "../NavIcons";
 
 // ── 画像一括処理のバックグラウンド実行（2026-08-03たきと指示「一括軽量化は一瞬で終了させろ。
@@ -297,7 +296,6 @@ export function AdminSystemRoom() {
 
   return (
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
-      <AdminNav current="system" />
 
       {focusPair ? (
         /* ── 帯から来た時のフォーカス表示：まず該当のエラーだけを出す（2026-08-07たきと指示）。

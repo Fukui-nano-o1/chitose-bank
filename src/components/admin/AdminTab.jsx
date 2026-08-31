@@ -6,7 +6,6 @@ import { openWorkerPreview } from "../../lib/previewBus";
 import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS } from "../../lib/utils";
 import { Avatar, LinkifiedText, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
-import { AdminNav } from "./AdminNav";
 import { getCache, setCache } from "../../lib/viewCache";
 import { saveElementAsPdf } from "../../lib/pdfExport";
 
@@ -409,8 +408,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
       {/* 審査セクションを開いている間はダッシュボードの見出し＋メインタブを隠し、セクションを1枚のページとして見せる */}
       {!reviewSec && (<>
-      {/* 管理ページの共通ナビ（全ページ導線・2026-08-02） */}
-      <AdminNav current="admin" />
       <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
         <div>
           <p className="f-sans" style={{ fontSize:18,fontWeight:700,color:"#222",marginBottom:4 }}>管理者コンソール</p>
