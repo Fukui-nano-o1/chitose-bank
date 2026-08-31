@@ -60,6 +60,10 @@ const PEST_KINDS = [
 const ACTION_KINDS = [...TASK_OPTIONS.map(t => t.name), "その他"];
 
 const CK = "timeless:posts"; // viewCacheの鍵（JSON安全な行のみ＝Dateを入れない・2026-08-03規則）
+// 面の色とラベル（2026-08-31たきと指示「アクションと病害虫の表示を分けろ」）：
+// kind がページ全体の面＝地図のバブル・一覧・作成パネルの種別を同じ状態で切り替える
+const KIND_LABEL = { pest: "病害虫", action: "栽培アクション" };
+const KIND_COLOR = { pest: "#C0392B", action: "#00A86B" };
 const CHAT_INPUT_MAX_H = 132; // 入力欄の伸びの上限（ChatViewと同じ値＝約6行）
 
 const dateLabel = (iso) => {
@@ -110,8 +114,11 @@ export function FarmTimelessRoom() {
     el.style.height = Math.min(el.scrollHeight, CHAT_INPUT_MAX_H) + "px";
   }, [comment, composer]);
 
-  const countByPref = posts.reduce((a, p) => { a[p.pref] = (a[p.pref] || 0) + 1; return a; }, {});
-  const shown = pref ? posts.filter(p => p.pref === pref) : posts;
+  // 表示は面（kind）で分ける：地図のバブルの件数も、一覧も、いまの面のリポートだけ
+  const facePosts = posts.filter(p => p.kind === kind);
+  const countByPref = facePosts.reduce((a, p) => { a[p.pref] = (a[p.pref] || 0) + 1; return a; }, {});
+  const kindTotal = { pest: posts.filter(p => p.kind === "pest").length, action: posts.filter(p => p.kind === "action").length };
+  const shown = pref ? facePosts.filter(p => p.pref === pref) : facePosts;
 
   // ── 本物の日本地図（Leaflet＋国土地理院タイル）──
   // Leafletは動的import（JobLocationMapと同じ＝初期バンドルに地図ライブラリを入れない）。
@@ -157,15 +164,16 @@ export function FarmTimelessRoom() {
       const on = pref === name;
       const size = n ? 24 : 13;
       const ring = on ? "box-shadow:0 0 0 2.5px #fff,0 0 0 5px #111111;" : "box-shadow:0 1px 4px rgba(0,0,0,0.35);";
+      const faceColor = KIND_COLOR[kind];
       const html = n
-        ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#111111;color:#fff;border:2px solid #fff;${ring}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-sizing:border-box">${n}</div>`
+        ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${faceColor};color:#fff;border:2px solid #fff;${ring}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-sizing:border-box">${n}</div>`
         : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${on ? "#111111" : "#fff"};border:2px solid #111111;${ring}box-sizing:border-box"></div>`;
       const icon = L.divIcon({ className: "", html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
       const mk = L.marker([lat, lng], { icon, keyboard: false, title: name + (n ? `（${n}件）` : "") });
       mk.on("click", () => { setPref(p => (p === name ? "" : name)); setFormErr(""); });
       mk.addTo(lg);
     });
-  }, [mapReady, pref, JSON.stringify(countByPref)]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mapReady, pref, kind, JSON.stringify(countByPref)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPickPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -228,6 +236,22 @@ export function FarmTimelessRoom() {
       <h2 className="f-sans" style={{ fontSize: 22, fontWeight: 800, color: "#111111", margin: "0 0 4px" }}>農タイムレス</h2>
       <p className="f-sans" style={{ fontSize: 13.2, color: "#999999", margin: "0 0 16px", lineHeight: 1.7 }}>日本地図に、病害虫や栽培アクションを写真と一言で記録します（管理者専用）。</p>
 
+      {/* ── 面の切替（病害虫⇄栽培アクション・2026-08-31たきと指示「表示を分けろ」）──
+          地図のバブル・一覧・作成パネルの種別が丸ごと切り替わる。件数つき */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        {["pest", "action"].map(k => {
+          const on = kind === k;
+          return (
+            <button key={k} type="button" onClick={() => { if (kind !== k) { setKind(k); setCategory(""); setFormErr(""); } }} className="f-sans"
+              style={{ flex: 1, padding: "11px 0", fontSize: 14.3, fontWeight: 800, borderRadius: 12, cursor: "pointer",
+                border: on ? `2px solid ${KIND_COLOR[k]}` : "1px solid #D0D0D0",
+                background: on ? KIND_COLOR[k] : "#fff", color: on ? "#fff" : "#111111" }}>
+              {KIND_LABEL[k]}（{kindTotal[k]}）
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── 本物の日本地図（国土地理院タイル・パン／ピンチズーム可）──
           丸＝47都道府県（黒い数字＝記録の件数）。タップで選択・もう一度で解除。
           ★外枠に position:relative + zIndex:0 ＝Leafletの内部z-index（コントロール1000等）を
@@ -239,14 +263,14 @@ export function FarmTimelessRoom() {
         </p>
       </div>
 
-      {/* ── リポートの一覧（選択中の県で絞り込み・未選択は全件・新しい順）── */}
-      <p className="f-sans" style={{ fontSize: 12.1, color: "#999999", fontWeight: 700, letterSpacing: ".06em", margin: "0 0 8px", borderLeft: "3px solid #111111", paddingLeft: 8 }}>
-        {pref ? `${pref}のリポート（${shown.length}件）` : `すべてのリポート（${shown.length}件）`}
+      {/* ── リポートの一覧（面＝病害虫/栽培アクション＋選択中の県で絞り込み・新しい順）── */}
+      <p className="f-sans" style={{ fontSize: 12.1, color: "#999999", fontWeight: 700, letterSpacing: ".06em", margin: "0 0 8px", borderLeft: `3px solid ${KIND_COLOR[kind]}`, paddingLeft: 8 }}>
+        {pref ? `${pref}の${KIND_LABEL[kind]}（${shown.length}件）` : `すべての${KIND_LABEL[kind]}（${shown.length}件）`}
       </p>
       {shown.length === 0 ? (
         <div style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: 16, padding: "20px 18px" }}>
           <p className="f-sans" style={{ fontSize: 13.2, color: "#999999", margin: 0, lineHeight: 1.8 }}>
-            {pref ? `${pref}のリポートはまだありません。下の「リポートする」から残せます。` : "リポートはまだありません。地図から都道府県を選び、下の「リポートする」から残しましょう。"}
+            {pref ? `${pref}の${KIND_LABEL[kind]}のリポートはまだありません。下の「リポートする」から残せます。` : `${KIND_LABEL[kind]}のリポートはまだありません。地図から都道府県を選び、下の「リポートする」から残しましょう。`}
           </p>
         </div>
       ) : (
@@ -256,8 +280,10 @@ export function FarmTimelessRoom() {
             <div key={p.id} style={{ display: "flex", gap: 10, background: "#fff", border: "1px solid #E5E5E5", borderRadius: 14, padding: "12px 12px", opacity: p._pending ? 0.55 : 1 }}>
               {p.photo_url && <img src={p.photo_url} alt="" loading="lazy" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, flexShrink: 0 }} />}
               <div style={{ flex: 1, minWidth: 0 }}>
+                {/* 種別チップは面の切替で分かれたため外した（面の中では全部同じ＝繰り返しになる）。
+                    カテゴリの左の小さな点が面の色を引き継ぐ */}
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <span className="f-sans" style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", background: p.kind === "pest" ? "#C0392B" : "#00A86B", borderRadius: 10, padding: "2px 8px" }}>{p.kind === "pest" ? "病害虫" : "栽培アクション"}</span>
+                  <span style={{ width: 8, height: 8, borderRadius: 4, background: KIND_COLOR[p.kind] || "#999", flexShrink: 0 }} />
                   <span className="f-sans" style={{ fontSize: 14.3, fontWeight: 800, color: "#111111" }}>{p.category}</span>
                   <span className="f-sans" style={{ fontSize: 11.5, color: "#999999" }}>{p.pref}・{p._pending ? "送信中…" : dateLabel(p.created_at)}</span>
                 </div>
