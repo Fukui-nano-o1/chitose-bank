@@ -1,8 +1,13 @@
-// 相手の顔を出すプレビューシート（働き手・雇い手）。第2次構造改革2026-08-17でApp.jsxから移設。
+// 相手の顔を出すプレビュー（働き手・雇い手）。第2次構造改革2026-08-17でApp.jsxから移設。
 // ★開くのは lib/previewBus のイベント経由（openWorkerPreview / openEmployerPreview）＝
 //   どの画面からも同じ窓口で開く。表示してよい項目の正は components/TrustCards。
+// 器＝白い全画面テイクオーバー（2026-08-31たきと指示「アイコンタップで白いテイクオーバーに遷移。
+// ボックス展開はやめよう。Airbnbをパクれ」）：Airbnbのプロフィール画面と同じ型＝アプリの上に
+// 白い全画面が乗り、左上の✕でとじる・中身は縦スクロール。URLは変えない。
+// 評価・記録の全画面（FinalReviewSheet・2026-08-31）と同じ器の作法。
+// ★外タップで閉じる黒幕は無くなったので、出口は✕（全画面には「外」thatない＝✕全廃規約の例外）。
+// 名乗り（2026-08-24・報復防止）はヘッダーに常設＝スクロールしても面を替えても消えない。
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { isAdmin, ROLE_GREEN, ROLE_ORANGE, farmIntroTopics, farmHostQa, perkBadges, workerQaItems } from "../../lib/utils";
 import { getCache, setCache, clearCache } from "../../lib/viewCache";
@@ -13,17 +18,23 @@ import { WorkerWorkRecord } from "../../components/WorkerWorkRecord";
 import { FarmerRecord } from "../../components/FarmerRecord";
 import { ReceivedReviews } from "../../components/ReceivedReviews";
 import { MyReviewsOfWorker } from "../../components/MyReviewsOfWorker";
-import { NavIconInline } from "../../components/NavIcons";
+import { NavIcon, NavIconInline } from "../../components/NavIcons";
 
-// 誰のプレビューかの名乗り（2026-08-24たきと指示「プレビューにはアイコンと名称の明記を。報復防止のため」）。
-// タブを切り替えても常に見える位置＝面の外に置く。記録・評価の面だけを見て相手を取り違えたまま
-// 評価・通報・報告に進むことを防ぐ（取り違えた相手への報復を作らない）。
-// 色は役割色（働き手=橙／農家=緑・2026-07-22の規約）。
-function PreviewIdentity({ url, name, accent }) {
+// 白い全画面の器（両プレビュー共用）：左上✕＋名乗り（常設）＋縦スクロールの中身。
+// 名乗り（2026-08-24たきと指示「プレビューにはアイコンと名称の明記を。報復防止のため」）は
+// ヘッダーに置く＝面を切り替えても・スクロールしても常に見える。色は役割色（働き手=橙／農家=緑）。
+// ✕はFinalReviewSheetのheaderBtnと同じ36pxの丸（器の見た目を枝分かれさせない）
+function PreviewTakeover({ onClose, url, name, accent, children }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 12px" }}>
-      <Avatar url={url} name={name} size={36} ring={accent} />
-      <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name || "名前未設定"}</p>
+    <div className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"#fff", display:"flex", flexDirection:"column", animation:"fadeIn .18s ease" }}>
+      <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:12, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 10px", borderBottom:"1px solid #F0F0F0" }}>
+        <button onClick={onClose} aria-label="とじる" className="f-sans" style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0, flexShrink:0 }}><NavIcon name="close" size={16} /></button>
+        <Avatar url={url} name={name || "？"} size={32} ring={accent} />
+        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:0, minWidth:0, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name || "名前未設定"}</p>
+      </div>
+      <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 24px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ maxWidth:560, margin:"0 auto" }}>{children}</div>
+      </div>
     </div>
   );
 }
@@ -68,15 +79,11 @@ export function EmployerPreviewSheet() {
   if (!st) return null;
   const topics = st.profile ? farmIntroTopics(st.profile) : [];
   return (
-    <div onClick={()=>setSt(null)} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(48px + env(safe-area-inset-top, 0px)) 16px calc(48px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>
-      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-        {/* ✕・タイトル「〇〇の農園紹介」は削除（2026-08-07たきと指示）＝閉じるはボックス外タップ。
-            名乗りはカード内の氏名行が担う */}
+    <PreviewTakeover onClose={()=>setSt(null)} url={st.profile?.avatar_url} name={st.profile?.nickname} accent={ROLE_GREEN}>
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
-            <PreviewIdentity url={st.profile.avatar_url} name={st.profile.nickname} accent={ROLE_GREEN} />
             <SwipeTabPages tabs={["プロフィール","記録","評価"]} page={page} onPage={setPage}>
               {/* 1枚目：プロフィール＝信頼カード（身元・自己申告のタグ）＋自己紹介の問いかけQ&A。
                   働き手プレビューの1枚目（WorkerTrustCard＋QaChat）と同じ組み立て（2026-08-24たきと指示）。
@@ -105,8 +112,7 @@ export function EmployerPreviewSheet() {
         ) : (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この農家のプロフィールは未設定です</p>
         )}
-      </div>
-    </div>
+    </PreviewTakeover>
   );
 }
 
@@ -215,13 +221,11 @@ export function WorkerPreviewSheet() {
   // 報告できるのはログイン済みの他人だけ（自分は報告しない＝DB側のCHECK制約と揃える）
   const canReport = !!(st.viewer_id && st.viewer_id !== st.worker_id);
   return (
-    <div onClick={closeSheet} className="cb-preview-overlay" style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:"calc(48px + env(safe-area-inset-top, 0px)) 16px calc(48px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .2s ease" }}>
-      <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+    <PreviewTakeover onClose={closeSheet} url={st.profile?.avatar_url} name={st.profile?.nickname} accent={ROLE_ORANGE}>
         {st.loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>
         ) : st.profile ? (
           <>
-            <PreviewIdentity url={st.profile.avatar_url} name={st.profile.nickname} accent={ROLE_ORANGE} />
             <SwipeTabPages tabs={["プロフィール","記録","評価"]} page={page} onPage={setPage}>
               {/* 1枚目：プロフィール（従来の中身をそのまま） */}
               <div>
@@ -255,12 +259,9 @@ export function WorkerPreviewSheet() {
         ) : (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この方のプロフィールは未設定です</p>
         )}
-      </div>
 
-      {/* 評価が空のときの案内文は撤去（2026-08-08たきと指示「削除」）。
-          中央固定のポータル層・スワイプ連動（msgSlideRef）も、この案内のためだけの仕掛けので一緒に削除した */}
-
-      {/* 通報モーダル：求人の通報（JobSearchMapView）と同じ視覚文法・語彙。2枚のボタンの共通の行き先 */}
+      {/* 通報モーダル：求人の通報（JobSearchMapView）と同じ視覚文法・語彙。2枚のボタンの共通の行き先。
+          全画面の上に重ねる小さなボックスのまま（送信の一拍＝これは「外」のある確認so外タップは閉じない仕様を維持） */}
       {rep && (
         <div className="cb-lock-scroll" onClick={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:9800, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
@@ -291,6 +292,6 @@ export function WorkerPreviewSheet() {
           </div>
         </div>
       )}
-    </div>
+    </PreviewTakeover>
   );
 }
