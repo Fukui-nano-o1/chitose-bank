@@ -18,7 +18,8 @@
 //   確認カードが開き直る＝フォーカス消失バグの同族）
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { calFmtDate, ROLE_ORANGE, appPhaseKey, APP_PHASE_COLOR } from "../lib/utils";
+import { calFmtDate, ROLE_ORANGE, appPhaseKey, APP_PHASE_COLOR, payTermsLine, tenureLabel, yearMonthLabel } from "../lib/utils";
+import { fetchJobRowForMe } from "../lib/jobForMe";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 import { Avatar, Dots } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -33,11 +34,39 @@ export function markHireSheet(applicationId) {
   } catch {}
 }
 
+// 明細の行（ラベル＋値）＝Airbnbの内訳行の写し。★flexの潰れ対策：ラベル側に flexShrink:0
+// （2026-08-23「1文字ずつの縦書き」の型＝値側は右寄せで折り返す）。※モジュールレベル定義を維持すること
+function infoRow(label, value) {
+  return (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:12, padding:"9px 0", borderBottom:"1px solid #F4F4F4" }}>
+      <span className="f-sans" style={{ flexShrink:0, fontSize:12, color:"#717171" }}>{label}</span>
+      <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#222", textAlign:"right", minWidth:0 }}>{value}</span>
+    </div>
+  );
+}
+// 来られる日（応募時の申告・applications.available_dates）："any"＝期間中いつでもOK／
+// 配列＝日付＋件数／null（単日求人など）＝行ごと出さない
+function availText(avail) {
+  if (avail === "any") return "期間中いつでもOK";
+  if (!Array.isArray(avail) || avail.length === 0) return null;
+  const ds = [...avail].sort();
+  const shown = ds.slice(0, 3).map(calFmtDate).join("・");
+  return ds.length > 3 ? `${shown} ほか${ds.length - 3}日（全${ds.length}日）` : `${shown}（${ds.length}日）`;
+}
+// 報酬の額。★合計は計算しない（働く日は採用後に決めるので掛け算は憶測になる）。
+// 掲載の壁（2026-08-06）で数字のみが保証されているが、読めない値はそのまま出す（勝手に隠さない）
+function wageText(job) {
+  const fmt = (v) => { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString() : v; };
+  return [job.hourly_wage ? `時給 ${fmt(job.hourly_wage)}円` : null, job.daily_wage ? `日給 ${fmt(job.daily_wage)}円` : null]
+    .filter(Boolean).join("・") || null;
+}
+
 export function HireConfirm({ app, meId, onClose, onHired }) {
   const [dup, setDup] = useState(null);          // 重なっている別の求人番号
   const [checking, setChecking] = useState(false);
   const [hiring, setHiring] = useState(false);
   const [done, setDone] = useState(null);        // 採用の演出 { appId, name, jobNumber, extra, data }
+  const [info, setInfo] = useState(null);        // ページの中身の材料 { job, avail, trust }（届いたぶんだけ描く）
   const appId = app?.application_id || null;
 
   // 開いたら二重予約の下調べ（応募者シート・採用するページと同じ判定＝lib/hire）
@@ -48,6 +77,31 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
     (async () => {
       const d = meId ? await findDoubleBookingJob(meId, app.partner_id, app.job_number) : null;
       if (!cancelled) { setDup(d); setChecking(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [appId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ページの中身の材料（2026-08-31たきと指示「ページの内容もAirbnbをパクれ」＝Airbnbの承諾画面は
+  // 相手の認証・予約の内容・お金・承諾すると何が起きるか、を1画面に並べる）。
+  // ★取得はどれも既存の窓口だけ：求人＝fetchJobRowForMe（当事者の窓口）／来られる日＝applications
+  // （農家の当事者RLS）／相手の身元＝worker_trust_info（応募を受けた農家は閲覧資格あり・信頼カードと同じRPC）。
+  // ★届かなくても採用は止めない＝その区画を描かないだけ（表示のフェイルオープン・2026-08-07規則）
+  useEffect(() => {
+    if (!appId) { setInfo(null); return; }
+    let cancelled = false;
+    setInfo(null);
+    (async () => {
+      const [jobRes, appRes, trustRes] = await Promise.all([
+        fetchJobRowForMe(app.job_number).catch(() => ({ data: null })),
+        supabase.from("applications").select("available_dates").eq("id", appId).maybeSingle(),
+        app.partner_id ? Promise.resolve(supabase.rpc("worker_trust_info", { p_worker_id: app.partner_id })).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (cancelled) return;
+      setInfo({
+        job: jobRes?.data || null,
+        avail: appRes?.error ? null : (appRes?.data?.available_dates ?? null),
+        trust: (trustRes?.data && trustRes.data.ok) ? trustRes.data : null,
+      });
     })();
     return () => { cancelled = true; };
   }, [appId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,12 +176,20 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
             <div style={{ maxWidth:560, margin:"0 auto" }}>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 6px" }}>採用の最終確認</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 14px" }}>面接を終えてから決めてください</p>
-            <div style={{ display:"flex", alignItems:"center", gap:12, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
-              <Avatar url={app.partner_avatar} name={app.partner_name || "？"} size={48} ring={phaseColor} bg={ROLE_ORANGE} />
+            {/* ═ 相手（Airbnbのゲストカードの写し＝人と認証だけ。仕事の中身は下の区画へ） ═ */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, background:"#F7F7F7", borderRadius:12, padding:"14px", marginBottom:12 }}>
+              <Avatar url={app.partner_avatar} name={app.partner_name || "？"} size={52} ring={phaseColor} bg={ROLE_ORANGE} />
               <div style={{ minWidth:0 }}>
-                <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>{app.partner_name ? app.partner_name + "さん" : "この方"}</p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0", overflow:"hidden", textOverflow:"ellipsis" }}>{titleOf(app)} <span style={{ color:"#999" }}>#{app.job_number}</span></p>
-                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{dateOf(app)}{app.work_time ? <>　<NavIconInline name="clock" size={12} style={{ verticalAlign:"-1px", marginRight:2 }} />{app.work_time}</> : ""}</p>
+                <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0 }}>{app.partner_name ? app.partner_name + "さん" : "この方"}</p>
+                {/* 身元の事実＝信頼カードと同じ2つだけ（利用歴・連絡先確認済み）。実績の数字は
+                    出さない＝数字は記録の面が持つ（2026-08-07の整理を崩さない） */}
+                {info?.trust && (info.trust.joined_at || info.trust.verified_at) && (
+                  <p className="f-sans" style={{ fontSize:11, color:"#717171", margin:"4px 0 0", lineHeight:1.7 }}>
+                    {info.trust.joined_at ? `chitose-bank利用${tenureLabel(info.trust.joined_at)}` : ""}
+                    {info.trust.joined_at && info.trust.verified_at ? "　" : ""}
+                    {info.trust.verified_at ? <span style={{ color:"#B05A2A", fontWeight:600 }}><NavIconInline name="tick" size={11} style={{ verticalAlign:"-1.5px" }} />連絡先確認済み（{yearMonthLabel(info.trust.verified_at)}）</span> : null}
+                  </p>
+                )}
               </div>
             </div>
             {/* 二重予約の警告（lib/hire）。下調べ中はその旨を出す＝「警告が無い」のか
@@ -137,8 +199,43 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
             ) : dup ? (
               <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", background:"#FFF6EE", border:"1px solid #F3D3B5", borderRadius:10, padding:"10px 12px", lineHeight:1.7, margin:"0 0 10px" }}>{doubleBookingWarning(dup)}</p>
             ) : null}
-            {/* 契約成立＝本名の相互開示の明示（2026-07-30たきと裁定(B)・採用confirmに必ず入れる） */}
-            <p className="f-sans" style={{ fontSize:12, color:"#555", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", lineHeight:1.7, margin:"0 0 16px" }}>{HIRE_NAME_DISCLOSURE_NOTE}</p>
+            {/* ═ 仕事の内容（Airbnbの予約の内容の写し）＝appのぶんは必ず出る・求人の行が届いたら場所も ═ */}
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"14px 0 2px" }}>仕事の内容</p>
+            <div style={{ marginBottom:4 }}>
+              {infoRow("求人", <>{titleOf(app)} <span style={{ color:"#999" }}>#{app.job_number}</span></>)}
+              {infoRow("日程", dateOf(app))}
+              {app.work_time ? infoRow("勤務時間", app.work_time) : null}
+              {info?.job && (info.job.city || info.job.town) ? infoRow("場所", `${info.job.city || ""}${info.job.town || ""}`) : null}
+              {availText(info?.avail) ? infoRow("来られる日", availText(info.avail)) : null}
+            </div>
+            {/* ═ 報酬と支払い（Airbnbの受取額の内訳の写し）＝金額の話を承諾の画面に必ず置く。
+                ★合計の見積もりは作らない：働く日は採用後に決める（働く日を決める）ので、期間×日給の
+                掛け算は憶測になる（憲法3条）。事実（額と支払条件）だけを出す ═ */}
+            {info?.job && (
+              <>
+                <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"14px 0 2px" }}>報酬と支払い</p>
+                <div style={{ marginBottom:4 }}>
+                  {wageText(info.job) ? infoRow("報酬", wageText(info.job)) : null}
+                  {infoRow("支払い", payTermsLine({ payTiming: info.job.pay_timing, payMethod: info.job.pay_method }).replace(/^支払：/, ""))}
+                </div>
+              </>
+            )}
+            {/* ═ 採用すると（Airbnbの「承諾すると予約が確定します」の写し）＝何が起きるかを先に全部言う。
+                1つ目は本名の相互開示の明示（2026-07-30たきと裁定(B)・採用confirmに必ず入れる） ═ */}
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"14px 0 8px" }}>採用すると</p>
+            <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:16 }}>
+              {[
+                HIRE_NAME_DISCLOSURE_NOTE,
+                "労働条件がいまの内容で確定し、労働条件通知書としてお互いに残ります。",
+                "カレンダーに確定の予定として表示されます。",
+                info?.job?.headcount ? `募集人数（${info.job.headcount}人）に達すると、残りの応募は自動で見送りになります。` : "募集人数に達すると、残りの応募は自動で見送りになります。",
+              ].map((t, i) => (
+                <p key={i} className="f-sans" style={{ display:"flex", gap:8, fontSize:12, color:"#555", lineHeight:1.7, margin: i === 0 ? 0 : "8px 0 0" }}>
+                  <span style={{ flexShrink:0, color:"#00A86B", marginTop:1 }}><NavIconInline name="tick" size={12} style={{ marginRight:0 }} /></span>
+                  <span>{t}</span>
+                </p>
+              ))}
+            </div>
             {/* 決める前に見る導線：後戻りできない判断の前に、やり取りと応募者の中身を見に行ける道を必ず残す */}
             <div style={{ display:"flex", justifyContent:"center", gap:16 }}>
               <button onClick={()=>{ if (hiring) return; window.location.hash = "/chat/" + app.application_id; }} className="f-sans"
