@@ -28,7 +28,9 @@ export function SearchFab({ active, summary, count, onOpen, onClear }) {
 }
 
 // 検索パネル（半透明の暗幕・1つだけ開くアコーディオン・チップはタップの瞬間に一覧へ反映）
-export function SearchFilterPanel({ open, onClose, sections, section, onSection, onClear, resultCount }) {
+// noValue / onNoChange＝求人No.でさがす（2026-08-31たきと指示「No.検索だ」）。数字だけを受け、
+// 入力の瞬間に一覧へ反映（チップと同じリアルタイム方式）。条件の持ち主は親（selNo）＝この部品は入力欄だけ
+export function SearchFilterPanel({ open, onClose, sections, section, onSection, noValue = "", onNoChange, onClear, resultCount }) {
   if (!open) return null;
   return (<>
     <div className="fade-in cb-search-overlay cb-lock-scroll" onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
@@ -38,6 +40,20 @@ export function SearchFilterPanel({ open, onClose, sections, section, onSection,
       <div style={{ width:"100%", maxWidth:520, margin:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px", boxSizing:"border-box" }}>
       {/* ✕閉じるボタンは削除（2026-07-27たきと指示）：モザイク部分のタップで閉じられるため不要 */}
       <div style={{ display:"grid", gap:12, alignContent:"start" }}>
+        {/* 求人No.でさがす：アコーディオンに隠さず常設の入力欄（番号を知っていて打ちに来る操作なので
+            開く1タップを挟まない）。★font-size 16px 必須＝iOS Safariの自動ズーム回避（appStylesの規約） */}
+        {onNoChange && (
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, boxShadow:"0 1px 6px rgba(0,0,0,0.06)", padding:"12px 18px", display:"flex", alignItems:"center", gap:10 }}>
+            <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#717171", flexShrink:0 }}>No.</span>
+            <input value={noValue} onChange={e=>onNoChange(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+              inputMode="numeric" placeholder="求人番号でさがす（例：1028）" aria-label="求人番号でさがす"
+              className="f-sans" style={{ flex:1, minWidth:0, border:"none", outline:"none", fontSize:16, fontWeight:700, color:"#222", background:"transparent", padding:"4px 0" }} />
+            {noValue && (
+              <button onClick={()=>onNoChange("")} aria-label="No.をクリア"
+                style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"#F0F0F0", border:"none", display:"flex", alignItems:"center", justifyContent:"center", color:"#555", cursor:"pointer", padding:0 }}><NavIcon name="close" size={12} /></button>
+            )}
+          </div>
+        )}
         {sections.map(sec => section === sec.k ? (
           <div key={sec.k} onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, boxShadow:"0 2px 10px rgba(0,0,0,0.07)", padding:"18px 18px 20px" }}>
             <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"0 0 14px" }}>{sec.title}</p>
