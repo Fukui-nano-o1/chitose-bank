@@ -12,7 +12,7 @@ import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
-import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
+import { JobCard, JOB_CARD_RELATED_SIZE, JOB_CARD_PHOTO_H } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -573,7 +573,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const qn = qUnansweredMap[d.job_number] || 0;
     const canOpenQ = d.status === "open" && !hideEndLabel;
     return (
-      // JobCard（related）の高さ＝写真の高さ＝カードの高さ。inset:0＋角丸で重ねものを写真の中に収める。
+      // 概要that写真の下に出る型（2026-08-31）＝カードの高さ＞写真の高さ。重ねもの（帯）は
+      // JOB_CARD_PHOTO_H で切り抜いて写真の中に収める（文字の行に掛けない・inset:0にしない）。
       // 包む側にもカードと同じ幅を持たせる（JOB_CARD_RELATED_SIZE）＝横並び（JobRow）で潰れない。
       // ★包まずに置くと flex thatカードをblock化するthat、包むと<a>thatinlineのままso幅thatが効かない（2026-08-23修理）
       <div key={d.job_number} style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
@@ -582,7 +583,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
             : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} />
         {ribbon && (
-          <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>{ribbon}</div>
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:JOB_CARD_PHOTO_H, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>{ribbon}</div>
         )}
         {qn > 0 && (
           // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。

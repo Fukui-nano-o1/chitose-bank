@@ -19,7 +19,7 @@
 import { useState, useEffect } from "react";
 import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon, JobRow } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
-import { JobCard, JOB_CARD_RELATED_SIZE } from "../JobCard";
+import { JobCard, JOB_CARD_RELATED_SIZE, JOB_CARD_PHOTO_H } from "../JobCard";
 import { Celebration } from "../Celebration";
 import { WorkerTrustCard } from "../TrustCards";
 import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
@@ -89,7 +89,7 @@ function JobTile({ job, ribbon }) {
     <div style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
       <JobCard job={job} variant="related" onOpen={noop} />
       {ribbon && (
-        <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:JOB_CARD_PHOTO_H, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
           <StatusRibbon label={ribbon} color="#0E8A6B" />
         </div>
       )}
