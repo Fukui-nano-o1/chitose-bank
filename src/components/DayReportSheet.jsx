@@ -17,9 +17,10 @@
 //   規則は DragSheet・hDrag と揃える：①8px動くまで軸を決めない ②1ジェスチャで軸は1回だけ
 //   （縦と決まったら以後ノータッチ＝面の中の縦スクロールに完全に譲る）③横は preventDefault して
 //   rAFで1フレーム1回だけ描く（will-change＋transition:none の滑らか3点セット）。
-// ★シートの高さは2面とも固定：面ごとに高さが変わるとボタンが動き、続けてタップした指が
-//   黒幕に落ちて閉じる（2026-08-16の誤タップと同型）。中身だけ面の内側でスクロールさせる。
-//   高さは1枚目の図がちょうど収まり、2枚目の選択肢が読める妥協点（min(66vh,470px)）。
+// ★全画面テイクオーバー（2026-08-31たきと指示「Airbnbはどうしてる？パクれ」）：
+//   小さな中央ボックスをやめ、白い全画面（左上に✕・中身は面のスクロール・下部に固定の操作）に。
+//   URLは変えない（ページ遷移しない）。高さが画面いっぱいで一定なので、面ごとに高さが変わって
+//   ボタンが動く誤タップ（2026-08-16の型）も構造ごと消えた。
 // ★モジュールレベル定義を維持すること：親の中で定義すると再レンダーごとに再マウントされ、
 //   textarea のフォーカス・入力中の下書きが消える（LandingFlowのフォーカス消失バグと同族）。
 import { useState, useEffect, useRef } from "react";
@@ -133,14 +134,16 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
   const paneStyle = { width:"50%", boxSizing:"border-box", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" };
 
   return (
-    <div onClick={()=>{ if (!submitting) onClose(); }} className="cb-lock-scroll"
-      style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div onClick={ev=>ev.stopPropagation()}
-        style={{ background:"#fff", borderRadius:16, maxWidth:420, width:"100%",
-          height:"min(66vh, 470px)", maxHeight:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        {/* 見出し（面をまたいで動かさない＝いまどの記録の話かを見失わせない） */}
-        <div style={{ padding:"20px 24px 10px", flexShrink:0 }}>
-          <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{dayLabel} の記録</p>
+    <div onClick={ev=>ev.stopPropagation()} className="cb-lock-scroll"
+      style={{ position:"fixed", inset:0, zIndex:9500, background:"#fff", display:"flex", flexDirection:"column" }}>
+      {/* 見出し（面をまたいで動かさない＝いまどの記録の話かを見失わせない）。
+          とじるは左上の✕＝黒幕が無くなったので、外タップの代わりの確実な出口 */}
+        <div style={{ display:"flex", alignItems:"center", gap:12, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 10px", flexShrink:0 }}>
+          <button onClick={()=>{ if (!submitting) onClose(); }} aria-label="とじる"
+            style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0, flexShrink:0 }}>
+            <NavIcon name="close" size={16} />
+          </button>
+          <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0 }}>{dayLabel} の記録</p>
         </div>
 
         {/* 面の窓：ここでタッチを拾い、中の帯を指に追従させる */}
@@ -150,7 +153,8 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
             {/* ── 1枚目：説明（図）── 文字で説明せず1枚の図で見せる（2026-08-23たきと指示・
                  赤ちゃん前提＝文字に頼らない）。読めるように、タップで大画面（パン方式）も置く */}
             <div style={paneStyle}>
-              <div style={{ minHeight:"100%", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+              {/* PCでも巨大化しないよう中身は560pxで中央に（全画面テイクオーバー化の付随） */}
+              <div style={{ minHeight:"100%", maxWidth:560, margin:"0 auto", display:"flex", flexDirection:"column", justifyContent:"center" }}>
                 <img loading="lazy" src="/day-report-guide.jpg"
                   alt="その日の記録：記録すると相手にお知らせが届き、記録として残ります。何もなかった日は記録しなくて大丈夫です。作業全体の評価は、最終の作業日にお願いします。"
                   onClick={()=>setImgZoom(true)}
@@ -162,6 +166,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
 
             {/* ── 2枚目：選択肢と送信 ── */}
             <div style={{ ...paneStyle, padding:"0 24px" }}>
+              <div style={{ maxWidth:560, margin:"0 auto" }}>
               <div style={{ display:"grid", gap:8, marginBottom:14 }}>
                 {kinds.map(k => {
                   const on = kind === k.v;
@@ -195,12 +200,14 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
               <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3}
                 placeholder="状況を一言（任意・相手に届きます）"
                 className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 面の目印（タップでも移動できる＝タップ不能にしない・2026-08-03の原則）と操作 */}
-        <div style={{ flexShrink:0, padding:"10px 24px 18px" }}>
+        {/* 面の目印（タップでも移動できる＝タップ不能にしない・2026-08-03の原則）と操作＝
+            下部の固定バー（Airbnbの下部ボタンの写し・とじるは左上の✕が担う） */}
+        <div style={{ flexShrink:0, borderTop:"1px solid #EBEBEB", padding:"10px 24px calc(14px + env(safe-area-inset-bottom, 0px))", background:"#fff" }}>
           <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:10 }}>
             {[0, 1].map(i => (
               <button key={i} onClick={()=>setPage(i)} aria-label={i === 0 ? "説明" : "記録することを選ぶ"}
@@ -208,31 +215,26 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
                   background: page === i ? "#E24B4A" : "#E0E0E0", transition:"width .2s ease, background .2s ease" }} />
             ))}
           </div>
+          {page === 1 && !ready && (
+            <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", textAlign:"center", margin:"0 0 8px" }}>
+              {kind ? "何が違ったかを選んでください" : "記録することを選んでください"}
+            </p>
+          )}
           {page === 0 ? (
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-              <button onClick={onClose} disabled={submitting} className="f-sans"
-                style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-              <button onClick={()=>setPage(1)} className="f-sans"
-                style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>記録することを選ぶ →</button>
-            </div>
+            <button onClick={()=>setPage(1)} className="f-sans"
+              style={{ display:"block", width:"100%", padding:"14px 20px", fontSize:15, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>記録することを選ぶ →</button>
           ) : (
-            <div style={{ display:"flex", gap:8, justifyContent:"space-between", alignItems:"center" }}>
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
               <button onClick={()=>setPage(0)} disabled={submitting} className="f-sans"
-                style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻る</button>
+                style={{ flexShrink:0, padding:"14px 18px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>← 戻る</button>
               {/* ★押せないボタンにしない（2026-08-03の原則）：未選択なら薄くして理由を添える */}
               <button onClick={submit} disabled={submitting} className="f-sans"
-                style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (submitting || !ready) ? 0.5 : 1 }}>
+                style={{ flex:1, padding:"14px 20px", fontSize:15, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (submitting || !ready) ? 0.5 : 1 }}>
                 {submitting ? <>送信中<Dots /></> : "記録する"}
               </button>
             </div>
           )}
-          {page === 1 && !ready && (
-            <p className="f-sans" style={{ fontSize:11, color:"#B54A0E", textAlign:"right", margin:"8px 0 0" }}>
-              {kind ? "何が違ったかを選んでください" : "記録することを選んでください"}
-            </p>
-          )}
         </div>
-      </div>
 
       {/* 説明の図の大画面表示（応募の承認の流れ図と同じパン方式・2026-08-16の作法）：
           画面に収める表示だと文字が小さく、読むにはピンチ拡大が要る。このサイトのviewportは
@@ -246,8 +248,8 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
           画面ではなく帯を基準にしてしまう（TrustCardsのAvatarLightboxと同じ理由） */}
       {imgZoom && createPortal(
         /* ★stopPropagation必須：createPortalはDOMをbody直下へ出すが、Reactのイベントは
-           【Reactの木】をたどって親へ上がる＝ここで止めないと、大画面のタップがシートの黒幕の
-           onClick（＝シートを閉じる）にまで届いてしまう */
+           【Reactの木】をたどって親へ上がる＝ここで止めないと、大画面のタップがこのシートの
+           外（カード等の親のonClick）にまで届いてしまう */
         <div onClick={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", animation:"fadeIn .2s ease" }}>
           <div onClick={()=>setImgZoom(false)}
             ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}

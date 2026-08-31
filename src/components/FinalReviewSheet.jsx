@@ -16,6 +16,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { DAY_FACT_LABELS } from "../lib/utils";
+import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
 
 // この仕事の記録（客観データ）：attendance_events を当事者RLSで引いて件数に畳む。
@@ -79,18 +80,34 @@ export function FinalReviewSheet({
   const ready = unanswered.length === 0;
   const choiceLabel = (q) => (q.choices.find(c => c.v === answers[q.k]) || {}).l || "（未回答）";
 
-  const shell = (children) => (
-    <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-        {children}
+  // ★全画面テイクオーバー（2026-08-31たきと指示「Airbnbはどうしてる？パクれ」）：
+  //   Airbnbのレビューは小さなボックスでもURLが変わるページ遷移でもなく、アプリの上に
+  //   白い全画面が乗る形（左上に✕/←・中身は縦スクロール・下部に固定の大きな送信ボタン）。
+  //   その振る舞いだけを写した（コードは非公開なので流用していない）。URLは変えない
+  //   ＝「ページ遷移するな」（2026-08-28採用の指示）と同じ作法。
+  //   中身のスクロールと操作ボタンを分離＝長い設問でも送信ボタンが常に見える。
+  const headerBtn = (onClick, label, inner) => (
+    <button onClick={onClick} disabled={submitting} aria-label={label} className="f-sans"
+      style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, padding:0, flexShrink:0 }}>{inner}</button>
+  );
+  const shell = (head, children, bar) => (
+    <div onClick={e=>e.stopPropagation()} className="cb-lock-scroll"
+      style={{ position:"fixed", inset:0, zIndex:9500, background:"#fff", display:"flex", flexDirection:"column" }}>
+      <div style={{ flexShrink:0, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 6px" }}>{head}</div>
+      <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"6px 24px 24px" }}>
+        <div style={{ maxWidth:560, margin:"0 auto" }}>{children}</div>
+      </div>
+      <div style={{ flexShrink:0, borderTop:"1px solid #EBEBEB", padding:"12px 24px calc(14px + env(safe-area-inset-bottom, 0px))", background:"#fff" }}>
+        <div style={{ maxWidth:560, margin:"0 auto" }}>{bar}</div>
       </div>
     </div>
   );
 
-  // ═══ 送信するタップ後の最終確認 ═══
+  // ═══ 送信するタップ後の最終確認（左上の←で設問に戻る） ═══
   if (confirming) return shell(
+    headerBtn(()=>{ if (!submitting) setConfirming(false); }, "もどって直す", "←"),
     <>
-      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>これで送信します</p>
+      <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 8px" }}>これで送信します</p>
       {confirmNote && <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 14px" }}>{confirmNote}</p>}
       {/* ★問いと答えは【上下】に置く（2026-08-23たきと指示「見やすくして」）：
           横並び（flex）だと、問いが長い時に答えの幅が min-content まで押し潰され、
@@ -113,20 +130,18 @@ export function FinalReviewSheet({
         )}
         {confirmExtra}
       </div>
-      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-        <button onClick={()=>{ if (!submitting) setConfirming(false); }} disabled={submitting} className="f-sans"
-          style={{ padding:"11px 20px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>← 戻って直す</button>
-        <button onClick={onSubmit} disabled={submitting} className="f-sans"
-          style={{ padding:"11px 20px", fontSize:14, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: submitting ? 0.5 : 1 }}>
-          {submitting ? <>送信中<Dots /></> : "送信する"}
-        </button>
-      </div>
-    </>
+    </>,
+    /* 下部の固定バー（Airbnbの下部ボタンの写し）：送信は全幅の1つだけ。戻るは左上の← */
+    <button onClick={onSubmit} disabled={submitting} className="f-sans"
+      style={{ display:"block", width:"100%", padding:"14px 20px", fontSize:15, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: submitting ? 0.5 : 1 }}>
+      {submitting ? <>送信中<Dots /></> : "送信する"}
+    </button>
   );
 
   return shell(
+    headerBtn(()=>{ if (!submitting) onClose(); }, "とじる", <NavIcon name="close" size={16} />),
     <>
-      <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 6px" }}>{title}</p>
+      <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{title}</p>
       {intro && <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.8, margin:"0 0 14px" }}>{intro}</p>}
       {/* ①客観データの自動表示（本人に再入力させない） */}
       <DayFacts applicationId={app.id} dayCount={dayCount} />
@@ -167,21 +182,20 @@ export function FinalReviewSheet({
         </div>
       )}
       {extra}
-      <div style={{ display:"flex", gap:8, justifyContent:"space-between", alignItems:"center", marginTop:4 }}>
-        <button onClick={()=>{ if (!submitting) onClose(); }} disabled={submitting} className="f-sans"
-          style={{ padding:"11px 20px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-        {/* ★押せないボタンにしない（2026-08-03の原則）：未回答があれば理由を添えて薄くする */}
-        <button onClick={()=>{ if (ready) setConfirming(true); }} className="f-sans"
-          style={{ padding:"11px 20px", fontSize:14, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: ready ? 1 : 0.5 }}>
-          送信する
-        </button>
-      </div>
+      {footer}
+    </>,
+    /* 下部の固定バー：とじるは左上の✕が担うのでキャンセルは置かない。
+       ★押せないボタンにしない（2026-08-03の原則）：未回答があれば理由を添えて薄くする */
+    <>
       {!ready && (
-        <p className="f-sans" style={{ fontSize:11, color:"#B54A0E", textAlign:"right", margin:"8px 0 0" }}>
+        <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", textAlign:"center", margin:"0 0 8px" }}>
           あと{unanswered.length}問、選んでください
         </p>
       )}
-      {footer}
+      <button onClick={()=>{ if (ready) setConfirming(true); }} className="f-sans"
+        style={{ display:"block", width:"100%", padding:"14px 20px", fontSize:15, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: ready ? 1 : 0.5 }}>
+        送信する
+      </button>
     </>
   );
 }
