@@ -217,13 +217,16 @@ export function AdminReportsRoom() {
           style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #DDD", background: "#fff", color: "#555", fontSize: 15, fontWeight: 700, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>？</button>
       </div>
 
-      {/* タブ（タップでも移動・スワイプ中は現在面から点灯を導出）＝システムページと同じ視覚文法 */}
-      <div style={{ display: "flex", borderBottom: "1px solid #EBEBEB", marginBottom: 16 }}>
+      {/* タブ（タップでも移動・スワイプ中は現在面から点灯を導出）＝システムページと同じ視覚文法。
+          ★横スクロール可（2026-08-31たきと報告「文字の重複」）：flex:1で6等分すると
+          「未払い（2）」等の件数つきラベルが枠からあふれて隣と重なる＝タブは中身なりの幅
+          （flexShrink:0）にして、入り切らないぶんは指で送る */}
+      <div className="admin-nav" style={{ display: "flex", borderBottom: "1px solid #EBEBEB", marginBottom: 16, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         {KINDS.map((g, i) => (
           <button key={g.k} type="button" onClick={() => goTo(i)} className="f-sans"
-            style={{ flex: 1, minWidth: 0, padding: "10px 0", background: "none", border: "none", whiteSpace: "nowrap",
+            style={{ flexShrink: 0, padding: "10px 14px", background: "none", border: "none", whiteSpace: "nowrap",
               borderBottom: pageIdx === i ? "2px solid #222" : "2px solid transparent", marginBottom: -1,
-              fontSize: 12, fontWeight: 700, color: pageIdx === i ? "#222" : "#999", cursor: "pointer" }}>
+              fontSize: 13, fontWeight: 700, color: pageIdx === i ? "#222" : "#999", cursor: "pointer" }}>
             {g.l}{items !== null && countOf(g.k) > 0 ? `（${countOf(g.k)}）` : ""}
           </button>
         ))}
