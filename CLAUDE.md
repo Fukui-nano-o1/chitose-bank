@@ -9281,3 +9281,28 @@ openWorkerPreview(meId, 1) の経路はわたしの実績カードが本番で�
 【実機目視の残り】マイページ農家面の黒い委託カードの下に白いカードが出るか／タップで農タイムレスが
 開くか／一般ユーザー・働き手面には出ないこと
 ━━━ ここまで ━━━
+
+━━━ 2026-08-31 農タイムレスを委託レーンから独立（たきと指示「委託の要素は全て削除。これは新しいプロジェクト」）━━━
+【位置づけの確定】農タイムレスは委託とは無関係の独立した新プロジェクト（アイデアの試作）。
+2026-08-30は委託レーンに間借りしていたが、URL・入口・写真バケットとも全て切り離した。
+【撤去した委託の要素】
+・委託面（#/admin/consignment）の農タイムレスカード＝削除（入口はマイページ農家面の1つだけに）
+・ConsignmentRoom の配線（readConsignView / cTab / onHash / 描画 / import）＝全撤去（timeless参照0をgrep実測）
+・URL #/admin/consignment/timeless → 【#/admin/timeless】へ独立。App.jsx に部屋の配線一式
+  （lazyChunk import・timelessRoom state・onHash setter・readHashTab・_subTabOfAdmin・描画＋AdminTabガード
+  ＝AdminWorkingRoomと同型）。専用チャンク FarmTimelessRoom-*.js に分割された
+・写真バケット consignment-photos の間借り → 専用バケット【farm-timeless】
+  （migration 20260831061025_farm_timeless_own_bucket・4枚セット規則どおり select/insert/update/delete。
+  読み=authenticated／書き=app_admins のみ。public・5MB・jpeg/png/webp）。
+  実弾（ロールバック付き）：管理者INSERT可・一般拒否。既存の記録は0行＝URL移行の対象なし
+・ページの← 戻る＝委託一覧 → マイページ（/profile/employer・入口カードの場所）
+・外枠＝ConsignmentRoomのシェル依存をやめ、他の管理部屋と同じ規格
+  （.appear .cb-admin-page・maxWidth640・下部バーは出す・フッターは隠す）を自前で持つ
+【不変】farm_timeless_posts テーブル・RLS（app_admins限定・20260830140119）／ページの中身
+（タイル日本地図・種別トグル・選択肢ピル・写真1枚・一言コメント・一覧と削除）／
+マイページ農家面のカードの置き場所（「新しく委託を出す」の下＝置き場所が下なだけでレーンの繋がりはない）
+【検証】build成功・eslint 0 error・警告22（変更前とstash比較で同数）・distでConsignmentRoomチャンクに
+農タイムレス0件・専用チャンク生成・旧URL参照0をgrep実測
+【実機目視の残り】①マイページのカード→#/admin/timeless が開くか ②委託ページにカードが無いこと
+③写真アップロード（farm-timelessバケットに入るか）④← 戻るでマイページに帰るか ⑤リロード・URL直打ち
+━━━ ここまで ━━━

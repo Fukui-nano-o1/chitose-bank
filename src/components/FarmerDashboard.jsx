@@ -1083,10 +1083,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
             </button>
             {/* 農タイムレス（2026-08-31たきと指示「マイページに設置。新しく委託を出すカードの下」）。
-                委託面（#/admin/consignment）の同名カードと同じ入口＝行き先は1つ（#/admin/consignment/timeless）。
-                配色も委託面と同じ白地黒枠＝黒ベタの委託カードと並べたときの濃淡で見分ける。
+                ★委託とは無関係の独立した新プロジェクト（同日たきと指示「委託の要素は全て削除」）＝
+                入口はこのカード1つ・行き先は独立URL #/admin/timeless（App.jsxの4点セット配線）。
+                置き場所が委託カードの下なだけで、レーンとしての繋がりはない。
                 管理者のみ表示＋farm_timeless_posts のRLSが app_admins 限定＝二重の壁（2026-08-30） */}
-            <button onClick={()=>{ window.location.hash = "/admin/consignment/timeless"; }} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", marginTop:12, background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
+            <button onClick={()=>{ window.location.hash = "/admin/timeless"; }} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", marginTop:12, background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
               <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#111111", letterSpacing:".02em" }}>農タイムレス</span>
               <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>日本地図に、病害虫や栽培アクションを写真と一言で記録します（管理者専用）。</span>
             </button>

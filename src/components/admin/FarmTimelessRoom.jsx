@@ -1,10 +1,11 @@
-// 農タイムレス（#/admin/consignment/timeless・管理者専用・2026-08-30たきと指示）。
+// 農タイムレス（#/admin/timeless・管理者専用）。
 // 日本地図（都道府県タイル）に、病害虫や栽培アクションを写真と一言コメントで記録する運営専用の圃場ノート。
-// 入口＝委託面の「新しく委託を出す」カードの下（ConsignmentRoomが本部品を描く）。
-// ★管理者専用の二重の壁：フロント＝この部屋自体が App の isAdmin ゲートの内側／
+// ★委託とは無関係の独立した新プロジェクト（2026-08-31たきと指示「委託の要素は全て削除。これは新しいプロジェクト」）。
+//   2026-08-30は委託レーンに間借りしていたが、URL・入口・写真バケットとも切り離した。
+// 入口＝マイページ農家面の「農タイムレス」カード（FarmerDashboard・isAdmin限定）。配線はApp.jsxの4点セット。
+// ★管理者専用の二重の壁：フロント＝App の isAdmin ゲート（safeTab==="admin"&&isAdmin(me)&&timelessRoom）／
 //   サーバー＝farm_timeless_posts のRLSが app_admins 限定（閲覧・書き込みとも・migration 20260830140119）。
-//   写真は consignment-photos バケット（書き込み=admin限定・公開URLは authenticated read）を
-//   timeless_ プレフィックスで間借り＝新しいバケット・ポリシーは作らない。
+//   写真は専用バケット farm-timeless（書き込み=admin限定・migration 20260831061025）。
 // ★日本地図は「タイル型」＝47都道府県を升目に並べた様式（SVGの実形は使わない）。
 //   位置は PREF_TILES の1箇所だけが正（x=列1..11・y=行1..14）。
 import { useState, useEffect, useRef } from "react";
@@ -79,7 +80,7 @@ export function FarmTimelessRoom() {
     if (!file) return;
     setUploading(true);
     try {
-      const { url } = await uploadJobPhoto(supabase, file, { bucket: "consignment-photos", pathPrefix: "timeless_", withThumb: false });
+      const { url } = await uploadJobPhoto(supabase, file, { bucket: "farm-timeless", pathPrefix: "timeless_", withThumb: false });
       setPhoto({ url });
     } catch (err) { alert("写真をアップロードできませんでした：" + (err?.message || err)); }
     setUploading(false);
@@ -111,8 +112,10 @@ export function FarmTimelessRoom() {
   const kinds = kind === "pest" ? PEST_KINDS : ACTION_KINDS;
 
   return (
-    <div className="fade-in">
-      <button onClick={() => { window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #EBEBEB", borderRadius: 20, fontSize: 13.2, fontWeight: 600, color: "#111111", cursor: "pointer", padding: "7px 14px", marginBottom: 16 }}>← 戻る</button>
+    /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05）。
+       独立ページになったので外枠（幅・余白）も自前で持つ＝他の管理部屋（AdminWorkingRoom等）と同じ規格 */
+    <div className="appear cb-admin-page" style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px", paddingBottom: "calc(140px + env(safe-area-inset-bottom, 0px))" }}>
+      <button onClick={() => { window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #EBEBEB", borderRadius: 20, fontSize: 13.2, fontWeight: 600, color: "#111111", cursor: "pointer", padding: "7px 14px", marginBottom: 16 }}>← 戻る</button>
       <h2 className="f-sans" style={{ fontSize: 22, fontWeight: 800, color: "#111111", margin: "0 0 4px" }}>農タイムレス</h2>
       <p className="f-sans" style={{ fontSize: 13.2, color: "#999999", margin: "0 0 16px", lineHeight: 1.7 }}>日本地図に、病害虫や栽培アクションを写真と一言で記録します（管理者専用）。</p>
 
