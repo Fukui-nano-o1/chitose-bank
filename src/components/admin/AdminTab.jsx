@@ -106,6 +106,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [sub, setSub] = useState("jobs"); // "jobs" | "account" | "other"（審査をデフォルトタブに）
   const [reviewSec, setReviewSec] = useState(null); // 審査タブ内の選択: null=ボックス格子 | jobs|accounts|prs|reports|disputes|contracts
   const [contracts, setContracts] = useState(null); // 契約スナップショット一覧（採用時に凍結・admin_list_contracts）
+  const [contractsHelp, setContractsHelp] = useState(false); // 契約記録の説明シート（？ボタン・2026-08-31）
   const [contractDetail, setContractDetail] = useState(null); // 展開中の1件（スナップショット詳細）
   useEffect(() => {
     if (reviewSec !== "contracts" || contracts !== null) return;
@@ -652,7 +653,9 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       )}
       {sub==="jobs" && reviewSec && (
         <div className="fade-in" style={{ display:"grid", gap:16 }}>
+        {reviewSec!=="contracts" && (
         <button onClick={backToReviewGrid} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:600, color:"#717171", padding:"4px 0", justifySelf:"start" }}>← 審査</button>
+        )}
 
         {/* 通報の一覧は統合報告ページ（#/admin/reports・AdminReportsRoom・2026-08-15）へ一本化。格子の「通報」カードから遷移 */}
         {reviewSec==="questions" && (
@@ -731,16 +734,22 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         </div>
         )}
 
-        {/* ⑥ 契約スナップショット（採用時に凍結・terms_snapshot）：争いの証跡。閲覧専用 */}
+        {/* ⑥ 契約スナップショット（採用時に凍結・terms_snapshot）：争いの証跡。閲覧専用。
+             頭はAirbnb型（2026-08-31たきと指示）＝「← ページ名」タップで戻る・説明は右端の？に集約 */}
         {reviewSec==="contracts" && (
         <div>
-          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 6px" }}>契約スナップショット{contracts ? `（${contracts.length}）` : ""}</p>
-          <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.7, margin:"0 0 12px" }}>採用が決まった瞬間（働き手の確認＋農家の採用）の契約条件を、そのまま凍結した記録です。あとから求人を編集しても、この内容は変わりません。</p>
+          <div style={{ display:"flex", alignItems:"center", gap:4, margin:"0 0 14px" }}>
+            <button onClick={backToReviewGrid} aria-label="審査に戻る" className="f-sans" style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10, background:"none", border:"none", cursor:"pointer", padding:"6px 4px", textAlign:"left" }}>
+              <span style={{ fontSize:20, lineHeight:1, color:"#222" }} aria-hidden="true">←</span>
+              <span style={{ fontSize:18, fontWeight:800, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>契約記録{contracts ? `（${contracts.length}）` : ""}</span>
+            </button>
+            <button onClick={()=>setContractsHelp(true)} aria-label="このページの説明" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", border:"1px solid #DDD", background:"#fff", color:"#555", fontSize:15, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>？</button>
+          </div>
           <div style={{ display:"grid", gap:10 }}>
             {contracts === null ? (
               <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>読み込み中<Dots /></p>
             ) : contracts.length === 0 ? (
-              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>凍結された契約はまだありません（両者が確認・採用した時点で記録されます）</p>
+              <p className="f-sans" style={{ color:"#999", fontSize:13, margin:0 }}>凍結された契約はまだありません</p>
             ) : contracts.map(c => {
               const s = c.snapshot || {};
               const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${c.job_number}`;
@@ -759,6 +768,25 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         )}
 
         </div>
+      )}
+
+      {/* 契約記録の説明シート（？ボタン・全画面被せは cb-box-overlay cb-lock-scroll 併用の標準形） */}
+      {contractsHelp && createPortal(
+        <div onClick={()=>setContractsHelp(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9600 }}>
+          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"22px 20px", maxWidth:420, width:"100%", position:"relative" }}>
+            <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 10px" }}>契約記録とは</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:"0 0 8px" }}>
+              採用が決まった瞬間（働き手の確認＋農家の採用）の契約条件を、そのまま凍結した記録です。
+              両者が確認・採用した時点で1件ずつ自動で記録されます。
+            </p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.9, margin:0 }}>
+              あとから求人を編集しても、この内容は変わりません。変更も削除もできず（全経路で不変）、
+              争いになった時の証跡になります。閲覧専用です。
+            </p>
+            <button onClick={()=>setContractsHelp(false)} className="f-sans" style={{ width:"100%", marginTop:16, padding:"13px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>閉じる</button>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* 契約スナップショット詳細（凍結内容の全項目・閲覧専用・中央ボックス規格） */}
@@ -804,7 +832,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                       {s.photos.map((p, i) => { const u = typeof p === "string" ? p : p?.url; return u ? <img loading="lazy" key={i} src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} /> : null; })}
                     </div>
                   )}
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"14px 0 0" }}>この記録は採用時に凍結されており、変更できません（争いの証跡）。</p>
                 </>
               );
             })()}
