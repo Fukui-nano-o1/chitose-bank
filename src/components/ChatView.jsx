@@ -146,6 +146,7 @@ export function ChatView({ applicationId, onBack }) {
     } catch { setJobBox({ loading: false, job_number: jobNumber, job: null }); }
   };
   const [activeAppId, setActiveAppId] = useState(applicationId);
+  const activeAppIdRef = useRef(applicationId); // loadの5秒ポーリングから現役応募の状態を取り直すための鏡（2026-08-31）
   const [activeStatus, setActiveStatus] = useState(() => _cr?.status ?? null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
   const [activeAvail, setActiveAvail] = useState(() => _cr?.available_dates ?? null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
   const [activeAgreed, setActiveAgreed] = useState(() => _cr?.agreed_dates ?? null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
@@ -168,6 +169,7 @@ export function ChatView({ applicationId, onBack }) {
   const applyActive = async (row) => {
     if (!row) return;
     setActiveAppId(row.id);
+    activeAppIdRef.current = row.id;
     setActiveStatus(row.status);
     setActiveAvail(row.available_dates ?? null);
     setActiveAgreed(row.agreed_dates ?? null);
@@ -199,13 +201,24 @@ export function ChatView({ applicationId, onBack }) {
       if (!uid) { const { data: { session } } = await supabase.auth.getSession(); uid = session?.user?.id || null; }
       if (!uid) return;
       // 本文と「相手の最終既読」は互いに独立so同時に投げる（直列2往復→1往復ぶんの待ちに）
-      const [msgRes, prRes] = await Promise.all([
+      const [msgRes, prRes, stRes] = await Promise.all([
         supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true}),
         supabase.from("chat_reads").select("last_read_at").in("application_id", scope).neq("reader_id", uid)
           .order("last_read_at", { ascending: false }).limit(1).maybeSingle(),
+        // 現役応募の状態も同じ足で取り直す（2026-08-31たきと指示「更新が遅れている時に
+        // メッセージを送信すると本当に送信される。絶対にだめ」）：見送り・失効・取り消し・完了に
+        // なっていれば5秒ポーリング・復帰と同じタイミングで幕が閉まり、入力欄が消える。
+        // DB側にも同じ壁（msg insert party の with_check・migration 20260831125430）＝二重の壁
+        supabase.from("applications").select("id,status")
+          .in("id", [...new Set([...scope, activeAppIdRef.current].filter(Boolean))]),
       ]);
       const data = msgRes.data;
       if (!msgRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
+      // 失敗時は手元の値を上書きしない（2026-08-07規則）
+      if (!stRes.error && stRes.data) {
+        const row = stRes.data.find(r => r.id === activeAppIdRef.current);
+        if (row?.status) setActiveStatus(prev => (prev === row.status ? prev : row.status));
+      }
       // ★一度確認できた履歴は、空配列・通信エラーでは消さない（2026-08-26 Speed-4B.1）。
       //   messages はDBで削除できない恒久ルールなので、「0件になった」という値だけは正として採用しない
       //  （サーバーが正の原則は、非空が返ってきた時に従来どおり働く）
@@ -482,6 +495,17 @@ export function ChatView({ applicationId, onBack }) {
   // 触っていない求人は新しく開いたものに押されて自然に右へ流れる（＝今いる求人が必ず左端）。
   // 記録は表示専用（snapshot＝本人のみ・ログアウトのclearSnapshotsで消える。並びが消えても
   // 下の未記録ぶんの規則に落ちるだけで壊れない）。一度も開いていない求人は従来の応募日順で後ろに続く
+  // 終了したチャット（2026-07-25たきと指示・2026-07-27に見送りを追加）：失効・完了・見送りは同じ設計＝
+  // 薄暗い幕＋中央ラベル・スクロール閲覧可・入力バー非表示。履歴は消さずに読める状態を保つ（チャット履歴の保全）。
+  // ラベルと色は帯の唯一のソース（APP_PHASE_LABEL / APP_PHASE_COLOR）から採る。
+  // ★この4状態はDBの壁（msg insert party の with_check・migration 20260831125430）と対＝片方だけ変えないこと
+  const CHAT_CLOSED_NOTE = {
+    expired:   "この求人の募集期間は終了しました",
+    completed: "この仕事は完了しました",
+    rejected:  "この応募は見送りになりました",
+    canceled:  "この応募は取り消されました",
+  };
+  const chatClosed = !!CHAT_CLOSED_NOTE[activeStatus];
   // 送信（2026-08-19たきと報告「チャットの送信と更新が遅すぎる」の根治）：
   // 旧＝getSession → insert → load（本文の全取得＋既読化＋chat_reads書き込み＋相手の既読取得）を
   //   1つずつ順番に待っていた＝最大6往復。nanoインスタンスなので1往復数百ms＝送信のたび数秒固まっていた。
@@ -491,6 +515,7 @@ export function ChatView({ applicationId, onBack }) {
   const send = async () => {
     const body = text.trim();
     if (!body || sending) return;
+    if (chatClosed) return; // 幕が出ている＝終了した応募。入力欄は無いはずだがここでも止める（2026-08-31）
     const uid = myId;
     if (!uid) return;
     setSending(true);
@@ -503,8 +528,18 @@ export function ChatView({ applicationId, onBack }) {
         .insert({ application_id: activeAppId, sender_id: uid, body }).select().single();
       if (error) {
         setMsgs(prev => prev.filter(m => m.id !== tempId));
-        setText(prev => prev.trim() ? prev : body);
-        alert("送信できませんでした：" + error.message);
+        if (error.code === "42501") {
+          // DBの壁（終了した応募への送信拒否・migration 20260831125430）に当たった＝画面が古かった。
+          // 状態を取り直して幕を出す（本文は入力欄に返さない＝入力欄ごと消えるため）
+          try {
+            const { data: r } = await supabase.from("applications").select("status").eq("id", activeAppId).maybeSingle();
+            if (r?.status) setActiveStatus(r.status);
+          } catch {}
+          alert("この応募は終了しているため、メッセージを送信できません。");
+        } else {
+          setText(prev => prev.trim() ? prev : body);
+          alert("送信できませんでした：" + error.message);
+        }
       } else if (data) {
         // 本物の行に差し替える（保険ポーリングが先に本物を持ってきていたら、仮の分を落とすだけ）
         setMsgs(prev => prev.some(m => m.id === data.id)
@@ -570,16 +605,6 @@ export function ChatView({ applicationId, onBack }) {
     }
     return id;
   })();
-  // 終了したチャット（2026-07-25たきと指示・2026-07-27に見送りを追加）：失効・完了・見送りは同じ設計＝
-  // 薄暗い幕＋中央ラベル・スクロール閲覧可・入力バー非表示。履歴は消さずに読める状態を保つ（チャット履歴の保全）。
-  // ラベルと色は帯の唯一のソース（APP_PHASE_LABEL / APP_PHASE_COLOR）から採る
-  const CHAT_CLOSED_NOTE = {
-    expired:   "この求人の募集期間は終了しました",
-    completed: "この仕事は完了しました",
-    rejected:  "この応募は見送りになりました",
-    canceled:  "この応募は取り消されました",
-  };
-  const chatClosed = !!CHAT_CLOSED_NOTE[activeStatus];
   // 右スワイプで一覧へ戻る（LINEと同じ・2026-08-24たきと指示）。←と同じ行き先＝入口を増やしていない
   const pageRef = useRef(null);
   useSwipeBack(pageRef, onBack);
