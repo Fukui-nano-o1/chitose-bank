@@ -5,8 +5,11 @@
 // ★管理者専用の二重の壁：フロント＝App の isAdmin ゲート（safeTab==="admin"&&isAdmin(me)&&timelessRoom）／
 //   サーバー＝farm_timeless_posts のRLSが app_admins 限定（閲覧・書き込みとも・migration 20260830140119）。
 //   写真は専用バケット farm-timeless（書き込み=admin限定・migration 20260831061025）。
-// ★日本地図は「タイル型」＝47都道府県を升目に並べた様式（SVGの実形は使わない）。
-//   位置は PREF_TILES の1箇所だけが正（x=列1..11・y=行1..14）。
+// ★日本地図は【本物の地図】（Leaflet＋国土地理院タイル＝JobLocationMapと同じ道具・2026-08-31たきと
+//   「日本地図を表示できるか？ズームできるか？」）：日本全体から指でパン・ピンチズームできる。
+//   県の選択は地図上のマーカー（47都道府県の県庁所在地に置いた丸）のタップ。位置の正は PREFS の1箇所だけ。
+//   ★JobLocationMapは「位置を示す図」なので操作を全部殺しているが、ここは地図として触る画面なので
+//     dragging・ズームを生かす（升目のタイルマップは2026-08-31に本物の地図へ差し替えて廃止）。
 // ★リポートの型（2026-08-31たきと指示「Weather newsのレポートページのリポートアクションをパクれ。
 //   入力アクションはチャットの入力送信設計をパクれ」）：ウェザーニュースはプロプライエタリなので
 //   コードは流用せず【振る舞い】だけを写した（TimeTree・Airbnbと同じ判断）＝
@@ -22,22 +25,28 @@ import { getCache, setCache } from "../../lib/viewCache";
 import { TASK_OPTIONS } from "../../lib/utils";
 import { Dots } from "../ui";
 import { NavIconInline } from "../NavIcons";
+import "leaflet/dist/leaflet.css";
 
-// 47都道府県のタイル配置（x=列, y=行）。厳密な地形ではなく「日本と分かる」升目＝
-// 北海道・東北を右上、中国四国九州を左下に曲げた定番のタイルマップ。
-const PREF_TILES = [
-  ["北海道", 11, 1], ["青森県", 11, 2], ["秋田県", 10, 3], ["岩手県", 11, 3],
-  ["山形県", 10, 4], ["宮城県", 11, 4], ["新潟県", 9, 5], ["福島県", 10, 5],
-  ["石川県", 7, 6], ["富山県", 8, 6], ["長野県", 9, 6], ["群馬県", 10, 6], ["栃木県", 11, 6],
-  ["福井県", 7, 7], ["岐阜県", 8, 7], ["山梨県", 9, 7], ["埼玉県", 10, 7], ["茨城県", 11, 7],
-  ["島根県", 2, 8], ["鳥取県", 3, 8], ["京都府", 6, 8], ["滋賀県", 7, 8], ["愛知県", 8, 8], ["静岡県", 9, 8], ["東京都", 10, 8], ["千葉県", 11, 8],
-  ["山口県", 1, 9], ["広島県", 2, 9], ["岡山県", 3, 9], ["兵庫県", 4, 9], ["大阪府", 5, 9], ["奈良県", 6, 9], ["三重県", 7, 9], ["神奈川県", 10, 9],
-  ["愛媛県", 2, 10], ["香川県", 3, 10], ["徳島県", 4, 10], ["和歌山県", 5, 10],
-  ["佐賀県", 1, 11], ["福岡県", 2, 11], ["大分県", 3, 11], ["高知県", 4, 11],
-  ["長崎県", 1, 12], ["熊本県", 2, 12], ["宮崎県", 3, 12],
-  ["鹿児島県", 2, 13],
-  ["沖縄県", 1, 14],
+// 47都道府県のマーカー位置（おおよその県庁所在地・lat/lng）。地図のズームに関わらず1県1点。
+// 県名は地図タイル（国土地理院）自身が描くので、マーカーに文字は持たせない。
+const PREFS = [
+  ["北海道", 43.06, 141.35], ["青森県", 40.82, 140.74], ["岩手県", 39.70, 141.15], ["宮城県", 38.27, 140.87],
+  ["秋田県", 39.72, 140.10], ["山形県", 38.24, 140.36], ["福島県", 37.75, 140.47],
+  ["茨城県", 36.34, 140.45], ["栃木県", 36.57, 139.88], ["群馬県", 36.39, 139.06], ["埼玉県", 35.86, 139.65],
+  ["千葉県", 35.61, 140.12], ["東京都", 35.69, 139.69], ["神奈川県", 35.45, 139.64],
+  ["新潟県", 37.90, 139.02], ["富山県", 36.70, 137.21], ["石川県", 36.59, 136.63], ["福井県", 36.07, 136.22],
+  ["山梨県", 35.66, 138.57], ["長野県", 36.65, 138.18], ["岐阜県", 35.39, 136.72], ["静岡県", 34.98, 138.38],
+  ["愛知県", 35.18, 136.91], ["三重県", 34.73, 136.51],
+  ["滋賀県", 35.00, 135.87], ["京都府", 35.02, 135.76], ["大阪府", 34.69, 135.52], ["兵庫県", 34.69, 135.18],
+  ["奈良県", 34.69, 135.83], ["和歌山県", 34.23, 135.17],
+  ["鳥取県", 35.50, 134.24], ["島根県", 35.47, 133.05], ["岡山県", 34.66, 133.93], ["広島県", 34.40, 132.46],
+  ["山口県", 34.19, 131.47],
+  ["徳島県", 34.07, 134.56], ["香川県", 34.34, 134.04], ["愛媛県", 33.84, 132.77], ["高知県", 33.56, 133.53],
+  ["福岡県", 33.61, 130.42], ["佐賀県", 33.25, 130.30], ["長崎県", 32.74, 129.87], ["熊本県", 32.79, 130.74],
+  ["大分県", 33.24, 131.61], ["宮崎県", 31.91, 131.42], ["鹿児島県", 31.56, 130.56], ["沖縄県", 26.21, 127.68],
 ];
+// 初期表示＝日本全体が納まる範囲（北海道〜沖縄）
+const JAPAN_BOUNDS = [[24.0, 122.9], [45.8, 146.0]];
 
 // 病害虫の種類（選択肢＝プリセットのみ・自由入力は置かない）。前半=害虫／後半=病気。
 const PEST_KINDS = [
@@ -71,6 +80,11 @@ export function FarmTimelessRoom() {
   const [formErr, setFormErr] = useState("");
   const fileRef = useRef(null);
   const inputRef = useRef(null);
+  const mapEl = useRef(null);     // 地図を描くdiv
+  const mapRef = useRef(null);    // Leafletの地図本体
+  const layerRef = useRef(null);  // 県マーカーの層（作り直しはこの層だけ＝地図ごと作り直さない）
+  const LRef = useRef(null);      // 動的importしたLeaflet
+  const [mapReady, setMapReady] = useState(0); // 地図ができた合図（マーカー側のeffectを起こす）
 
   // 読み込み（SWR）：前回内容を即描画→裏で最新に。失敗時は手元の値を上書きしない（2026-08-07規則）
   useEffect(() => {
@@ -98,6 +112,60 @@ export function FarmTimelessRoom() {
 
   const countByPref = posts.reduce((a, p) => { a[p.pref] = (a[p.pref] || 0) + 1; return a; }, {});
   const shown = pref ? posts.filter(p => p.pref === pref) : posts;
+
+  // ── 本物の日本地図（Leaflet＋国土地理院タイル）──
+  // Leafletは動的import（JobLocationMapと同じ＝初期バンドルに地図ライブラリを入れない）。
+  // JobLocationMapと違い、ここは地図として触る画面なのでドラッグ・ピンチ・ズームを生かす。
+  // ★fitBoundsは animate:false（ズームアニメ中に地図が破棄されると _leaflet_pos クラッシュ・2026-07-16事故）
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let L;
+      try { L = (await import("leaflet")).default; } catch (e) { console.error("leaflet load:", e); return; }
+      if (cancelled || !mapEl.current || mapRef.current) return;
+      try {
+        LRef.current = L;
+        const map = L.map(mapEl.current, {
+          zoomControl: true,          // ＋−ボタン（ピンチできない環境の道）
+          attributionControl: true,
+          scrollWheelZoom: true,
+          zoomSnap: 0.5,              // 日本全体が390px幅でも納まるよう半段ズームを許す
+        });
+        try { map.attributionControl.setPosition("bottomleft"); } catch {}
+        L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
+          attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noreferrer">国土地理院</a>',
+          maxZoom: 18,
+        }).addTo(map);
+        map.fitBounds(JAPAN_BOUNDS, { animate: false });
+        mapRef.current = map;
+        layerRef.current = L.layerGroup().addTo(map);
+        setMapReady(x => x + 1);
+      } catch (e) { console.error("FarmTimelessRoom map:", e); }
+    })();
+    return () => { cancelled = true; try { mapRef.current?.remove(); } catch {} mapRef.current = null; layerRef.current = null; };
+  }, []);
+
+  // 県マーカー（記録の件数・選択の見た目が変わるたびに、この層だけ描き直す）。
+  // 記録あり＝黒い数字のバブル／なし＝白い小さな丸。選択中＝白フチ＋黒の外リングで浮かせる。
+  // 県名の文字はマーカーに持たせない＝地図タイル自身が県名を描く（ズームすれば読める）
+  useEffect(() => {
+    const L = LRef.current, lg = layerRef.current;
+    if (!L || !lg) return;
+    lg.clearLayers();
+    PREFS.forEach(([name, lat, lng]) => {
+      const n = countByPref[name] || 0;
+      const on = pref === name;
+      const size = n ? 24 : 13;
+      const ring = on ? "box-shadow:0 0 0 2.5px #fff,0 0 0 5px #111111;" : "box-shadow:0 1px 4px rgba(0,0,0,0.35);";
+      const html = n
+        ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#111111;color:#fff;border:2px solid #fff;${ring}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-sizing:border-box">${n}</div>`
+        : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${on ? "#111111" : "#fff"};border:2px solid #111111;${ring}box-sizing:border-box"></div>`;
+      const icon = L.divIcon({ className: "", html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+      const mk = L.marker([lat, lng], { icon, keyboard: false, title: name + (n ? `（${n}件）` : "") });
+      mk.on("click", () => { setPref(p => (p === name ? "" : name)); setFormErr(""); });
+      mk.addTo(lg);
+    });
+  }, [mapReady, pref, JSON.stringify(countByPref)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPickPhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -160,29 +228,14 @@ export function FarmTimelessRoom() {
       <h2 className="f-sans" style={{ fontSize: 22, fontWeight: 800, color: "#111111", margin: "0 0 4px" }}>農タイムレス</h2>
       <p className="f-sans" style={{ fontSize: 13.2, color: "#999999", margin: "0 0 16px", lineHeight: 1.7 }}>日本地図に、病害虫や栽培アクションを写真と一言で記録します（管理者専用）。</p>
 
-      {/* ── 日本地図（都道府県タイル）── 記録のある県は薄グレー＋件数バッジ・選択中は黒 */}
-      <div style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: 16, padding: "14px 10px", marginBottom: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(11, 1fr)", gap: 3, maxWidth: 480, margin: "0 auto" }}>
-          {PREF_TILES.map(([name, x, y]) => {
-            const on = pref === name;
-            const n = countByPref[name] || 0;
-            return (
-              <button key={name} type="button" onClick={() => { setPref(on ? "" : name); setFormErr(""); }} className="f-sans"
-                title={name + (n ? `（${n}件）` : "")}
-                style={{ gridColumn: x, gridRow: y, position: "relative", aspectRatio: "1", minWidth: 0, padding: 0,
-                  border: on ? "2px solid #111111" : "1px solid #D8D8D8", borderRadius: 6, cursor: "pointer",
-                  background: on ? "#111111" : n ? "#EFEFEF" : "#fff", color: on ? "#fff" : "#111111",
-                  fontSize: 8.5, fontWeight: 700, lineHeight: 1.1, overflow: "hidden" }}>
-                {name === "北海道" ? name : name.replace(/[都府県]$/, "")}
-                {n > 0 && (
-                  <span style={{ position: "absolute", top: 1, right: 1, minWidth: 12, height: 12, borderRadius: 6, background: on ? "#fff" : "#111111", color: on ? "#111111" : "#fff", fontSize: 8, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 2px" }}>{n}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <p className="f-sans" style={{ fontSize: 12.1, color: "#999999", textAlign: "center", margin: "10px 0 0" }}>
-          {pref ? `${pref} を選んでいます（もう一度タップで解除）` : "都道府県をタップして選んでください"}
+      {/* ── 本物の日本地図（国土地理院タイル・パン／ピンチズーム可）──
+          丸＝47都道府県（黒い数字＝記録の件数）。タップで選択・もう一度で解除。
+          ★外枠に position:relative + zIndex:0 ＝Leafletの内部z-index（コントロール1000等）を
+            この箱の中に閉じ込める（下部のリポートピル・作成パネル（zIndex600）の上に漏れさせない） */}
+      <div style={{ background: "#fff", border: "1px solid #E5E5E5", borderRadius: 16, overflow: "hidden", marginBottom: 16, position: "relative", zIndex: 0 }}>
+        <div ref={mapEl} style={{ height: 360, background: "#EAF0F2" }} />
+        <p className="f-sans" style={{ fontSize: 12.1, color: "#999999", textAlign: "center", margin: 0, padding: "9px 10px" }}>
+          {pref ? `${pref} を選んでいます（丸をもう一度タップで解除）` : "地図は指で動かして拡大できます。丸をタップして都道府県を選んでください"}
         </p>
       </div>
 
