@@ -673,22 +673,25 @@ export function PhaseInfoSheet() {
   );
 }
 
-// お仕事の流れバー（応募→承認→面接→採用→仕事→完了報告→評価・2026-07-19／07-22／07-25）。
+// お仕事の流れバー（応募→承認→面接→採用→仕事→評価・2026-07-19／07-22／07-25）。
+// ★「完了報告」の段は削除（2026-08-28たきと指示「自動で打刻を打つようにしたから、完了報告のバーは不要」）
+//   ＝完了は自動（最終作業日の終了時刻の auto_complete_work）が記録するので、利用者の段ではない。
+//   「仕事」に✓が付く条件（status='completed'）は従来の完了報告の判定をそのまま引き継いだ。
 // 2026-08-16にWorkerApplications内からここへ移設（ステータスページのボックスでも展開表示するため＝
 // 進み具合の見た目・段の定義はこの1箇所が唯一のソース。変えるときは両画面に効く）。
 // 「打合せ」はトリガーを定義できないため段として置かない（2026-07-25たきと判断）。
 // 承認段は「statusがappliedより先に進んだか」で判定（旧実装の常時✓は、承認済みしか並ばない
 // 一覧では同値。応募中も並ぶ画面で正しく未達に見えるよう一般化・終端status は承認扱いにしない）
-export const FLOW_STEPS = ["応募", "承認", "面接", "採用", "仕事", "完了報告", "評価"];
+export const FLOW_STEPS = ["応募", "承認", "面接", "採用", "仕事", "評価"];
 export const flowState = (a) => {
   const bothConfirmed = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
   const approved = bothConfirmed || !["applied", "rejected", "expired", "canceled"].includes(a.status);
   // ★「仕事」に✓が付くのは仕事が終わってから（2026-08-18たきと指示「仕事まで進めてチェックは入れるな」）。
   //   作業中（working）は仕事が“現在地”＝丸のまま。以前は開始した時点で✓が付き、まだ働いている求人が
   //   「仕事は済んだ」に見えていた（＝完了していない求人の進み具合が実態とずれる）
-  const reported = a.status === "completed"; // 完了報告（作業完了が記録された）＝ここで仕事も済みになる
+  const reported = a.status === "completed"; // 作業完了が記録された（自動完了含む）＝仕事の段が済みになる
   const reviewed = !!a._reviewed || (a.status === "completed" && a.attended === false); // 評価（評価の行があるか＝呼び出し側が _reviewed で渡す）
-  const done = [true, approved, bothConfirmed, bothConfirmed, reported, reported, reviewed];
+  const done = [true, approved, bothConfirmed, bothConfirmed, reported, reviewed];
   return { done, active: done.findIndex(d => !d) };
 };
 export const FlowBar = ({ a }) => {

@@ -574,7 +574,11 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     if (reviewed) doneText = "評価済み";
                     else rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
                   } else if (isFinalWorkDone(r, r)) {
-                    rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
+                    // ★最終日に達した「作業中」でも、評価を送ったら評価済みにする（2026-08-28たきと報告
+                    //   「何度も評価するができる」＝完了は自動なので、評価後もしばらく working のまま。
+                    //   この間だけボタンが残って二度目を開けてしまっていた）
+                    if (reviewed) doneText = "評価済み";
+                    else rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
                   } else if (k === "working") {
                     rec = { label:"記録する", green:false, closed: !dayReportOpen(r, r), on:()=>setDayReportApp({ id: a.id }) };
                   }

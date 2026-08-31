@@ -1,4 +1,4 @@
-// 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar7段・評価モーダル・緊急連絡）。
+// 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar・評価モーダル・緊急連絡）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowListForMe } from "../lib/jobForMe";
@@ -202,7 +202,7 @@ export function WorkerApplications({ filter, me }) {
                 <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
                 <AvailDatesChips value={a.available_dates} agreed={a.agreed_dates} />
                 <AgreedDatesRow value={a.agreed_dates} />
-                {/* お仕事の流れ（応募→承認→面接→採用→仕事→完了報告→評価）を可視化（2026-07-19／07-25） */}
+                {/* お仕事の流れ（応募→承認→面接→採用→仕事→評価）を可視化（完了報告の段は2026-08-28に削除＝完了は自動打刻） */}
                 {a.status !== "applied" && <div style={{ marginBottom:14 }}><FlowBar a={{ ...a, _reviewed: reviewedIds.has(a.id) }} /></div>}
                 {/* 評価（Part2）：最終の作業日から出す（2026-08-19たきと指示
                     「最終日だけ全体的な評価を入力。これは全ての工程の終了を意味する」）。
@@ -507,7 +507,7 @@ export function WorkerApplications({ filter, me }) {
         <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:24, lineHeight:1.7 }}>あなたが応募した求人の状況です。</p>
       </>)}
       {/* お仕事の流れバナー（説明ボックス）は削除（2026-07-27たきと指示）：
-          同じ7段は各求人カードの流れバーが出しているので重複 */}
+          同じ段は各求人カードの流れバーが出しているので重複 */}
       {/* 読み込み中は仮配置（前回この面が描いた形・2026-07-27たきと指示「1秒以上かかるページに」）。
           応募＋求人＋プロフィールで数往復するので、文字の「読み込み中...」では待ちが長く感じる */}
       {loading ? (

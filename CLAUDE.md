@@ -9195,4 +9195,27 @@ RLS＝「farm_timeless admin all」（app_admins 限定 ALL・委託レーンと
 【実機目視の残り】①委託面の「新しく委託を出す」の下にカードが出るか ②タイル地図の見え方（県名・
 件数バッジ）③写真アップロード→一覧に出るか ④記録→県タイルの件数が増えるか ⑤削除 ⑥戻る・リロード・
 URL直打ちで面が保たれるか
+━━━ 2026-08-28(続3) 流れバーの「完了報告」を削除＋「何度も評価できる」の修理 ━━━
+【たきと指示】「自動で打刻を打つようにしたから、完了報告のバーは不要。あと、何度も評価するができる。」
+【① 完了報告の段を削除（7段→6段）】完了は自動（最終作業日の終了時刻の auto_complete_work）が記録する
+＝利用者の操作の段ではなくなったので、流れバーから外した。
+・働き手側 FLOW_STEPS（components/ui.jsx）＝応募→承認→面接→採用→仕事→評価。
+  「仕事」に✓が付く条件（status='completed'）は従来の完了報告の判定をそのまま引き継いだ＝
+  完了の事実が消えたのではなく、段としての表示をやめただけ
+・雇い手側 EMP_FLOW_STEPS（FarmerDashboard）＝掲載→承認→面接→採用→仕事→評価（鏡写しの約束どおり同時に）
+・flowState を実ソースから抜いて node で9項目を機械検算（applied〜completed・欠勤＝評価の代わり・全✓）
+【② 何度も評価できた（2箇所・どちらも「評価済みを手元に写し忘れ」の型）】
+DBの壁（reviews の UNIQUE(application_id,direction)）は二度目の保存を拒む＝実害は「二重の評価行」でなく
+「入力し終えてからエラーになる」体験の悪さ。入口で止めるように直した：
+・農家側（FarmerDashboard submitFarmerReview）＝送信成功時に reviewedAppIds へ写していなかった。
+  status は completed に写すのに評価済みだけ抜けており、ボタンが「評価する」のまま残って
+  完了・評価モーダルをもう一度開けた。setReviewedAppIds を追加。あわせて isFinalWorkDone の枝にも
+  評価済みの検査を追加（保険）
+・働き手側（SavedJobsView）＝最終日に達した「作業中」の枝 isFinalWorkDone が reviewed を見ていなかった。
+  働き手の評価は完了を作らない（完了は自動）ので、評価後もしばらく working のまま＝この間だけ
+  ボタンが残って二度目を開けた。reviewed なら「評価済み」の文字に
+・無事だった所（確認済み）：応募状況ページ（WorkerApplications）＝reviewedIds を見ている／
+  仕事の評価ページ（ReviewStagePanel）＝my_todo_items が評価済みを返さない／
+  WorkerReviewSheet＝保存エラー時は祝祭を出さない（握りつぶさない）
+【検証】build成功・eslint 0 error（警告23＝着手前と同数）。DB変更なし。
 ━━━ ここまで ━━━

@@ -368,6 +368,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         setFavDone({ workerId: completeModalApp.worker_id, nickname: wp?.nickname || "", avatar_url: wp?.avatar_url || "" });
       }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:true } : x));
+      // ★評価済みを手元にも写す（2026-08-28たきと報告「何度も評価するができる」）：
+      //   写し忘れると、ボタンが「評価する」のまま残って二度目を開けてしまう（DBのUNIQUEは
+      //   二度目の保存を拒むが、入力し終えてからエラーになる＝入口で止める）
+      setReviewedAppIds(prev => { const n = new Set(prev); n.add(completeModalApp.id); return n; });
       fbSuccess(); setCelebrate({ title:"おつかれさまでした" });
       // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
       let jobLabel = "";
@@ -742,9 +746,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
   // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・チャットの操作込み）
   // お仕事の流れ（雇い手側・2026-07-26たきと指示）：働き手側FlowBar（WorkerApplications）の鏡写し。
-  // 芯は両者共通（承認→面接→採用→仕事→完了報告→評価）で、頭だけ違う＝働き手「応募」／雇い手「掲載」
+  // 芯は両者共通（承認→面接→採用→仕事→評価）で、頭だけ違う＝働き手「応募」／雇い手「掲載」
   // （CLAUDE.md「正規フロー（働き手／雇い手）の整理」に準拠）。現在地は応募行から算出する。
-  const EMP_FLOW_STEPS = ["掲載", "承認", "面接", "採用", "仕事", "完了報告", "評価"];
+  // ★「完了報告」の段は削除（2026-08-28たきと指示＝完了は自動打刻が記録する・働き手側FLOW_STEPSと対）
+  const EMP_FLOW_STEPS = ["掲載", "承認", "面接", "採用", "仕事", "評価"];
   const empFlowState = (a) => {
     const approved = ["approved","meeting","interview","contracted","working","completed"].includes(a.status);
     const hired    = !!(a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at); // 採用（双方確認）＝面接も済んだ扱い
@@ -752,7 +757,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     //   （2026-08-18たきと指示「仕事まで進めてチェックは入れるな」）。鏡写しの約束を守る
     const reported = a.status === "completed";
     const reviewed = reviewedAppIds.has(a.id) || (a.status === "completed" && a.attended === false); // 欠勤記録は評価の代わり
-    const done = [true, approved, hired, hired, reported, reported, reviewed];
+    const done = [true, approved, hired, hired, reported, reviewed];
     return { done, active: done.findIndex(d => !d) };
   };
   // ※コンポーネントではなく関数として呼ぶ（親の再描画で作り直されても状態を持たないので影響なし）
@@ -1507,7 +1512,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                                 else if (reviewedAppIds.has(a.id)) doneText = "評価済み";
                                 else rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
                               } else if (isFinalWorkDone(a, jinfo)) {
-                                rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
+                                if (reviewedAppIds.has(a.id)) doneText = "評価済み";
+                                else rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
                               } else if (!started) {
                                 if (a.insurance_prepared_at) doneText = "保険 報告済み";
                                 else rec = { label:"保険の報告 →", green:true, icon:"shield", on: goInsurancePage };
