@@ -789,10 +789,18 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         document.body
       )}
 
-      {/* 契約スナップショット詳細（凍結内容の全項目・閲覧専用・中央ボックス規格） */}
+      {/* 契約スナップショット詳細（凍結内容の全項目・閲覧専用）。
+           ★白い全画面テイクオーバー（2026-08-31たきと指示「ボックス展開はするな」）＝
+           FinalReviewSheet と同じ器：fixed inset:0 の白・左上←で一覧に戻る・中身は縦スクロール */}
       {contractDetail && createPortal(
-        <div onClick={()=>setContractDetail(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:9600 }}>{/* cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15） */}
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"#fff", display:"flex", flexDirection:"column" }}>
+          <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 8px" }}>
+            <button onClick={()=>setContractDetail(null)} aria-label="契約記録の一覧に戻る" className="f-sans"
+              style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, padding:0, flexShrink:0 }}>←</button>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>契約スナップショット</p>
+          </div>
+          <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"6px 20px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+            <div style={{ maxWidth:560, margin:"0 auto" }}>
             {(() => {
               const c = contractDetail; const s = c.snapshot || {};
               const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${c.job_number}`;
@@ -817,7 +825,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
               ];
               return (
                 <>
-                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 2px" }}>契約スナップショット（凍結・閲覧専用）</p>
+                  <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"0 0 2px" }}>凍結・閲覧専用</p>
                   <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{title}</p>
                   <div style={{ display:"grid", gap:8 }}>
                     {rows.map(([k, v]) => (
@@ -835,6 +843,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                 </>
               );
             })()}
+            </div>
           </div>
         </div>,
         document.body
