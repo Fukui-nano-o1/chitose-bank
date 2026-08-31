@@ -123,6 +123,23 @@ export function entryWorkDays(entry) {
   return keep(out);
 }
 
+// ── カードの日程の帯（WorkDaysStrip）に出す日とラベル（表示専用・2026-08-31）──
+// ★日はカレンダーと同じ entryWorkDays（確定 ＞ 来られる日の申告 ＞ 求人の期間）を使う。
+//   従来は契約の物差し appWorkDates（申告を見ない）を表示に流用していたため、申告で日を絞った
+//   応募が「カレンダーは2日・カードは全7日」と食い違っていた（たきと報告・#1028ヒソカ）。
+// ★ラベルは日の出どころを正直に言う：確定＝働く日／本人の申告＝来られる日／求人の期間＝日程。
+// ★契約の物差し appWorkDates（最終日の判定・二重予約の壁・DBの app_work_dates）はここでは使わない
+//   ＝表示はこの関数・判定はあちら。混ぜない。
+export function workDaysStripData(app, job) {
+  const days = [...entryWorkDays({
+    agreed_dates: app?.agreed_dates, available_dates: app?.available_dates,
+    holidays: job?.holidays, date_start: job?.date_start, date_end: job?.date_end,
+  })].sort();
+  const agreed = Array.isArray(app?.agreed_dates) && app.agreed_dates.length > 0;
+  const avail = !agreed && Array.isArray(app?.available_dates) && app.available_dates.length > 0;
+  return { days, label: agreed ? "働く日" : avail ? "来られる日" : "日程" };
+}
+
 // ── 契約上の実働日（DBの app_work_dates と1対1）──────────
 // agreed_dates（非空配列）があればその日付／無ければ求人票の期間 date_start..date_end を展開／
 // いずれからも holidays（求人の休日）を除く。返り値は "YYYY-MM-DD" の Set。

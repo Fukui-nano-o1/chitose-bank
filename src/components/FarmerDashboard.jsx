@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -1568,11 +1568,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
                                   {!beforeHire && <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                                     style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#00A86B", border:"1.5px solid #00A86B", position:"relative", zIndex:6, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>}
-                                  {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
-                                      日の集合は appWorkDates（agreed_dates ＞ 求人の期間・holidays を除く）＝
-                                      カレンダー・最終日の判定と同じソース。進み具合は応募者シートと同じ
+                                  {/* 日程の帯と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
+                                      日の集合とラベルは workDaysStripData＝カレンダーと同じ優先順
+                                      （確定＞来られる日の申告＞求人の期間）。契約の物差し appWorkDates を
+                                      表示に流用すると「カレンダーは2日・カードは全7日」の食い違いが出る
+                                      （2026-08-31たきと報告・#1028）。進み具合は応募者シートと同じ
                                       お仕事の流れバー（renderEmpFlowBar）＝段の点き方が枝分かれしない */}
-                                  <WorkDaysStrip days={[...appWorkDates(a, jinfo)].sort()} accent="#00A86B" />
+                                  {(() => { const wd = workDaysStripData(a, jinfo); return <WorkDaysStrip days={wd.days} label={wd.label} accent="#00A86B" />; })()}
                                   <div>
                                     <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
                                     {renderEmpFlowBar(a)}

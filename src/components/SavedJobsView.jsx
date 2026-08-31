@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, dayReportOpen, ROLE_GREEN, isWorkWindowOpen } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -522,7 +522,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                 </div>
                 {/* 未応募（いいねだけ）の求人＝日程の確認と「求人を見る」（2026-08-23たきと指示）。
                     採用済みの求人と同じ位置・同じ体裁の箱に、日程（求人の期間）と入口を置く。
-                    日の出し方は採用済みと同じ appWorkDates＝ここで独自に日を作らない。
+                    日の出し方は workDaysStripData（appが無いので求人の期間）＝ここで独自に日を作らない。
                     「求人を見る」は従来と同じ窓口＝カードのボックス（内容の確認・求人詳細へのスライド） */}
                 {!appOf(r) && (
                   <div style={{ width:"100%", boxSizing:"border-box", borderTop:"1px solid #F0F0F0", padding:"10px 12px 12px", display:"grid", gap:8 }}>
@@ -532,7 +532,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                         詳細側が開かない（そこの条件をそのまま使う）。
                         ★2026-08-23：並走セッションの「撤回」（175b103）でこの配線が巻き添えで消えていた
                         （たきと報告「日程タップで応募ボックス展開しない」）＝復旧したもの */}
-                    <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" label="日程"
+                    <WorkDaysStrip days={workDaysStripData(null, r).days} accent="#F76B1C" label="日程"
                       onPick={()=>{
                         try {
                           sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "") || "/saved");
@@ -618,9 +618,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                       <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
                         style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>
                       {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
-                          日の集合は appWorkDates（agreed_dates ＞ 求人の期間）＝カレンダー・最終日の判定と
-                          同じソース。進み具合はボックスの中と同じ共有部品 FlowBar＝段の点き方が枝分かれしない */}
-                      <WorkDaysStrip days={[...appWorkDates(r, r)].sort()} accent="#F76B1C" />
+                          日の集合とラベルは workDaysStripData＝カレンダーと同じ優先順（確定＞来られる日の申告＞
+                          求人の期間・2026-08-31）。進み具合はボックスの中と同じ共有部品 FlowBar＝段の点き方が枝分かれしない */}
+                      {(() => { const wd = workDaysStripData(r, r); return <WorkDaysStrip days={wd.days} label={wd.label} accent="#F76B1C" />; })()}
                       <div>
                         <p className="f-sans" style={{ fontSize:11, fontWeight:800, color:"#717171", margin:"0 0 2px" }}>応募の進み具合</p>
                         <FlowBar a={{ status: r.application_status,
