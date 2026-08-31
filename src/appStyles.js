@@ -1034,6 +1034,23 @@ body.cb-scroll-hide .consign-role-fab { transform: translateY(calc(100% + 20px +
 /* オーバーレイ表示中は隠す（求人求職側のトグルと同じ作法・オーバーレイ描画の鉄則） */
 body:has(.cb-lock-scroll) .consign-role-fab,
 body:has(.cb-box-overlay) .consign-role-fab { display: none !important; }
+
+/* ── 農タイムレスのリポートピル（FarmTimelessRoom・2026-08-31たきと指示
+   「画面スクロールしたとき、リポートボタンが画面下部に移動するようにして」）──
+   通常＝下部バー(64px)の14px上。下へスクロールして下部バーが格納されたら（cb-scroll-hide）、
+   他のFABのように隠すのではなく【バーが空けた場所へ降りる】＝常時リポートできるWNの型を保つ。
+   降りる量はバーの高さ64pxちょうど＝着地は画面下端の14px+セーフエリア上。
+   transition はバー(.app-header-mobile 398行)と同じ .25s ease＝同じ速さで入れ替わる */
+.cb-timeless-report-fab {
+  position: fixed; left: 50%;
+  bottom: calc(64px + 14px + env(safe-area-inset-bottom, 0px));
+  z-index: 600;
+  transform: translate3d(-50%, 0, 0); will-change: transform;
+  transition: transform .25s ease;
+}
+body.cb-scroll-hide .cb-timeless-report-fab { transform: translate3d(-50%, 64px, 0); }
+/* 入力中（キーボード表示中）は下部バーと同じく隠す＝入力欄と被らせない（2026-07-19の規約に合流） */
+body.cb-typing .cb-timeless-report-fab { display: none !important; }
 /* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
    蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
    蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。

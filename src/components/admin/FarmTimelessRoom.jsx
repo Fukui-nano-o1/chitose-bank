@@ -386,11 +386,11 @@ export function FarmTimelessRoom() {
         </div>
       )}
 
-      {/* ── リポートアクション（WNの振る舞い）＝下部中央に常駐のピル。作成パネルを開いている間は消す ── */}
+      {/* ── リポートアクション（WNの振る舞い）＝下部中央に常駐のピル。作成パネルを開いている間は消す ──
+          位置と格納の連動は .cb-timeless-report-fab（appStyles）＝下部バーが格納されたら画面下部へ降りる */}
       {!composer && (
-        <button type="button" onClick={() => setComposer(true)} className="f-sans"
-          style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(64px + 14px + env(safe-area-inset-bottom, 0px))", zIndex: 600,
-            display: "flex", alignItems: "center", gap: 7, background: "#111111", color: "#fff", border: "none", borderRadius: 26,
+        <button type="button" onClick={() => setComposer(true)} className="f-sans cb-timeless-report-fab"
+          style={{ display: "flex", alignItems: "center", gap: 7, background: "#111111", color: "#fff", border: "none", borderRadius: 26,
             padding: "13px 22px", fontSize: 15, fontWeight: 800, letterSpacing: ".02em", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
           <NavIconInline name="camera" size={17} style={{ verticalAlign: "-3px", marginRight: 0 }} />リポートする
         </button>
