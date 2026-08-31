@@ -68,7 +68,11 @@ export function AdminReportsRoom() {
   const goTo = (idx) => { const el = scrollRef.current; if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" }); };
   // ページの器（全幅・snap）。隣面との隙間はpaddingで作る（幅計算を1面=clientWidthに保つ）。
   // alignSelf:flex-start＝短い面が長い面の高さに引き伸ばされない
-  const paneStyle = { flex: "0 0 100%", boxSizing: "border-box", scrollSnapAlign: "start", padding: "0 2px", alignSelf: "flex-start" };
+  // ★minWidth:0 必須（2026-08-31たきと報告「カード幅と画面幅は自然に調節されるようにして」）：
+  //   面はflexの子＝min-width:auto のままだと、行の抜粋（nowrapの1行）の最小幅が面を押し広げ、
+  //   カードが画面から右へあふれる（2026-08-16「flex/gridの子には minWidth:0」の型）。
+  //   狭い端末でだけ出る＝検証ハーネスには本番と同じ<main>の左右24pxを必ず入れること
+  const paneStyle = { flex: "0 0 100%", minWidth: 0, boxSizing: "border-box", scrollSnapAlign: "start", padding: "0 2px", alignSelf: "flex-start" };
 
   const load = useCallback(async () => {
     const [jr, mr, pr, fb, py] = await Promise.all([
@@ -245,7 +249,9 @@ export function AdminReportsRoom() {
                     {g.k === "all" ? "未対応の報告はありません" : `「${g.l}」の未対応の報告はありません`}
                   </p>
                 ) : (
-                  <div style={{ display: "grid", gap: 10 }}>{list.map(renderRow)}</div>
+                  /* 列は minmax(0,1fr)：既定のauto列だと、行の抜粋（nowrapの1行）のmin-contentまで列が膨らみ、
+                     カードが画面から右へあふれる（2026-08-16の規約＝grid/flexの中の幅は0まで縮められる形にする） */
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 10 }}>{list.map(renderRow)}</div>
                 )}
               </div>
             );

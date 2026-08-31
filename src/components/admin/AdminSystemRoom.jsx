@@ -62,7 +62,8 @@ export function AdminSystemRoom() {
   };
   const goTo = (idx) => { const el = scrollRef.current; if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" }); };
   // ページの器（全幅・snap）。隣面との隙間はpaddingで作る（幅計算を1面=clientWidthに保つ）
-  const paneStyle = { flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" };
+  // minWidth:0＝面の中のnowrap文字のmin-contentで面を押し広げない（報告ページで実害・2026-08-31）
+  const paneStyle = { flex:"0 0 100%", minWidth:0, boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" };
 
   // ── 画像タスクの購読（ストアはモジュールレベル＝画面を離れても処理は続く）
   const [, imgTick] = useState(0);
@@ -358,7 +359,7 @@ export function AdminSystemRoom() {
             const cats = errFilter === "all" ? openCats : openCats.filter(c => c.severity === errFilter);
             const sevLabel = ERR_FILTERS.find(f => f.k === errFilter)?.l || "";
             return (
-              <div style={{ display:"grid", gap:20 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:20 }}>
                 <p className="f-sans" style={{ fontSize:12, color:"#717171" }}>
                   未解決 <b style={{ color:"#222" }}>{openTotal}件</b>・{kindTotal}種類（直近{appErrors.length}件から集計・解決済みは表示していません）
                 </p>
@@ -388,7 +389,7 @@ export function AdminSystemRoom() {
 
         {/* ── 面2：画像軽量化 ── */}
         <div style={paneStyle}>
-          <div style={{ display:"grid", gap:16 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:16 }}>
             <Card>
               <p className="f-sans" style={{ fontSize:14,fontWeight:700,color:"#222",marginBottom:4 }}>画像の一括軽量化</p>
               <p className="f-sans" style={{ fontSize:11,color:"#717171",lineHeight:1.8,marginBottom:16 }}>
