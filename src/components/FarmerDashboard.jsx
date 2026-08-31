@@ -1075,14 +1075,22 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               黒いカードそのものが「別の世界への扉」の目印になる。
               管理者のみ表示＝B2B委託レーンは運営の手動1件用の内部道具（市場機能はまだ作らない）。
               画面で隠すだけでなく consignment_deals のRLSが app_admins 限定＝サーバ側でも閉じている */}
-          {isAdmin(me) && (
+          {isAdmin(me) && (<>
             <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", marginTop:12, background:"#111111", border:"none", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
               {/* カードの角を這う白い蔓（2026-07-31たきと指示）。文字はzIndexで蔓の上に */}
               <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
               <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:16, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>新しく委託を出す</span>
               <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:13, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>圃場ごとの作業を請け負う委託の仕様書を作ります。</span>
             </button>
-          )}
+            {/* 農タイムレス（2026-08-31たきと指示「マイページに設置。新しく委託を出すカードの下」）。
+                委託面（#/admin/consignment）の同名カードと同じ入口＝行き先は1つ（#/admin/consignment/timeless）。
+                配色も委託面と同じ白地黒枠＝黒ベタの委託カードと並べたときの濃淡で見分ける。
+                管理者のみ表示＋farm_timeless_posts のRLSが app_admins 限定＝二重の壁（2026-08-30） */}
+            <button onClick={()=>{ window.location.hash = "/admin/consignment/timeless"; }} className="f-sans" style={{ position:"relative", overflow:"hidden", width:"100%", marginTop:12, background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", cursor:"pointer", display:"block", textAlign:"left" }}>
+              <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#111111", letterSpacing:".02em" }}>農タイムレス</span>
+              <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>日本地図に、病害虫や栽培アクションを写真と一言で記録します（管理者専用）。</span>
+            </button>
+          </>)}
           {/* 「保険の準備」の反転カードは削除（2026-08-25たきと指示「保険の準備はプロフィール編集ページに
               移設。同じ構造にして表示。マイページの保険の準備は削除」）＝申告の入口は
               プロフィール編集の「保険の準備」ボックス（InsurancePrepBox）に一本化。
