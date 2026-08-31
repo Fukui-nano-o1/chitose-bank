@@ -97,10 +97,16 @@ export function EmployerPreviewSheet() {
                     : <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:12, padding:"16px 0 0", margin:0 }}>まだ自己紹介はありません</p>;
                 })()}
               </div>
-              {/* 2枚目：記録＝受け入れの数字（employer_trust_info から。往復は増やさない）。
-                  働き手の「はたらいた記録」と対の面 */}
+              {/* 2枚目：記録＝受け入れの数字＋公開中／終了した求人のカード（2026-08-31・Airbnbの型）。
+                  働き手の「はたらいた記録」と対の面。カードのタップ＝この全画面を閉じてから求人ページへ
+                  （開いたままだと遷移先が白幕の下に隠れる）。戻り先はいまのURL（cb_jobBackToの既存の作法） */}
               <div>
-                <FarmerRecord trust={st.trust} />
+                <FarmerRecord trust={st.trust} profile={st.profile} farmerId={st.farmer_id}
+                  onOpenJob={(jn) => {
+                    try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "") || "/search"); } catch { /* 保存できなくても遷移は続ける */ }
+                    setSt(null);
+                    window.location.hash = "/work/job/" + jn;
+                  }} />
               </div>
               {/* 3枚目：受け取った評価（利用規約 第8条・働き手→農家の肯定評価。DBのreviews_public_badgesが公開判定）。
                   まだ無い時は「まだ評価はありません」と明記（部品側が担う） */}

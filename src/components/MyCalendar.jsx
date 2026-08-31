@@ -4,7 +4,7 @@
 // 日をタップすると、その日の予定と操作（日程の移動・コピー・内容の編集）をシートで出す。
 // 自分が出した求人の予定は【長押しでつかんで指について動き、離した日で「うごかす／コピー」】
 // （2026-08-25たきと指示）。
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { copyJobToEdit } from "../lib/copyJobFlow";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
@@ -42,9 +42,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // ★キャッシュに入れてよいのはJSON安全な型だけ（2026-08-03のDate事故）。RPCの日付は文字列so安全。
   //   いいねは Set だと復元できないため配列で持ち、読み出すときに Set に戻す。
   const [entries, setEntries] = useState(() => getCache("today:entries") ?? []);
-  const [loading, setLoading] = useState(() => getCache("today:entries") === undefined);
-  const [cvYear, setCvYear] = useState(new Date().getFullYear());
-  const [cvMonth, setCvMonth] = useState(new Date().getMonth());
+  // 読み込み中の旗は持たない（盤面は常に描く＝2026-08-19の方針。予定は届き次第あとから乗る）
   const [selectedDay, setSelectedDay] = useState(null);
   const [likedIds, setLikedIds] = useState(() => new Set(getCache("cal:liked") ?? [])); // いいね済みjob_number（❤️表示）
   // 「下書きを進めませんか？」ボックスは削除（2026-08-19たきと指示）。
@@ -71,23 +69,17 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   const dragRef = useRef(null);                     // 同じ中身（document のリスナーから読む用）
   const calCardRef = useRef(null);                  // 盤面のカード（常設リスナーを張る先）
   const [dropSheet, setDropSheet] = useState(null); // 離した日の選択 { jobNumber, title, live, fromYmd, toYmd, spanDays }
-  // つかんでいる間のスクロール止め（2026-08-25たきと指示「長押し中は画面スクロール解除。カレンダーのみ」）。
-  // ★cb-lock-scroll は使わない＝下部バー・浮遊ボタンまで消えてしまう。専用の cb-drag-lock（overflow:hidden だけ）
-  const setScrollLock = (on) => {
-    const c = "cb-drag-lock";
-    try {
-      document.documentElement.classList.toggle(c, !!on);
-      document.body.classList.toggle(c, !!on);
-    } catch { /* 画面が無い環境（テスト等）では何もしない */ }
-  };
-  useEffect(() => () => { try { document.documentElement.classList.remove("cb-drag-lock"); document.body.classList.remove("cb-drag-lock"); } catch { /* 同上 */ } }, []);
+  // つかんでいる間のスクロール止め＝常設リスナーの preventDefault ＋ touchAction:"none"（style prop）。
+  // ★cb-drag-lock（html/body の overflow:hidden）は縦積み化（2026-08-31）でやめた：
+  //   端で持った時に window.scrollBy で画面を送るため、overflow:hidden だとそれまで死ぬ。
+  //   appStyles の .cb-drag-lock の規則は残置（読み手ゼロ・消すなら別途）
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
+        if (!session) return;
         // 2本は互いに独立ので、awaitする前に同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前は getSession→予定→いいね の直列3段で、しかも盤面を出すのに
         // いいね（❤️の飾り）の到着まで待っていた
@@ -100,7 +92,6 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
         // ★失敗時はキャッシュのままにする（res.errorを見ずに上書きすると、通信不調の数秒間だけ
         //   予定that消えて「予定はまだありません」に見える＝2026-08-07のフェイルオープンと同じ型）
         if (!calRes.error) { const rows = calRes.data || []; setEntries(rows); setCache("today:entries", rows); }
-        setLoading(false);
 
         // いいねは届き次第あとから乗せる（thenableはPromise.resolveで包む・2026-07-26教訓）
         Promise.resolve(savedP).then(r => {
@@ -108,7 +99,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           const ids = r.data.map(x => x.job_number);
           setLikedIds(new Set(ids)); setCache("cal:liked", ids); // Setは保存できないso配列で持つ
         }).catch(() => {});
-      } catch { if (!cancelled) setLoading(false); }
+      } catch { /* 失敗時は手元の表示のまま（フェイルオープン規則） */ }
     })();
     return () => { cancelled = true; };
   }, [reloadKey, refreshTick]);
@@ -170,96 +161,43 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // ★確定の分かれ目は段階であって、農家が「働く日を決める」を押したか（agreed_dates の有無）ではない。
   const isHiredEntry = (e) => e.relation === "application" && HIRED_PHASES.includes(phaseOfEntry(e));
 
-  const prevMo = () => { if (cvMonth === 0) { setCvYear(y => y - 1); setCvMonth(11); } else setCvMonth(m => m - 1); };
-  const nextMo = () => { if (cvMonth === 11) { setCvYear(y => y + 1); setCvMonth(0); } else setCvMonth(m => m + 1); };
-  // つかんでいる最中の月送り（下記 startDrag）用：いま出している月を ref でも持つ。
-  // ★prevMo/nextMo は描き直しのたびに作り直される閉じ込め（cvMonth）を見るので、
-  //   つかんだ時に作った関数から続けて呼ぶと2回目が古い月から数えてしまう
-  const monthRef = useRef({ y: cvYear, m: cvMonth });
-  useEffect(() => { monthRef.current = { y: cvYear, m: cvMonth }; }, [cvYear, cvMonth]);
-  const shiftMonth = (delta) => {
-    const { y, m } = monthRef.current;
-    const d = new Date(y, m + delta, 1);
-    monthRef.current = { y: d.getFullYear(), m: d.getMonth() };
-    setCvYear(d.getFullYear()); setCvMonth(d.getMonth());
-  };
-  // カレンダーのスワイプ月送り（2026-07-19）：左スワイプ=次月/右スワイプ=前月。
-  // 判定は求人フローと同じ作法（60px以上かつ横が縦の1.5倍）。切替時は求人フローの横滑りアニメを流用
-  // 指に連動する月送り（2026-07-30たきと指示）＋前後の月が見える3枚並び。
-  // 盤面は［先月｜今月｜来月］の3枚を横に並べた帯で、いつも真ん中が今月。指で引くと帯ごと動くので、
-  // 引いた先の月の日程がその場で見える。離すと、しきい値を超えていれば隣の月まで滑って着地する。
-  const calTouch = useRef(null);
-  const calTrackRef = useRef(null);
-  const [calDx, setCalDx] = useState(0);         // 指の追従量（px）
-  const [calSnap, setCalSnap] = useState(false); // true=離した後の滑り（アニメ）
-  // 1枚分の幅は実測（px）で持つ（2026-07-30修理）。%で組むと、隣の月の右端の列が
-  // 今月の1列目に重なって出た（%の解決先が枠とズレる）。実測pxなら重なりようがない
-  const [trackW, setTrackW] = useState(0);
-  useEffect(() => {
-    const el = calTrackRef.current;
-    if (!el) return;
-    const measure = () => setTrackW(el.clientWidth || 0);
-    measure();
-    let ro;
-    try { ro = new ResizeObserver(measure); ro.observe(el); } catch { window.addEventListener("resize", measure); }
-    return () => { if (ro) ro.disconnect(); else window.removeEventListener("resize", measure); };
-  }, [loading, entries.length]);
-  const panelW = () => trackW || calTrackRef.current?.clientWidth || 320;
-  const onCalTouchStart = (e) => {
-    if (!e.touches || e.touches.length !== 1) { calTouch.current = null; return; }
-    calTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, lock: null };
-    setCalSnap(false);
-  };
-  const onCalTouchMove = (e) => {
-    // 長押し待ちの間に指が動いたら＝スクロール／月送り＝つかむのをやめる
-    const pr = pressRef.current;
-    if (pr && e.touches && e.touches[0]) {
-      const t = e.touches[0];
-      if (Math.abs(t.clientX - pr.x) > 14 || Math.abs(t.clientY - pr.y) > 14) { clearTimeout(pr.timer); pressRef.current = null; }
+  // ── Airbnbの型（2026-08-31たきと指示「カレンダーページもAirbnbをパクれ」）──
+  // 月送り（‹ ›ボタン・横スワイプの3枚並び）を廃止し、【縦に月が連なるスクロール】に。
+  // 曜日の行は上に貼り付く（position:sticky）。今日の月から始まり、未来はスクロールで続けて見える。
+  // 過去に予定がある時だけ「前の予定を見る」で上にさかのぼる（開いた瞬間に見ていた月が
+  // 動かないよう、広げた高さぶんだけスクロールを合わせる）。
+  // 出す月＝今月〜予定のある最後の月（予定が無くても来月までは出す）。
+  const [showPast, setShowPast] = useState(false);
+  const curMonthRef = useRef(null);   // 今月の要素（過去を広げた時のスクロール合わせの基準）
+  const pastAnchorRef = useRef(null); // 広げる直前の、今月の画面上の位置
+  const nowKey = new Date().getFullYear() * 12 + new Date().getMonth();
+  const monthKeys = useMemo(() => {
+    let minK = nowKey, maxK = nowKey + 1;              // 予定が無くても今月と来月は出す
+    for (const s of workDays) for (const d of s) {
+      const k = Number(d.slice(0, 4)) * 12 + (Number(d.slice(5, 7)) - 1);
+      if (Number.isFinite(k)) { if (k < minK) minK = k; if (k > maxK) maxK = k; }
     }
-    if (dragRef.current) return;                               // つかんでいる間は月送りしない
-    const s = calTouch.current; if (!s || !e.touches || !e.touches[0]) return;
-    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;        // まだ方向が定まっていない
-      s.lock = Math.abs(dx) > Math.abs(dy) * 1.5 ? "h" : "v";  // 一度決めたら最後まで変えない
-    }
-    if (s.lock !== "h") return;                                // 縦は日付タップ・ページのスクロールに渡す
-    const w = panelW();
-    setCalDx(Math.max(-w, Math.min(w, dx)));                   // 隣の月までで止める（3枚しか無いので）
+    // 保険：壊れた日付で盤面が伸びすぎないよう前後を区切る（12か月前〜14か月後）
+    minK = Math.max(minK, nowKey - 12); maxK = Math.min(maxK, nowKey + 14);
+    const out = [];
+    for (let k = minK; k <= maxK; k++) out.push({ y: Math.floor(k / 12), m: k % 12, k });
+    return out;
+  }, [workDays, nowKey]);
+  const pastMonths = monthKeys.filter(mm => mm.k < nowKey);
+  const shownMonths = showPast ? monthKeys : monthKeys.filter(mm => mm.k >= nowKey);
+  const expandPast = () => {
+    const el = curMonthRef.current;
+    pastAnchorRef.current = el ? el.getBoundingClientRect().top : null;
+    setShowPast(true);
   };
-  const onCalTouchEnd = (e) => {
-    const pr = pressRef.current; if (pr) { clearTimeout(pr.timer); pressRef.current = null; }
-    if (dragRef.current) return;                               // 離した後の始末は document のリスナーが行う
-    const s = calTouch.current; calTouch.current = null;
-    if (!s || s.lock !== "h" || !e.changedTouches || !e.changedTouches[0]) { setCalDx(0); return; }
-    const dx = e.changedTouches[0].clientX - s.x, dy = e.changedTouches[0].clientY - s.y;
-    const w = panelW();
-    setCalSnap(true);
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) {
-      setCalDx(0);                                             // 足りない引きは元の位置へ戻す
-      setTimeout(() => setCalSnap(false), 240);
-      return;
-    }
-    // 隣の月まで滑らせてから、中身を差し替えて真ん中に戻す（アニメ無しで戻すので継ぎ目は見えない）
-    const toNext = dx < 0;
-    setCalDx(toNext ? -w : w);
-    setTimeout(() => {
-      if (toNext) nextMo(); else prevMo();
-      setCalSnap(false); setCalDx(0);
-    }, 240);
-  };
-  // 帯の位置：既定は真ん中の月（1枚分だけ左へ）。そこから指のぶんだけずらす。すべてpx
-  const calTrackStyle = {
-    display:"flex", width: trackW ? trackW * 3 : "100%",
-    transform: trackW ? `translateX(${-trackW + calDx}px)` : undefined,
-    transition: calSnap ? "transform .24s cubic-bezier(.22,.8,.36,1)" : "none",
-  };
-  // 半分より引いたら、見出しの月表示も引いた先の月に変える（今どの月を見ているかと一致させる）
-  const headOffset = calDx > panelW() * 0.5 ? -1 : calDx < -panelW() * 0.5 ? 1 : 0;
-  const monthAt = (off) => { const d = new Date(cvYear, cvMonth + off, 1); return { y: d.getFullYear(), m: d.getMonth() }; };
-  const headMonth = monthAt(headOffset);
-  // 月ごとのマス（先頭の空白＋日付）。3枚並びのどの月にも同じ形で使う
+  useLayoutEffect(() => {
+    // 過去の月を上に足しても、見ていた今月がその場から動かないようにスクロールを合わせる
+    if (!showPast || pastAnchorRef.current == null) return;
+    const el = curMonthRef.current;
+    if (el) window.scrollBy(0, el.getBoundingClientRect().top - pastAnchorRef.current);
+    pastAnchorRef.current = null;
+  }, [showPast]);
+  // 月ごとのマス（先頭の空白＋日付）
   const monthCells = (y, m) => {
     const firstDay = new Date(y, m, 1).getDay();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
@@ -345,33 +283,32 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   //   preventDefault を聞いてくれない（スクロールが始まってしまう）＝ここで張る作りだと実機で動かない
   const startDrag = (info) => {
     fbTap();
-    calTouch.current = null;                         // 月送りのスワイプは取り下げる（つかんだ方が勝つ）
-    setScrollLock(true);                             // つかんでいる間は画面をスクロールさせない（二重の壁の外側）
+    // ★指によるページのスクロールは常設リスナーの preventDefault ＋ touchAction:"none"（style prop）が
+    //   止める。従来重ねていた cb-drag-lock（html/body の overflow:hidden）はやめた＝縦積みの盤面では
+    //   端で持った時に【この手で】画面を送る（下の edgeCheck の window.scrollBy）ため、
+    //   overflow:hidden だとプログラムのスクロールまで死ぬ
     const st = { ...info, overYmd: info.fromYmd };
     dragRef.current = st; setDrag(st);
   };
-  // 端で持ったままにすると隣の月へ送る（TimeTreeと同じ・またぎの移動をこれで行う）
-  const edgeRef = useRef(null);                      // { side, timer }
+  // 画面の上下の端で持ったままにすると、その向きへ画面を送る（TimeTreeと同じ・遠い月への移動をこれで行う）。
+  // 横3枚並びの頃の「端で隣の月へ送る」の縦積み版＝月の切れ目は無いので、なめらかに送るだけでよい
+  const edgeRef = useRef(null);                      // { dir, timer }
   const rafRef = useRef(0);
   const clearEdge = () => { const e = edgeRef.current; if (e && e.timer) clearInterval(e.timer); edgeRef.current = null; };
   const edgeCheck = (x, y) => {
-    const box = calTrackRef.current && calTrackRef.current.getBoundingClientRect();
-    if (!box) { clearEdge(); return; }
-    const side = x < box.left + 26 ? "l" : x > box.right - 26 ? "r" : null;
-    if (!side) { clearEdge(); return; }
-    if (edgeRef.current && edgeRef.current.side === side) return;   // 同じ端に居続けている＝すでに送り続けている
+    const vh = window.innerHeight || 800;
+    const dir = y < 90 ? -1 : y > vh - 110 ? 1 : 0;
+    if (!dir) { clearEdge(); return; }
+    if (edgeRef.current && edgeRef.current.dir === dir) return;   // 同じ端に居続けている＝すでに送り続けている
     clearEdge();
-    edgeRef.current = { side, timer: setInterval(() => {
+    edgeRef.current = { dir, timer: setInterval(() => {
       if (!dragRef.current) { clearEdge(); return; }
-      shiftMonth(side === "l" ? -1 : 1);
-      fbTap();
-      // 月が変わった直後は指の下の日も変わる。描き終わりを待って読み直す
-      setTimeout(() => {
-        if (!dragRef.current) return;
-        const nx = { ...dragRef.current, overYmd: ymdFromPoint(x, y) };
-        dragRef.current = nx; setDrag(nx);
-      }, 60);
-    }, 700) };
+      window.scrollBy(0, dir * 16);
+      // 画面が動いた＝指の下のマスも変わる。読み直して行き先の枠を追従させる
+      const st = dragRef.current;
+      const nx = { ...st, overYmd: ymdFromPoint(st.x, st.y) || st.overYmd };
+      dragRef.current = nx; setDrag(nx);
+    }, 40) };
   };
   // 盤面に常設する指の追従（touchmove）。つかんでいる時だけ preventDefault＝
   // それ以外（普通のスクロール・月送りのスワイプ）は今までどおり通す
@@ -395,7 +332,6 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     if (!dragRef.current) return;
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0; }
     clearEdge();
-    setScrollLock(false);
     const st2 = dragRef.current; dragRef.current = null; setDrag(null);
     justDraggedRef.current = Date.now();
     const t = ev.changedTouches && ev.changedTouches[0];
@@ -535,30 +471,30 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           読み込み中／予定なしの知らせは、盤面の下に小さく添える（差し替えない） */}
       {(
         <>
-          <div ref={calCardRef} onTouchStart={onCalTouchStart} onTouchMove={onCalTouchMove} onTouchEnd={onCalTouchEnd} onTouchCancel={onCalTouchEnd} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:10,
+          {/* ★Airbnbの型（2026-08-31）：月送りをやめ、月が縦に連なる。曜日の行だけ上に貼り付く。
+              ★カードに overflow:hidden を付けない＝付けると position:sticky が効かなくなる
+              （stickyは最も近いスクロールの祖先に貼り付く。overflow:hiddenの祖先だと窓に貼り付かない） */}
+          <div ref={calCardRef} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"0 10px 10px",
             // つかんでいる間は none＝Safari が触り始めに決めた「縦は動かしてよい」を打ち消す二重の壁
             // （本命は常設リスナーの preventDefault。これが効かない端末でも動きは変わらない）
-            touchAction: drag ? "none" : "pan-y", overflow:"hidden" }}>
-            {/* 展開の2段（2026-07-27）：見出し（○○年○○月）が先に入り、盤面が少し遅れて開く。
-                月送りのスワイプ中は見出しごと指について動く（2026-07-30たきと指示） */}
-            <div className="cb-cal-head" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-              <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"‹"}</button>
-              {/* 引いた先が半分を超えたら、見出しもその月に変わる（見えている盤面と一致させる） */}
-              <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222" }}>{headMonth.y}年{headMonth.m+1}月</span>
-              <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"5px 10px", cursor:"pointer", fontSize:13 }}>{"›"}</button>
+            touchAction: drag ? "none" : "pan-y" }}>
+            {/* 過去にさかのぼる入口（過去に予定がある時だけ）＝Airbnbと同じく今日の月から始める */}
+            {pastMonths.length > 0 && !showPast && (
+              <div style={{ textAlign:"center", padding:"10px 0 0" }}>
+                <button onClick={expandPast} className="f-sans" style={{ background:"#F7F7F7", border:"none", borderRadius:20, padding:"7px 16px", fontSize:12, fontWeight:700, color:"#555", cursor:"pointer" }}>↑ 前の予定を見る</button>
+              </div>
+            )}
+            {/* 曜日の行＝上に貼り付く（Airbnbの型） */}
+            <div style={{ position:"sticky", top:0, zIndex:2, background:"#fff", display:"grid", gridTemplateColumns:"repeat(7,minmax(0,1fr))", gap:1, padding:"8px 0 4px", borderBottom:"1px solid #F4F4F4" }}>
+              {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0" }}>{wd}</div>)}
             </div>
-            {/* ②縦の展開はここから下（見出しの帯が横に伸び切ってから開く・2026-07-27たきと指示） */}
-            <div className="cb-cal-body-wrap"><div>
-            {/* 3枚並び（2026-07-30たきと指示）：引いた先の月の日程がその場で見える。いつも真ん中が今月 */}
-            <div ref={calTrackRef} style={{ overflow:"hidden" }}>
-            <div style={calTrackStyle}>
-            {/* 幅を測るまでは今月の1枚だけ描く（測る前の%組みで重なりが出たため・2026-07-30修理） */}
-            {(trackW ? [-1, 0, 1] : [0]).map(off => { const mm = monthAt(off); return (
-            <div key={`${mm.y}-${mm.m}`} style={{ width: trackW ? trackW : "100%", flexShrink:0, overflow:"hidden", opacity: off === 0 ? 1 : 0.55 }}>
+            {shownMonths.map(mm => (
+            <div key={`${mm.y}-${mm.m}`} ref={mm.k === nowKey ? curMonthRef : undefined}>
+            {/* 月の名前は各月の上に置く（Airbnbの型・見出しの月とボタンは廃止） */}
+            <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"14px 2px 8px" }}>{mm.y}年{mm.m + 1}月</p>
             {/* minmax(0,1fr)（2026-07-30修理）：既定の 1fr は minmax(auto,1fr)＝中身の最小幅で列が広がる。
-                名前チップ（4文字以上）が乗った日の列だけ広がり、盤面が枠からはみ出して隣の月と重なっていた */}
+                名前チップ（4文字以上）が乗った日の列だけ広がり、盤面が枠からはみ出していた */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(7,minmax(0,1fr))", gap:1, marginBottom:2 }}>
-              {CALENDAR_WD.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:9, color:"#B0B0B0", padding:"2px 0" }}>{wd}</div>)}
               {monthCells(mm.y, mm.m).map((dd, i) => {
                 if (!dd) return <div key={`e${i}`} />;
                 const dt = new Date(mm.y, mm.m, dd);
@@ -640,10 +576,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
               })}
             </div>
             </div>
-            ); })}
-            </div>
-            </div>{/* 3枚並びここまで */}
-            </div></div>{/* ②縦の展開ここまで */}
+            ))}{/* 縦積みの月ここまで */}
           </div>
           {/* 盤面の下の説明文（役割色の凡例・名前チップの凡例・斜線の意味・濃淡と❤️・名前の注記）は
               すべて削除（2026-08-19たきと指示「カレンダーの説明文。すべて削除」）＝盤面だけを見せる。
