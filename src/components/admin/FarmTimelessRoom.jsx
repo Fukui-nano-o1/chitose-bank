@@ -6,7 +6,8 @@
 //   サーバー＝farm_timeless_posts のRLSが app_admins 限定（閲覧・書き込みとも・migration 20260830140119）。
 //   写真は専用バケット farm-timeless（書き込み=admin限定・migration 20260831061025）。
 // ★日本地図は【本物の地図】（Leaflet＋国土地理院タイル＝JobLocationMapと同じ道具・2026-08-31たきと
-//   「日本地図を表示できるか？ズームできるか？」）：日本全体から指でパン・ピンチズームできる。
+//   「日本地図を表示できるか？ズームできるか？」）：指でパン・ピンチズームできる。
+//   ★既定の表示＝拠点の徳島県を選択済みで開く（HOME_PREF・解除で日本全体）。
 //   県の選択は地図上のマーカー（47都道府県の県庁所在地に置いた丸）のタップ。位置の正は PREFS の1箇所だけ。
 //   県を選ぶと、その県の個々のリポート（lat/lngを持つ行）が面の色のピンで散らばり、ピンの範囲へズームする。
 //   ピンのタップで日付・市町村・カテゴリ・コメントのポップアップ（2026-08-31たきと「いつどこでなにがあったか一目で」）。
@@ -47,8 +48,12 @@ const PREFS = [
   ["福岡県", 33.61, 130.42], ["佐賀県", 33.25, 130.30], ["長崎県", 32.74, 129.87], ["熊本県", 32.79, 130.74],
   ["大分県", 33.24, 131.61], ["宮崎県", 31.91, 131.42], ["鹿児島県", 31.56, 130.56], ["沖縄県", 26.21, 127.68],
 ];
-// 初期表示＝日本全体が納まる範囲（北海道〜沖縄）
+// 日本全体が納まる範囲（北海道〜沖縄）＝県の選択を解除した時の表示
 const JAPAN_BOUNDS = [[24.0, 122.9], [45.8, 146.0]];
+// 拠点＝徳島県（たきとの居住地は吉野川市・2026-08-31指示「デフォルトはその地域から」）。
+// 開いた瞬間からこの県が選択済み＝県内のピンと一覧が最初から出て、リポート作成の場所も入っている。
+// 丸をもう一度タップすれば従来どおり解除＝日本全体へ
+const HOME_PREF = "徳島県";
 
 // 病害虫の種類（選択肢＝プリセットのみ・自由入力は置かない）。前半=害虫／後半=病気。
 const PEST_KINDS = [
@@ -75,7 +80,7 @@ const dateLabel = (iso) => {
 export function FarmTimelessRoom() {
   const [posts, setPosts] = useState(() => { const c = getCache(CK); return Array.isArray(c) ? c : []; });
   const [loaded, setLoaded] = useState(false);
-  const [pref, setPref] = useState("");        // 選択中の都道府県（""=未選択・一覧は全件）
+  const [pref, setPref] = useState(HOME_PREF); // 選択中の都道府県（既定=拠点の徳島県・""=未選択で一覧は全件）
   const [composer, setComposer] = useState(false); // リポート作成パネル（下部にせり上がる・WN型）
   const [kind, setKind] = useState("pest");    // pest=病害虫 / action=栽培アクション
   const [category, setCategory] = useState("");
@@ -173,7 +178,9 @@ export function FarmTimelessRoom() {
         ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${faceColor};color:#fff;border:2px solid #fff;${ring}display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-sizing:border-box">${n}</div>`
         : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${on ? "#111111" : "#fff"};border:2px solid #111111;${ring}box-sizing:border-box"></div>`;
       const icon = L.divIcon({ className: "", html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
-      const mk = L.marker([lat, lng], { icon, keyboard: false, title: name + (n ? `（${n}件）` : "") });
+      // ★zIndexOffset＝県の丸を常にピンより上に。県庁近くのピン（例：徳島市）が丸に重なると
+      //   解除のタップが奪われるため（実測で検出）。重なった下のピンの内容は一覧が受け持つ
+      const mk = L.marker([lat, lng], { icon, keyboard: false, zIndexOffset: 500, title: name + (n ? `（${n}件）` : "") });
       mk.on("click", () => { setPref(p => (p === name ? "" : name)); setFormErr(""); });
       mk.addTo(lg);
     });
