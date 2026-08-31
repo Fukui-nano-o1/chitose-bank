@@ -89,6 +89,11 @@ const INTEREST_GROUPS = [
   { g:"ゲーム・室内",   items:["ゲーム","ボードゲーム","将棋・囲碁","パズル","ネットサーフィン"] },
   { g:"そのほか",       items:["動物","ショッピング","車・バイク","鉄道","天体観測","掃除・片づけ"] },
 ];
+// 希望する働き方（work_pattern）は複数選択可（2026-08-28たきと指示）。値はラベル文字列を「、」で
+// 連結して同じtext列に保存＝表示（workerQaItems・農家向けRPC）は生の文字列を出すだけなので
+// 「単発で働きたい、週末を中心に働きたい」とそのまま文章として読める（表示側の改修ゼロ）。
+// ★選択肢のラベルに「、」を含めないこと（区切りと衝突する。「・」はOK）。旧の単一値もこの分解で通る
+const splitWorkPattern = (v) => String(v || "").split("、").map(x => x.trim()).filter(Boolean);
 const LANGUAGE_OPTIONS = ["日本語","英語","中国語","ベトナム語","インドネシア語","タガログ語","ポルトガル語","その他"];
 
 // 項目ページの見出し（行のラベルと同じ言葉＝どこに居るかが分かる）
@@ -680,8 +685,15 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           const set = { physical_level: setPhysicalLevel, work_mood: setWorkMood, learning_pref: setLearningPref, work_pattern: setWorkPattern }[q.k];
           return (
             <div key={q.k} style={{ flex:"0 0 100%", boxSizing:"border-box", scrollSnapAlign:"start", padding:"0 2px", alignSelf:"flex-start" }}>
-              <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>{q.label}（任意）</label>
+              <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:2 }}>{q.label}（任意{q.k === "work_pattern" ? "・いくつでも" : ""}）</label>
               <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 8px" }}>{i + 1} / {WORKER_STYLE_QUESTIONS.length}</p>
+              {q.k === "work_pattern" ? (
+                /* 希望する働き方だけ複数選択（2026-08-28たきと指示）＝タップで入り切り・自動送りなし
+                   （最後の質問なので送り先も無い）。値は「、」連結（splitWorkPattern参照） */
+                <LFPillSelect options={q.options} accent={ROLE_ORANGE} values={splitWorkPattern(cur)} onSelect={v => {
+                  set(c => { const arr = splitWorkPattern(c); return (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]).join("、"); });
+                }} />
+              ) : (
               <LFPillSelect options={q.options} accent={ROLE_ORANGE} value={cur} onSelect={v => {
                 const next = cur === v ? "" : v;   // 同じものをもう一度タップ＝選び直し（空に戻す）
                 set(next);
@@ -689,6 +701,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
                 if (!next) return;                 // 取り消しでは進めない
                 if (i < WORKER_STYLE_QUESTIONS.length - 1) setTimeout(() => goStyle(i + 1), 220);
               }} />
+              )}
               {/* 「← 戻る／次へ →」は削除（2026-08-25たきと指示）＝移動は指の横スワイプと、
                   下の進み具合のドット（タップでその質問へ）が担う。選ばずに飛ばす道も残っている
                   （2026-08-19に置いた「行き止まりにしない」役目はドットが引き継ぐ） */}
