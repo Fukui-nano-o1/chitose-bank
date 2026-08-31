@@ -1,6 +1,9 @@
 // エラーの辞書・分類・グループ化（2026-08-07切り出し）：
-// AdminSystemRoom（システムページのエラー面）と AdminErrorChatReporter（運営チャットへの投函）の
-// 両方が使う唯一のソース。ここに置くのは React/DOM/supabase 非依存の純関数のみ（lib層の規則）。
+// AdminSystemRoom（システムページのエラー面）が使う唯一のソース。ここに置くのは
+// React/DOM/supabase 非依存の純関数のみ（lib層の規則）。
+// ★運営チャットへの投函（旧 AdminErrorChatReporter）は2026-08-31にDBトリガーへ移した
+//   （trg_z_app_error_report・migration 20260831060413）＝errorSignature と同じ署名の規則を
+//   SQL側にも写している。署名の規則を変えるときは両方を揃えること。
 // ★既知バグを修理したら KNOWN_ERRORS に1行足す＋「修正済み」記載は修理の実日付と必ず一致させること
 //   （誤った安心を表示しない・2026-08-07保守ルール）
 

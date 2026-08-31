@@ -124,7 +124,6 @@ const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m 
 // 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面ので遅延読み込み
 const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
 import { ChatList } from "./components/ChatList";
-import { AdminErrorChatReporter } from "./components/AdminErrorChatReporter";
 import { LoginScreen } from "./components/LoginScreen";
 import { AccountHolderForm } from "./components/AccountHolderForm";
 import PrivacyReconsent from "./components/PrivacyReconsent";
@@ -2007,7 +2006,9 @@ export default function App(){
         <AppErrorBoundary>
         {/* 管理者専用エラー帯（2026-08-07）：どのタブでも画面上部に出る。システムページ表示中は
             自分自身を指すだけなので出さない。一般ユーザーには描画も取得も走らない（isAdminゲート） */}
-        {me&&isAdmin(me)&&<AdminErrorChatReporter/>}
+        {/* エラーの運営チャットへの報告は、DBのトリガー（trg_z_app_error_report・migration 20260831060413）が
+            app_errors への記録の瞬間に管理者のスレッドへ入れる＝フロントの投函（AdminErrorChatReporter）は撤去。
+            誰の端末のエラーでも、管理者の端末が閉じていても届く。宛先は管理者本人のスレッド1本だけ＝利用者には見えない */}
         {me&&!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab!=="terms"&&safeTab!=="privacy"&&showLegalV2Banner&&(
           <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
             <span>利用規約とプライバシーポリシーを全面改訂しました（7/21）</span>
