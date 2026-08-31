@@ -1,5 +1,5 @@
 // 管理タブ（#/admin・管理者専用・分割3-Aで切り出し2026-07-24）：農家承認・求人審査・質問管理・お知らせ・エラーログ等。
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { openWorkerPreview } from "../../lib/previewBus";
@@ -8,6 +8,7 @@ import { Avatar, LinkifiedText, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 import { AdminNav } from "./AdminNav";
 import { getCache, setCache } from "../../lib/viewCache";
+import { saveElementAsPdf } from "../../lib/pdfExport";
 
 // あいうえお順の比較（アカウント面・2026-08-07）。毎描画で作らないためモジュールレベルに置く
 const JA_COLLATOR = new Intl.Collator("ja");
@@ -108,6 +109,41 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [contracts, setContracts] = useState(null); // 契約スナップショット一覧（採用時に凍結・admin_list_contracts）
   const [contractsHelp, setContractsHelp] = useState(false); // 契約記録の説明シート（？ボタン・2026-08-31）
   const [contractDetail, setContractDetail] = useState(null); // 展開中の1件（スナップショット詳細）
+  const [contractPdfBusy, setContractPdfBusy] = useState(false); // PDF作成中の多重タップガード
+  const contractPrintRef = useRef(null); // 印刷・PDFに写す範囲（.cb-ctr-print）
+  // 印刷・PDF（2026-08-31たきと指示「印刷とPDFボタンを設置」）＝労働条件通知書と同じ作法：
+  // 印刷は .cb-print-doc を html/body に付けて cb-ctr-print だけを紙に流す（appStyles「契約の印刷」と対）。
+  // PDFは印刷ダイアログを通さず saveElementAsPdf（html2canvas→自前PDF）で直接保存（iPhone Safari対策）。
+  const contractFileName = (c) => {
+    const sn = c?.snapshot || {};
+    const label = [sn.crop, sn.task].filter(Boolean).join(" ");
+    return ["契約スナップショット", c?.job_number ? "No" + c.job_number : "", label].filter(Boolean).join("_");
+  };
+  const printContract = (c) => {
+    const prevTitle = document.title;
+    const el = [document.documentElement, document.body];
+    el.forEach(n => n && n.classList.add("cb-print-doc"));
+    document.title = contractFileName(c); // ブラウザはPDF保存時の名前に document.title を使う
+    const off = () => {
+      el.forEach(n => n && n.classList.remove("cb-print-doc"));
+      document.title = prevTitle;
+      window.removeEventListener("afterprint", off);
+    };
+    window.addEventListener("afterprint", off);
+    setTimeout(off, 60000); // afterprint は iOS で発火しないことがある＝時間でも外す
+    try { window.print(); } catch { off(); }
+  };
+  const saveContractPdf = async (c) => {
+    if (contractPdfBusy) return;
+    setContractPdfBusy(true);
+    try {
+      await saveElementAsPdf(contractPrintRef.current, contractFileName(c));
+    } catch {
+      alert("PDFを作成できませんでした。お手数ですが「印刷する」からお試しください。");
+    } finally {
+      setContractPdfBusy(false);
+    }
+  };
   useEffect(() => {
     if (reviewSec !== "contracts" || contracts !== null) return;
     (async () => {
@@ -793,14 +829,14 @@ export function AdminTab({ onJump, onShowAccountForm }) {
            ★白い全画面テイクオーバー（2026-08-31たきと指示「ボックス展開はするな」）＝
            FinalReviewSheet と同じ器：fixed inset:0 の白・左上←で一覧に戻る・中身は縦スクロール */}
       {contractDetail && createPortal(
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"#fff", display:"flex", flexDirection:"column" }}>
-          <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 8px" }}>
+        <div className="cb-lock-scroll cb-ctr-print-overlay" style={{ position:"fixed", inset:0, zIndex:9600, background:"#fff", display:"flex", flexDirection:"column" }}>
+          <div className="no-print" style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 8px" }}>
             <button onClick={()=>setContractDetail(null)} aria-label="契約記録の一覧に戻る" className="f-sans"
               style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, padding:0, flexShrink:0 }}>←</button>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>契約スナップショット</p>
           </div>
-          <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"6px 20px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
-            <div style={{ maxWidth:560, margin:"0 auto" }}>
+          <div className="cb-ctr-print-sheet" style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"6px 20px 24px" }}>
+            <div className="cb-ctr-print" ref={contractPrintRef} style={{ maxWidth:560, margin:"0 auto" }}>
             {(() => {
               const c = contractDetail; const s = c.snapshot || {};
               const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${c.job_number}`;
@@ -843,6 +879,12 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                 </>
               );
             })()}
+            </div>
+          </div>
+          <div className="no-print" style={{ flexShrink:0, borderTop:"1px solid #EBEBEB", padding:"12px 20px calc(14px + env(safe-area-inset-bottom, 0px))", background:"#fff" }}>
+            <div style={{ maxWidth:560, margin:"0 auto", display:"flex", gap:10 }}>
+              <button onClick={()=>printContract(contractDetail)} className="f-sans" style={{ flex:1, background:"#222", color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
+              <button onClick={()=>saveContractPdf(contractDetail)} disabled={contractPdfBusy} className="f-sans" style={{ flex:1, background:"#fff", color:"#222", border:"1.5px solid #222", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer", opacity: contractPdfBusy ? 0.5 : 1 }}>{contractPdfBusy ? "作成中…" : "PDFで保存"}</button>
             </div>
           </div>
         </div>,

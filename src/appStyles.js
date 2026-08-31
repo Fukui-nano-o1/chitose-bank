@@ -1147,7 +1147,7 @@ html.cb-drag-lock, body.cb-drag-lock { overflow: hidden !important; overscroll-b
 
 /* 契約の印刷（わたしの実績→契約の記録・2026-08-16）：印刷時は契約書(.cb-ctr-print)だけを紙に出す。
    ボックスは固定オーバーレイ＋内側スクロールなので、印刷時は static に戻して複数ページに流す
-   （fixed のままだと1ページ目で切れる）。ComponentはLaborConditionsNotice.jsx＝3クラスと対
+   （fixed のままだと1ページ目で切れる）。Componentは LaborConditionsNotice.jsx と AdminTab.jsx の契約スナップショット詳細（2026-08-31）＝3クラスと対
    （旧ContractRecords.jsxは2026-08-18に統合して削除）。 */
 @media print {
   /* ★1枚目から通知書を出す（2026-08-18たきと報告「プリント1枚目の大部分が空白」）：
