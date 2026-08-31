@@ -16,12 +16,12 @@
 //                                   閉じた後に呼ぶ。data＝confirm_terms の返り値）
 // ★モジュールレベル定義を維持すること（親の中で定義すると再レンダーのたびに作り直され、
 //   確認カードが開き直る＝フォーカス消失バグの同族）
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { calFmtDate, ROLE_ORANGE, appPhaseKey, APP_PHASE_COLOR } from "../lib/utils";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 import { Avatar, Dots } from "./ui";
-import { NavIconInline } from "./NavIcons";
+import { NavIcon, NavIconInline } from "./NavIcons";
 
 // 採用するページからの遷移の合図（応募者ページで該当のシートを開く）。ここに置くのは
 // 「決める前に応募者ページで詳しく見る」の導線が両方の入口で同じになるようにするため
@@ -102,14 +102,26 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
 @keyframes cbHireBurst{0%{transform:translate(0,0) scale(.4);opacity:0}20%{opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}
 @keyframes cbHireText{0%{transform:translateY(10px);opacity:0}100%{transform:translateY(0);opacity:1}}
 `}</style>
-      {/* ═══ 最終確認（画面内・ページ遷移しない） ═══
+      {/* ═══ 最終確認＝全画面テイクオーバー（ページ遷移しない） ═══
+          ★2026-08-31たきと指示「Airbnbをパクれ」：Airbnbの承諾（予約リクエストのAccept）は
+          小さなボックスでも別ページへの遷移でもなく、白い全画面が乗る形（左上に✕・中身は縦スクロール・
+          下部に固定の大きな実行ボタン）→ 成立の画面に「ゲストにメッセージを送る」のCTA。
+          評価・記録（FinalReviewSheet/DayReportSheet・同日）と同じ器に揃えた。
           OKを押した時だけ confirm_terms が走る。ここに出す情報は「後戻りできない判断」に必要なものだけ */}
       {app && !done && (
-        <div onClick={()=>{ if (!hiring) onClose?.(appId, false); }} className="cb-lock-scroll"
-          style={{ position:"fixed", inset:0, zIndex:9200, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-          <div onClick={ev=>ev.stopPropagation()} style={{ width:"100%", maxWidth:420, maxHeight:"86vh", overflowY:"auto", background:"#fff", borderRadius:18, padding:"20px 18px calc(18px + env(safe-area-inset-bottom, 0px))", animation:"cbPop .18s ease" }}>
-            <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>最終確認</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 14px" }}>面接を終えてから決めてください</p>
+        <div onClick={ev=>ev.stopPropagation()} className="cb-lock-scroll"
+          style={{ position:"fixed", inset:0, zIndex:9200, background:"#fff", display:"flex", flexDirection:"column", animation:"fadeIn .2s ease" }}>
+          {/* とじる＝左上の✕（やめるボタンは廃止＝✕が担う） */}
+          <div style={{ flexShrink:0, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 6px" }}>
+            <button onClick={()=>{ if (!hiring) onClose?.(appId, false); }} disabled={hiring} aria-label="とじる"
+              style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+              <NavIcon name="close" size={16} />
+            </button>
+          </div>
+          <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"6px 24px 24px" }}>
+            <div style={{ maxWidth:560, margin:"0 auto" }}>
+            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:"0 0 6px" }}>採用の最終確認</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 14px" }}>面接を終えてから決めてください</p>
             <div style={{ display:"flex", alignItems:"center", gap:12, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
               <Avatar url={app.partner_avatar} name={app.partner_name || "？"} size={48} ring={phaseColor} bg={ROLE_ORANGE} />
               <div style={{ minWidth:0 }}>
@@ -127,33 +139,33 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
             ) : null}
             {/* 契約成立＝本名の相互開示の明示（2026-07-30たきと裁定(B)・採用confirmに必ず入れる） */}
             <p className="f-sans" style={{ fontSize:12, color:"#555", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", lineHeight:1.7, margin:"0 0 16px" }}>{HIRE_NAME_DISCLOSURE_NOTE}</p>
-            <div style={{ display:"grid", gap:8 }}>
-              <button onClick={runHire} disabled={hiring || checking} className="f-sans"
-                style={{ padding:"13px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: (hiring || checking) ? 0.5 : 1 }}>
-                {hiring ? <>採用しています<Dots /></> : "OK（採用する）"}
-              </button>
-              <button onClick={()=>onClose?.(appId, false)} disabled={hiring} className="f-sans"
-                style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
-            </div>
             {/* 決める前に見る導線：後戻りできない判断の前に、やり取りと応募者の中身を見に行ける道を必ず残す */}
-            <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:14 }}>
+            <div style={{ display:"flex", justifyContent:"center", gap:16 }}>
               <button onClick={()=>{ if (hiring) return; window.location.hash = "/chat/" + app.application_id; }} className="f-sans"
                 style={{ background:"none", border:"none", padding:0, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer", textDecoration:"underline" }}>チャットを見る</button>
               <button onClick={()=>{ if (hiring) return; markHireSheet(app.application_id); window.location.hash = HIRE_SHEET_PATH; }} className="f-sans"
                 style={{ background:"none", border:"none", padding:0, fontSize:12, fontWeight:700, color:"#717171", cursor:"pointer", textDecoration:"underline" }}>応募者ページで詳しく見る</button>
             </div>
+            </div>
+          </div>
+          {/* 下部の固定バー（Airbnbの下部ボタンの写し）：実行は全幅の1つだけ */}
+          <div style={{ flexShrink:0, borderTop:"1px solid #EBEBEB", padding:"12px 24px calc(14px + env(safe-area-inset-bottom, 0px))", background:"#fff" }}>
+            <button onClick={runHire} disabled={hiring || checking} className="f-sans"
+              style={{ display:"block", width:"100%", maxWidth:560, margin:"0 auto", padding:"14px 20px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (hiring || checking) ? 0.5 : 1 }}>
+              {hiring ? <>採用しています<Dots /></> : "OK（採用する）"}
+            </button>
           </div>
         </div>
       )}
 
-      {/* ═══ 採用アニメーション（2026-08-06たきと指示） ═══
+      {/* ═══ 採用アニメーション＝成立の画面（2026-08-06たきと指示・2026-08-31 Airbnb型に改定） ═══
           「採用」の判子が押印のように現れ、輪が広がり、光の粒が弾ける。人生の節目（契約成立）を祝う一拍。
-          人数に達して他の応募が見送りになった時だけ、読み落とさないよう閉じるまで残す */}
+          ★自動で閉じない：Airbnbの承諾成立の画面は「ゲストにメッセージを送る」のCTAを置いて
+          利用者の選択を待つ。同じく「チャットを開く →」を主役に置き、とじるでその場に残る */}
       {done && (() => {
-        const auto = !done.extra;
         return (
           <div onClick={closeDone} className="cb-lock-scroll"
-            style={{ position:"fixed", inset:0, zIndex:9300, background:"rgba(255,255,255,0.96)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
+            style={{ position:"fixed", inset:0, zIndex:9300, background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
             <div style={{ position:"relative", width:180, height:180, display:"flex", alignItems:"center", justifyContent:"center" }}>
               {[0, 1, 2].map(i => (
                 <span key={i} aria-hidden style={{ position:"absolute", width:110, height:110, borderRadius:"50%", border:"3px solid #00A86B", animation:`cbHireRing 1.5s ease-out ${0.15 + i * 0.28}s both` }} />
@@ -171,25 +183,22 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
             </div>
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#00A86B", margin:"8px 0 0", animation:"cbHireText .5s ease .45s both" }}>採用しました</p>
             <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, textAlign:"center", margin:"8px 0 0", animation:"cbHireText .5s ease .6s both" }}>
-              {done.name ? done.name + "さん" : "応募者"}と #{done.jobNumber} の契約が成立しました。<br />作業日などの連絡はチャットでどうぞ。
+              {done.name ? done.name + "さん" : "応募者"}と #{done.jobNumber} の契約が成立しました。
             </p>
             {done.extra && (
               <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, textAlign:"center", maxWidth:380, background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"14px 0 0", animation:"cbHireText .5s ease .7s both" }}>{done.extra}</p>
             )}
-            {auto ? <AutoClose onDone={closeDone} /> : (
-              <button onClick={closeDone} className="f-sans"
-                style={{ marginTop:18, padding:"11px 26px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", animation:"cbHireText .5s ease .8s both" }}>閉じる</button>
-            )}
+            {/* Airbnbの「ゲストにメッセージを送る」の写し＝次の一歩（作業日の相談）へ直行。
+                ★stopPropagation：背景のonClick（closeDone）と同じイベントで二重に走らせない */}
+            <div style={{ width:"100%", maxWidth:380, display:"grid", gap:8, marginTop:20, animation:"cbHireText .5s ease .8s both" }}>
+              <button onClick={ev=>{ ev.stopPropagation(); const d = done; setDone(null); if (d) { onHired?.(d.appId, d.data); window.location.hash = "/chat/" + d.appId; } }} className="f-sans"
+                style={{ padding:"14px 20px", fontSize:15, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>チャットを開く →</button>
+              <button onClick={ev=>{ ev.stopPropagation(); closeDone(); }} className="f-sans"
+                style={{ padding:"12px 20px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>とじる</button>
+            </div>
           </div>
         );
       })()}
     </>
   );
-}
-
-// 演出を一定時間で自動的に閉じる（タップでも閉じられる）。※モジュールレベル定義を維持すること
-function AutoClose({ onDone, ms = 2600 }) {
-  const cb = useRef(onDone); cb.current = onDone;
-  useEffect(() => { const id = setTimeout(() => cb.current?.(), ms); return () => clearTimeout(id); }, [ms]);
-  return null;
 }
