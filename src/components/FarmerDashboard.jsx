@@ -550,6 +550,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const j = mapJobPublicRow(d);
     // 何も入力していない下書きthat名無しにならないように（JobCardは crop task をそのまま並べる）
     if (!j.crop && !j.task) j.crop = "無題の求人";
+    // 写真の無い求人は求人者（＝自分）のアイコンを出す（2026-08-31たきと指示）。
+    // ★my_farm_jobs は求人者の列を返さない（自分の求人so不要）＝ここで自分のプロフィールから埋める。
+    //   さがす一覧は jobs_public that employer_nickname/avatar を持つので既にアイコンthat出ていた＝
+    //   この画面だけ作物の絵に落ちていた。埋めればJobCard側の既存のフォールバックthatそのまま働く
+    if (!j.employerAvatar) j.employerAvatar = empMini?.avatar_url || "";
+    if (!j.employerName) j.employerName = empMini?.nickname || me?.name || "";
     const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
     const qn = qUnansweredMap[d.job_number] || 0;
     const canOpenQ = d.status === "open" && !hideEndLabel;
