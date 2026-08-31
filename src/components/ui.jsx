@@ -165,6 +165,11 @@ export function SwipeTabPages({ tabs, page, onPage, children }) {
   const dragRef = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
   const basePct = () => -page * step;
   const onStart = (e) => {
+    // 求人カードの横並び（.carousel-scroll）の中で始まったタッチは掴まない（2026-08-31）＝
+    // 農家プレビュー「記録」のカードを送る指が面の切り替えに取られない。はみ出していない
+    // （1枚だけの）列は従来どおり面の切り替えに譲る（FarmerDashboard onPagerStart と同じ判定・2026-08-23）
+    const hs = e.target.closest && e.target.closest(".carousel-scroll");
+    if (hs && hs.scrollWidth > hs.clientWidth + 1) { dragRef.current = null; return; }
     dragRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
   };
   const onMove = (e) => {

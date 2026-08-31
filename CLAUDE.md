@@ -9608,4 +9608,43 @@ pageerrorゼロ。スクショで目視（ハーネスは検証後に削除）�
 件数反映・パネルが閉じない・数字以外を捨てる・件数ボタン・✕クリア。スクリーンショットも目視。
 【実機目視の残り】①さがすの検索ピル→パネル最上部のNo.欄 ②「1028」で一覧が1枚になるか
 ③無い番号で「求人ページを開く」→詳細に着地するか ④キーボードが数字になるか（inputMode）
+━━━ 2026-08-31 農家プレビューの記録タブをAirbnbの型に（統計カード＋求人カードの横並び）━━━
+【たきと指示】「記録ページをAirbnbにして。パクれ。応募中と終了した求人は求人カードとして表示。」
+★Airbnbのコードは持ってこられない（プロプライエタリ）＝写したのは視覚言語だけ（従来どおりの判断）。
+【FarmerRecord.jsx を全面改装】
+・上＝統計カード：Airbnbのホストプロフィールの型（枠線1本の白いカードに、大きな数字＋小さなラベルの
+  行を罫線で区切って積む）。行＝受け入れ／公開中の求人／終了した求人／承認までの時間（平均）。
+  受け入れ中の内訳の1行と、正直さの注記（誰を受け入れたかは出さない等）は従来のまま。
+・下＝掲載一覧のカルーセル2区画（公開中の求人／終了した求人）。カードは本物の JobCard（related）＋
+  JobRow（Carousel＋useHorizontalDrag）＝さがす・あなたの求人と同じ機構。区画の見出しに件数は
+  付けない＝カードは公開の姿に残るものだけで統計より少ないことがあるため（矛盾に見せない）。
+  終了の区画は hideEndLabel（見出しが終了を語るので帯を重ねない・2026-08-23の作法）。
+・カードのタップ＝プレビュー（白い全画面）を閉じてから求人ページへ（開いたままだと遷移先が白幕の下）。
+  戻り先は cb_jobBackTo にいまのURL（既存の作法）。
+【DB（migration 20260831134249_employer_public_jobs_by_farmer・適用済み・repo写経済み）】
+・employer_public_jobs_by_farmer(p_farmer_id uuid) returns setof jobs_public 新設＝既存
+  employer_public_jobs（求人番号からしか引けない）の姉妹関数。プレビューは farmer_id しか持たないため。
+  jobs_public の行をそのまま返す＝公開の姿（anonマスク・停止の除外・open または満員closed）を継承し
+  開示を広げない。farmer_id は employer_profiles_public が公開している識別子＝新しい対応関係でもない。
+  権限＝revoke from public,anon（両方・2026-08-06の教訓）／grant authenticated,service_role。
+  実測：運営本人=10行（open5・closed5）・anon=EXECUTE不可・authenticated=可・town可視。
+・キャッシュは生の行（JSON安全）を viewCache（preview:ejobs:{farmerId}）へ＝mapJobPublicRow の Date を
+  キャッシュに入れない（2026-08-03規則）。失敗時は手元の値を上書きしない（2026-08-07規則）。
+【★過少計上バグの発見と修理（migration 20260831135021・適用済み・repo写経済み）】
+employer_trust_info の ended_jobs が「open かつ 期間経過」だけを数え closed を1件も数えていなかった
+＝12件の求人を終えた運営本人でも「終了した求人 0件」（たきとのスクショの0件の正体）。カード化で
+統計0件の真下に終了カードが並ぶ矛盾になるため修理：ended_jobs＝closed または open で期間経過。
+open_jobs は不変。実測：0→12件。アンカー1箇所置換（件数検査つき・本文は写経しない・家の作法）。
+表示側の消費者は FarmerRecord と FarmerTrustCard の「実績：N件」の2つだけ＝どちらも正確になる方向。
+カードの区画分けも同じ物差し（終了＝closed || expired・mapJobPublicRow の expired は同じ式＋当日の
+終了時刻の精密化）に揃えた。
+【SwipeTabPages（ui.jsx）に譲りの判定を追加】.carousel-scroll の中で始まり実際にはみ出している
+タッチは面の切り替えに掴まない＝FarmerDashboard onPagerStart と同じ判定（2026-08-23）。カードを送る
+指がタブ切替に取られない。1枚だけの列は従来どおり面の切り替えに譲る。
+【検証】本物の FarmerRecord＋JobCard＋JobRow を alias で mock supabase に繋いで vite でビルドし、
+同梱Chromiumで 390×844 を実描画＝ページエラー0・カルーセル2本は実際にはみ出す（カードの潰れ無し）・
+スクショで統計カードとカード2区画を目視。eslint 0 error・警告22（HEADと同数＝新規ゼロ）・build成功。
+【実機目視の残り】①農家アイコン→プレビュー→記録タブの統計カードとカード2区画 ②カードを指で
+横に送れるか（面の切り替えと取り合わないか）③カードのタップでプレビューが閉じて求人ページへ・
+←で元の画面に戻るか ④実績の少ない農家・記録ゼロの農家の見え方
 ━━━ ここまで ━━━
