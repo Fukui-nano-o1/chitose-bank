@@ -401,13 +401,19 @@ export function JobSearchMapView({ onRegister, me }) {
   const [selWhats, setSelWhats] = useState(() => readStoredSearch("w"));
   const [selRegions, setSelRegions] = useState(() => readStoredSearch("r"));
   const [selMonths, setSelMonths] = useState(() => readStoredSearch("m"));
+  // 求人No.でさがす（2026-08-31たきと指示「No.検索だ」）：数字の前方一致で一覧を絞る。
+  // ★localStorageには保存しない（作物・地域と違い、No.は一覧を1件に固定する条件so、
+  //   リロード後も掛かりっぱなしだと「求人が1件しかない」ように見える誤解の元になる）
+  const [selNo, setSelNo] = useState("");
   useEffect(() => {
     writeStoredSearch(selWhats, selRegions, selMonths);
   }, [selWhats, selRegions, selMonths]);
   // リアルタイム反映（2026-07-27たきと指示）：チップを触った瞬間に一覧へ反映（検索ボタン待ちの下書き方式は廃止）。
   // パネルは半透明の暗幕ので、背後で一覧が絞られていくのが見える
-  const searchActive = selWhats.length > 0 || selRegions.length > 0 || selMonths.length > 0;
+  const noQuery = selNo.trim();
+  const searchActive = selWhats.length > 0 || selRegions.length > 0 || selMonths.length > 0 || noQuery.length > 0;
   const filteredList = !searchActive ? jobList : jobList.filter(j => {
+    if (noQuery && !String(j.id).startsWith(noQuery)) return false;
     if (selWhats.length && !selWhats.some(w => j.crop === w || j.task === w)) return false;
     if (selRegions.length && !selRegions.includes(j.region || "")) return false;
     if (selMonths.length && !selMonths.some(m => jobMonths(j).includes(m))) return false;
@@ -416,9 +422,9 @@ export function JobSearchMapView({ onRegister, me }) {
   const searchWhatOpts = [...new Set(jobList.flatMap(j => [j.crop, j.task]).filter(Boolean))];
   const searchRegionOpts = [...new Set(jobList.map(j => j.region).filter(Boolean))];
   const searchMonthOpts = [...new Set(jobList.flatMap(jobMonths))].sort((a, b) => a - b);
-  const searchSummary = [selWhats.join("・"), selRegions.join("・"), selMonths.map(m => m + "月").join("・")].filter(Boolean).join("｜");
+  const searchSummary = [noQuery ? "No." + noQuery : "", selWhats.join("・"), selRegions.join("・"), selMonths.map(m => m + "月").join("・")].filter(Boolean).join("｜");
   const togSel = (setter) => (v) => setter(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
-  const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelMonths([]); };
+  const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelMonths([]); setSelNo(""); };
   // 絞り込みパネルに渡す3セクション（移設前は JSX 内の配列リテラルだった。中身は同一）。
   // ★state（selWhats/…）と候補（searchWhatOpts/…）の持ち主は親のまま＝
   //   パネルは「選ばせて見せる」だけ。どの求人が残るかは上の filteredList が決める
@@ -1041,7 +1047,16 @@ export function JobSearchMapView({ onRegister, me }) {
           {jobList.length > 0 && filteredList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}><NavIcon name="search" size={40} /></div>
-              <p style={{ fontSize:16, margin:"0 0 16px", lineHeight:1.6 }}>条件に合う求人が見つかりませんでした</p>
+              <p style={{ fontSize:16, margin:"0 0 16px", lineHeight:1.6 }}>
+                {noQuery ? <>No.{noQuery} は募集中の一覧にありません</> : "条件に合う求人が見つかりませんでした"}
+              </p>
+              {/* No.検索で一覧に無い＝掲載が終わった求人などの可能性。求人ページへの直行を出す
+                  （当事者なら掲載終了後も開ける＝job_details_for_partyの窓口。無関係なら
+                  「求人が見つかりません」の正直な表示に着地する） */}
+              {noQuery.length >= 4 && (
+                <button onClick={()=>{ try { sessionStorage.setItem("cb_jobBackTo", "/search"); } catch {} window.location.hash = "/work/job/" + noQuery; }} className="f-sans"
+                  style={{ display:"block", margin:"0 auto 10px", padding:"10px 22px", fontSize:13, fontWeight:700, background:"#00A86B", border:"none", borderRadius:20, color:"#fff", cursor:"pointer" }}>No.{noQuery} の求人ページを開く</button>
+              )}
               <button onClick={clearSearch} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#00A86B", cursor:"pointer" }}>条件をクリア</button>
             </div>
           )}
@@ -1094,6 +1109,7 @@ export function JobSearchMapView({ onRegister, me }) {
       <SearchFilterPanel
         open={searchOpen} onClose={()=>setSearchOpen(false)}
         sections={searchSections} section={searchSec} onSection={setSearchSec}
+        noValue={selNo} onNoChange={setSelNo}
         onClear={clearSearch} resultCount={filteredList.length} />
       </>)}
       </div>
