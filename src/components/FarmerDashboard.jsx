@@ -645,7 +645,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 保険の準備の報告も、実行するのは今日の用件ページ（confirm_insurance を撃つ窓口はそこ1箇所）。
   // カードのボタンはその入口＝新しい書き込み経路を作らない（2026-08-24たきと指示）
-  const goInsurancePage = () => { window.location.hash = "/calendar/todo/insurance"; };
+  // どの応募の報告かを合図で渡す（cb_completeAppId と同型）＝ページ側はその1件の保険カードだけを出す
+  const goInsurancePage = (appId) => {
+    try { sessionStorage.setItem("cb_insuranceAppId", appId); } catch {}
+    window.location.hash = "/calendar/todo/insurance";
+  };
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   // ★作業中は「今日」で出し分ける（2026-08-18たきと指示「作業していない時間は作業中ではない」）＝
@@ -1566,7 +1570,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                                 else rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
                               } else if (!started) {
                                 if (a.insurance_prepared_at) doneText = "保険 報告済み";
-                                else rec = { label:"保険の報告 →", green:true, icon:"shield", on: goInsurancePage };
+                                else rec = { label:"保険の報告 →", green:true, icon:"shield", on: ()=>goInsurancePage(a.id) };
                               } else {
                                 // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24）。
                                 // 窓の外は灰色の押せないボタンで残す＝どこにあるかは見えたまま（黙って消さない）
