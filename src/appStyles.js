@@ -771,23 +771,34 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
   }
 }
 
-/* ── Review header: profile (subtle) left / rating (hero) center ── */
-.review-header-row {
-  display: flex;
-  align-items: center;
-}
-.review-header-profile { flex: 1; }
-.review-header-stars { flex: 1; text-align: center; }
-.review-header-spacer { flex: 1; }
-@media (max-width: 759px) {
-  .review-header-row {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
+/* .review-header-* は 2026-09-01 の Airbnb 構成で JobReviews（★の点数のガワ）を廃止した時に
+   読み手がゼロになったので削除した（git履歴から復元可） */
+
+/* ── 求人詳細の写真（Airbnbの写真の見せ方をそのまま・2026-09-01たきと指示「写真もパクれ」）──
+   PC＝モザイク格子（左に大きい1枚・右に2×2の小さい4枚・すき間8px・外側の角だけ丸い）。
+   スマホ＝全幅の横スワイプ1枚ずつ（Airbnbのスマホも同じ）。枚数で格子の組み方を変える：
+     1枚＝全面／2枚＝左右半分／3枚＝左に大＋右に上下／4枚＝均等4枚／5枚以上＝Airbnbの定番。
+   ★格子は【最初の5枚まで】＝残りは「すべての写真を表示」から見る（Airbnbと同じ） */
+.job-photo-mosaic { display: none; }
+@media (min-width: 760px) {
+  .job-photo-mosaic {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 8px;
+    height: 392px;
+    border-radius: 16px;
+    overflow: hidden;
   }
-  .review-header-stars { order: 1; }
-  .review-header-profile { order: 2; justify-content: center; }
-  .review-header-spacer { display: none; }
+  /* 大きい1枚（左半分）。2枚・4枚の時は使わない */
+  .job-photo-mosaic .m-main { grid-column: span 2; grid-row: span 2; }
+  .job-photo-mosaic.m-1 .m-cell:nth-child(1) { grid-column: span 4; grid-row: span 2; }
+  .job-photo-mosaic.m-2 .m-cell { grid-column: span 2; grid-row: span 2; }
+  .job-photo-mosaic.m-3 .m-cell:not(.m-main) { grid-column: span 2; grid-row: span 1; }
+  .job-photo-mosaic.m-4 .m-cell { grid-column: span 2; grid-row: span 1; }
+  /* 5枚以上＝大1枚＋右に2×2（既定の1fr×1fr＝指定は要らない） */
+  .job-photo-carousel { display: none; }
 }
 
 /* ── Job detail: 2-column layout (left info / right apply panel) ── */

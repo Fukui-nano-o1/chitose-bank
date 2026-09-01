@@ -15,7 +15,7 @@
 // 個別の白カードに包む形はやめ、細い区切り線（AirSection）で区画を積む＝Airbnbのページの見た目。
 // ★区画を足す・並べ替える時はこの解剖に沿って置くこと（親＝JobSearchMapViewの並びも同時に）。
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../../lib/supabase";
 import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
@@ -391,58 +391,144 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
     )}
   </>);
 }
-// 写真ギャラリー（最大10枚・0枚なら求人者のアイコンを1枚）
+// 写真の1枚（モザイク格子の升目）。src が無い＝壊れた行は灰色の升目のまま（絵文字で埋めない・憲法3条）
+function PhotoCell({ photo, className, onOpen, alt }) {
+  const src = typeof photo === "string" ? photo : photo?.url;
+  const cap = typeof photo === "string" ? "" : photo?.caption;
+  return (
+    <button type="button" onClick={onOpen} aria-label={alt} className={className}
+      style={{ position:"relative", overflow:"hidden", padding:0, border:"none", background:"#F0F0F0", cursor:"pointer", minWidth:0 }}>
+      {src && <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />}
+    </button>
+  );
+}
+
+// 写真ギャラリー（Airbnbの写真の見せ方をそのまま・2026-09-01たきと指示「写真もパクれ」）。
+// PC＝モザイク格子（左に大きい1枚＋右に2×2）／スマホ＝全幅の横スワイプ＋右下に「n / N」。
+// どちらもタップで【写真の一覧】（Airbnbの photo tour）を全画面で開く＝1枚ずつ大きく見られる。
+// ★格子に出すのは最初の5枚まで＝残りは「すべての写真を表示」から（Airbnbと同じ）。
+// 1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示・ダミー写真は作らない）
 export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scrollerRef, onScroll }) {
-  return (<>
-    {/* 写真ギャラリー（最大10枚）。1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示） */}
-    {(() => {
-      const photos = Array.isArray(job.photos) ? job.photos : [];
-      if (photos.length === 0) return (
-        <div style={{ marginBottom:20 }}>
-          <JobPhotoFallback url={employer?.avatar_url || job.employerAvatar} name={employer?.nickname || job.employerName || "？"} />
-        </div>
-      );
-      const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
-      // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
-      const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
-      return (
-        // ★下の丸ドットは廃止し、写真の右下に「n / N」のカウンター（Airbnbの細かい構造の写し・2026-09-01）。
-        //   カウンターを写真の上に重ねるため relative の親で包む（Carouselの矢印とは別の層・zIndex 2）
-        <div style={{ position:"relative", marginBottom:20 }}>
-          <Carousel
-            className="carousel-scroll"
-            style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
-            onScroll={onScroll}
-            scrollerRef={scrollerRef}
-          >
-            {slides.map((photo, i) => {
-              const src = typeof photo === "string" ? photo : photo?.url;
-              const cap = typeof photo === "string" ? "" : photo?.caption;
-              return (
-                <div key={i} style={{
-                  flexShrink:0, width:"100%", height:392, borderRadius:12,
-                  background: bgColors[i % bgColors.length],
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
-                  scrollSnapAlign:"start", position:"relative", overflow:"hidden",
+  const [tourAt, setTourAt] = useState(null); // 全画面の一覧を開いた時の【最初に見せる番号】。null＝閉じている
+  const photos = Array.isArray(job.photos) ? job.photos : [];
+  if (photos.length === 0) return (
+    <div style={{ marginBottom:20 }}>
+      <JobPhotoFallback url={employer?.avatar_url || job.employerAvatar} name={employer?.nickname || job.employerName || "？"} />
+    </div>
+  );
+  const grid = photos.slice(0, 5);
+  const openTour = i => setTourAt(i);
+  // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
+  const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
+  return (
+    <div style={{ marginBottom:20 }}>
+      {/* ── PC：モザイク格子（枚数で組み方が変わる＝クラスは m-1〜m-5・CSSはappStyles） ── */}
+      <div className={`job-photo-mosaic m-${Math.min(grid.length, 5)}`}>
+        {grid.map((p, i) => (
+          <PhotoCell key={i} photo={p} onOpen={()=>openTour(i)} alt={`写真 ${i + 1} 枚目を開く`}
+            className={"m-cell" + (i === 0 && grid.length >= 3 ? " m-main" : "")} />
+        ))}
+        {/* すべての写真を表示（Airbnbの Show all photos＝格子の右下の白いボタン） */}
+        <button type="button" onClick={()=>openTour(0)} className="f-sans"
+          style={{ position:"absolute", right:16, bottom:16, zIndex:2, display:"flex", alignItems:"center", gap:6,
+                   background:"#fff", border:"1px solid #222", borderRadius:8, padding:"8px 14px",
+                   fontSize:13, fontWeight:700, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>
+          <NavIcon name="image" size={14} />すべての写真を表示
+        </button>
+      </div>
+
+      {/* ── スマホ：全幅の横スワイプ（1枚ずつ）＋右下に「n / N」。タップで一覧を開く ── */}
+      <div className="job-photo-carousel" style={{ position:"relative" }}>
+        <Carousel
+          className="carousel-scroll"
+          style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
+          onScroll={onScroll}
+          scrollerRef={scrollerRef}
+        >
+          {slides.map((photo, i) => {
+            const src = typeof photo === "string" ? photo : photo?.url;
+            const cap = typeof photo === "string" ? "" : photo?.caption;
+            // クローンを除いた本物の番号（先頭のクローンがあれば1つずれる）
+            const realIdx = photosLooped ? (i === 0 ? photos.length - 1 : (i === slides.length - 1 ? 0 : i - 1)) : i;
+            return (
+              <div key={i} onClick={()=>openTour(realIdx)} role="button" tabIndex={0}
+                onKeyDown={e=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTour(realIdx); } }}
+                style={{
+                  flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  scrollSnapAlign:"start", position:"relative", overflow:"hidden", cursor:"pointer",
                 }}>
-                  <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                  {cap && (
-                    <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, lineHeight:1.6, boxSizing:"border-box" }}>{cap}</div>
-                  )}
-                </div>
-              );
-            })}
-          </Carousel>
-          {photos.length > 1 && (
-            <span className="f-sans" aria-hidden="true" style={{ position:"absolute", right:14, bottom:14, zIndex:2, pointerEvents:"none",
-              background:"rgba(34,34,34,0.72)", color:"#fff", fontSize:12, fontWeight:600, borderRadius:6, padding:"4px 10px", letterSpacing:"0.04em" }}>
-              {Math.min(activeSlide + 1, photos.length)} / {photos.length}
-            </span>
-          )}
+                {src && <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />}
+                {cap && (
+                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, lineHeight:1.6, boxSizing:"border-box" }}>{cap}</div>
+                )}
+              </div>
+            );
+          })}
+        </Carousel>
+        {photos.length > 1 && (
+          <span className="f-sans" aria-hidden="true" style={{ position:"absolute", right:14, bottom:14, zIndex:2, pointerEvents:"none",
+            background:"rgba(34,34,34,0.72)", color:"#fff", fontSize:12, fontWeight:600, borderRadius:6, padding:"4px 10px", letterSpacing:"0.04em" }}>
+            {Math.min(activeSlide + 1, photos.length)} / {photos.length}
+          </span>
+        )}
+      </div>
+
+      {tourAt != null && <JobPhotoTour photos={photos} startAt={tourAt} onClose={()=>setTourAt(null)} />}
+    </div>
+  );
+}
+
+// 写真の一覧（Airbnbの photo tour）：全画面の白い面に、写真を縦に積んで大きく見せる。
+// ★左上の✕＝出口（✕全廃の明示的な例外・全画面の写真を見る面は「外」がないため。
+//   承認の流れ図の大画面・評価の全画面と同じ扱い）。開いた瞬間に、押した写真の位置へ運ぶ
+function JobPhotoTour({ photos, startAt, onClose }) {
+  const wrapRef = useRef(null);
+  // 押した写真の位置へ運ぶ。★写真の高さは読み込まれるまで分からない（＝開いた瞬間はどれも高さ0で
+  //   位置が全部0になる）so、上にある写真が1枚読み込まれるたびに位置を測り直す。
+  //   利用者が自分で動かしたら、その時点で運ぶのをやめる（指の操作を奪わない）
+  const settledRef = useRef(false);
+  const toStart = () => {
+    const el = wrapRef.current; if (!el || settledRef.current) return;
+    const target = el.querySelector(`[data-photo-idx="${startAt}"]`);
+    if (target) el.scrollTop = target.offsetTop - 8;
+  };
+  useEffect(() => {
+    settledRef.current = false;
+    toStart();
+    // 読み込みがどれも走らない（キャッシュ済み等）場合の保険
+    const t = setTimeout(toStart, 400);
+    return () => clearTimeout(t);
+  }, [startAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10200, background:"#fff", display:"flex", flexDirection:"column", animation:"fadeIn .2s ease" }}>
+      <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 12px 10px", borderBottom:"1px solid #EBEBEB" }}>
+        <button type="button" onClick={onClose} aria-label="閉じる" className="f-sans"
+          style={{ width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", background:"none", border:"none", cursor:"pointer", color:"#222", borderRadius:"50%" }}>
+          <NavIcon name="close" size={20} />
+        </button>
+        <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>写真 {photos.length}枚</span>
+      </div>
+      <div ref={wrapRef} onTouchStart={()=>{ settledRef.current = true; }} onWheel={()=>{ settledRef.current = true; }}
+        style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"8px 12px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ maxWidth:760, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+          {photos.map((p, i) => {
+            const src = typeof p === "string" ? p : p?.url;
+            const cap = typeof p === "string" ? "" : p?.caption;
+            return (
+              <div key={i} data-photo-idx={i}>
+                {/* 読み込みがないうちは高さが0＝位置がずれるので、読み込むたびに運び直す（上のtoStart） */}
+                {src && <img src={src} alt={cap || ""} onLoad={toStart} style={{ width:"100%", borderRadius:12, display:"block" }} />}
+                {/* 番号は必ず出す（いま何枚目か見失わせない）。説明があればその下に */}
+                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"6px 0 0" }}>{i + 1} / {photos.length}</p>
+                {cap && <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.7, margin:"4px 0 0", whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{cap}</p>}
+              </div>
+            );
+          })}
         </div>
-      );
-    })()}
-  </>);
+      </div>
+    </div>
+  );
 }
 
 // JobEmployerCard（募集主カード＝小さな行＋待遇表）と JobReviews（farmerReviews＝一度も実データが入らなかった
