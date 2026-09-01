@@ -306,7 +306,7 @@ export function ChatList() {
             const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
             const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
             return (
-              <button key={a.id} onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
+              <button key={a.id} data-guide="chat-row" onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
                 className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
                   border:"none", borderBottom: i < shownRows.length - 1 ? CHAT_ROW_DIVIDER : "none", borderRadius:0, padding:CHAT_ROW_PAD, cursor:"pointer" }}>
                 {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}

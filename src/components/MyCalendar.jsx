@@ -450,7 +450,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   };
 
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
+    <div data-guide="calendar" style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px" }}>
       {/* 「今日」の奥の画面（2026-07-24）：ナビ「今日」から来た時だけ、先頭に今日へ戻る導線を出す（プロフィール内蔵のカレンダーでは出さない） */}
       {backToToday && <button onClick={()=>{ window.location.hash="/calendar"; }} className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:14, cursor:"pointer", padding:"4px 0 12px", display:"inline-flex", alignItems:"center", gap:6 }}>← 今日</button>}
       {/* 見出し「カレンダー」は削除（2026-07-27たきと指示）：カレンダーを見れば分かる＝重複。

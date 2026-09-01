@@ -1044,7 +1044,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               カードタップで反転（2026-08-21たきと指示「🔁ボタン削除。プロフィールカードタップで反転」）。
               編集への導線は表面の「編集する」ボタンが担う。カードはbuttonでなくdiv＝中の実ボタンと入れ子にしないため */}
           <div style={{ position:"relative" }}>
-            <div role="button" tabIndex={0} onClick={()=>{
+            <div data-guide="biz-card" role="button" tabIndex={0} onClick={()=>{
                 if (empTopAnim === "pflip-out") return; // 連打ガード
                 setEmpTopAnim("pflip-out");
                 setTimeout(()=>{ setEmpTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_empTopBack", nv ? "1" : "0"); } catch {} return nv; }); setEmpTopAnim("pflip-in"); }, 400);

@@ -274,7 +274,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
                 カードタップで反転（2026-08-21たきと指示・農家側と同構造）。編集への導線は表面の「編集する」ボタンが担う。
                 カードはbuttonでなくdiv＝中の実ボタンと入れ子にしないため */}
             <div style={{ position:"relative" }}>
-              <div role="button" tabIndex={0} onClick={()=>{
+              <div data-guide="biz-card" role="button" tabIndex={0} onClick={()=>{
                   if (wTopAnim === "pflip-out") return; // 連打ガード
                   setWTopAnim("pflip-out");
                   setTimeout(()=>{ setWTopBack(v=>{ const nv = !v; try { localStorage.setItem("cb_wTopBack", nv ? "1" : "0"); } catch {} return nv; }); setWTopAnim("pflip-in"); }, 400);

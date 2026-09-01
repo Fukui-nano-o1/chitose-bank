@@ -52,6 +52,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
     : { display:"block", flexShrink:0, ...JOB_CARD_RELATED_SIZE, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
+      data-guide="job-card"
       href={"#/work/job/" + job.id}
       target={onOpen ? undefined : "_blank"}
       rel="noopener noreferrer"
