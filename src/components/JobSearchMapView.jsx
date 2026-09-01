@@ -1204,19 +1204,27 @@ export function JobSearchMapView({ onRegister, me }) {
               タイトル＋事実の1行 → 募集主の行 → ポイント → 作業内容 → 待遇 → 作業日程 →
               評価 → 募集主について → 作業の場所 → 知っておくこと → その他の求人 → 報告。
               区画の解剖はJobDetailPanel.jsx冒頭のコメントが正＝並べ替える時は両方を揃える ── */}
-          {/* ヘッダー（タイトル＋事実の1行） */}
+          {/* ヘッダー＝Airbnbのタイトルブロックの細かい構造（2026-09-01「細かい構造もパクれ」）：
+              1行目＝タイトル（作物 作業だけ）／2行目＝場所（Airbnbの「Entire villa in Onna」の位置）／
+              3行目＝事実の1行（灰色）。旧・「作物 作業｜地域」の1行詰めをやめた＝読みやすさの改善 */}
           <div style={{ marginBottom:0 }}>
-            {/* タイトルの場所＝集合場所（2026-08-03たきと指示）：ログイン済み利用者には番地まで含む正式な住所。
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
+              {selectedJob.crop} {selectedJob.task}
+            </h2>
+            {/* 場所の行＝集合場所（2026-08-03たきと指示）：ログイン済み利用者には番地まで含む正式な住所。
                 訪問者はDBマスクによりworkAddress/townが空で届く（市区町村まで）。
                 伏せ字は【町域だけ】に絞る（2026-08-17たきと指示「町域だけモザイク処理」）＝
                 市区町村の後ろに1つだけ置く。番地の伏せ字は会員向けの表示のみに使う（訪問者には並べない）。
                 町域は masked_fields に載っている時だけ描く＝町域が未設定の求人に偽のモザイクを出さない */}
-            <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
-              {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
-              {selectedJob.region && Array.isArray(selectedJob.maskedFields) && selectedJob.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
-              {me && selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={true} exists={selectedJob.hasWorkAddress} />}
-            </h2>
-            {/* 事実の1行（日程・勤務・休憩・採用・移動・報酬）＝Airbnbの「6 guests · 3 bedrooms」の位置。
+            {selectedJob.region && (
+              <p className="f-sans" style={{ fontSize:15, fontWeight:600, color:"#222", margin:"6px 0 0", lineHeight:1.5 }}>
+                {selectedJob.region}
+                {Array.isArray(selectedJob.maskedFields) && selectedJob.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
+                {me && <MaskedAddress value={selectedJob.workAddress} unlocked={true} exists={selectedJob.hasWorkAddress} />}
+              </p>
+            )}
+            {/* 事実の1行（日程・勤務・休憩・採用・移動）＝Airbnbの「6 guests · 3 bedrooms」の位置。
+                報酬は下部の応募バーが常時出す（Airbnbの価格の置き場と同じ）。
                 旧・タイトル下のバッジ列は廃止：旗はポイントの区画（JobHighlights）、待遇は待遇の区画（JobAmenities）が担う */}
             <JobKeyFacts job={selectedJob} />
           </div>

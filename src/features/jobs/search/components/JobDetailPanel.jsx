@@ -24,7 +24,7 @@ import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { ReceivedReviews } from "../../../../components/ReceivedReviews";
 import { BelongingChips } from "../../../../components/BelongingTags";
-import { EMPTY_MARK, disp, stationLabel, payLabel, payTermsLine, overtimeLine, calFmtDate, ROLE_GREEN } from "../../../../lib/utils";
+import { disp, stationLabel, payTermsLine, overtimeLine, ROLE_GREEN } from "../../../../lib/utils";
 import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 
 // Airbnbの区切りの言語：細い線＋太い見出しで区画を積む（白カードに包まない）。
@@ -39,7 +39,9 @@ function AirSection({ title, children, style }) {
 }
 
 // タイトル直下の事実の1行（Airbnbの「6 guests · 3 bedrooms · 3 beds」の型・2026-09-01）。
-// 旧・主要情報カード（白いカードのグリッド）はこの1行に置き換えた。支払条件は「知っておくこと」へ移動
+// 旧・主要情報カード（白いカードのグリッド）はこの1行に置き換えた。支払条件は「知っておくこと」へ移動。
+// ★報酬はこの行に入れない（細かい構造もAirbnbに・2026-09-01）＝Airbnbの事実の行に価格は無く、
+//   価格は下部のバーが常時出す（うちも同じ：モバイル＝下部の応募バー／PC＝応募パネルと下部バー）
 export function JobKeyFacts({ job }) {
   const facts = [
     job.dateLabel,
@@ -48,11 +50,10 @@ export function JobKeyFacts({ job }) {
     job.count && `採用 ${job.count}`,
     // 最寄り駅は訪問者にはDBがNULLで返る＝移動時間だけの表示になる
     stationLabel(job.nearestStation, job.commuteTime),
-    payLabel(job),
   ].filter(v => v && String(v).trim());
   if (facts.length === 0) return null;
   return (
-    <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:"8px 0 0" }}>
+    <p className="f-sans" style={{ fontSize:14, color:"#717171", lineHeight:1.8, margin:"6px 0 0" }}>
       {facts.join(" ・ ")}
     </p>
   );
@@ -105,51 +106,66 @@ export function JobHighlights({ job }) {
 }
 
 // 作業内容（Airbnbの「Description」の型＝説明文だけ。持ち物・備考・時間外などの
-// きまりの表は「知っておくこと」（JobThingsToKnow）へ移動・2026-09-01）
+// きまりの表は「知っておくこと」（JobThingsToKnow）へ移動・2026-09-01）。
+// ★長文は5行で畳んで「もっと見る ›」（Airbnbの Show more の型・下線の太字リンク）。
+//   Airbnbは別画面に開くが、ここはその場で開く＝画面を増やさない。短文はボタンごと出ない
 export function JobDescription({ job }) {
-  if (!(job.jobBody && job.jobBody.trim())) return null;
+  const [expanded, setExpanded] = useState(false);
+  const body = (job.jobBody || "").trim();
+  if (!body) return null;
+  const isLong = body.length > 140 || body.split("\n").length > 5;
+  const clamp = (isLong && !expanded)
+    ? { display:"-webkit-box", WebkitLineClamp:5, WebkitBoxOrient:"vertical", overflow:"hidden" }
+    : {};
   return (
     <AirSection title="作業内容">
-      <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={job.jobBody} /></p>
+      <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...clamp }}><LinkifiedText text={body} /></p>
+      {isLong && !expanded && (
+        <button onClick={()=>setExpanded(true)} className="f-sans" style={{ marginTop:10, padding:0, background:"none", border:"none", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222", textDecoration:"underline" }}>もっと見る ›</button>
+      )}
     </AirSection>
   );
 }
 
-// 待遇（Airbnbの「What this place offers」の型）：掲載時に確定保存された jobs.perks の9行の表。
-// 中身は旧・求人者カード（JobEmployerCard）の待遇表そのまま＝項目名＋内容の表の形は
-// 2026-08-25たきと指示「前回の見せ方を復元」で確定済み。ここでは置き場所だけをAirbnbの並びに合わせた
+// 待遇（Airbnbの「What this place offers」の細かい構造まで写す・2026-09-01「細かい構造もパクれ」）：
+// アイコン＋名前の行を縦に並べ、【無い待遇は灰色＋打ち消し線で並べたまま】（Airbnbの
+// unavailable amenities の型＝「無い」も正直に見せる）。内容（エリア・台数・時期など）は
+// 名前の下の灰色の小さな行。値は掲載時に確定保存された jobs.perks のみ
+// （2026-08-02・プロフィール現在値とのマージ廃止）。アイコンは待遇バッジと同じ NavIcon（正は1組）
 export function JobAmenities({ job }) {
-  const pk = job.perks || {}; // 掲載時に確定保存された待遇のみ（2026-08-02・プロフィール現在値とのマージ廃止）
-  const perkRows = [
-    { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
-    { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
-    { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
-    // 昇給・賞与・退職手当（2026-08-19たきと指示）：掲載時に凍結された perks から。
-    // 「あり」のときの内容（時期・金額等）も凍結されていれば括弧で添える。旧求人はキーが無い＝「ー」
-    { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? `あり${pk.bonus_detail ? "（" + pk.bonus_detail + "）" : ""}` : EMPTY_MARK },
-    { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? `あり${pk.raise_detail ? "（" + pk.raise_detail + "）" : ""}` : EMPTY_MARK },
-    { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? `あり${pk.severance_detail ? "（" + pk.severance_detail + "）" : ""}` : EMPTY_MARK },
-    { label:"作業用品の負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `募集主が負担${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
-    { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
-    // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
-    // 値は掲載時に凍結された perks から（プロフィール現在値は参照しない）。未設定は「ー」
-    { label:"受動喫煙", on: !!pk.smoking_policy,
-      value: pk.smoking_policy
-        ? (pk.smoking_policy === "喫煙場所あり"
-            ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
-            : pk.smoking_policy)
-        : EMPTY_MARK },
+  const pk = job.perks || {};
+  // 受動喫煙だけ3状態（禁煙＝あり扱い／喫煙場所あり＝あり扱い／記録なし）：求人の明示事項なので
+  // 「記録なし」は打ち消し線にしない（「無い」ではなく「分からない」＝嘘の断定をしない・2026-08-24と同じ判断）
+  const smoking = pk.smoking_policy
+    ? { icon:"noSmoke", label: pk.smoking_policy === "喫煙場所あり" ? "喫煙場所あり" : pk.smoking_policy,
+        on:true, detail: pk.smoking_policy === "喫煙場所あり" ? pk.smoking_area : "" }
+    : { icon:"noSmoke", label:"受動喫煙：記録なし", on:false, noStrike:true };
+  const rows = [
+    { icon:"van",       label:"送迎",                 on: !!pk.has_transport,         detail: pk.transport_area },
+    { icon:"parking",   label:"駐車場",               on: !!pk.has_parking,           detail: pk.parking_capacity ? `${pk.parking_capacity}台` : "" },
+    { icon:"train",     label:"通勤手当",             on: !!pk.has_commute_allowance, detail: pk.commute_allowance_detail },
+    { icon:"gift",      label:"賞与",                 on: !!pk.has_bonus,             detail: pk.bonus_detail },
+    { icon:"raise",     label:"昇給",                 on: !!pk.has_raise,             detail: pk.raise_detail },
+    { icon:"briefcase", label:"退職手当",             on: !!pk.has_severance_pay,     detail: pk.severance_detail },
+    { icon:"glove",     label:"作業用品は募集主が負担", on: !!pk.employer_pays_supplies, detail: pk.supplies_cap },
+    { icon:"ring",      label:"アクセサリーOK",       on: !!pk.accessory_ok },
+    smoking,
   ];
+  // Airbnbと同じく「ある待遇が先・無い待遇は後ろにまとめて」並べる
+  const ordered = [...rows.filter(r => r.on), ...rows.filter(r => !r.on)];
   return (
     <AirSection title="待遇">
-      <div>
-        {perkRows.map((row, i) => (
-          <div key={row.label} style={{
-            display:"flex", alignItems:"center", gap:12, padding:"9px 0",
-            borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
-          }}>
-            <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:104, flexShrink:0 }}>{row.label}</span>
-            <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6, minWidth:0, overflowWrap:"break-word" }}>{row.value}</span>
+      <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+        {ordered.map(r => (
+          <div key={r.label} style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+            <span style={{ flexShrink:0, display:"flex", color: r.on ? "#222" : "#B0B0B0", marginTop:1 }}><NavIcon name={r.icon} size={24} /></span>
+            <div style={{ minWidth:0 }}>
+              <p className="f-sans" style={{ fontSize:15, color: r.on ? "#222" : "#B0B0B0", margin:0, lineHeight:1.5,
+                textDecoration: (!r.on && !r.noStrike) ? "line-through" : "none" }}>{r.label}</p>
+              {r.on && r.detail && (
+                <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"1px 0 0", lineHeight:1.6, overflowWrap:"break-word" }}>{r.detail}</p>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -157,11 +173,15 @@ export function JobAmenities({ job }) {
   );
 }
 
-// 作業日程（Airbnbの「Select check-in date」＝カレンダーの区画）。閲覧専用・休日はグレー
+// 作業日程（Airbnbの「Select check-in date」＝カレンダーの区画）。閲覧専用・休日はグレー。
+// 見出しの下の灰色の1行＝期間（Airbnbが見出し下に泊数・日付範囲を出す細かい構造の写し）
 export function JobScheduleSection({ job }) {
   if (!job.dateStart) return null;
   return (
     <AirSection title="作業日程">
+      {job.dateLabel && (
+        <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"-8px 0 14px" }}>{job.dateLabel}</p>
+      )}
       <div className="calendar-below-map">
         <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
       </div>
@@ -169,7 +189,8 @@ export function JobScheduleSection({ job }) {
   );
 }
 
-// 作業の場所（Airbnbの「Where you'll be」の型＝地図だけの区画）。
+// 作業の場所（Airbnbの「Where you'll be」の型＝地図の区画）。細かい構造も同じ：
+// 見出し → 地図 → 地図の下に太字の場所の1行（Airbnbは map の下に "Onna, Okinawa, Japan"）。
 // カレンダーは「作業日程」（JobScheduleSection）、保険は「知っておくこと」（JobThingsToKnow）へ移動（2026-09-01）
 export function JobLocationSection({ job, me }) {
   return (
@@ -188,6 +209,9 @@ export function JobLocationSection({ job, me }) {
         visitor={!me}
         cityArea={job.cityArea}
       />
+      {job.region && (
+        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"12px 0 0" }}>{job.region}{job.cityArea ? ` ${job.cityArea}` : ""}</p>
+      )}
     </AirSection>
   );
 }
@@ -306,8 +330,9 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
         ReceivedReviews に委譲＝肯定的な選択項目と審査済みコメントだけ（規約第8条）。
         求人ページのクライアントは求人者のUIDを知らないので jobNumber 経由で引く。
         訪問者（未ログイン）はDB側が資格なしを返す＝「まだ評価はありません」と誤読させないため案内文に差し替える */}
-    <AirSection title="評価">
-      {/* showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
+    <AirSection title={reviews && reviews.ok && reviews.total > 0 ? `評価（${reviews.total}件）` : "評価"}>
+      {/* 見出しの件数＝Airbnbの「★4.9 · 12 reviews」の件数の位置（★の点数は出さない＝点数化の禁止）。
+          showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
           ★総数が2件以上あるのに0の項目が並ぶと否定的な評価が読み取れる＝利用規約 第8条2との緊張。
             戻すときはこのpropを外すだけ（1語）。他の画面（プロフィールの評価面）は従来どおり0を出さない */}
       {me
@@ -349,6 +374,12 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
             </div>
           )}
         </div>
+        {/* 募集主の対応（Airbnbの「Host details：Response rate / Responds within…」の型）＝
+            承認までの時間。値の無い募集主は行ごと出さない（憶測で埋めない）。
+            文言は農家プレビューの記録タブ（FarmerRecord）と同じ言い回しに揃える */}
+        {trust?.ok && trust.avg_approval_hours != null && (
+          <p className="f-sans" style={{ fontSize:14, color:"#222", margin:"14px 0 0" }}>承認までの時間：平均{trust.avg_approval_hours}時間</p>
+        )}
         {/* 代表より（owner_comment＝代表より枠の中身。未記入なら行ごと出さない・憲法3条） */}
         {comment && (
           <div style={{ marginTop:14 }}>
@@ -375,11 +406,12 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
       // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
       const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
       return (
-        <>
+        // ★下の丸ドットは廃止し、写真の右下に「n / N」のカウンター（Airbnbの細かい構造の写し・2026-09-01）。
+        //   カウンターを写真の上に重ねるため relative の親で包む（Carouselの矢印とは別の層・zIndex 2）
+        <div style={{ position:"relative", marginBottom:20 }}>
           <Carousel
             className="carousel-scroll"
             style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
-            wrapperStyle={{ marginBottom:8 }}
             onScroll={onScroll}
             scrollerRef={scrollerRef}
           >
@@ -401,12 +433,13 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
               );
             })}
           </Carousel>
-          <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:20 }}>
-            {photos.map((_, i) => (
-              <span key={i} style={{ fontSize:10, color: i===activeSlide ? "#00A86B" : "#D0D0D0" }}>{i===activeSlide ? "●" : "○"}</span>
-            ))}
-          </div>
-        </>
+          {photos.length > 1 && (
+            <span className="f-sans" aria-hidden="true" style={{ position:"absolute", right:14, bottom:14, zIndex:2, pointerEvents:"none",
+              background:"rgba(34,34,34,0.72)", color:"#fff", fontSize:12, fontWeight:600, borderRadius:6, padding:"4px 10px", letterSpacing:"0.04em" }}>
+              {Math.min(activeSlide + 1, photos.length)} / {photos.length}
+            </span>
+          )}
+        </div>
       );
     })()}
   </>);
