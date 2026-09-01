@@ -9,11 +9,13 @@
 //   ・PAGE_GUIDES＝主要ページの説明の台帳（このファイルが唯一のソース）。
 //     ページを足す・文言を変える時はこの配列だけを直す。match は先頭一致・並び順で先勝ち
 //     （例：profile/employer/applicants は profile/employer より上に置く）
-//   ・はじめてそのページを開いた時に一度だけ、下からのシートで自動表示（端末ごと・localStorage既読）。
+//   ・はじめてそのページを開いた時に一度だけ、画面中央のボックスで自動表示（端末ごと・localStorage既読）。
 //     ★他のボックス（お知らせ等）が開いている間は出さない＝次にそのページを開いた時に出る
 //   ・二度目からは ☰メニューの「この画面の説明」（cb:openPageGuide）からいつでも開ける。
 //     ☰側は guideForHash(curHash) が真の時だけ項目を出す（説明の無いページに死んだ項目を置かない）
-//   ・シートの作法＝cb-box-overlay + cb-lock-scroll 併用・✕なし・外タップと下スワイプで閉じる（家の規約）
+//   ・ボックスの作法＝cb-box-overlay + cb-lock-scroll 併用・✕なし・外タップと下スワイプで閉じる（家の規約）。
+//     配置は【画面中央】＝overlayに padding:"40px 16px"／シートは maxHeight:"100%"（上下に40pxの余白を取り、
+//     ボックスの中央と画面の中央を一致させる・2026-09-01たきと指示。労働条件通知書・編集モーダルと同じ規格）
 import { useEffect, useRef, useState } from "react";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { NavIcon } from "./NavIcons";
@@ -170,12 +172,10 @@ export function PageGuide({ suspend = false }) {
 
   return (
     <div className="cb-box-overlay cb-lock-scroll" onClick={() => setGuide(null)}
-      style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.35)",
-               display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .15s ease" }}>
+      style={{ zIndex:9700, padding:"40px 16px" }}>
       <div ref={sheetRef} onClick={(e) => e.stopPropagation()} className="cb-sheet-up f-sans"
-        style={{ background:"#fff", borderRadius:"16px 16px 0 0",
-                 padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)",
-                 maxWidth:560, width:"100%", boxSizing:"border-box", maxHeight:"80vh", overflowY:"auto",
+        style={{ background:"#fff", borderRadius:20, padding:"22px 20px 20px",
+                 maxWidth:560, width:"100%", boxSizing:"border-box", maxHeight:"100%", overflowY:"auto",
                  WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
           <span style={{ display:"flex", color:"#222" }}><NavIcon name={guide.icon} size={26} /></span>
