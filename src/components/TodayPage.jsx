@@ -433,8 +433,12 @@ export function TodayPage({ me, defaultRole }) {
       <div ref={swipeStage ? rootRef : undefined} className="cb-today-page"
         style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", ...(swipeStage ? { overflowX:"hidden", touchAction:"pan-y" } : {}) }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
-          {/* 戻り先＝マイページの該当の面（今日ページ本体の廃止・2026-08-22）。用件の役割に合わせる */}
-          <button onClick={()=>{ window.location.hash = role === "farmer" ? "/profile/employer" : "/profile"; }} aria-label="マイページへ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
+          {/* 戻り先＝その役割のカレンダー（2026-09-01たきと指示「←ボタンでカレンダーに遷移しろ」）。
+              用件ページへは、カレンダーの求人カード・応募者カードのボタンから来るのが主な道なので、
+              押してきた画面に帰る。農家＝#/profile/employer/calendar／働き手＝#/saved（下部ナビの
+              「カレンダー」タブと同じURL・2026-08-23のナビ統合どおり）。
+              ★マイページのやること箱から来た時もカレンダーに帰る＝行き先を1つに保つ */}
+          <button onClick={()=>{ window.location.hash = role === "farmer" ? "/profile/employer/calendar" : "/saved"; }} aria-label="カレンダーへ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
           <h2 className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:18, fontWeight:800, color:"#222", margin:0, flex:1, minWidth:0 }}>
             <span style={{ display:"flex", color:"#333", flexShrink:0 }}><NavIcon name={BOX_FACE[pageStage]?.iconName} size={20} /></span>{BOX_FACE[pageStage]?.label || pm.title}
           </h2>
