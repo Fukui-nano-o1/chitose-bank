@@ -1109,6 +1109,16 @@ body:has(.cb-new-applicants-page) .site-footer-fixed { display: none !important;
    下部バー・浮遊☰は出したままので、他のページへ抜ける道は残る。
    規約・プライバシー等の法定のリンクは他のページのフッターと☰から従来どおり辿れる */
 body:has(.cb-today-page) .site-footer-fixed { display: none !important; }
+/* 用件ページの末尾に、下部バーぶんの余白を空ける（2026-09-01たきと指示
+   「画面下部に余白を残せ。下部バーと重複している」）。
+   モバイルの main は下余白が24pxしかなく（@media max-width:640px の !important が後勝ち）、
+   フッターを出さないこのページ族では、最後のカードが固定の下部バー（64px＋セーフエリア）の
+   下に潜っていた。バーが出る幅（≦768px）だけ、バーの高さ＋24pxを足す */
+@media (max-width: 768px) {
+  body:has(.cb-today-page) main {
+    padding-bottom: calc(64px + 24px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
 /* 管理画面で操作するページはサイトフッター（サポート等）を出さない（2026-08-05たきと指示）。
    メディアクエリの外に置く＝画面幅に関係なく効く（PCでも管理画面にはフッターを出さない）。
    下部バー・浮遊☰は出したままので、管理画面から他のページへ抜ける道は残る */

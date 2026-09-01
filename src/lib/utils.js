@@ -140,6 +140,29 @@ export function workDaysStripData(app, job) {
   return { days, label: agreed ? "働く日" : avail ? "来られる日" : "日程" };
 }
 
+// ── カレンダーで日を選んだら求人カードまで運ぶ（2026-09-01たきと指示）──────────
+// 「タップしたカレンダーの予定に該当する求人カードに自動スクロールしよう」。
+// カレンダーは縦に月が連なる形（2026-08-31）so、カードは画面のずっと下にある＝日をタップしても
+// 画面が動かず「何も起きていない」ように見えていた。
+// ★どのページも「カレンダーの直後にカードが並ぶ」構造so、カレンダーの下端を画面の上へ運べば
+//   先頭のカードが目に入る＝どのカードかを当てにいかない（並び・件数が変わっても壊れない）。
+// ★PCの上部ヘッダー（.app-header-desktop＝sticky・64px）は【実測して】避ける＝数字を2箇所に書かない
+//   （モバイルは display:none so高さ0＝同じ式がそのまま効く）。
+// ★prefers-reduced-motion のときは滑らかにしない（appStylesの規約に合流）。
+export function scrollBelowCalendar(calEl) {
+  if (!calEl || typeof window === "undefined") return;
+  // 絞り込み後のカードが描かれてから測る＝1フレーム待つ
+  requestAnimationFrame(() => {
+    try {
+      const head = document.querySelector(".app-header-desktop");
+      const headH = head ? head.getBoundingClientRect().height : 0;
+      const top = Math.max(0, calEl.getBoundingClientRect().bottom + window.scrollY - headH - 4);
+      const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top, behavior: still ? "auto" : "smooth" });
+    } catch {}
+  });
+}
+
 // ── 契約上の実働日（DBの app_work_dates と1対1）──────────
 // agreed_dates（非空配列）があればその日付／無ければ求人票の期間 date_start..date_end を展開／
 // いずれからも holidays（求人の休日）を除く。返り値は "YYYY-MM-DD" の Set。

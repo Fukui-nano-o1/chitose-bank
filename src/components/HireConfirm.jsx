@@ -22,6 +22,7 @@ import { calFmtDate, ROLE_ORANGE, appPhaseKey, APP_PHASE_COLOR, payTermsLine, te
 import { fetchJobRowForMe } from "../lib/jobForMe";
 import { findDoubleBookingJob, doubleBookingWarning, HIRE_NAME_DISCLOSURE_NOTE } from "../lib/hire";
 import { Avatar, Dots } from "./ui";
+import { openApplicantSheet } from "../lib/previewBus";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
 // 採用するページからの遷移の合図（応募者ページで該当のシートを開く）。ここに置くのは
@@ -236,11 +237,21 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
                 </p>
               ))}
             </div>
-            {/* 決める前に見る導線：後戻りできない判断の前に、やり取りと応募者の中身を見に行ける道を必ず残す */}
+            {/* 決める前に見る導線：後戻りできない判断の前に、やり取りと応募者の中身を見に行ける道を必ず残す。
+                ★どちらも【先に onClose()】＝この全画面を畳んでから運ぶ（2026-09-01たきと報告
+                  「応募者ページに遷移しない」の修理）。畳まないと、URLだけ変わって全画面が上に残る＝
+                  何も起きていないように見える。さらに応募者ページから開いた時は行き先が同じURLなので
+                  hashchange も起きず、本当に何も起きていなかった */}
             <div style={{ display:"flex", justifyContent:"center", gap:16 }}>
-              <button onClick={()=>{ if (hiring) return; window.location.hash = "/chat/" + app.application_id; }} className="f-sans"
+              <button onClick={()=>{ if (hiring) return; if (onClose) onClose(); window.location.hash = "/chat/" + app.application_id; }} className="f-sans"
                 style={{ background:"none", border:"none", padding:0, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer", textDecoration:"underline" }}>チャットを見る</button>
-              <button onClick={()=>{ if (hiring) return; markHireSheet(app.application_id); window.location.hash = HIRE_SHEET_PATH; }} className="f-sans"
+              <button onClick={()=>{
+                  if (hiring) return;
+                  markHireSheet(app.application_id);        // 別ページから来た時＝着地後のローダーが拾ってシートを開く
+                  openApplicantSheet(app.application_id);   // 既に応募者ページに居る時＝その場でシートを開く
+                  if (onClose) onClose();
+                  window.location.hash = HIRE_SHEET_PATH;
+                }} className="f-sans"
                 style={{ background:"none", border:"none", padding:0, fontSize:12, fontWeight:700, color:"#717171", cursor:"pointer", textDecoration:"underline" }}>応募者ページで詳しく見る</button>
             </div>
             </div>

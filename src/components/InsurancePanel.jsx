@@ -7,12 +7,16 @@
 // employer は job_employer_profile RPC（詳細）／本人の employer_profiles 行（確認）どちらの形でも可。
 // swipe（2026-08-19たきと指示）：カレンダーの下に置く形。2列グリッドでなく横一列に並べ、
 // 複数枚のときは指連動の横スワイプで送る（useHorizontalDrag）。1枚だけならはみ出さず動かない。
+// onCardTap（2026-09-01たきと指示「保険カードだけ並べて。カードタップで報告しますかの最終確認」）：
+//   保険の準備の報告ページ用。渡すとタップ＝説明の裏返しでなく onCardTap(k)（＝報告の最終確認を開く）。
+//   説明を読みたい時は右上の？（裏返しは従来どおり）。自己申告の緑の箱は出さない
+//   （あれは働き手が求人で見る時の注記なので、募集主が自分の報告をする画面には合わない）。
 import { useRef, useState } from "react";
 import { INSURANCE_ITEMS, INSURANCE_DESC, normalizeInsuranceItems } from "../lib/utils";
 import { useHorizontalDrag } from "../lib/hDrag";
 import { NavIcon } from "./NavIcons";
 
-export function InsurancePanel({ employer, swipe = false }) {
+export function InsurancePanel({ employer, swipe = false, onCardTap = null }) {
   const [flip, setFlip] = useState(null); // 裏返し中の項目キー（同時に1枚だけ）
   const rowRef = useRef(null);
   const items = normalizeInsuranceItems(employer?.insurance_items); // 旧データの「considering＋実保険」同居を表示側でも排他
@@ -34,7 +38,7 @@ export function InsurancePanel({ employer, swipe = false }) {
     const note = typeof notes[k] === "string" ? notes[k].trim() : "";
     const desc = INSURANCE_DESC[k] || "";
     return (
-      <button key={k} onClick={()=>setFlip(flipped ? null : k)} className="f-sans" style={{
+      <button key={k} onClick={()=> onCardTap ? onCardTap(k) : setFlip(flipped ? null : k)} className="f-sans" style={{
         position:"relative",
         // グリッド（従来）は「準備予定」を最下段に全幅で敷く。横一列（swipe）は幅を揃えて並べる
         ...(swipe
@@ -45,7 +49,9 @@ export function InsurancePanel({ employer, swipe = false }) {
         alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)",
         minWidth:0, minHeight:132, boxSizing:"border-box",
       }}>
-        <span aria-hidden="true" style={{ position:"absolute", top:8, right:8, width:22, height:22, borderRadius:11, background: flipped ? "#00A86B" : "#F0F0F0", color: flipped ? "#fff" : "#999", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>？</span>
+        <span onClick={(ev)=>{ if (!onCardTap) return; ev.stopPropagation(); setFlip(flipped ? null : k); }}
+          role={onCardTap ? "button" : undefined} aria-label={onCardTap ? "この保険の説明" : undefined}
+          style={{ position:"absolute", top:8, right:8, width:22, height:22, borderRadius:11, background: flipped ? "#00A86B" : "#F0F0F0", color: flipped ? "#fff" : "#999", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", cursor: onCardTap ? "pointer" : undefined }}>？</span>
         {flipped ? (
           <span className="pflip-in" style={{ fontSize:12, color:"#555", lineHeight:1.7, textAlign:"center", padding:"2px 8px", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>
             {desc}{note ? "\n\n農家より：" + note : ""}
@@ -76,13 +82,14 @@ export function InsurancePanel({ employer, swipe = false }) {
         {items.includes("considering") && renderCard("considering", true)}
       </div>
       )}
-      {/* 自己申告の注記（下に移植・2026-07-25たきと指示。質問タブと同じ緑の説明箱） */}
-      <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", marginTop:14 }}>
+      {/* 自己申告の注記（下に移植・2026-07-25たきと指示。質問タブと同じ緑の説明箱）。
+          報告モード（募集主自身の報告）では出さない＝「この農家の…」は相手に向けた文言なので */}
+      {!onCardTap && <div style={{ background:"#F7FBF9", border:"1px solid #DDEDE5", borderRadius:12, padding:"12px 14px", marginTop:14 }}>
         <p style={{ fontSize:13, fontWeight:700, color:"#0B6B4F", margin:"0 0 4px" }}>この農家の保険の準備（自己申告）</p>
         <p style={{ fontSize:12, color:"#5B7B6D", margin:0, lineHeight:1.7 }}>
           農家が備えている（または準備中の）保険です。各カードをタップすると説明が開きます。農家の自己申告であり、運営が確認したものではありません。
         </p>
-      </div>
+      </div>}
     </div>
   );
 }

@@ -19,7 +19,7 @@
 import { useState, useEffect } from "react";
 import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon, JobRow } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
-import { JobCard, JOB_CARD_RELATED_SIZE } from "../JobCard";
+import { JobCard, JOB_CARD_RELATED_SIZE, JOB_CARD_PHOTO_H } from "../JobCard";
 import { Celebration } from "../Celebration";
 import { WorkerTrustCard } from "../TrustCards";
 import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
@@ -89,7 +89,7 @@ function JobTile({ job, ribbon }) {
     <div style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
       <JobCard job={job} variant="related" onOpen={noop} />
       {ribbon && (
-        <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
+        <div style={{ position:"absolute", top:0, left:0, right:0, height:JOB_CARD_PHOTO_H, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
           <StatusRibbon label={ribbon} color="#0E8A6B" />
         </div>
       )}
@@ -550,15 +550,30 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>7日以内に始まる予定が無ければ、この区画ごと出ない。</p>
       </div>
     ) },
-  { ch:"仕事の当日", name:"保険の準備の報告", url:"#/calendar/todo/insurance", act:"保険の備えができたと報告する。働き手にも伝わる。",
+  { ch:"仕事の当日", name:"保険の準備の報告", url:"#/calendar/todo/insurance", act:"カレンダーの応募者カードの「保険の報告 →」から来る。保険カードをタップ→報告しますかの最終確認→OKで相手のチャットに送信。",
     body: () => (
       <div style={{ padding:14 }}>
         <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:INK, margin:"0 0 6px" }}>保険の準備の報告</p>
-        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。働き手にも「準備できました」と伝わります。</p>
+        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。保険カードだけが並ぶ＝どの応募の報告かは、押してきた応募者カードが知っている。カードは保険の全種類（申告に無い保険も、今回のために用意したなら報告できる）。</p>
+        {/* 保険カード（本物は共有部品 InsurancePanel の格子。ここは見本なので形だけ） */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+          {[["insDay","1日単位の傷害保険"], ["umbrella","年間の傷害保険"], ["firstAid","労災保険"], ["barn","施設・賠償責任保険"], ["truck","車両保険"]].map(([ic, lb]) => (
+            <div key={lb} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB",
+              borderRadius:16, padding:"20px 6px 14px", display:"flex", flexDirection:"column", alignItems:"center", gap:6, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <span style={{ position:"absolute", top:6, right:6, width:18, height:18, borderRadius:9, background:"#F0F0F0", color:"#999", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>？</span>
+              <NavIconInline name={ic} size={34} />
+              <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:INK, textAlign:"center" }}>{lb}</span>
+            </div>
+          ))}
+        </div>
         <Card>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 8px" }}>はなこ さん ・ 9月10日〜</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}><NavIconInline name="shield" size={12} />農作業中の傷害保険に加入しています</p>
-          <div style={{ display:"flex" }}><Btn kind="green">準備したと報告</Btn></div>
+          <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:"0 0 8px" }}>報告しますか？</p>
+          <div style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:0 }}>1日単位の傷害保険</p>
+            <p className="f-sans" style={{ fontSize:11, color:SUB, margin:"4px 0 0" }}>ネギ 収穫　#1268</p>
+          </div>
+          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.8, margin:"0 0 10px" }}>OKをタップすると、はなこさんのチャットに送信されます。報告した時刻は記録に残ります。</p>
+          <div style={{ display:"flex" }}><Btn kind="green">OK（チャットに送信）</Btn></div>
         </Card>
       </div>
     ) },

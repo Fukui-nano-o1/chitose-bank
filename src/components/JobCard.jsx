@@ -1,13 +1,22 @@
 // 求人カード（分割・段階2後半・2026-07-24）：さがす一覧・関連求人・いいね一覧で共用。
+// ★Airbnbの型（2026-08-31たきと指示「求人カードの要素もパクれ」）：
+//   写真は素のまま（角丸・左上に白いバッジ・右上に♥）。文字は写真に【重ねない】＝下に4行：
+//   太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。related/wide の
+//   黒グラデのオーバーレイは廃止＝全variantが同じ型（サイズだけ違う）。
 import { useState } from "react";
 import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
-import { Avatar, StatusRibbonLeft } from "./ui";
+import { Avatar } from "./ui";
 import { CropIcon } from "./CropIcon";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
 // 関連（横並び）カードの寸法。カードの外側に何かを重ねる時（自分の求人の状態の帯・未回答の❓）は
 // 包む側も同じ幅を持たせる＝ここを変えれば包む側も一緒に変わる（幅の値を2箇所に書かない）
 export const JOB_CARD_RELATED_SIZE = { width:"80vw", maxWidth:280 };
+
+// 写真の高さ。★概要that写真の下に出る型（2026-08-31）になったので、カードの高さ＞写真の高さ。
+// カードに帯などを重ねる側（自分の求人の StatusRibbon・見本帳）は inset:0 でなくこの高さで
+// 切り抜くこと＝重ねものは写真の中に収める（文字の行に掛けない）
+export const JOB_CARD_PHOTO_H = 220;
 
 // 求人カード（さがす一覧・関連求人で共通使用。variantでサイズのみ切り替え）
 // saved/onToggleSaveを渡すと右上に♡ボタンを表示（未指定なら非表示＝呼び出し元は変更不要）
@@ -29,7 +38,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
   const photoAnim = photoPop ? { animation: "cbPhotoTapZoom .35s ease" } : {};
   const p0 = job.photos?.[0];
   const topSrc = photoThumb(p0); // カードは軽量サムネ（thumbが無い古い写真は原寸へフォールバック）
-  const photoHeight = isList ? 220 : 220;
+  const photoHeight = JOB_CARD_PHOTO_H;
   // Airbnb風：写真は四隅を丸く（枠なしカード・2026-07-19）
   const photoRadius = 16;
   const cardStyle = isList
@@ -77,14 +86,10 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
           <span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={saved ? "heartFill" : "heart"} size={22} /></span>
         </button>
       )}
-      {/* 新着帯：掲載から3日間・左上・赤帯白文字（2026-07-16）。終了中（満員/期間終了）は出さない */}
-      {job.isNew && !(job.filled || job.expired || job.closed) && <StatusRibbonLeft label="新着" color="#E24B4A" />}
-      {/* 開始日チップ：写真右下（2026-07-16）。期間ものは「〜」付き。
-          関連(related)カードは概要を写真に重ねるため、日付は下部オーバーレイ内に出す（2026-07-23） */}
-      {isList && job.dateStartRaw && (
-        <span className="f-sans" style={{ position:"absolute", top: photoHeight - 34, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:11, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>
-          {dateRangeLabel(job.dateStartRaw)}{job.dateEndRaw && job.dateEndRaw !== job.dateStartRaw ? "〜" : ""}
-        </span>
+      {/* 新着：左上の白いピル（Airbnbの「ゲストのお気に入り」バッジの写し・旧＝赤いリボン帯）。
+          終了中（満員/期間終了）は出さない。日付は写真に重ねず下の文字の行へ（同2026-08-31） */}
+      {job.isNew && !(job.filled || job.expired || job.closed) && (
+        <span className="f-sans" style={{ position:"absolute", top:10, left:10, zIndex:2, background:"rgba(255,255,255,0.95)", color:"#222", fontSize: isList?12:11, fontWeight:800, padding:"5px 12px", borderRadius:20, boxShadow:"0 1px 4px rgba(0,0,0,.18)", pointerEvents:"none" }}>新着</span>
       )}
       {/* 終了帯（2026-07-21）：採用人数を満たした＝募集終了／作業日程が過ぎた＝募集期間終了。
           探すからは除外せず、写真に半透明の帯を掛けて知らせる（充足を優先表示）。
@@ -112,33 +117,32 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
             : <CropIcon crop={job.crop} size={48} />}
         </div>
       )}
-      {/* 概要：list=写真の下／related=写真の上に黒半透明グラデで重ねる（2026-07-23） */}
-      <div style={ isList ? { padding:"12px 4px 0" } : {
-        position:"absolute", left:0, right:0, bottom:0, zIndex:2, pointerEvents:"none",
-        padding:"34px 12px 12px", borderRadius:`0 0 ${photoRadius}px ${photoRadius}px`,
-        background:"linear-gradient(to top, rgba(0,0,0,0.82), rgba(0,0,0,0.18) 58%, rgba(0,0,0,0))",
-      }}>
-        <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom: isList?4:3 }}>
-          <p className="f-sans" style={{ fontSize: isList?17:14, fontWeight: isList?600:700, color: isList?"#222":"#fff", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textShadow: isList?"none":"0 1px 3px rgba(0,0,0,0.6)" }}>{job.crop} {job.task}</p>
-          <span className="f-sans" style={{ fontSize: isList?12:10, color: isList?"#B0B0B0":"rgba(255,255,255,0.88)", flexShrink:0, whiteSpace:"nowrap", textShadow: isList?"none":"0 1px 2px rgba(0,0,0,0.6)" }}>{job.region}</span>
-          <span className="f-sans" style={{ fontSize:10, color: isList?"#C8C8C8":"rgba(255,255,255,0.7)", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
+      {/* 概要＝写真の下（Airbnbの型・2026-08-31）：どのvariantも重ねない。
+          行の並びはAirbnbのカードの写し＝太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。
+          ★#No.は必ず読める（flexShrink:0・題名側を…で省略）＝No.検索と対 */}
+      <div style={{ padding: isList ? "10px 4px 0" : "8px 2px 0" }}>
+        <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+          <p className="f-sans" style={{ fontSize: isList?15:14, fontWeight:700, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
+          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
         </div>
-        <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", gap:8 }}>
-          <p className="f-mono" style={{ fontSize: isList?16:13, fontWeight: isList?700:800, color: isList?"#00A86B":"#fff", margin:0, textShadow: isList?"none":"0 1px 3px rgba(0,0,0,0.6)" }}>
-            {/* 報酬が取れていない行（wide要約の非公開求人フォールバック等）は0円を出さず空にする（ダミー禁止・憲法3条） */}
-            {job.pay > 0 ? payLabel(job) : ""}
+        {job.region && (
+          <p className="f-sans" style={{ fontSize: isList?13:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.region}</p>
+        )}
+        {job.dateStartRaw && (
+          <p className="f-sans" style={{ fontSize: isList?13:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {dateRangeLabel(job.dateStartRaw, job.dateEndRaw)}
           </p>
-          {!isList && job.dateStartRaw && (
-            <span className="f-sans" style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.92)", flexShrink:0, whiteSpace:"nowrap", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>
-              {dateRangeLabel(job.dateStartRaw)}{job.dateEndRaw && job.dateEndRaw !== job.dateStartRaw ? "〜" : ""}
-            </span>
-          )}
-        </div>
+        )}
+        {/* 報酬が取れていない行（非公開求人フォールバック等）は0円を出さない（ダミー禁止・憲法3条）。
+            金額はAirbnbの価格行の写し＝黒の太字（旧＝緑） */}
+        {job.pay > 0 && (
+          <p className="f-mono" style={{ fontSize: isList?15:14, fontWeight:800, color:"#222", margin:"5px 0 0" }}>{payLabel(job)}</p>
+        )}
         {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
-          <div style={{ display:"flex", gap:4, marginTop: isList?4:6, flexWrap:"wrap" }}>
-            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="sparkle" size={isList?11:9} style={{ verticalAlign:"-1.5px", marginRight:3 }} />初心者大歓迎</span>}
-            {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="medal" size={isList?11:9} style={{ verticalAlign:"-1.5px", marginRight:3 }} />経験者優遇</span>}
-            {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:9, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="repeat" size={isList?11:9} style={{ verticalAlign:"-1.5px", marginRight:3 }} />リピート即決</span>}
+          <div style={{ display:"flex", gap:4, marginTop:6, flexWrap:"wrap" }}>
+            {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:10, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="sparkle" size={isList?11:10} style={{ verticalAlign:"-1.5px", marginRight:3 }} />初心者大歓迎</span>}
+            {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:10, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="medal" size={isList?11:10} style={{ verticalAlign:"-1.5px", marginRight:3 }} />経験者優遇</span>}
+            {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:10, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="repeat" size={isList?11:10} style={{ verticalAlign:"-1.5px", marginRight:3 }} />リピート即決</span>}
           </div>
         )}
       </div>

@@ -34,9 +34,12 @@ export const fetchMyApplicationTerms = (uid) =>
     .select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
     .eq("worker_id", uid);
 // ── やることの実行 ─────────────────────────────────────
-// 用件カードのその場実行（confirm_insurance）。どのRPCかは TODO_META が持つ
-export const runTodoRpc = (rpc, applicationId) =>
-  supabase.rpc(rpc, { p_application_id: applicationId });
+// 保険の準備の報告（2026-09-01たきと指示「報告はチャットで送信」）。
+// p_items＝報告する保険のキー（保険カードで選んだもの）。DB側が固定の対応表で日本語に直し、
+// 記録（insurance_prepared_at）とチャットへの投函を一度に行う＝窓口はこの1本だけ。
+// ★旧 runTodoRpc（TODO_META の rpc を撃つ汎用の口）は廃止：使い手はこの報告だけだった
+export const confirmInsurance = (applicationId, items) =>
+  supabase.rpc("confirm_insurance", { p_application_id: applicationId, p_items: items || [] });
 // 採用の確定（confirm_terms）はここには置かない＝共有部品 components/HireConfirm がが撃つ
 // （2026-08-28に窓口を1つへ集約。判定・文言・実行・演出をあの部品にまとめた）
 

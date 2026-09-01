@@ -7,12 +7,12 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
-import { JobCard, JOB_CARD_RELATED_SIZE } from "./JobCard";
+import { JobCard, JOB_CARD_RELATED_SIZE, JOB_CARD_PHOTO_H } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -450,11 +450,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 同じ日をもう一度タップ＝解除（カレンダーのみへ戻る）。ページを離れたら解除
   const [calDay, setCalDay] = useState(null);
   useEffect(() => { if (jobTab !== "calendar") setCalDay(null); }, [jobTab]);
+  // 日を選んだら、その日の求人カードまで自動で運ぶ（2026-09-01たきと指示）。
+  // 縦に月が連なるカレンダーの下にカードが並ぶ構造so、選んだだけでは画面が動かず
+  // 「何も起きていない」ように見えていた。解除（もう一度タップ＝null）では動かさない
+  const calTopRef = useRef(null);
+  useEffect(() => { if (calDay) scrollBelowCalendar(calTopRef.current); }, [calDay]);
   // 常時展開のカレンダー（ステータスページの calendarTop と同じ作法）。
   // ページ側の横スワイプ（求人一覧⇄応募者などの面送り）にカレンダーの月送りを食われないよう、
   // タッチはここで止める（開閉が無くなった今も、月送りを守るために必要）
   const calendarTop = (
-    <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
+    <div key="app-cal-top" ref={calTopRef} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
       style={{ gridColumn:"1/-1", marginBottom:14 }}>
       {/* dayJobsAll＝関係を問わずその日の求人番号を受け取る（2026-08-23たきと指示
           「農家であっても働き手の求人カードを表示して」）。自分の求人のカードは jobInfoMap で
@@ -573,7 +578,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const qn = qUnansweredMap[d.job_number] || 0;
     const canOpenQ = d.status === "open" && !hideEndLabel;
     return (
-      // JobCard（related）の高さ＝写真の高さ＝カードの高さ。inset:0＋角丸で重ねものを写真の中に収める。
+      // 概要that写真の下に出る型（2026-08-31）＝カードの高さ＞写真の高さ。重ねもの（帯）は
+      // JOB_CARD_PHOTO_H で切り抜いて写真の中に収める（文字の行に掛けない・inset:0にしない）。
       // 包む側にもカードと同じ幅を持たせる（JOB_CARD_RELATED_SIZE）＝横並び（JobRow）で潰れない。
       // ★包まずに置くと flex thatカードをblock化するthat、包むと<a>thatinlineのままso幅thatが効かない（2026-08-23修理）
       <div key={d.job_number} style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
@@ -582,7 +588,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
             : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} />
         {ribbon && (
-          <div style={{ position:"absolute", inset:0, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>{ribbon}</div>
+          <div style={{ position:"absolute", top:0, left:0, right:0, height:JOB_CARD_PHOTO_H, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>{ribbon}</div>
         )}
         {qn > 0 && (
           // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
@@ -603,6 +609,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  // 採用の最終確認「応募者ページで詳しく見る」からの合図（2026-09-01）：既にこのページに居る時は
+  // URLが変わらず着地のローダー（cb_openApplicantId）が走らないため、イベントでその場で開く
+  useEffect(() => {
+    const f = (e) => { if (e.detail) setSheetApplicantId(e.detail); };
+    window.addEventListener("cb:openApplicantSheet", f);
+    return () => window.removeEventListener("cb:openApplicantSheet", f);
+  }, []);
   // シート内の求人カード→詳細面（2026-08-08たきと指示「ここも同じにしよう。アニメーションもコピー」＝
   // ステータスページのボックスと同じ：求人タップで面全体が演出→詳細面へスライド・横スワイプで戻る）
   const [sheetPane, setSheetPane] = useState("main");        // main | detail
@@ -639,7 +652,11 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 保険の準備の報告も、実行するのは今日の用件ページ（confirm_insurance を撃つ窓口はそこ1箇所）。
   // カードのボタンはその入口＝新しい書き込み経路を作らない（2026-08-24たきと指示）
-  const goInsurancePage = () => { window.location.hash = "/calendar/todo/insurance"; };
+  // どの応募の報告かを合図で渡す（cb_completeAppId と同型）＝ページ側はその1件の保険カードだけを出す
+  const goInsurancePage = (appId) => {
+    try { sessionStorage.setItem("cb_insuranceAppId", appId); } catch {}
+    window.location.hash = "/calendar/todo/insurance";
+  };
   // リアルタイム帯（2026-07-25たきと指示）：「〇〇済み」でなく今の段階「〇〇中」を出す。
   // 段階の導出・ラベル・色は lib/utils の appPhaseKey/APP_PHASE_LABEL/APP_PHASE_COLOR に一本化（帯・凡例の唯一のソース）
   // ★作業中は「今日」で出し分ける（2026-08-18たきと指示「作業していない時間は作業中ではない」）＝
@@ -1560,7 +1577,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                                 else rec = { label:"評価する", green:true, on:()=>openCompleteModal(a) };
                               } else if (!started) {
                                 if (a.insurance_prepared_at) doneText = "保険 報告済み";
-                                else rec = { label:"保険の報告 →", green:true, icon:"shield", on: goInsurancePage };
+                                else rec = { label:"保険の報告 →", green:true, icon:"shield", on: ()=>goInsurancePage(a.id) };
                               } else {
                                 // その日の記録は「作業の開始〜終了＋3時間」だけ押せる（2026-08-24）。
                                 // 窓の外は灰色の押せないボタンで残す＝どこにあるかは見えたまま（黙って消さない）

@@ -8,10 +8,11 @@
 //   （LandingFlow のフォーカス消失バグと同族・CLAUDE.md）。
 import { useState, useEffect, useRef } from "react";
 import { useSheetDragClose } from "../../../lib/sheetDrag";
-import { fetchMyFarmJobs, fetchPublicJobsByNumbers } from "../todayApi";
+import { fetchMyFarmJobs, fetchPublicJobsByNumbers, confirmInsurance } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb, mapJobPublicRow,
-  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, appWorkDates, isWorkWindowOpen } from "../../../lib/utils";
+  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, appWorkDates, isWorkWindowOpen,
+  INSURANCE_ITEMS } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { Avatar } from "../../../components/ui";
 import { HireConfirm, HIRE_SHEET_PATH, markHireSheet } from "../../../components/HireConfirm";
@@ -20,8 +21,10 @@ import ContractEmergencyContact from "../../../components/ContractEmergencyConta
 import { JobCard } from "../../../components/JobCard";
 import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
 import { DayReportSheet } from "../../../components/DayReportSheet";
+import { InsurancePanel } from "../../../components/InsurancePanel";
 import { Celebration } from "../../../components/Celebration";
 import { NavIcon, NavIconInline } from "../../../components/NavIcons";
+import { fbSuccess, fbError } from "../../../lib/feedback";
 
 
 // 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
@@ -393,6 +396,141 @@ export function DayReportPanel({ items, meId, role }) {
       <DayReportSheet app={reportApp} meId={meId} role={role}
         onClose={()=>setReportApp(null)}
         onDone={(id)=>{ setReportApp(null); setSentIds(prev => new Set(prev).add(id)); }} />
+    </>
+  );
+}
+
+// 保険の準備の報告ページ（#/calendar/todo/insurance・2026-09-01たきと指示
+// 「カレンダーページの応募者カードの保険の報告ボタンから遷移している。保険カードだけ並べて。
+//   カードタップで報告しますかの最終確認。OKタップでチャットに送信」）：
+// ・入口＝カレンダー／応募者一覧の「保険の報告 →」ボタン（FarmerDashboard）。どの応募かは
+//   合図 cb_insuranceAppId で受け取り、その1件の保険カードだけを並べる（求人カード・相手の行は出さない
+//   ＝押した応募者カードが文脈を持っているため）。合図なし（マイページのやること箱から）は全件＝
+//   どの相手の報告か見分けるための小さな1行だけ添える。
+// ・カード＝【保険の全種類】を並べる（2026-09-01たきと指示「すべてのカードを並べろ」）。
+//   プロフィールの申告に縛らない理由＝1日単位の傷害保険のように仕事ごとに掛けるものがあり、
+//   申告に無い保険を今回のために用意することがある。「これから準備する」だけは並べない（未加入なので）。
+//   見た目は共有部品 InsurancePanel（求人詳細と同じ）＝保険カードを2つ作らない。？は説明の裏返し。
+//   横スクロールに隠れないよう格子（2列）で全部見せる。
+// ・タップ→「報告しますか」の最終確認→OKで confirm_insurance が 記録（insurance_prepared_at）と
+//   チャットへの投函（募集主の発言・タップした保険の名前入り）を一度に行う。
+//   相手へのお知らせ・プッシュ・メールは投函にぶら下がる（trg_notify_message）＝二重に鳴らない。
+// ・★チャットに出る文面はDBが組み立てる（confirm_insurance）＝画面側で同じ文を持たない（枝分かれ防止）。
+// ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元）
+// 報告できる保険＝「これから準備する」以外の全種類。並びは INSURANCE_ITEMS のまま（唯一のソース）
+const REPORTABLE_INSURANCE = INSURANCE_ITEMS.filter(x => x.k !== "considering").map(x => x.k);
+
+export function InsuranceStagePanel({ items, onReported }) {
+  // ★viewCacheには入れない：mapJobPublicRow の dateStart/dateEnd は Date オブジェクトなので、
+  //   JSONで保存→復元すると文字列になり読む側が落ちる（2026-08-03の実害と同じ型）
+  const [jobs, setJobs] = useState({});
+  // どの応募の報告か（入口のボタンが置く合図）。★消費はマウントeffectで行う＝初期化関数内で
+  // removeItem すると StrictMode の二重実行で2回目が空になる型（CLAUDE.md 2026-08-21）
+  const [focusAppId] = useState(() => { try { return sessionStorage.getItem("cb_insuranceAppId"); } catch { return null; } });
+  useEffect(() => { try { sessionStorage.removeItem("cb_insuranceAppId"); } catch {} }, []);
+  const [confirmPick, setConfirmPick] = useState(null); // { t, k }＝どの応募の・どの保険をタップしたか
+  const [sending, setSending] = useState(false);
+  const [doneIds, setDoneIds] = useState(() => new Set()); // 報告できたもの＝この画面から消す
+  const [celebrate, setCelebrate] = useState(null);        // { title, appId }＝演出が終わってから onReported
+  const sheetRef = useRef(null), scrollRef = useRef(null);
+  useSheetDragClose(sheetRef, scrollRef, ()=>{ if (!sending) setConfirmPick(null); }, !!confirmPick);
+  const numsKey = items.map(t => t.job_number).filter(Boolean).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const nums = numsKey ? numsKey.split(",").map(Number) : [];
+      if (!nums.length) return;
+      try {
+        const { data, error } = await fetchPublicJobsByNumbers(nums);
+        // 失敗時は手元の値を上書きしない（2026-08-07フェイルオープン規則）
+        if (cancelled || error || !data) return;
+        setJobs(prev => {
+          const nx = { ...prev };
+          data.forEach(r => { nx[r.job_number] = mapJobPublicRow(r); });
+          return nx;
+        });
+      } catch { /* 取得できなくてもカードは全種類そのまま出る（ひとことが付かないだけ） */ }
+    })();
+    return () => { cancelled = true; };
+  }, [numsKey]);
+  // 農家自身のひとこと（？の裏に出る「農家より：」）だけ、掲載の時に凍結された申告から借りる。
+  // ★カードの並びには影響しない＝申告に無い保険も全部並ぶ（届くのを待たずに描ける）
+  const notesOf = (t) => jobs[t.job_number]?.insuranceSnapshot?.notes || {};
+  const labelOf = (k) => INSURANCE_ITEMS.find(x => x.k === k)?.chip || k;
+  const titleOf = (t) => [t.crop, t.task].filter(Boolean).join(" ") || `求人 #${t.job_number}`;
+  const send = async () => {
+    const pick = confirmPick; if (!pick || sending) return;
+    setSending(true);
+    const { data, error } = await confirmInsurance(pick.t.application_id, [pick.k]);
+    setSending(false);
+    if (error || !data?.ok) { fbError(); alert("報告できませんでした：" + (data?.reason || error?.message || "不明")); return; }
+    setConfirmPick(null);
+    setDoneIds(prev => new Set(prev).add(pick.t.application_id));
+    fbSuccess();
+    setCelebrate({ title:"報告しました", appId: pick.t.application_id });
+  };
+  // 入口のボタンで指された応募だけに絞る（無ければ・見つからなければ全件）
+  const focused = focusAppId ? items.filter(t => t.application_id === focusAppId) : [];
+  const shown = (focused.length ? focused : items).filter(t => !doneIds.has(t.application_id));
+  return (
+    <>
+      <div style={{ display:"grid", gap:24 }}>
+        {shown.length === 0 && (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>報告しました。この用事は片付きました</p>
+        )}
+        {shown.map(t => (
+            <div key={t.application_id} style={{ display:"grid", gap:8 }}>
+              {/* 複数並ぶ時だけ、どの相手の報告かの小さな1行（1件だけなら保険カードだけ） */}
+              {shown.length > 1 && (
+                <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                  <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={26} ring={ROLE_ORANGE} bg={ROLE_ORANGE} />
+                  <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {(t.partner_name ? t.partner_name + "さん" : "相手")}　<span style={{ color:"#999", fontWeight:600 }}>{titleOf(t)} #{t.job_number}</span>
+                  </span>
+                </div>
+              )}
+              <InsurancePanel onCardTap={(k)=>setConfirmPick({ t, k })}
+                employer={{ insurance_items: REPORTABLE_INSURANCE, insurance_notes: notesOf(t) }} />
+            </div>
+        ))}
+      </div>
+      {/* 最終確認（2026-09-01たきと指示「カードタップで報告しますかの最終確認。OKタップでチャットに送信」）。
+          外タップ・下スワイプで閉じる＝✕は置かない */}
+      {confirmPick && (() => {
+        const { t, k } = confirmPick;
+        return (
+          <div onClick={()=>{ if (!sending) setConfirmPick(null); }} className="cb-box-overlay cb-lock-scroll"
+            style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div ref={sheetRef} onClick={ev=>ev.stopPropagation()} className="cb-sheet-up"
+              style={{ position:"absolute", left:0, right:0, bottom:0, maxHeight:"86%", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div ref={scrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"20px 20px 0" }}>
+                <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 12px" }}>報告しますか？</p>
+                <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{labelOf(k)}</p>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"6px 0 0" }}>{titleOf(t)}　#{t.job_number}</p>
+                </div>
+                <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 0 8px" }}>
+                  OKをタップすると、{t.partner_name ? t.partner_name + "さん" : "働き手"}のチャットに送信されます。報告した時刻は記録に残ります。
+                </p>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 16px" }}>
+                  これは自己申告です（運営が保険の証書を確認するものではありません）。
+                </p>
+              </div>
+              <div style={{ flexShrink:0, borderTop:"1px solid #F0F0F0", padding:"12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", display:"grid", gap:8 }}>
+                <button onClick={send} disabled={sending} className="f-sans"
+                  style={{ padding:"14px", fontSize:15, fontWeight:800, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: sending ? 0.6 : 1 }}>
+                  {sending ? "送信中…" : "OK（チャットに送信）"}
+                </button>
+                <button onClick={()=>{ if (!sending) setConfirmPick(null); }} className="f-sans"
+                  style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {/* ★片付け（onReported＝親のremoveTodo）は演出が終わってから：先に消すと最後の1件で
+          親が空状態へ切り替わり、パネルごと演出が消える（2026-08-06の採用アニメと同じ罠） */}
+      {celebrate && <Celebration title={celebrate.title} onDone={()=>{ const id = celebrate.appId; setCelebrate(null); if (onReported) onReported(id); }} />}
     </>
   );
 }

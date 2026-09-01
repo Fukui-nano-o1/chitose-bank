@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -149,6 +149,11 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   // 埋め込み表示では外から渡された日を使う（農家のカレンダーと同じ日を見る）
   const calDay = embedded ? (calDayProp || null) : calDayOwn;
   const setCalDay = embedded ? (() => {}) : setCalDayOwn;
+  // 日を選んだら、その日の求人カードまで自動で運ぶ（2026-09-01たきと指示）。
+  // ★埋め込み（農家のカレンダータブ）ではカレンダーを描かない＝refは空so何もしない
+  //   （運ぶのは親の FarmerDashboardが担当＝二重に動かさない）
+  const calTopRef = useRef(null);
+  useEffect(() => { if (calDay) scrollBelowCalendar(calTopRef.current); }, [calDay]);
   const [legendOpen, setLegendOpen] = useState(false); // 下部「ステータスの意味」の開閉（応募者ページの凡例と同じ）
   // ★見送り・失効・取り消しも表示する（2026-08-23たきと指示「見送り・失効・取り消しであっても表示して」）＝
   //   段階での非表示（旧 savedHidden／cb_savedHidden_v1）は撤去した。終わった取引も記録として一覧に残す
@@ -176,7 +181,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   // 下の一覧を絞り込む。同じ日をもう一度タップすると解除。dayJobsAll＝関係を問わず渡す
   // （このページには応募した求人・いいねした求人が並ぶため。'own' だけでは渡すものが無い）
   const calendarTop = embedded ? null : (
-    <div style={{ marginBottom:14 }}>
+    <div ref={calTopRef} style={{ marginBottom:14 }}>
       <MyCalendar noDaySheet dayJobsAll
         onDayJobs={(ymd, jobs) => setCalDay(prev => (prev && prev.ymd === ymd) ? null : { ymd, jobs })} />
     </div>

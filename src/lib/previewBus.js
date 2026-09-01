@@ -25,3 +25,10 @@ export function openPhaseInfo(phaseKey) {
 export function openLoginBox() {
   window.dispatchEvent(new CustomEvent("cb:openLoginBox"));
 }
+// 応募者のシート（2026-09-01たきと報告「応募者ページに遷移しない」の修理）：
+// 採用の最終確認の「応募者ページで詳しく見る」から、その応募のシートをその場で開く。
+// ★別ページから来る時は markHireSheet（sessionStorage）が着地後のローダーで拾う＝この合図は
+//   【既に応募者ページに居て、URLが変わらない時】の受け皿。受け手は FarmerDashboard に常駐
+export function openApplicantSheet(applicationId) {
+  if (applicationId) window.dispatchEvent(new CustomEvent("cb:openApplicantSheet", { detail: applicationId }));
+}
