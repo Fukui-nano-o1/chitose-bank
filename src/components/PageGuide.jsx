@@ -202,10 +202,15 @@ const PAGE_GUIDES = [
     lead: "相手とのやり取りの一覧です。",
     rows: [
       { icon: "chats", t: "相手ごとに1つ", d: "応募すると、相手とのチャットがここに増えます" },
+      { icon: "support", t: "いちばん上は運営チャット", d: "困ったとき・使い方が分からないときは、ここから運営に送れます" },
       { icon: "bell", t: "お知らせも届きます", d: "面接の質問や、採用・保険の報告もチャットに届きます" },
       { icon: "alert", t: "やり取りはこの中で", d: "連絡先の交換はしないでください" },
     ],
-    spots: [{ sel: '[data-guide="chat-row"]', label: "タップすると、この相手とのやり取りが開きます。" }],
+    // 画面の並びどおり、いちばん上の運営チャットから照らす（相手の行が1つも無い人でも必ず1つは照らせる）
+    spots: [
+      { sel: '[data-guide="admin-chat-row"]', label: "運営チャットです。困ったとき・使い方が分からないときは、ここから運営に送れます。" },
+      { sel: '[data-guide="chat-row"]', label: "タップすると、この相手とのやり取りが開きます。" },
+    ],
   },
   {
     key: "applicants", title: "応募者一覧", art: "applicants",
@@ -295,10 +300,12 @@ export function PageGuide({ suspend = false }) {
   useEffect(() => () => { clearTimeout(closeTimerRef.current); clearTimeout(spotTimerRef.current); }, []);
 
   // ── スポットライト（④）＝的を順に照らす。無い的・見えない的は黙って飛ばす ──
+  // 画面にある的を探す（幅高さ4px以下＝隠れている・畳まれているものは的にしない）
+  const findTarget = (sel) => Array.from(document.querySelectorAll(sel))
+    .find((e) => { const r = e.getBoundingClientRect(); return r.width > 4 && r.height > 4; }) || null;
   const runSpot = (list, i) => {
     if (!list || i >= list.length) { setSpot(null); return; }
-    const els = Array.from(document.querySelectorAll(list[i].sel));
-    const el = els.find((e) => { const r = e.getBoundingClientRect(); return r.width > 4 && r.height > 4; });
+    const el = findTarget(list[i].sel);
     if (!el) { runSpot(list, i + 1); return; }
     setSpot(null); // 幕を下ろしてから的を画面の中央へ（幕の cb-lock-scroll がスクロールを止めるため）
     // ★滑らかスクロールを一時的に外して【即座に】運ぶ：appStyles は html に scroll-behavior:smooth を
@@ -315,12 +322,15 @@ export function PageGuide({ suspend = false }) {
       setSpot({ rect: { top: r.top, left: r.left, width: r.width, height: r.height }, label: list[i].label, i, list });
     }));
   };
+  // ★数え方＝【いま画面にある的だけ】で数える（台帳の数ではない）。台帳の数で数えると、
+  //   チャットが0件の人に「1 / 2・つぎへ →」と出て、押した瞬間に終わる（無い的を数えた嘘）
+  const startTour = (spots) => runSpot((spots || []).filter((sp) => findTarget(sp.sel)), 0);
   // 「わかった」＝出口アニメで閉じてから、その画面の的を照らす（✕・外タップ・ドラッグでは照らさない）
   const finishAndTour = () => {
     const g = guide;
     close();
     clearTimeout(spotTimerRef.current);
-    spotTimerRef.current = setTimeout(() => runSpot(g?.spots, 0), 220);
+    spotTimerRef.current = setTimeout(() => startTour(g?.spots), 220);
   };
 
   // はじめて開いたページで一度だけ自動表示。連続の画面移動では出さない（800ms落ち着いてから）
