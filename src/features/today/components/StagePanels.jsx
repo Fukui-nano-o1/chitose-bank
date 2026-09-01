@@ -12,7 +12,7 @@ import { fetchMyFarmJobs, fetchPublicJobsByNumbers, confirmInsurance } from "../
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb, mapJobPublicRow,
   appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, appWorkDates, isWorkWindowOpen,
-  INSURANCE_ITEMS, normalizeInsuranceItems } from "../../../lib/utils";
+  INSURANCE_ITEMS } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { Avatar } from "../../../components/ui";
 import { HireConfirm, HIRE_SHEET_PATH, markHireSheet } from "../../../components/HireConfirm";
@@ -407,13 +407,19 @@ export function DayReportPanel({ items, meId, role }) {
 //   合図 cb_insuranceAppId で受け取り、その1件の保険カードだけを並べる（求人カード・相手の行は出さない
 //   ＝押した応募者カードが文脈を持っているため）。合図なし（マイページのやること箱から）は全件＝
 //   どの相手の報告か見分けるための小さな1行だけ添える。
-// ・カード＝掲載の時に凍結された申告（jobs.insurance_snapshot）から「これから準備する」を除いたもの。
+// ・カード＝【保険の全種類】を並べる（2026-09-01たきと指示「すべてのカードを並べろ」）。
+//   プロフィールの申告に縛らない理由＝1日単位の傷害保険のように仕事ごとに掛けるものがあり、
+//   申告に無い保険を今回のために用意することがある。「これから準備する」だけは並べない（未加入なので）。
 //   見た目は共有部品 InsurancePanel（求人詳細と同じ）＝保険カードを2つ作らない。？は説明の裏返し。
+//   横スクロールに隠れないよう格子（2列）で全部見せる。
 // ・タップ→「報告しますか」の最終確認→OKで confirm_insurance が 記録（insurance_prepared_at）と
 //   チャットへの投函（募集主の発言・タップした保険の名前入り）を一度に行う。
 //   相手へのお知らせ・プッシュ・メールは投函にぶら下がる（trg_notify_message）＝二重に鳴らない。
 // ・★チャットに出る文面はDBが組み立てる（confirm_insurance）＝画面側で同じ文を持たない（枝分かれ防止）。
 // ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元）
+// 報告できる保険＝「これから準備する」以外の全種類。並びは INSURANCE_ITEMS のまま（唯一のソース）
+const REPORTABLE_INSURANCE = INSURANCE_ITEMS.filter(x => x.k !== "considering").map(x => x.k);
+
 export function InsuranceStagePanel({ items, onReported }) {
   // ★viewCacheには入れない：mapJobPublicRow の dateStart/dateEnd は Date オブジェクトなので、
   //   JSONで保存→復元すると文字列になり読む側が落ちる（2026-08-03の実害と同じ型）
@@ -422,7 +428,7 @@ export function InsuranceStagePanel({ items, onReported }) {
   // removeItem すると StrictMode の二重実行で2回目が空になる型（CLAUDE.md 2026-08-21）
   const [focusAppId] = useState(() => { try { return sessionStorage.getItem("cb_insuranceAppId"); } catch { return null; } });
   useEffect(() => { try { sessionStorage.removeItem("cb_insuranceAppId"); } catch {} }, []);
-  const [confirmPick, setConfirmPick] = useState(null); // { t, k }（k=null は申告の記録が無い求人の報告）
+  const [confirmPick, setConfirmPick] = useState(null); // { t, k }＝どの応募の・どの保険をタップしたか
   const [sending, setSending] = useState(false);
   const [doneIds, setDoneIds] = useState(() => new Set()); // 報告できたもの＝この画面から消す
   const [celebrate, setCelebrate] = useState(null);        // { title, appId }＝演出が終わってから onReported
@@ -443,22 +449,19 @@ export function InsuranceStagePanel({ items, onReported }) {
           data.forEach(r => { nx[r.job_number] = mapJobPublicRow(r); });
           return nx;
         });
-      } catch { /* 取得できなくても報告のカードは出す（下の「申告の記録が無い」側に倒れる） */ }
+      } catch { /* 取得できなくてもカードは全種類そのまま出る（ひとことが付かないだけ） */ }
     })();
     return () => { cancelled = true; };
   }, [numsKey]);
-  // 報告できる保険＝凍結された申告から「これから準備する」を除いたもの（未加入なので報告に出さない）
-  const reportableOf = (t) => {
-    const snap = jobs[t.job_number]?.insuranceSnapshot;
-    return normalizeInsuranceItems(snap?.items).filter(k => k !== "considering");
-  };
+  // 農家自身のひとこと（？の裏に出る「農家より：」）だけ、掲載の時に凍結された申告から借りる。
+  // ★カードの並びには影響しない＝申告に無い保険も全部並ぶ（届くのを待たずに描ける）
   const notesOf = (t) => jobs[t.job_number]?.insuranceSnapshot?.notes || {};
   const labelOf = (k) => INSURANCE_ITEMS.find(x => x.k === k)?.chip || k;
   const titleOf = (t) => [t.crop, t.task].filter(Boolean).join(" ") || `求人 #${t.job_number}`;
   const send = async () => {
     const pick = confirmPick; if (!pick || sending) return;
     setSending(true);
-    const { data, error } = await confirmInsurance(pick.t.application_id, pick.k ? [pick.k] : []);
+    const { data, error } = await confirmInsurance(pick.t.application_id, [pick.k]);
     setSending(false);
     if (error || !data?.ok) { fbError(); alert("報告できませんでした：" + (data?.reason || error?.message || "不明")); return; }
     setConfirmPick(null);
@@ -475,9 +478,7 @@ export function InsuranceStagePanel({ items, onReported }) {
         {shown.length === 0 && (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>報告しました。この用事は片付きました</p>
         )}
-        {shown.map(t => {
-          const reportable = reportableOf(t);
-          return (
+        {shown.map(t => (
             <div key={t.application_id} style={{ display:"grid", gap:8 }}>
               {/* 複数並ぶ時だけ、どの相手の報告かの小さな1行（1件だけなら保険カードだけ） */}
               {shown.length > 1 && (
@@ -488,23 +489,10 @@ export function InsuranceStagePanel({ items, onReported }) {
                   </span>
                 </div>
               )}
-              {reportable.length > 0 ? (
-                <InsurancePanel swipe onCardTap={(k)=>setConfirmPick({ t, k })}
-                  employer={{ insurance_items: reportable, insurance_notes: notesOf(t) }} />
-              ) : (
-                /* 申告の記録が無い求人（凍結の仕組みより前の掲載など）＝報告のカードを1枚だけ出す。
-                   見た目は InsurancePanel のカードと同じ言語（ダミーの保険名は作らない・憲法3条） */
-                <button onClick={()=>setConfirmPick({ t, k:null })} className="f-sans" style={{
-                  background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"26px 8px 18px",
-                  cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                  gap:8, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:132, maxWidth:220 }}>
-                  <span style={{ display:"flex", color:"#333" }}><NavIcon name="shield" size={44} /></span>
-                  <span style={{ fontSize:15, fontWeight:700, color:"#222", textAlign:"center" }}>保険の準備ができた</span>
-                </button>
-              )}
+              <InsurancePanel onCardTap={(k)=>setConfirmPick({ t, k })}
+                employer={{ insurance_items: REPORTABLE_INSURANCE, insurance_notes: notesOf(t) }} />
             </div>
-          );
-        })}
+        ))}
       </div>
       {/* 最終確認（2026-09-01たきと指示「カードタップで報告しますかの最終確認。OKタップでチャットに送信」）。
           外タップ・下スワイプで閉じる＝✕は置かない */}
@@ -518,7 +506,7 @@ export function InsuranceStagePanel({ items, onReported }) {
               <div ref={scrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"20px 20px 0" }}>
                 <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 12px" }}>報告しますか？</p>
                 <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:12 }}>
-                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{k ? labelOf(k) : "保険の準備ができた"}</p>
+                  <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0 }}>{labelOf(k)}</p>
                   <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"6px 0 0" }}>{titleOf(t)}　#{t.job_number}</p>
                 </div>
                 <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 0 8px" }}>

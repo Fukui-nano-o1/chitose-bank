@@ -554,11 +554,11 @@ const STEPS = [
     body: () => (
       <div style={{ padding:14 }}>
         <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:INK, margin:"0 0 6px" }}>保険の準備の報告</p>
-        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。保険カードだけが並ぶ＝どの応募の報告かは、押してきた応募者カードが知っている。</p>
-        {/* 保険カード（本物は共有部品 InsurancePanel。ここは見本なので形だけ） */}
-        <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-          {[["barn","施設・賠償責任保険"], ["insDay","1日単位の傷害保険"]].map(([ic, lb]) => (
-            <div key={lb} style={{ position:"relative", flex:"0 0 130px", background:"#fff", border:"1px solid #EBEBEB",
+        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。保険カードだけが並ぶ＝どの応募の報告かは、押してきた応募者カードが知っている。カードは保険の全種類（申告に無い保険も、今回のために用意したなら報告できる）。</p>
+        {/* 保険カード（本物は共有部品 InsurancePanel の格子。ここは見本なので形だけ） */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+          {[["insDay","1日単位の傷害保険"], ["umbrella","年間の傷害保険"], ["firstAid","労災保険"], ["barn","施設・賠償責任保険"], ["truck","車両保険"]].map(([ic, lb]) => (
+            <div key={lb} style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB",
               borderRadius:16, padding:"20px 6px 14px", display:"flex", flexDirection:"column", alignItems:"center", gap:6, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <span style={{ position:"absolute", top:6, right:6, width:18, height:18, borderRadius:9, background:"#F0F0F0", color:"#999", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>？</span>
               <NavIconInline name={ic} size={34} />
@@ -569,7 +569,7 @@ const STEPS = [
         <Card>
           <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:"0 0 8px" }}>報告しますか？</p>
           <div style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
-            <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:0 }}>施設・賠償責任保険</p>
+            <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:0 }}>1日単位の傷害保険</p>
             <p className="f-sans" style={{ fontSize:11, color:SUB, margin:"4px 0 0" }}>ネギ 収穫　#1268</p>
           </div>
           <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.8, margin:"0 0 10px" }}>OKをタップすると、はなこさんのチャットに送信されます。報告した時刻は記録に残ります。</p>
