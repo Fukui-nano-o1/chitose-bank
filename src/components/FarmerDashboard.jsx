@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
@@ -450,11 +450,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 同じ日をもう一度タップ＝解除（カレンダーのみへ戻る）。ページを離れたら解除
   const [calDay, setCalDay] = useState(null);
   useEffect(() => { if (jobTab !== "calendar") setCalDay(null); }, [jobTab]);
+  // 日を選んだら、その日の求人カードまで自動で運ぶ（2026-09-01たきと指示）。
+  // 縦に月が連なるカレンダーの下にカードが並ぶ構造so、選んだだけでは画面が動かず
+  // 「何も起きていない」ように見えていた。解除（もう一度タップ＝null）では動かさない
+  const calTopRef = useRef(null);
+  useEffect(() => { if (calDay) scrollBelowCalendar(calTopRef.current); }, [calDay]);
   // 常時展開のカレンダー（ステータスページの calendarTop と同じ作法）。
   // ページ側の横スワイプ（求人一覧⇄応募者などの面送り）にカレンダーの月送りを食われないよう、
   // タッチはここで止める（開閉が無くなった今も、月送りを守るために必要）
   const calendarTop = (
-    <div key="app-cal-top" onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
+    <div key="app-cal-top" ref={calTopRef} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}
       style={{ gridColumn:"1/-1", marginBottom:14 }}>
       {/* dayJobsAll＝関係を問わずその日の求人番号を受け取る（2026-08-23たきと指示
           「農家であっても働き手の求人カードを表示して」）。自分の求人のカードは jobInfoMap で
