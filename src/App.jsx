@@ -23,6 +23,7 @@ import { PRIVACY_SECTIONS, PrivacyDataTable, PrivacyPolicy } from "./app/legal/P
 import { DataConstitution } from "./app/legal/DataConstitution";
 import { HelpCenter, InstallGuide } from "./app/help/HelpCenter";
 import { FeedbackModal } from "./app/diagnostics/FeedbackModal";
+import { PageGuide, guideForHash } from "./components/PageGuide";
 import { WorkerPreviewSheet, EmployerPreviewSheet } from "./app/preview/PreviewSheets";
 import { openWorkerPreview } from "./lib/previewBus";
 // ルート分割の自己修復（lazyChunk / prepareFreshReload / ChunkUpdating）→ app/chunkReload.jsx へ移設（2026-08-17）
@@ -1844,6 +1845,16 @@ export default function App(){
                     {item.label}
                   </button>
                 ))}
+              {/* この画面の説明（PageGuide）：説明のあるページでだけ出す（死んだ項目を置かない） */}
+              {guideForHash(curHash) && (
+                <button onClick={() => { setMenuOpen(false); window.dispatchEvent(new CustomEvent("cb:openPageGuide")); }}
+                  className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                           border:"none", cursor:"pointer", fontFamily:"inherit",
+                           fontSize:14, color:"#222", padding:"10px 16px" }}>
+                  <NavIconInline name="question" size={13} />この画面の説明
+                </button>
+              )}
               <button onClick={() => { setMenuOpen(false); window.location.hash = "/help"; }}
                 className="f-sans"
                 style={{ display:"block", width:"100%", textAlign:"left", background:"none",
@@ -1889,6 +1900,10 @@ export default function App(){
         {mobileMenuOpen && (
           <div className="app-header-mobile-menu" onClick={(e)=>e.stopPropagation()}>
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/search"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="search" size={13} />求人を探す</button>
+            {/* この画面の説明（PageGuide）：説明のあるページでだけ出す（PC☰と対） */}
+            {guideForHash(curHash) && (
+              <button onClick={()=>{ setMobileMenuOpen(false); window.dispatchEvent(new CustomEvent("cb:openPageGuide")); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />この画面の説明</button>
+            )}
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="book" size={13} />使い方</button>
             {me && (
               <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="flag" size={13} />この画面を報告</button>
@@ -2282,6 +2297,12 @@ export default function App(){
 
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
       <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
+
+      {/* この画面の説明（2026-09-01たきと指示「訪問者にページの説明をすべき」＝Airbnbの
+          初回教育＋(i)入口の写し）：はじめて開いたページで一度だけ自動表示・
+          以後は☰「この画面の説明」から。台帳と仕組みは components/PageGuide.jsx が唯一のソース。
+          新規登録・再同意の全画面を挟んでいる間は自動表示しない */}
+      <PageGuide suspend={needsAccountHolder || openAccountForm || needsPrivacyReconsent} />
 
       {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
           掲載後に /profile/employer へ遷移した先で祝祭が重なり、60秒ノーアクションで さがす へ送る */}
