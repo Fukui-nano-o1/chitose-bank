@@ -609,6 +609,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
   const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  // 採用の最終確認「応募者ページで詳しく見る」からの合図（2026-09-01）：既にこのページに居る時は
+  // URLが変わらず着地のローダー（cb_openApplicantId）が走らないため、イベントでその場で開く
+  useEffect(() => {
+    const f = (e) => { if (e.detail) setSheetApplicantId(e.detail); };
+    window.addEventListener("cb:openApplicantSheet", f);
+    return () => window.removeEventListener("cb:openApplicantSheet", f);
+  }, []);
   // シート内の求人カード→詳細面（2026-08-08たきと指示「ここも同じにしよう。アニメーションもコピー」＝
   // ステータスページのボックスと同じ：求人タップで面全体が演出→詳細面へスライド・横スワイプで戻る）
   const [sheetPane, setSheetPane] = useState("main");        // main | detail
