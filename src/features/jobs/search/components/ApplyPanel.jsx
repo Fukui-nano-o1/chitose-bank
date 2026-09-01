@@ -92,6 +92,7 @@ export function ApplyBarMobile({ selectedJob, isOwnJob, ownLoaded, setOwnMenuOpe
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
           <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222", flexShrink:0, whiteSpace:"nowrap" }}>{payLabel(selectedJob)}</span>
           <button
+            data-guide="apply-btn"
             onClick={hideApply ? undefined : applyBtnOnClick}
             disabled={hideApply || applying || applyBtnDisabled}
             className="btn-primary f-sans"

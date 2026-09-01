@@ -91,7 +91,7 @@ function ApplicantCard({ app, job, profile, trust }) {
         {/* 来られる日（期間求人・すり合わせの起点）。'any'・未宣言は部品側で非表示 */}
         <div style={{ marginTop:10 }}><AvailDatesChips value={app.available_dates} /></div>
         <div style={{ display:"grid", gap:8, marginTop:10 }}>
-          <button onClick={()=>goApplicantSheet(app.id)} className="f-sans"
+          <button data-guide="decide-btn" onClick={()=>goApplicantSheet(app.id)} className="f-sans"
             style={{ padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
             内容を見て決める（承認・見送り）→
           </button>
