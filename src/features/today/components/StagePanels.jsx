@@ -8,10 +8,11 @@
 //   （LandingFlow のフォーカス消失バグと同族・CLAUDE.md）。
 import { useState, useEffect, useRef } from "react";
 import { useSheetDragClose } from "../../../lib/sheetDrag";
-import { fetchMyFarmJobs, fetchPublicJobsByNumbers } from "../todayApi";
+import { fetchMyFarmJobs, fetchPublicJobsByNumbers, confirmInsurance } from "../todayApi";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { calFmtDate, ROLE_ORANGE, ROLE_GREEN, photoThumb, mapJobPublicRow,
-  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, appWorkDates, isWorkWindowOpen } from "../../../lib/utils";
+  appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, appWorkDates, isWorkWindowOpen,
+  INSURANCE_ITEMS, normalizeInsuranceItems } from "../../../lib/utils";
 import { openPhaseInfo } from "../../../lib/previewBus";
 import { Avatar } from "../../../components/ui";
 import { HireConfirm, HIRE_SHEET_PATH, markHireSheet } from "../../../components/HireConfirm";
@@ -20,8 +21,10 @@ import ContractEmergencyContact from "../../../components/ContractEmergencyConta
 import { JobCard } from "../../../components/JobCard";
 import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
 import { DayReportSheet } from "../../../components/DayReportSheet";
+import { InsurancePanel } from "../../../components/InsurancePanel";
 import { Celebration } from "../../../components/Celebration";
 import { NavIcon, NavIconInline } from "../../../components/NavIcons";
+import { fbSuccess, fbError } from "../../../lib/feedback";
 
 
 // 緊急連絡の専用ページ（2026-08-02たきと指示「ステータスと同じ構造に」）：
@@ -393,6 +396,169 @@ export function DayReportPanel({ items, meId, role }) {
       <DayReportSheet app={reportApp} meId={meId} role={role}
         onClose={()=>setReportApp(null)}
         onDone={(id)=>{ setReportApp(null); setSentIds(prev => new Set(prev).add(id)); }} />
+    </>
+  );
+}
+
+// 保険の準備の報告ページ（#/calendar/todo/insurance・2026-09-01たきと指示
+// 「とりあえず保険のカードを設置。タップで報告するようにしよう。報告はチャットで送信」）：
+// 骨は仕事の評価・今日の記録のページと同じ＝相手の行＋求人カード（JobCard wide）。その下に
+// 【保険のカード】を置き、タップで「どれを準備したか」を選ぶ（既定＝申告してある保険を全部選択）。
+// 「報告する」で一拍おいて確認 → confirm_insurance が 記録（insurance_prepared_at）と
+// チャットへの投函（募集主の発言）を一度に行う。相手へのお知らせ・プッシュ・メールは
+// チャットの投函にぶら下がる（trg_notify_message）＝同じ用件で二重に鳴らない。
+// ★カードの見た目は共有部品 InsurancePanel（求人詳細・確認ページと同じもの）の選択モード＝
+//   保険カードを2つ作らない。中身の正（項目・説明）は lib/utils の INSURANCE_ITEMS のまま。
+// ★チャットに出る文面はDBが組み立てる（confirm_insurance）＝画面側で同じ文を持たない（枝分かれ防止）。
+// ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元）
+export function InsuranceStagePanel({ items, onReported }) {
+  // ★viewCacheには入れない：mapJobPublicRow の dateStart/dateEnd は Date オブジェクトなので、
+  //   JSONで保存→復元すると文字列になり読む側が落ちる（2026-08-03の実害と同じ型）
+  const [jobs, setJobs] = useState({});
+  const [sel, setSel] = useState({});          // application_id → Set(保険のキー)
+  const [confirmApp, setConfirmApp] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [doneIds, setDoneIds] = useState(() => new Set()); // 報告できたもの＝この画面から消す
+  const [celebrate, setCelebrate] = useState(null);
+  const sheetRef = useRef(null), scrollRef = useRef(null);
+  useSheetDragClose(sheetRef, scrollRef, ()=>{ if (!sending) setConfirmApp(null); }, !!confirmApp);
+  const numsKey = items.map(t => t.job_number).filter(Boolean).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const nums = numsKey ? numsKey.split(",").map(Number) : [];
+      if (!nums.length) return;
+      try {
+        const { data, error } = await fetchPublicJobsByNumbers(nums);
+        // 失敗時は手元の値を上書きしない（2026-08-07フェイルオープン規則）
+        if (cancelled || error || !data) return;
+        setJobs(prev => {
+          const nx = { ...prev };
+          data.forEach(r => { nx[r.job_number] = mapJobPublicRow(r); });
+          return nx;
+        });
+      } catch { /* 取得できなくてもカードは最小形で出す */ }
+    })();
+    return () => { cancelled = true; };
+  }, [numsKey]);
+  // 報告できる保険＝掲載の時に凍結された申告から「これから準備する」を除いたもの（未加入なので報告に出さない）
+  const reportableOf = (t) => {
+    const snap = jobs[t.job_number]?.insuranceSnapshot;
+    return normalizeInsuranceItems(snap?.items).filter(k => k !== "considering");
+  };
+  const notesOf = (t) => jobs[t.job_number]?.insuranceSnapshot?.notes || {};
+  // 既定＝申告してある保険を全部選ぶ（自分の申告なので、外すのは当てはまらない時だけ）
+  const selectedOf = (t) => sel[t.application_id] ?? new Set(reportableOf(t));
+  const toggle = (t, k) => setSel(prev => {
+    const cur = new Set(prev[t.application_id] ?? reportableOf(t));
+    if (cur.has(k)) cur.delete(k); else cur.add(k);
+    return { ...prev, [t.application_id]: cur };
+  });
+  const labelOf = (k) => INSURANCE_ITEMS.find(x => x.k === k)?.chip || k;
+  const titleOf = (t) => [t.crop, t.task].filter(Boolean).join(" ") || `求人 #${t.job_number}`;
+  const send = async () => {
+    const t = confirmApp; if (!t || sending) return;
+    setSending(true);
+    const picked = [...selectedOf(t)];
+    const { data, error } = await confirmInsurance(t.application_id, picked);
+    setSending(false);
+    if (error || !data?.ok) { fbError(); alert("報告できませんでした：" + (data?.reason || error?.message || "不明")); return; }
+    setConfirmApp(null);
+    setDoneIds(prev => new Set(prev).add(t.application_id));
+    fbSuccess();
+    setCelebrate({ title:"報告しました" });
+    if (onReported) onReported(t.application_id);
+  };
+  const shown = items.filter(t => !doneIds.has(t.application_id));
+  return (
+    <>
+      <div style={{ display:"grid", gap:22 }}>
+        {shown.length === 0 && (
+          <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>報告しました。この用事は片付きました</p>
+        )}
+        {shown.map(t => {
+          const job = jobs[t.job_number];
+          const reportable = reportableOf(t);
+          const selected = selectedOf(t);
+          return (
+            <div key={t.application_id} style={{ display:"grid", gap:8 }}>
+              {/* 誰の仕事の保険か（この報告はこの相手のチャットに届く）。アイコンは相手＝働き手の役割色 */}
+              <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={32} ring={ROLE_ORANGE} bg={ROLE_ORANGE} />
+                <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {t.partner_name ? t.partner_name + "さん" : "相手"}
+                </span>
+              </div>
+              {job ? (
+                <JobCard job={job} variant="wide" onOpen={()=>setConfirmApp(t)} hideEndLabel />
+              ) : (
+                <button onClick={()=>setConfirmApp(t)} className="f-sans"
+                  style={{ display:"block", width:"100%", textAlign:"left", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px 14px", cursor:"pointer" }}>
+                  <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{titleOf(t)}</span>
+                  <span style={{ display:"block", fontSize:12, color:"#999", marginTop:2 }}>#{t.job_number}</span>
+                </button>
+              )}
+              {/* 保険のカード（共有部品の選択モード）。タップで報告に含める・外す */}
+              {reportable.length > 0 ? (<>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0" }}>
+                  準備できた保険をタップして選びます（右上の？で説明）。
+                </p>
+                <InsurancePanel swipe selectable selected={selected} onToggle={(k)=>toggle(t, k)}
+                  employer={{ insurance_items: reportable, insurance_notes: notesOf(t) }} />
+              </>) : (
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"2px 0 0", lineHeight:1.7 }}>
+                  この求人には保険の申告が記録されていません。準備ができたことだけを報告します。
+                </p>
+              )}
+              <button onClick={()=>setConfirmApp(t)} className="f-sans"
+                style={{ padding:"13px", fontSize:14, fontWeight:800, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>
+                報告する
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {/* 一拍おく確認（記録に残り、相手にすぐ届くため）。外タップ・下スワイプで閉じる＝✕は置かない */}
+      {confirmApp && (() => {
+        const t = confirmApp;
+        const picked = [...selectedOf(t)];
+        return (
+          <div onClick={()=>{ if (!sending) setConfirmApp(null); }} className="cb-box-overlay cb-lock-scroll"
+            style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div ref={sheetRef} onClick={ev=>ev.stopPropagation()} className="cb-sheet-up"
+              style={{ position:"absolute", left:0, right:0, bottom:0, maxHeight:"86%", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div ref={scrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"20px 20px 0" }}>
+                <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 10px" }}>保険の準備を報告します</p>
+                <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.8, margin:"0 0 14px" }}>
+                  {t.partner_name ? t.partner_name + "さん" : "働き手"}のチャットに、この報告が届きます。報告した時刻は記録に残ります。
+                </p>
+                <div style={{ background:"#F7F7F7", borderRadius:12, padding:"12px 14px", marginBottom:14 }}>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 6px" }}>{titleOf(t)}　#{t.job_number}</p>
+                  {picked.length > 0 ? (
+                    <ul className="f-sans" style={{ margin:0, paddingLeft:18, fontSize:14, fontWeight:700, color:"#222", lineHeight:1.9 }}>
+                      {picked.map(k => <li key={k}>{labelOf(k)}</li>)}
+                    </ul>
+                  ) : (
+                    <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>保険の準備ができたこと</p>
+                  )}
+                </div>
+                <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 16px" }}>
+                  これは自己申告です（運営が保険の証書を確認するものではありません）。
+                </p>
+              </div>
+              <div style={{ flexShrink:0, borderTop:"1px solid #F0F0F0", padding:"12px 20px calc(12px + env(safe-area-inset-bottom, 0px))", display:"grid", gap:8 }}>
+                <button onClick={send} disabled={sending} className="f-sans"
+                  style={{ padding:"14px", fontSize:15, fontWeight:800, background:ROLE_GREEN, color:"#fff", border:"none", borderRadius:10, cursor:"pointer", opacity: sending ? 0.6 : 1 }}>
+                  {sending ? "送信中…" : "報告する"}
+                </button>
+                <button onClick={()=>{ if (!sending) setConfirmApp(null); }} className="f-sans"
+                  style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {celebrate && <Celebration title={celebrate.title} onDone={()=>setCelebrate(null)} />}
     </>
   );
 }

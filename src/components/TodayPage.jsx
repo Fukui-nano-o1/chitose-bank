@@ -9,15 +9,13 @@ import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
 import { ymdLocal, ROLE_ORANGE, ROLE_GREEN,
   workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS, entryWorkDays } from "../lib/utils";
-import { fbSuccess, fbError } from "../lib/feedback";
-import { Celebration } from "./Celebration";
 import { Avatar, Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
 import { BOX_FACE, BOX_ICON_SIZE } from "../features/today/boxFace";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
-  countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms, runTodoRpc } from "../features/today/todayApi";
-import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel, DayReportPanel,
+  countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms } from "../features/today/todayApi";
+import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel, DayReportPanel, InsuranceStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
 // 今日ページから箱を消した用件（2026-08-19たきと指示）。DBのやること一覧(my_todo_items)は
@@ -43,9 +41,8 @@ export function TodayPage({ me, defaultRole }) {
   // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
   useEffect(() => { if (loading) return; setCache("today:todos", todos); }, [todos, loading]);
-  const [confirming, setConfirming] = useState("");
-  // 完了の祝祭（2026-08-06）：保険の報告の成功時。演出のみ＝記録・ゲートには触れない
-  const [celebrate, setCelebrate] = useState(null);
+  // 実行中の目印（confirming）と祝祭（celebrate）は廃止（2026-09-01）：この画面から直接撃つ用件が
+  // 無くなった（保険の報告は専用ページの部品が持つ）。行のボタンは遷移だけ
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -273,8 +270,10 @@ export function TodayPage({ me, defaultRole }) {
     hire:        { title:"採用する",             btn:"採用する →",
                    desc:"面接を終えた応募者を採用します。カードをタップすると最終確認が出ます（二重予約の警告つき）。",
                    nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } },
-    insurance:   { title:"保険の準備の報告",     btn:"準備したと報告",   rpc:"confirm_insurance",
-                   desc:"作業前に、保険の準備ができたことを報告します。報告した時刻が記録に残ります。" },
+    // 保険の準備の報告（2026-09-01たきと指示「保険のカードを設置。タップで報告。報告はチャットで送信」）：
+    // 専用ページ（InsuranceStagePanel）が保険カードの選択と報告を持つので、行ボタン用の btn/rpc は持たない
+    insurance:   { title:"保険の準備の報告",
+                   desc:"作業前に、保険の準備ができたことを報告します。準備できた保険をカードで選ぶと、その内容が相手のチャットに届き、報告した時刻が記録に残ります。" },
     // review（評価する）はcompleteへ統合（2026-07-25たきと指示）：完了記録がまだ／評価だけ残り（3日以内）の
     // 両方をmy_todo_itemsが'complete'として返す。行き先は同じ完了モーダル（完了記録→評価の一連）
     // バイトの評価（旧・完了して評価する・2026-07-27たきと指示）：ボックスタップで応募者ページの「完了」タブへ直行。
@@ -342,20 +341,9 @@ export function TodayPage({ me, defaultRole }) {
     if (role !== pr) setRole(pr);
   }, [pageStage, role]);
   // hireDoubleBookingCheck・m.hire分岐は削除（2026-07-27）：採用の実行は応募者シートへ移設（二重予約警告もそちらが持つ）
-  const runTodo = async (m, e) => {
-    const busyKey = (e.application_id || e.job_number) + e.stage;
+  const runTodo = (m, e) => {
     if (m.nav) { window.location.hash = m.nav(e); return; }
     if (m.flag) { if (m.before) m.before(); try { sessionStorage.setItem(m.flag, e.application_id); } catch {} window.location.hash = m.to; return; }
-    // 面接の質問（チャットからの移設）：チャットに着地して質問集シートを自動で開く（回答は面接の証跡としてチャットに残る）
-    if (m.rpc) {
-      if (confirming) return; setConfirming(busyKey);
-      const { data, error } = await runTodoRpc(m.rpc, e.application_id);
-      setConfirming("");
-      if (error || !data?.ok) { fbError(); alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
-      removeTodo(e.application_id, e.stage);
-      fbSuccess();
-      if (m.rpc === "confirm_insurance") setCelebrate({ title:"報告しました" });
-    }
   };
   // count＝バッジの数の上書き（一覧を持たない箱＝プロフィールの未入力数。省略時は対象件数）
   const TodoStageBox = ({ stage, items, count }) => {
@@ -403,7 +391,6 @@ export function TodayPage({ me, defaultRole }) {
       <div style={{ gridColumn:"1 / -1", border:"1px solid #EBEBEB", borderRadius:12, background:"#fff", padding:"12px 14px" }}>
         <div style={{ display:"grid", gap:8 }}>
           {items.map(t => {
-            const busy = confirming === (t.application_id || t.job_number) + t.stage;
             const jobChip = [t.job_number ? "#" + t.job_number : "", [t.crop, t.task].filter(Boolean).join(" "), (stage.startsWith("t_") && t.work_time) ? t.work_time : ""].filter(Boolean).join(" ");
             return (
               <div key={todoKey(t)} style={{ display:"grid", gap:6, minWidth:0 }}>
@@ -420,9 +407,9 @@ export function TodayPage({ me, defaultRole }) {
                 <span style={{ flex:1 }} />
                 {/* 副の選択肢（今のところ「来なかった」だけ）。主の隣に控えめに置く */}
                 {m.alt && (
-                  <button onClick={()=>runTodo(m.alt, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 10px", fontSize:12, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap" }}>{m.alt.label}</button>
+                  <button onClick={()=>runTodo(m.alt, t)} className="f-sans" style={{ flexShrink:0, padding:"8px 10px", fontSize:12, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap" }}>{m.alt.label}</button>
                 )}
-                <button onClick={()=>runTodo(m, t)} disabled={busy} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap", opacity: busy ? 0.6 : 1 }}>{busy ? "..." : m.btn}</button>
+                <button onClick={()=>runTodo(m, t)} className="f-sans" style={{ flexShrink:0, padding:"8px 12px", fontSize:12, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:9, cursor:"pointer", whiteSpace:"nowrap" }}>{m.btn}</button>
               </div>
               {/* 契約成立後のみ相手の本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
               {t.application_id && <ContractPartyName applicationId={t.application_id} showPending={false} style={{ margin:0, paddingLeft:2 }} />}
@@ -445,7 +432,6 @@ export function TodayPage({ me, defaultRole }) {
     return (
       <div ref={swipeStage ? rootRef : undefined} className="cb-today-page"
         style={{ maxWidth:600, margin:"0 auto", padding:"8px 0 24px", ...(swipeStage ? { overflowX:"hidden", touchAction:"pan-y" } : {}) }}>
-        {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
         <div style={{ display:"flex", alignItems:"center", gap:10, margin:"0 0 16px" }}>
           {/* 戻り先＝マイページの該当の面（今日ページ本体の廃止・2026-08-22）。用件の役割に合わせる */}
           <button onClick={()=>{ window.location.hash = role === "farmer" ? "/profile/employer" : "/profile"; }} aria-label="マイページへ戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 6px", lineHeight:1 }}>←</button>
@@ -485,6 +471,9 @@ export function TodayPage({ me, defaultRole }) {
           /* 緊急連絡はステータスページと同じカード構造（2026-08-02たきと指示）。
              ⚠️緊急連絡の入力は「今日の記録」と同じ共有部品（DayReportSheet）が開く */
           <EmergencyStagePanel items={pItems} role={role} meId={me?.id} />
+        ) : pageStage === "insurance" ? (
+          /* 保険の準備の報告（2026-09-01たきと指示）：保険カードをタップで選び、報告するとチャットに届く */
+          <InsuranceStagePanel items={pItems} onReported={(id)=>removeTodo(id, "insurance")} />
         ) : (pageStage === "day_report" || pageStage === "w_day_report") ? (
           /* 今日の記録（最終作業日より前の作業日・2026-08-19たきと指示）：
              仕事の評価ページと同じカード構造で、タップでその場に入力シートが開く */

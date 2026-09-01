@@ -550,16 +550,35 @@ const STEPS = [
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>7日以内に始まる予定が無ければ、この区画ごと出ない。</p>
       </div>
     ) },
-  { ch:"仕事の当日", name:"保険の準備の報告", url:"#/calendar/todo/insurance", act:"保険の備えができたと報告する。働き手にも伝わる。",
+  { ch:"仕事の当日", name:"保険の準備の報告", url:"#/calendar/todo/insurance", act:"準備できた保険をカードでタップして選び、報告する。報告は相手のチャットに届く。",
     body: () => (
       <div style={{ padding:14 }}>
         <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:INK, margin:"0 0 6px" }}>保険の準備の報告</p>
-        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。働き手にも「準備できました」と伝わります。</p>
+        <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.8, margin:"0 0 12px" }}>事故が起きたときの備えです。選んだ保険の名前が、そのまま相手のチャットに届きます。</p>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+          <Avatar url={null} name="はなこ" size={32} ring={ROLE_ORANGE} />
+          <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:INK }}>はなこ さん</span>
+        </div>
         <Card>
-          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 8px" }}>はなこ さん ・ 9月10日〜</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}><NavIconInline name="shield" size={12} />農作業中の傷害保険に加入しています</p>
-          <div style={{ display:"flex" }}><Btn kind="green">準備したと報告</Btn></div>
+          <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:INK, margin:"0 0 2px" }}>ネギ 収穫</p>
+          <p className="f-sans" style={{ fontSize:12, color:SUB, margin:"0 0 10px" }}>#1268 ・ 9月10日〜</p>
+          <p className="f-sans" style={{ fontSize:12, color:SUB, margin:"0 0 8px" }}>準備できた保険をタップして選びます（右上の？で説明）。</p>
+          {/* 保険カード（本物は共有部品 InsurancePanel の選択モード。ここは見本なので形だけ） */}
+          <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+            {[["firstAid","労災保険",true], ["insDay","1日単位の傷害保険",true], ["truck","車両保険",false]].map(([ic, lb, on]) => (
+              <div key={lb} style={{ position:"relative", flex:"0 0 118px", background: on ? "#F7F7F7" : "#fff",
+                border: on ? "1px solid #222" : "1px solid #EBEBEB", boxShadow: on ? "inset 0 0 0 1px #222" : undefined,
+                borderRadius:16, padding:"20px 6px 14px", display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                <span style={{ position:"absolute", top:6, right:6, width:18, height:18, borderRadius:9, background:"#F0F0F0", color:"#999", fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>？</span>
+                {on && <span style={{ position:"absolute", top:6, left:6, width:18, height:18, borderRadius:9, background:"#222", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}><NavIconInline name="tick" size={11} /></span>}
+                <NavIconInline name={ic} size={34} />
+                <span className="f-sans" style={{ fontSize:12, fontWeight:700, color:INK, textAlign:"center" }}>{lb}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:"flex" }}><Btn kind="green">報告する</Btn></div>
         </Card>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>「報告する」で一拍おいて確認 → 記録に時刻が残り、選んだ保険の名前がチャットに届く。</p>
       </div>
     ) },
   { ch:"仕事の当日", name:"きょうの仕事（緊急連絡）", url:"#/calendar/todo/t_emergency", act:"当日の仕事を見る入口は緊急連絡ページへ。開始の記録は作業開始時刻を過ぎると自動で入る（誰も時刻を押さない）。",

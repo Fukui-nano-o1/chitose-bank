@@ -26,7 +26,7 @@ const CELEBRATIONS = [
   { title:"承認しました",               where:"応募者ページで応募を承認", src:"FarmerDashboard.jsx" },
   { title:"おつかれさまでした",         where:"バイトの評価（農家）", src:"FarmerDashboard.jsx" },
   { title:"ありがとうございました",     where:"働き手の評価送信", src:"WorkerApplications.jsx" },
-  { title:"報告しました",               where:"保険の準備の報告", src:"TodayPage.jsx" },
+  { title:"報告しました",               where:"保険の準備の報告", src:"features/today/components/StagePanels.jsx" },
   { title:"ありがとうございます",       where:"働き手フロー完了（構想段階の導線）", src:"App.jsx" },
 ];
 // 部品の中に埋まっていて切り出せないアニメーション＝本物のいる場所へ飛んで確認する
