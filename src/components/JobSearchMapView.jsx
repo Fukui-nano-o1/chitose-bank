@@ -1190,8 +1190,13 @@ export function JobSearchMapView({ onRegister, me }) {
               リンクthaが作っていた上の余白は残す（同指示「画面上部に余白を残して」）＝空のスペーサー */}
           <div className="job-detail-back-btn" style={{ height:20, marginBottom:8 }} />
 
-          <JobPhotoGallery job={selectedJob} employer={empEmployer} photosLooped={photosLooped} activeSlide={activeSlide} scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} />
+          {/* 写真はその場に留まる（スマホ・.job-hero＝sticky）。詳細が下の白い紙になって
+              上から重なって昇る＝Airbnbのスクロール（2026-09-01たきと指示）。PCは従来どおり流れる */}
+          <div className="job-hero">
+            <JobPhotoGallery job={selectedJob} employer={empEmployer} photosLooped={photosLooped} activeSlide={activeSlide} scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} />
+          </div>
 
+          <div className="job-detail-sheet">
           {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
           {/* 保険タブは廃止（2026-08-19たきと指示）＝保険カードは地図・カレンダーの下（JobLocationSection）へ移植。
               古い #/work/job/{No}/insurance のリンクは、どの枝にも当たらず「仕事の内容」に落ちる＝保険も同じ面にある */}
@@ -1273,6 +1278,7 @@ export function JobSearchMapView({ onRegister, me }) {
           )}
           </>)}
           </ContentQSwipeArea>
+          </div>{/* /.job-detail-sheet */}
         </div>
       </>)}
 

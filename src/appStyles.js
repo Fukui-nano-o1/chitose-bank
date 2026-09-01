@@ -781,6 +781,26 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
    ★格子は【最初の5枚まで】＝残りは「すべての写真を表示」から見る（Airbnbと同じ） */
 .job-photo-mosaic { display: none; }
 
+/* ── スクロールの作り（Airbnbのスマホと同じ・2026-09-01たきと指示
+   「写真は移動していない。詳細がスクロールしている」）──
+   写真はその場に留まり（sticky）、詳細が白い紙になって【上から重なって】昇っていく。
+   ★スマホだけ：PCは写真の格子が普通に流れ、右の応募パネルが留まる（＝Airbnbのパソコンと同じ・既存のまま）。
+   ★sticky は祖先に overflow:hidden/auto/scroll があると効かない。body は overflow-x:【clip】＝効く
+     （hidden にするとスクロールの器になって留まらなくなる＝ここを変えないこと）。
+   ★紙は左右いっぱいに広げて写真を覆う：main の左右余白12pxを負の余白で打ち消し、
+     同じだけ内側に戻す（2026-08-16の「広げて戻す」と同じ手） */
+@media (max-width: 759px) {
+  .job-hero { position: sticky; top: calc(10px + env(safe-area-inset-top, 0px)); z-index: 0; }
+  .job-detail-sheet {
+    position: relative; z-index: 1;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    margin: -32px -12px 0;
+    padding: 26px 12px 0;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.10);
+  }
+}
+
 /* ── 写真の動き（Airbnbの動きをそのまま・2026-09-01たきと指示「アニメーションもだ」）──
    ①写真に指・矢印を重ねると、うっすら暗い膜がかかる（Airbnbの写真のホバー）
    ②読み込めた写真からふわりと現れる（Airbnbの画像の出方）
