@@ -134,6 +134,20 @@ input:focus { outline: none; }
    step-endのgateで終了の瞬間にauto（既定値）へ戻す＝アニメ後は通常どおり押せる */
 @keyframes cbPopGate { from { pointer-events: none; } to { pointer-events: auto; } }
 .cb-sheet-up { animation: cbPop .8s cubic-bezier(.2, 1.3, .3, 1), cbPopGate .8s step-end; transform-origin: center center; }
+/* この画面の説明（PageGuide・2026-09-01たきと指示「アニメーションはあるのならパクれ」）＝
+   Airbnbの教育モーダルの出入り：入り＝幕のフェード（cb-box-overlayの既定）＋パネルがフェードしながら
+   下からわずかに上がる（弾まない・拡大しない＝cbPopは使わない）。閉じ＝速いフェードで下へ。
+   ★クラスは .cb-sheet-up より後に定義＝同じ強さなら後勝ちで cbPop を上書きする（並びを崩さないこと）。
+   ★ドラッグで引き下げて閉じた時は出口アニメを掛けない＝useSheetDragClose 自身が0.22sかけて
+   下へ滑らせてから onClose を呼ぶので、そこでは即アンマウント（上に重ねると二重の動きになる） */
+@keyframes cbGuideIn { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes cbGuideOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(28px); } }
+.cb-guide-in { animation: cbGuideIn .4s cubic-bezier(.2, 0, 0, 1); }
+.cb-guide-out { animation: cbGuideOut .18s cubic-bezier(.2, 0, 0, 1) forwards; }
+/* ★幕の閉じは2クラスで書く＝このブロックは .cb-box-overlay の定義より前にあるため、
+   1クラスだと同じ強さの後勝ちで .cb-box-overlay の fadeIn に負ける */
+.cb-box-overlay.cb-guide-closing { animation: fadeOut .18s ease forwards; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .cb-guide-in, .cb-guide-out, .cb-box-overlay.cb-guide-closing { animation: none; } }
 /* ── ボックス規格（2026-07-21 全ボックス統一）：画面中央にボックスの中央を合わせる。
    親オーバーレイ(.cb-box-overlay)がflexで上下左右中央寄せ、ボックス(.cb-notice-sheet)は
    意匠（緑太縁3px・角丸・影・左詰め）と最大サイズ・スクロールを担う。

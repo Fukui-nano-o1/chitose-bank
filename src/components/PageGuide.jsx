@@ -14,6 +14,12 @@
 //     （Airbnbと同じく余白が区切る）
 //   ・下部＝細い罫線の上に黒い全幅ボタン（#222・角丸8）＝FinalReviewSheetのAirbnb化と同じ言語。
 //     役割色・ブランド緑はこの画面には使わない（アイコンも中立の#222）
+//   ・出入りのアニメ＝Airbnbのモーダルの写し（2026-09-01たきと指示「あるのならパクれ」）：
+//     入り＝幕フェード＋パネルがフェードしながら下からわずかに上がる（.cb-guide-in・0.4s・弾まない
+//     ＝家の cbPop はこの箱では使わない）。閉じ＝速いフェードで下へ（.cb-guide-out・0.18s）＝
+//     ✕・わかった・外タップで掛かる。★ドラッグで引き下げて閉じた時は掛けない＝
+//     useSheetDragClose 自身が0.22sかけて下へ滑らせてから onClose を呼ぶので、そこで close(false)
+//     ＝二重の出口アニメにしない。CSSは appStyles の cbGuide* が正
 //
 // 【仕組み】
 //   ・PAGE_GUIDES＝主要ページの説明の台帳（このファイルが唯一のソース）。
@@ -146,8 +152,21 @@ const markSeen = (key) => { try { const s = readSeen(); s[key] = 1; localStorage
 // App.jsx に1つだけ常駐。suspend＝新規登録・再同意など全画面の用件を挟んでいる間は自動表示しない
 export function PageGuide({ suspend = false }) {
   const [guide, setGuide] = useState(null); // 開いているガイド
+  const [closing, setClosing] = useState(false); // 出口アニメ中（0.18sだけ真）
+  const closeTimerRef = useRef(0);
   const suspendRef = useRef(suspend);
   suspendRef.current = suspend;
+  // 閉じる＝出口アニメを流してからアンマウント。animated=false（ドラッグで閉じた時）は即アンマウント
+  // ＝ドラッグの出口はフック自身の0.22sの滑り落ちが担っている（上に重ねると二重の動きになる）
+  const close = (animated = true) => {
+    if (!animated) { clearTimeout(closeTimerRef.current); setClosing(false); setGuide(null); return; }
+    setClosing(true);
+    clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => { setGuide(null); setClosing(false); }, 180);
+  };
+  // 開く＝閉じかけの途中でも新しく開けるよう、出口の予約を取り消す
+  const open = (g) => { clearTimeout(closeTimerRef.current); setClosing(false); setGuide(g); };
+  useEffect(() => () => clearTimeout(closeTimerRef.current), []);
 
   // はじめて開いたページで一度だけ自動表示。連続の画面移動では出さない（800ms落ち着いてから）
   useEffect(() => {
@@ -165,31 +184,32 @@ export function PageGuide({ suspend = false }) {
         // 既読にはしない＝次にこのページを開いた時にあらためて出る
         if (document.querySelector(".cb-box-overlay, .cb-sheet-up")) return;
         markSeen(g.key); // 出した時点で既読（同じ説明で二度さえぎらない）
-        setGuide(g);
+        open(g);
       }, 800);
     };
     consider();
     window.addEventListener("hashchange", consider);
     // ☰「この画面の説明」＝既読でもいつでも開き直せる入口
-    const reopen = () => { const g = guideForHash(window.location.hash); if (g) { markSeen(g.key); setGuide(g); } };
+    const reopen = () => { const g = guideForHash(window.location.hash); if (g) { markSeen(g.key); open(g); } };
     window.addEventListener("cb:openPageGuide", reopen);
     return () => { clearTimeout(timer); window.removeEventListener("hashchange", consider); window.removeEventListener("cb:openPageGuide", reopen); };
   }, []);
 
   // 下スワイプで閉じる（★フックは早期returnより前・PhaseInfoSheetと同じ作法）
   const sheetRef = useRef(null);
-  useSheetDragClose(sheetRef, null, () => setGuide(null), !!guide);
+  useSheetDragClose(sheetRef, null, () => close(false), !!guide && !closing);
   if (!guide) return null;
 
   return (
-    <div className="cb-box-overlay cb-lock-scroll" onClick={() => setGuide(null)}
+    <div className={"cb-box-overlay cb-lock-scroll" + (closing ? " cb-guide-closing" : "")} onClick={() => close()}
       style={{ zIndex:9700, padding:"40px 16px" }}>
-      <div ref={sheetRef} onClick={(e) => e.stopPropagation()} className="cb-sheet-up f-sans"
+      <div ref={sheetRef} onClick={(e) => e.stopPropagation()}
+        className={"cb-sheet-up f-sans " + (closing ? "cb-guide-out" : "cb-guide-in")}
         style={{ background:"#fff", borderRadius:20, padding:"14px 24px 20px",
                  maxWidth:560, width:"100%", boxSizing:"border-box", maxHeight:"100%", overflowY:"auto",
                  WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
         {/* ✕（左上・素のアイコン）＝Airbnbの教育モーダルの構成の写し。外タップ・下スワイプでも閉じる */}
-        <button onClick={() => setGuide(null)} aria-label="とじる" className="f-sans"
+        <button onClick={() => close()} aria-label="とじる" className="f-sans"
           style={{ background:"none", border:"none", cursor:"pointer", padding:8, margin:"0 0 4px -8px",
                    display:"flex", alignItems:"center", justifyContent:"center", color:"#222" }}>
           <NavIcon name="close" size={18} />
@@ -211,7 +231,7 @@ export function PageGuide({ suspend = false }) {
         </div>
         {/* 下部＝細い罫線＋黒い全幅ボタン（Airbnbの足の型・FinalReviewSheetと同じ言語） */}
         <div style={{ borderTop:"1px solid #EBEBEB", margin:"0 -24px", padding:"14px 24px 0" }}>
-          <button onClick={() => setGuide(null)} className="f-sans"
+          <button onClick={() => close()} className="f-sans"
             style={{ display:"block", width:"100%", background:"#222", color:"#fff", border:"none",
                      borderRadius:8, padding:"14px 0", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
             わかった

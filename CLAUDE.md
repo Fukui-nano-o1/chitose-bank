@@ -10014,3 +10014,31 @@ viteハーネス・390x844・httpで配信＝★file://はモジュールがCORS
 ★pkill -f "vite preview" は【自分のシェルの引数にも一致して自殺する】＝パターンや同じ文字列を含む教訓文を
 同じコマンド行に書かない（この日2回踏んだ。1回目＝パターン自身・2回目＝追記しようとした教訓文の中の文字列）。
 ━━━ ここまで ━━━
+━━━ 2026-09-01(続2) この画面の説明：出入りのアニメもAirbnbに（たきと指示「あるのならパクれ」）━━━
+【Airbnbにアニメは有るか＝有る】Airbnbのモーダル・教育カードは、幕がフェードイン＋パネルが
+フェードしながら下からわずかに上がって現れる（弾まない・拡大しない）。閉じは速いフェードで下へ。
+いまの箱は家の cbPop（0.8sの弾む拡大ポップ）＝Airbnbではないので、この箱だけ差し替えた。
+【CSS（appStyles・cbGuide*）】
+・入り＝.cb-guide-in（cbGuideIn 0.4s cubic-bezier(.2,0,0,1)＝opacity 0→1・translateY 28px→0）。
+  幕のフェードは .cb-box-overlay の既定（fadeIn 0.2s）をそのまま使う
+・閉じ＝.cb-guide-out（cbGuideOut 0.18s forwards）＋幕は .cb-box-overlay.cb-guide-closing
+  （fadeOut 0.18s forwards・pointer-events:none＝閉じアニメ中の誤タップを受けない）
+・★クラスは .cb-sheet-up の直後（＝.cb-box-overlay の定義より前）に置いたため、幕の閉じは
+  【2クラスで書かないと同じ強さの後勝ちで .cb-box-overlay の fadeIn に負ける】（実測で1回踏んだ。
+  同じ場所にクラスを足す時はこの罠に注意）
+・prefers-reduced-motion＝3クラスとも animation:none（動かさず出す・閉じる）
+【PageGuide側】closing state（0.18sだけ真）＋close(animated)。✕・わかった・外タップ＝出口アニメ。
+★ドラッグで引き下げて閉じた時は出口アニメを掛けない＝useSheetDragClose 自身が0.22sかけて下へ
+滑らせてから onClose を呼ぶ設計なので、そこでは close(false)＝即アンマウント（重ねると二重の動き）。
+最初「即消える」と思い込んでテストを80msで判定し誤検知した＝フックの実物を読んで直した。
+cbPop の cbPopGate（0.8sのタップ封じ）はこの箱から消えるが、入りが0.4sの平行移動になったので
+中身の位置ズレによる誤タップの型は薄い（swallowPopThrough は pointer-events:none の時だけ働く＝無害な空振り）。
+【検証】build成功・eslint 0 error（警告22＝基準と同数）・CSS波括弧の均衡584/584。実ブラウザで14項目全OK：
+入り＝cbGuideIn 0.4s・途中の姿が「透けて28px下」（scaleでなくtranslateY＝Airbnbの型）・落ち着くと定位置／
+出口＝✕・わかった・外タップの3経路とも0.18sのcbGuideOut＋幕のfadeOutが流れてから消える・
+アニメ中はタップを受けない／ドラッグ閉じ＝フックの滑り落ちだけでcbGuideOutを重ねない／
+reduced-motion＝アニメなしで即・閉じも効く／pageerrorゼロ。
+【既知の限界（実害なし・記録）】ドラッグで閉じた直後の0.22秒の間に☰から開き直すと、開き直しが
+巻き添えで閉じる（同じガイドの同一オブジェクトでsetStateが素通りした後、フックの遅延onCloseが走るため）。
+物理的にその速さで☰→項目タップは不可能so対処しない。
+━━━ ここまで ━━━
