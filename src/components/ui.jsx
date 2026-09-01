@@ -365,7 +365,9 @@ export function JobRow({ children, count }) {
 // ── AdminTab ─────────────────────────────────────────────────
 // 初心者大歓迎・リピート即決バッジ（2026-07-17）：タップで1〜2行の説明コメントを展開（もう一度タップで閉じる）。
 // 詳細・確認・プレビューの3画面共通。flexWrap行内でコメント(width:100%)が次の行に折り返して出る構造
-const JOB_FLAG_INFO = {
+// export＝求人詳細の「この求人のポイント」（JobDetailPanel.JobHighlights・2026-09-01のAirbnb構成）でも
+// 同じ絵柄・同じ説明文を使うため。旗の意味の正はこの1箇所（二重の表を持たない）
+export const JOB_FLAG_INFO = {
   beginner: { iconName:"sparkle", label:"初心者大歓迎",   bg:"#E6F7EF", fg:"#00A86B", desc:"農業がはじめての方も歓迎の求人です。経験がなくても応募できます。" },
   expert:   { iconName:"medal", label:"経験者優遇",   bg:"#E8F0FE", fg:"#1A56C5", desc:"農作業の経験がある方を優先したい求人です。経験の浅い方も応募はできます。承認するかどうかは農家が判断します。" },
   repeat:   { iconName:"repeat", label:"リピート即決", bg:"#FFF8E7", fg:"#8A6D1D", desc:"以前この農家で働き、農家が「また呼びたい」とお気に入り登録した方だけが、再応募すると自動で承認されます（承認は採用ではありません。採用は打ち合わせ・面接のあとに決まります）。" },

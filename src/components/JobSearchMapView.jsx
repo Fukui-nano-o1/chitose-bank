@@ -3,10 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, perkBadges, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { Avatar, Carousel, DangerItem, JobFlagBadges, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
+import { Avatar, Carousel, DangerItem, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds, fetchJobViewCounts, countJobView } from "../lib/searchJobs";
@@ -25,8 +25,9 @@ import { canSeeConsignment } from "../lib/consignAccess";
 import { calcMaxPay, jobMonths } from "../features/jobs/search/model";
 import { readStoredSearch, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
 import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/SearchFilterPanel";
-import { JobKeyFacts, JobDescription, JobDangerZones, JobLocationSection, JobRecruiterInfo,
-  JobPhotoGallery, JobEmployerCard, JobReviews, RelatedJobs } from "../features/jobs/search/components/JobDetailPanel";
+import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection,
+  JobLocationSection, JobReviewsAndHost, JobThingsToKnow,
+  JobPhotoGallery, RelatedJobs } from "../features/jobs/search/components/JobDetailPanel";
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile, ApplyConfirmBox } from "../features/jobs/search/components/ApplyPanel";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
@@ -559,11 +560,9 @@ export function JobSearchMapView({ onRegister, me }) {
     };
   }, [jobList]);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [reviewSort, setReviewSort] = useState("new");
-  const [showAllReviews, setShowAllReviews] = useState(false);
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
-  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setReviewSort("new"); setShowAllReviews(false); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
+  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
 
   // ── 👀 閲覧数（2026-08-21たきと指示「❤️ボタンの左横に👀〇〇(数値)。求人をタップした総数」）──
   // 数える場所は【求人の詳細thatが開いた時】の1箇所だけ＝カードのタップも、通知やチャットからの
@@ -1201,41 +1200,40 @@ export function JobSearchMapView({ onRegister, me }) {
           {detailTab === "questions" ? (
             <JobQuestions jobNumber={selectedJob.id} me={me} />
           ) : (<>
-          {/* ヘッダー */}
-          <div style={{ marginBottom:20 }}>
+          {/* ── ここからAirbnbの掲載ページの並び（2026-09-01たきと指示「構成をAirbnbと同じにしろ。パクれ」）：
+              タイトル＋事実の1行 → 募集主の行 → ポイント → 作業内容 → 待遇 → 作業日程 →
+              評価 → 募集主について → 作業の場所 → 知っておくこと → その他の求人 → 報告。
+              区画の解剖はJobDetailPanel.jsx冒頭のコメントが正＝並べ替える時は両方を揃える ── */}
+          {/* ヘッダー（タイトル＋事実の1行） */}
+          <div style={{ marginBottom:0 }}>
             {/* タイトルの場所＝集合場所（2026-08-03たきと指示）：ログイン済み利用者には番地まで含む正式な住所。
                 訪問者はDBマスクによりworkAddress/townが空で届く（市区町村まで）。
                 伏せ字は【町域だけ】に絞る（2026-08-17たきと指示「町域だけモザイク処理」）＝
                 市区町村の後ろに1つだけ置く。番地の伏せ字は会員向けの表示のみに使う（訪問者には並べない）。
                 町域は masked_fields に載っている時だけ描く＝町域が未設定の求人に偽のモザイクを出さない */}
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
+            <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
               {selectedJob.crop} {selectedJob.task}{selectedJob.region ? `｜${selectedJob.region}` : ""}
               {selectedJob.region && Array.isArray(selectedJob.maskedFields) && selectedJob.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
               {me && selectedJob.region && <MaskedAddress value={selectedJob.workAddress} unlocked={true} exists={selectedJob.hasWorkAddress} />}
             </h2>
-            {/* 初心者大歓迎・リピート即決＋待遇はタイトル下にも表示（2026-07-16・求人カードと同じバッジ） */}
-            {/* 待遇は掲載時に確定保存されたjobs.perksのみを見る（2026-08-02・プロフィール現在値とのマージ廃止） */}
-            {(selectedJob.beginnerOk || selectedJob.experiencedPreferred || selectedJob.instantApproveRepeat || perkBadges(selectedJob.perks).length > 0) && (
-              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
-                <JobFlagBadges beginner={selectedJob.beginnerOk} expert={selectedJob.experiencedPreferred} repeat={selectedJob.instantApproveRepeat} />
-                {perkBadges(selectedJob.perks).map(b => (
-                  <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{b.emoji ? b.emoji + " " : ""}{b.label}</span>
-                ))}
-              </div>
-            )}
+            {/* 事実の1行（日程・勤務・休憩・採用・移動・報酬）＝Airbnbの「6 guests · 3 bedrooms」の位置。
+                旧・タイトル下のバッジ列は廃止：旗はポイントの区画（JobHighlights）、待遇は待遇の区画（JobAmenities）が担う */}
+            <JobKeyFacts job={selectedJob} />
           </div>
 
           {/* 2カラム: 左=情報 / 右=応募パネル */}
           <div className="job-detail-2col">
             {/* 左カラム */}
             <div>
-              <JobKeyFacts job={selectedJob} />
+              <JobHostRow job={selectedJob} employer={empEmployer} trust={empTrust} onOpenIntro={setFarmIntroOpen} />
 
-              <JobEmployerCard job={selectedJob} employer={empEmployer} trust={empTrust} onOpenIntro={setFarmIntroOpen} />
+              <JobHighlights job={selectedJob} />
 
               <JobDescription job={selectedJob} />
 
-              <JobDangerZones job={selectedJob} onPhoto={setDangerLightbox} />
+              <JobAmenities job={selectedJob} />
+
+              <JobScheduleSection job={selectedJob} />
             </div>
 
             <ApplyPanel selectedJob={selectedJob} applyPanelRef={applyPanelRef} maxPay={maxPay} hideApply={hideApply} applying={applying} applyBtnOnClick={applyBtnOnClick} applyBtnDisabled={applyBtnDisabled} applyBtnStyle={applyBtnStyle} applyBtnLabel={applyBtnLabel} closedLabel={closedLabel} />
@@ -1245,15 +1243,14 @@ export function JobSearchMapView({ onRegister, me }) {
               住所は農園紹介プレビューの氏名下（FarmerTrustCard・recruiter_address）へ移設済み。
               募集者名・連絡先の常設表示は廃止（データはjobs転写・job_employer_profileに残存＝表示のみの削除） */}
 
+          {/* 評価 → 募集主について（Airbnbの Reviews → Meet your host。1部品＝評価の取得を1回にするため） */}
+          <JobReviewsAndHost job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenIntro={setFarmIntroOpen} />
+
+          {/* 作業の場所（地図）＝Airbnbの Where you'll be の位置 */}
           <JobLocationSection job={selectedJob} me={me} />
 
-          {/* 求人者情報（保険枠の下・2026-08-25たきと指示）：アイコン・名称・代表より・評価。
-              アイコン／名称のタップ先は求人者カードと同じ農園紹介モーダル＝入口を増やさない */}
-          <JobRecruiterInfo job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenIntro={setFarmIntroOpen} />
-
-          {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
-
-          <JobReviews job={selectedJob} sort={reviewSort} onSort={setReviewSort} showAll={showAllReviews} onShowAll={setShowAllReviews} />
+          {/* 知っておくこと＝きまり（持ち物・備考・時間外・支払条件ほか）／危険箇所／保険 */}
+          <JobThingsToKnow job={selectedJob} onPhoto={setDangerLightbox} />
 
           <RelatedJobs currentJob={selectedJob} jobList={jobList} savedIds={savedIds} canLike={canLike} onToggleSave={toggleSave} viewCounts={viewCounts} />
 
