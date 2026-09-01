@@ -780,6 +780,58 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
      1枚＝全面／2枚＝左右半分／3枚＝左に大＋右に上下／4枚＝均等4枚／5枚以上＝Airbnbの定番。
    ★格子は【最初の5枚まで】＝残りは「すべての写真を表示」から見る（Airbnbと同じ） */
 .job-photo-mosaic { display: none; }
+
+/* ── 写真の動き（Airbnbの動きをそのまま・2026-09-01たきと指示「アニメーションもだ」）──
+   ①写真に指・矢印を重ねると、うっすら暗い膜がかかる（Airbnbの写真のホバー）
+   ②読み込めた写真からふわりと現れる（Airbnbの画像の出方）
+   ③一覧（写真の全画面）は、スマホ＝下からせり上がる／PC＝軽く浮いて現れる
+   ④ボタンは押した瞬間に少し縮む（Airbnbのボタンの手応え）
+   ★どれも prefers-reduced-motion では止める（家の規約） */
+.cb-photo-tile { position: relative; }
+.cb-photo-tile::after {
+  content: ""; position: absolute; inset: 0; background: #000; opacity: 0;
+  transition: opacity .18s ease; pointer-events: none;
+}
+@media (hover: hover) { .cb-photo-tile:hover::after { opacity: .08; } }
+.cb-photo-tile:active::after { opacity: .14; }
+
+.cb-img-in { opacity: 0; transition: opacity .35s ease; }
+.cb-img-in.is-on { opacity: 1; }
+
+@keyframes cbTourIn  { from { opacity: 0; transform: translateY(12px) scale(.99); } to { opacity: 1; transform: none; } }
+@keyframes cbTourOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px) scale(.99); } }
+@keyframes cbTourUp   { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes cbTourDown { from { transform: none; } to { transform: translateY(100%); } }
+.cb-tour-in  { animation: cbTourIn .3s cubic-bezier(.2,0,0,1); }
+.cb-tour-out { animation: cbTourOut .2s ease forwards; }
+@media (max-width: 759px) {
+  .cb-tour-in  { animation: cbTourUp .3s cubic-bezier(.2,0,0,1); }
+  .cb-tour-out { animation: cbTourDown .22s ease forwards; }
+}
+
+.cb-btn-press { transition: transform .12s ease, background-color .15s ease; }
+.cb-btn-press:active { transform: scale(.96); }
+@media (hover: hover) { .cb-hover-tint:hover { background-color: #F7F7F7; } }
+
+/* カルーセルの ‹ ›（写真・その他の求人・あなたの求人で共用）。
+   ★!important＝矢印は縦位置を inline style の transform: translateY(-50%) で持っており、
+     インラインの指定はクラスより強い。translateY を書き直す形で上書きする（消すと矢印が下へずれる） */
+.cb-carousel-arrow { transition: transform .15s ease, box-shadow .15s ease; }
+@media (hover: hover) {
+  .cb-carousel-arrow:hover { transform: translateY(-50%) scale(1.08) !important; box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
+}
+.cb-carousel-arrow:active { transform: translateY(-50%) scale(.94) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cb-photo-tile::after { transition: none; }
+  .cb-img-in { opacity: 1; transition: none; }
+  .cb-tour-in, .cb-tour-out { animation: none; }
+  .cb-btn-press { transition: none; }
+  .cb-btn-press:active { transform: none; }
+  .cb-carousel-arrow { transition: none; }
+  .cb-carousel-arrow:hover, .cb-carousel-arrow:active { transform: translateY(-50%) !important; }
+}
+
 @media (min-width: 760px) {
   .job-photo-mosaic {
     position: relative;

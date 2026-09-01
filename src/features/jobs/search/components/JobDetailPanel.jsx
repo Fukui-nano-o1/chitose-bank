@@ -121,7 +121,7 @@ export function JobDescription({ job }) {
     <AirSection title="作業内容">
       <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...clamp }}><LinkifiedText text={body} /></p>
       {isLong && !expanded && (
-        <button onClick={()=>setExpanded(true)} className="f-sans" style={{ marginTop:10, padding:0, background:"none", border:"none", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222", textDecoration:"underline" }}>もっと見る ›</button>
+        <button onClick={()=>setExpanded(true)} className="f-sans cb-btn-press" style={{ marginTop:10, padding:0, background:"none", border:"none", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222", textDecoration:"underline" }}>もっと見る ›</button>
       )}
     </AirSection>
   );
@@ -391,14 +391,25 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
     )}
   </>);
 }
+// 読み込めた写真からふわりと出す（Airbnbの画像の出方・2026-09-01）。
+// ★キャッシュ済みの写真は onLoad が走らないことがある＝、ref でも「もう読み込み済みか」を見る。
+//   動きを止めている端末（prefers-reduced-motion）ではCSS側が最初から見える形に倒す
+function FadeImg({ src, alt, style, onReady }) {
+  return (
+    <img src={src} alt={alt || ""} loading="lazy" className="cb-img-in" style={style}
+      ref={el => { if (el && el.complete) el.classList.add("is-on"); }}
+      onLoad={e => { e.currentTarget.classList.add("is-on"); onReady && onReady(); }} />
+  );
+}
+
 // 写真の1枚（モザイク格子の升目）。src が無い＝壊れた行は灰色の升目のまま（絵文字で埋めない・憲法3条）
 function PhotoCell({ photo, className, onOpen, alt }) {
   const src = typeof photo === "string" ? photo : photo?.url;
   const cap = typeof photo === "string" ? "" : photo?.caption;
   return (
-    <button type="button" onClick={onOpen} aria-label={alt} className={className}
-      style={{ position:"relative", overflow:"hidden", padding:0, border:"none", background:"#F0F0F0", cursor:"pointer", minWidth:0 }}>
-      {src && <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />}
+    <button type="button" onClick={onOpen} aria-label={alt} className={(className || "") + " cb-photo-tile"}
+      style={{ overflow:"hidden", padding:0, border:"none", background:"#F0F0F0", cursor:"pointer", minWidth:0 }}>
+      {src && <FadeImg src={src} alt={cap} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />}
     </button>
   );
 }
@@ -428,8 +439,9 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
           <PhotoCell key={i} photo={p} onOpen={()=>openTour(i)} alt={`写真 ${i + 1} 枚目を開く`}
             className={"m-cell" + (i === 0 && grid.length >= 3 ? " m-main" : "")} />
         ))}
-        {/* すべての写真を表示（Airbnbの Show all photos＝格子の右下の白いボタン） */}
-        <button type="button" onClick={()=>openTour(0)} className="f-sans"
+        {/* すべての写真を表示（Airbnbの Show all photos＝格子の右下の白いボタン）。
+            cb-btn-press＝押すと少し縮む／cb-hover-tint＝指を乗せると薄く色が付く（Airbnbのボタンの手応え） */}
+        <button type="button" onClick={()=>openTour(0)} className="f-sans cb-btn-press cb-hover-tint"
           style={{ position:"absolute", right:16, bottom:16, zIndex:2, display:"flex", alignItems:"center", gap:6,
                    background:"#fff", border:"1px solid #222", borderRadius:8, padding:"8px 14px",
                    fontSize:13, fontWeight:700, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>
@@ -451,14 +463,14 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
             // クローンを除いた本物の番号（先頭のクローンがあれば1つずれる）
             const realIdx = photosLooped ? (i === 0 ? photos.length - 1 : (i === slides.length - 1 ? 0 : i - 1)) : i;
             return (
-              <div key={i} onClick={()=>openTour(realIdx)} role="button" tabIndex={0}
+              <div key={i} onClick={()=>openTour(realIdx)} role="button" tabIndex={0} className="cb-photo-tile"
                 onKeyDown={e=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTour(realIdx); } }}
                 style={{
                   flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0",
                   display:"flex", alignItems:"center", justifyContent:"center",
-                  scrollSnapAlign:"start", position:"relative", overflow:"hidden", cursor:"pointer",
+                  scrollSnapAlign:"start", overflow:"hidden", cursor:"pointer",
                 }}>
-                {src && <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />}
+                {src && <FadeImg src={src} alt={cap} style={{ width:"100%", height:"100%", objectFit:"cover" }} />}
                 {cap && (
                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, lineHeight:1.6, boxSizing:"border-box" }}>{cap}</div>
                 )}
@@ -500,10 +512,15 @@ function JobPhotoTour({ photos, startAt, onClose }) {
     const t = setTimeout(toStart, 400);
     return () => clearTimeout(t);
   }, [startAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 閉じる動き（スマホ＝下へ降りる／PC＝軽く沈んで消える）を見せてから畳む。
+  // ★時間はCSSの cbTourOut / cbTourDown と対＝片方を変えたら必ず両方合わせる（PageGuideと同じ作法）
+  const [closing, setClosing] = useState(false);
+  const close = () => { setClosing(true); setTimeout(onClose, 220); };
   return (
-    <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10200, background:"#fff", display:"flex", flexDirection:"column", animation:"fadeIn .2s ease" }}>
+    <div className={"cb-lock-scroll " + (closing ? "cb-tour-out" : "cb-tour-in")}
+      style={{ position:"fixed", inset:0, zIndex:10200, background:"#fff", display:"flex", flexDirection:"column" }}>
       <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 12px 10px", borderBottom:"1px solid #EBEBEB" }}>
-        <button type="button" onClick={onClose} aria-label="閉じる" className="f-sans"
+        <button type="button" onClick={close} aria-label="閉じる" className="f-sans cb-btn-press cb-hover-tint"
           style={{ width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", background:"none", border:"none", cursor:"pointer", color:"#222", borderRadius:"50%" }}>
           <NavIcon name="close" size={20} />
         </button>
@@ -518,7 +535,7 @@ function JobPhotoTour({ photos, startAt, onClose }) {
             return (
               <div key={i} data-photo-idx={i}>
                 {/* 読み込みがないうちは高さが0＝位置がずれるので、読み込むたびに運び直す（上のtoStart） */}
-                {src && <img src={src} alt={cap || ""} onLoad={toStart} style={{ width:"100%", borderRadius:12, display:"block" }} />}
+                {src && <FadeImg src={src} alt={cap} onReady={toStart} style={{ width:"100%", borderRadius:12, display:"block" }} />}
                 {/* 番号は必ず出す（いま何枚目か見失わせない）。説明があればその下に */}
                 <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"6px 0 0" }}>{i + 1} / {photos.length}</p>
                 {cap && <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.7, margin:"4px 0 0", whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{cap}</p>}

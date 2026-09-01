@@ -324,8 +324,10 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
 
   return (
     <div style={{ position:'relative', ...wrapperStyle }}>
+      {/* cb-carousel-arrow＝指を乗せると少し大きく・押すと縮む（Airbnbの矢印の手応え・2026-09-01）。
+          動きを止めている端末では効かない（appStylesの prefers-reduced-motion） */}
       {!atLeft && (
-        <button onClick={() => scroll(-1)} className="f-sans"
+        <button onClick={() => scroll(-1)} className="f-sans cb-carousel-arrow"
           style={{ ...btnStyle, left:arrowInset }}>‹</button>
       )}
       {/* touchAction:pan-x pan-y（2026-07-16）：横ドラッグ=カルーセル／縦ドラッグ=ページスクロールに変換。
@@ -334,7 +336,7 @@ export function Carousel({ children, style, className, wrapperStyle, onScroll, s
         {children}
       </div>
       {!atRight && (
-        <button onClick={() => scroll(1)} className="f-sans"
+        <button onClick={() => scroll(1)} className="f-sans cb-carousel-arrow"
           style={{ ...btnStyle, right:arrowInset }}>›</button>
       )}
     </div>

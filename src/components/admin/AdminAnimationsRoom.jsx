@@ -34,6 +34,9 @@ const CELEBRATIONS = [
 const EMBEDDED = [
   { l:"採用の押印（文字の印・広がる輪・光の粒）", hash:"/calendar/todo/hire",  where:"採用するページ。採用を実行した時" },
   { l:"委託ページの入場演出（幕・草・太陽・花火）", hash:"/admin/consignment", where:"委託 準備室を開いた時" },
+  // 2026-09-01たきと指示「アニメーションもだ」＝求人詳細の写真まわりの動き（Airbnbの写し）
+  { l:"求人詳細の写真（重なる影・ふわり・写真の一覧の開閉）", hash:"/search",
+    where:"さがす → 求人を開く → 写真に指を乗せる／タップして一覧を開く・閉じる" },
 ];
 
 export function AdminAnimationsRoom() {
