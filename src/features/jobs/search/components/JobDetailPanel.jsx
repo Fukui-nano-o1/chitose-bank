@@ -540,6 +540,9 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
       <div className="job-photo-carousel" style={{ position:"relative" }}>
         <Carousel
           className="carousel-scroll"
+          /* 写真は画面いっぱい＝‹ › を外へはみ出させると画面の端で半分に切れる（2026-09-01）。
+             既定の -16 でなく 8＝画面の内側に置く */
+          arrowInset={8}
           style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
           onScroll={onScroll}
           scrollerRef={scrollerRef}
@@ -550,10 +553,10 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
             // クローンを除いた本物の番号（先頭のクローンがあれば1つずれる）
             const realIdx = photosLooped ? (i === 0 ? photos.length - 1 : (i === slides.length - 1 ? 0 : i - 1)) : i;
             return (
-              <div key={i} onClick={()=>openTour(realIdx)} role="button" tabIndex={0} className="cb-photo-tile"
+              <div key={i} onClick={()=>openTour(realIdx)} role="button" tabIndex={0} className="cb-photo-tile job-photo-slide"
                 onKeyDown={e=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTour(realIdx); } }}
                 style={{
-                  flexShrink:0, width:"100%", height:392, borderRadius:12, background:"#F0F0F0",
+                  flexShrink:0, width:"100%", height:392, background:"#F0F0F0", /* 角丸は .job-photo-slide（CSS）が持つ＝スマホの全面表示では0にする */
                   display:"flex", alignItems:"center", justifyContent:"center",
                   scrollSnapAlign:"start", overflow:"hidden", cursor:"pointer",
                 }}>

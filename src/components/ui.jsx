@@ -260,7 +260,7 @@ export const Dots = () => (
 // ダミー写真・絵文字の水増しはしない（憲法3条＝実データ／未設定／非表示の三択）。
 // アイコン未設定の雇い手は Avatar が名前の頭文字の丸を出す＝これも実データ
 export const JobPhotoFallback = ({ url, name }) => (
-  <div style={{ width:"100%", height:392, borderRadius:12, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center" }}>
+  <div className="job-photo-fallback" style={{ width:"100%", height:392, borderRadius:12, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center" }}>
     <Avatar url={url} name={name} size={168} />
   </div>
 );

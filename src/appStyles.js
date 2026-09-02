@@ -780,6 +780,9 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
      1枚＝全面／2枚＝左右半分／3枚＝左に大＋右に上下／4枚＝均等4枚／5枚以上＝Airbnbの定番。
    ★格子は【最初の5枚まで】＝残りは「すべての写真を表示」から見る（Airbnbと同じ） */
 .job-photo-mosaic { display: none; }
+/* スマホの写真1枚（横スワイプの1コマ）。画面いっぱいの表紙＝角は丸めない。
+   ★このコマが出るのはスマホだけ（PCは .job-photo-carousel を display:none にしている） */
+.job-photo-slide { border-radius: 0; }
 
 /* ── スクロールの作り（Airbnbのスマホと同じ・2026-09-01たきと指示
    「写真は移動していない。詳細がスクロールしている」）──
@@ -790,7 +793,17 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
    ★紙は左右いっぱいに広げて写真を覆う：main の左右余白12pxを負の余白で打ち消し、
      同じだけ内側に戻す（2026-08-16の「広げて戻す」と同じ手） */
 @media (max-width: 759px) {
-  .job-hero { position: sticky; top: calc(10px + env(safe-area-inset-top, 0px)); z-index: 0; }
+  /* 写真は画面の天から左右いっぱいまで（2026-09-01たきと指示「画面上部の余白を埋めよう」）。
+     main の上余白（10px＋セーフエリア）を消し、左右12pxは負の余白で打ち消す＝Airbnbと同じ全面の写真。
+     ★上の余白を消してよいのは【写真が先頭に来るこのページだけ】＝文字を天に置くと
+       時計・ノッチの下に潜る（2026-07-31にmainへ余白を入れた理由）。他のページでは真似しない */
+  body:has(.job-detail-body-mobile) main { padding-top: 0 !important; }
+  .job-hero { position: sticky; top: 0; z-index: 0; margin: 0 -12px; }
+  /* 全面＝角は丸めない（写真の丸みは一覧のカードの作法・ここは画面いっぱいの表紙）。
+     ★写真が無い時の表紙（JobPhotoFallback）は角丸を style で持っており、
+       inline は class より強いので !important で書き直す。求人フローの確認ページでも
+       同じ部品を使うが、あちらは .job-hero の外＝丸いまま（この指定は届かない） */
+  .job-hero .job-photo-fallback { border-radius: 0 !important; }
   .job-detail-sheet {
     position: relative; z-index: 1;
     background: #fff;
@@ -1345,9 +1358,9 @@ html.cb-drag-lock, body.cb-drag-lock { overflow: hidden !important; overscroll-b
   .job-float-back, .job-float-right { top: 76px; } /* PCは上部ヘッダーの下 */
 }
 
-/* ── 求人詳細（スマホ専用）：上部タブバー直下・末尾の余白を詰める ── */
+/* ── 求人詳細（スマホ専用）：末尾の余白を詰める ──
+   .job-detail-back-btn（写真の上の空きスペーサー）は 2026-09-01 に本体ごと削除＝規則も消した */
 @media (max-width: 759px) {
-  .job-detail-back-btn { margin-bottom: 8px !important; }
   .job-detail-more-jobs { margin-bottom: 4px !important; }
 }
 
