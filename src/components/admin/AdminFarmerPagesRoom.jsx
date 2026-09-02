@@ -17,9 +17,10 @@
 // ★1画面=STEPSの1要素。画面を足す・消す・並べ替えるのは STEPS だけを直す（他を壊さない）。
 //   url は必ず実コードにgrepで当ててから書く（2026-08-11：旧#/roleを載せて旧遺物を指摘された）。
 import { useState, useEffect } from "react";
-import { LFWizCard, LFCropGrid, LFPillSelect, Avatar, StatusRibbon, JobRow } from "../ui";
+import { LFWizCard, LFCropGrid, LFPillSelect, Avatar } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
-import { JobCard, JOB_CARD_RELATED_SIZE, JOB_CARD_PHOTO_H } from "../JobCard";
+import { JobCard } from "../JobCard";
+import { OwnJobTile, ownJobState, OWN_JOB_GRID_CLASS } from "../OwnJobTile";
 import { Celebration } from "../Celebration";
 import { WorkerTrustCard } from "../TrustCards";
 import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
@@ -80,20 +81,14 @@ function Btn({ children, kind = "primary" }) {
     : { background:"#fff", color:"#444", border:"1px solid #DDD" };
   return <span className="f-sans" style={{ display:"block", flex:1, textAlign:"center", padding:"12px 16px", borderRadius:14, fontSize:14, fontWeight:800, ...s }}>{children}</span>;
 }
-/* 自分の求人カード（作成中・公開中パネル）＝本物の JobCard（wide）をそのまま使う。
-   2026-08-23たきと指示「その他の求人カードと同じ設計に」で本番thatこの形になったso、
-   見本帳も写経をやめて実物に合わせた（FarmerDashboard.renderOwnJobCard と同じ組み立て）。
-   状態の帯（公開間近／一時非公開）はカードの外側に重ねる＝本番と同じ */
-function JobTile({ job, ribbon }) {
+/* 自分の求人カード＝本物の OwnJobTile（components/OwnJobTile）をそのまま使う。
+   2026-09-02たきと指示「あなたの求人ページもAirbnbをパクれ」で本番がAirbnbのホストの
+   Listings のカード（写真の左上に状態のピル・下に題名と場所）になった＝見本帳も同じ部品で描く。
+   状態は ownJobState（求人の行から導く）＝本番と同じ物差し */
+function JobTile({ crop, task, num, sub, row }) {
   return (
-    <div style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
-      <JobCard job={job} variant="related" onOpen={noop} />
-      {ribbon && (
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:JOB_CARD_PHOTO_H, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>
-          <StatusRibbon label={ribbon} color="#0E8A6B" />
-        </div>
-      )}
-    </div>
+    <OwnJobTile title={[crop, task].filter(Boolean).join(" ") || "無題の求人"} sub={sub} jobNumber={num}
+      state={ownJobState(row)} photo="" avatarUrl="" avatarName="千歳農園" onOpen={noop} />
   );
 }
 function PhaseChip({ k }) {
@@ -424,24 +419,25 @@ const STEPS = [
         </p>
       </div>
     ) },
-  { ch:"掲載する", name:"自分の求人", url:"#/profile/employer/drafts ／ /active", act:"作成中と公開中を上のタブで行き来する。指でも横に送れる。グループ（作成中／公開間近など）ごとにカードが横に並び、指でスライドして送る。掲載は即公開（2026-08-14承認プロセス削除）。公開の処理が完了しなかった求人にだけ「公開間近」の帯が付く（運営が開く救済経路）。",
+  { ch:"掲載する", name:"あなたの求人", url:"#/profile/employer/drafts ／ /active ／ /expired", act:"Airbnbのホストの「リスティング」の型（2026-09-02）。上に大きな題名と右上の黒い＋（新しく求人を出す）。その下のチップ（作成中／公開中／終了・件数つき）で絞り込む。カードは写真の左上に状態のピル（作成中／公開間近／掲載中／満員／一時非公開／終了）、下に題名と#No.・場所と日程。掲載は即公開（2026-08-14承認プロセス削除）。公開の処理が完了しなかった求人にだけ「公開間近」が付く（運営が開く救済経路）。右下の操作ピル（再開／コピー／削除・非公開）は従来どおり。",
     body: () => (
       <div style={{ padding:14 }}>
-        <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
-          <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`2px solid ${INK}`, background:"#fff", fontSize:14, fontWeight:800, color:INK }}>作成中（2）</span>
-          <span className="f-sans" style={{ flex:1, textAlign:"center", padding:"11px 0", borderRadius:12, border:`1px solid ${LINE}`, background:"#fff", fontSize:14, fontWeight:600, color:"#999" }}>公開中（1）</span>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"4px 0 14px" }}>
+          <h2 className="f-sans" style={{ fontSize:26, fontWeight:800, color:INK, margin:0, letterSpacing:"-0.01em" }}>あなたの求人</h2>
+          <span aria-hidden="true" style={{ width:40, height:40, borderRadius:"50%", background:INK, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><NavIcon name="plus" size={20} /></span>
         </div>
-        {/* グループ（作成中／公開間近）ごとに横に並べて指でスライドする＝本番と同じ（2026-08-23） */}
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 6px" }}>作成中（2）</p>
-        <div style={{ marginBottom:14 }}><JobRow count={2}>
-          <JobTile job={{ ...SAMPLE_JOB, id:1202, crop:"レタス", task:"定植", isNew:false, beginnerOk:false }} />
-          {/* 何も入力していない下書き＝題名のフォールバック・報酬なし（本番と同じ見え方） */}
-          <JobTile job={{ ...SAMPLE_JOB, id:1203, crop:"無題の求人", task:"", pay:0, isNew:false, beginnerOk:false, dateStartRaw:"", dateEndRaw:"" }} />
-        </JobRow></div>
-        <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#0E8A6B", margin:"0 0 6px" }}>公開間近（1）</p>
-        <JobRow count={1}>
-          <JobTile ribbon="公開間近" job={{ ...SAMPLE_JOB, id:1201, crop:"ブロッコリー", task:"収穫" }} />
-        </JobRow>
+        <div style={{ display:"flex", gap:8, margin:"0 0 18px" }}>
+          {[["作成中 3", true], ["公開中 1", false], ["終了", false]].map(([l, on]) => (
+            <span key={l} className="f-sans" style={{ flexShrink:0, padding:"9px 16px", borderRadius:30, border: on ? `1px solid ${INK}` : `1px solid ${LINE}`, background: on ? INK : "#fff", color: on ? "#fff" : INK, fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>{l}</span>
+          ))}
+        </div>
+        {/* 格子＝本番と同じ .cb-own-jobs-grid（スマホ2列・PCは大きめ）。状態は求人の行から導く（ownJobState）＝本番と同じ物差し */}
+        <div className={OWN_JOB_GRID_CLASS}>
+          <JobTile crop="レタス" task="定植" num={1202} sub="吉野川市 · 9/10（木）〜 9/12（土）" row={{ status:"draft", opened_at:null, date_start:"2099-09-10", date_end:"2099-09-12" }} />
+          {/* 何も入力していない下書き＝題名のフォールバック（本番と同じ見え方） */}
+          <JobTile crop="" task="" num={1203} sub="" row={{ status:"draft", opened_at:null }} />
+          <JobTile crop="ブロッコリー" task="収穫" num={1201} sub="吉野川市 · 9/20（日）" row={{ status:"pending", opened_at:null, date_start:"2099-09-20" }} />
+        </div>
       </div>
     ) },
 

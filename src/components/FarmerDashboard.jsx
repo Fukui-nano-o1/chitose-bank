@@ -9,10 +9,11 @@ import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
 import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
-import { Avatar, StatusRibbon, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat, JobRow } from "./ui";
+import { Avatar, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
+import { OwnJobTile, ownJobState, ownJobPhoto, OWN_JOB_GRID_CLASS } from "./OwnJobTile";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { DragSheet } from "./DragSheet";
-import { JobCard, JOB_CARD_RELATED_SIZE, JOB_CARD_PHOTO_H } from "./JobCard";
+import { JobCard } from "./JobCard";
 import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
@@ -93,6 +94,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     try { const j = hashToJobTab(); if (j) return j; } catch {}
     return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "home";
   });
+  // あなたの求人（Airbnbのホストの Listings の型・2026-09-02）＝作成中／公開中／終了は1つのページの絞り込み
+  const isOwnJobsTab = jobTab === "draft" || jobTab === "active" || jobTab === "expired";
   // 完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：承認・採用・完了評価の成功時に1回。
   // 演出のみ＝記録・ゲートには触れない。負の場面（見送り・欠勤）では使わない
   const [celebrate, setCelebrate] = useState(null);
@@ -112,50 +115,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [todoAppIds, setTodoAppIds] = useState(() => new Set()); // 未対応（＝農家の番）の応募ID。my_todo_items由来・アイコンのジャンプに使う
   const [reviewedAppIds, setReviewedAppIds] = useState(() => new Set()); // 自分が評価を書いた応募ID。お仕事の流れバーの「評価」段の点灯に使う
 
-  // 作成中⇄公開中ページャー（2026-07-16）：2枚のパネルを横並びにし、指に追従して実際に横移動させる。
-  // 横ロック判定後はtrackのtransformを直接書く（state経由だと1フレーム遅れてカクつくため）。
-  // 端（作成中で右・公開中で左）は1/3の抵抗。離した時に幅の1/4（最大80px）を超えていたらタブ確定
-  const pagerTrackRef = useRef(null);
-  const pagerDrag = useRef(null); // {x, y, dx, lock:"h"|"v"|null, w}
-  const pagerBasePct = () => (jobTab === "draft" ? 0 : -50);
-  const onPagerStart = (e) => {
-    // グループの横スライド（.carousel-scroll）の中で始まったタッチは掴まない（2026-08-23）＝
-    // カードを送る指theタブ切替に取られない。はみ出していない（1枚だけの）グループは従来どおり
-    // ページャーに譲る＝送る余地thatが無い所でタブ切替thatが死なない
-    const hs = e.target.closest && e.target.closest(".carousel-scroll");
-    if (hs && hs.scrollWidth > hs.clientWidth + 1) { pagerDrag.current = null; return; }
-    pagerDrag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null, w: e.currentTarget.clientWidth || 1 };
-  };
-  const onPagerMove = (e) => {
-    const s = pagerDrag.current, el = pagerTrackRef.current;
-    if (!s || !el) return;
-    const dx = e.touches[0].clientX - s.x, dy = e.touches[0].clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return; // 方向が定まるまで様子見
-      s.lock = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
-    }
-    if (s.lock !== "h") return; // 縦スクロール中は関与しない
-    const atEdge = (jobTab === "draft" && dx > 0) || (jobTab === "active" && dx < 0);
-    s.dx = atEdge ? dx / 3 : dx;
-    el.style.transition = "none";
-    el.style.transform = `translateX(calc(${pagerBasePct()}% + ${s.dx}px))`;
-  };
-  const onPagerEnd = () => {
-    const s = pagerDrag.current, el = pagerTrackRef.current;
-    pagerDrag.current = null;
-    if (!s || !el || s.lock !== "h") return;
-    el.style.transition = "transform .3s ease"; // dragで消したtransitionはReactが復元しないので手で戻す
-    const threshold = Math.min(80, s.w / 4);
-    if (jobTab === "draft" && s.dx < -threshold) {
-      el.style.transform = "translateX(-50%)";
-      setJobTab("active"); window.location.hash = "/profile/employer/active";
-    } else if (jobTab === "active" && s.dx > threshold) {
-      el.style.transform = "translateX(0%)";
-      setJobTab("draft"); window.location.hash = "/profile/employer/drafts";
-    } else {
-      el.style.transform = `translateX(${pagerBasePct()}%)`; // 届かなければ元の位置へスナップバック
-    }
-  };
+  // 作成中⇄公開中のページャー（2026-07-16の2枚並び・指追従）は廃止（2026-09-02）：あなたの求人は
+  // Airbnbの Listings の型＝1ページの格子＋絞り込みのチップ（作成中／公開中／終了）になった
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（stale-while-revalidate・2026-07-27たきと指示）。
   // 待ち時間の体感を消すのが目的で、正しさは毎回の再取得で担保する。キャッシュはページ寿命だけ（lib/viewCache）
   const [dbDrafts, setDbDrafts] = useState(() => getCache("farm:drafts") ?? []);
@@ -180,14 +141,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   useEffect(() => { if (draftsLoading) return; setCache("farm:expired", dbExpired); }, [dbExpired, draftsLoading]);
   useEffect(() => { if (appsLoading) return; setCache("farm:apps", dbApplicants); }, [dbApplicants, appsLoading]);
   // 仮配置の骨を測るref（この面が実際に描いた形が、次回の読み込み中の形になる）
-  const skelDraftRef = useSkeletonProbe("farmDrafts");
+  const skelDraftRef = useSkeletonProbe("farmOwnJobs"); // あなたの求人の格子（3つの絞り込みで共用）
   // 応募者一覧のDOM参照。スワイプ判定（下部）とスケルトン計測（直下）で共用するため、
   // 使う場所より前で宣言する（constは巻き上げても初期化前に触れないため、後ろに置くと
   // 「Cannot access ... before initialization」で応募者ページが真っ白になる・2026-07-29修理）
   const appGridRef = useRef(null);
   // 応募者ページの一覧はappGridRef（スワイプ判定用）と共用なので、ref付き要素を測る版を使う
   useSkeletonProbeOn(appGridRef, ((jobTab === "applicants" || jobTab === "calendar") && !appsLoading) ? "farmList:applicants" : null);
-  const skelActiveRef = useSkeletonProbe("farmActive");
   // 名刺の氏名・アイコンを読み込み前から出す（2026-08-02たきと指示）：viewCacheに無ければsnapshot
   // （localStorage・本人の自分用データ・ログアウトで全消去）から前回値を即表示→裏で最新に差し替え
   const [empMini, setEmpMini] = useState(() => getCache("farm:empMini") ?? snapGet("empMini") ?? null); // 入口メニューの大プロフィールカード用（全列・裏面プレビューにも使用）
@@ -530,7 +490,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const armJobAction = (kind) => {
     if (armedAction === kind) { setArmedAction(null); return; }
     const jobs = kind === "resume" ? dbDrafts.filter(d => d.status === "draft")
-      : kind === "copy" ? [...dbDrafts, ...dbActive]
+      : kind === "copy" ? [...dbDrafts, ...dbActive, ...dbExpired]
       : kind === "unpublish" ? dbActive.filter(d => d.status === "open")
       : dbDrafts.filter(d => d.status === "draft" && !d.opened_at);
     if (jobs.length === 0) {
@@ -556,55 +516,47 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
   const [nearPublishInfo, setNearPublishInfo] = useState(false);
   const [nearPubDetail, setNearPubDetail] = useState(false);
-  // ── あなたの求人カード（作成中・公開中の両パネル共用・2026-08-23たきと指示
-  //    「その他の求人カードと同じ設計にしてほしい」）──
-  // さがす・関連求人と同じ JobCard を使う＝カードの顔をこの面だけ別に作らない。
-  // related は横スクロール用に幅280px固定so、縦一列のこの面には全幅版の wide を使う
-  // （2026-08-19 仕事の評価ページと同じ判断）。JobCard を直せばこの面も自動で追従する。
-  // ★この面だけの情報（状態の帯・未回答の質問）はカードの外側に重ねる＝JobCardに分岐を足さない。
-  // ribbon＝StatusRibbon（公開間近／一時非公開）。hideEndLabel＝終了の帯を出さない
-  //   （区画見出し「終了（N）」thatあるso重複させない・2026-07-27の判断を維持）。
-  const renderOwnJobCard = (d, { ribbon, hideEndLabel } = {}) => {
+  // ── あなたの求人のカード＝Airbnbのホストの「リスティング」ページの型（2026-09-02たきと指示
+  //    「あなたの求人ページもAirbnbをパクれ」）──
+  // 部品は components/OwnJobTile（見本帳と共用）。写真の左上に状態のピル（作成中／公開間近／掲載中／
+  // 満員／一時非公開／終了＝求人の行から導く）、下に題名＋#No.、灰色の1行（場所・日程）。
+  // 旧・JobCard（さがすの客側のカード）＋StatusRibbon の重ね（2026-08-23）は廃止＝ホスト側のカードは別物。
+  // ★タップの行き先は従来のまま：モード中＝実行／公開間近＝説明ボックス／それ以外＝プレビュー
+  const OWN_JOB_FILTERS = [
+    { k:"draft",   l:"作成中", h:"/profile/employer/drafts" },
+    { k:"active",  l:"公開中", h:"/profile/employer/active" },
+    { k:"expired", l:"終了",   h:"/profile/employer/expired" },
+  ];
+  const ownJobsOf = (k) => k === "draft" ? dbDrafts : k === "active" ? dbActive : k === "expired" ? dbExpired : [];
+  const OWN_JOB_EMPTY = { draft:"作成中の求人はありません", active:"公開中の求人はありません", expired:"終了した求人はありません" };
+  const OWN_JOB_EMPTY_SUB = { draft:"右上の＋から新しい求人を作れます。", active:"作成中の求人を再開して掲載すると、ここに並びます。", expired:"作業日程が過ぎた求人がここに入ります。" };
+  const renderOwnJobTile = (d) => {
     const j = mapJobPublicRow(d);
-    // 何も入力していない下書きthat名無しにならないように（JobCardは crop task をそのまま並べる）
-    if (!j.crop && !j.task) j.crop = "無題の求人";
-    // 写真の無い求人は求人者（＝自分）のアイコンを出す（2026-08-31たきと指示）。
-    // ★my_farm_jobs は求人者の列を返さない（自分の求人so不要）＝ここで自分のプロフィールから埋める。
-    //   さがす一覧は jobs_public that employer_nickname/avatar を持つので既にアイコンthat出ていた＝
-    //   この画面だけ作物の絵に落ちていた。埋めればJobCard側の既存のフォールバックthatそのまま働く
-    if (!j.employerAvatar) j.employerAvatar = empMini?.avatar_url || "";
-    if (!j.employerName) j.employerName = empMini?.nickname || me?.name || "";
+    // 何も入力していない下書きが名無しにならないように
+    const title = [j.crop, j.task].filter(Boolean).join(" ") || "無題の求人";
+    const sub = [j.region, j.dateLabel].filter(Boolean).join(" · ");
     const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
     const qn = qUnansweredMap[d.job_number] || 0;
-    const canOpenQ = d.status === "open" && !hideEndLabel;
+    const canOpenQ = d.status === "open" && !isJobEnded(d);
     return (
-      // 概要that写真の下に出る型（2026-08-31）＝カードの高さ＞写真の高さ。重ねもの（帯）は
-      // JOB_CARD_PHOTO_H で切り抜いて写真の中に収める（文字の行に掛けない・inset:0にしない）。
-      // 包む側にもカードと同じ幅を持たせる（JOB_CARD_RELATED_SIZE）＝横並び（JobRow）で潰れない。
-      // ★包まずに置くと flex thatカードをblock化するthat、包むと<a>thatinlineのままso幅thatが効かない（2026-08-23修理）
-      <div key={d.job_number} style={{ position:"relative", flexShrink:0, ...JOB_CARD_RELATED_SIZE }}>
-        <JobCard job={j} variant="related" hideEndLabel={hideEndLabel}
-          onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
-            : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
-            : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })} />
-        {ribbon && (
-          <div style={{ position:"absolute", top:0, left:0, right:0, height:JOB_CARD_PHOTO_H, borderRadius:16, overflow:"hidden", pointerEvents:"none", zIndex:3 }}>{ribbon}</div>
-        )}
-        {qn > 0 && (
-          // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。
-          // カード本体の展開とは別動作so stopPropagation＋preventDefault（JobCardは<a>）。
-          // 求人詳細は jobs_public（公開中のみ）を読むso、公開中でない求人では詳細thatが開けない
-          // ＝その場合はカードの展開に任せる（バッジは表示のみ）
+      <OwnJobTile key={d.job_number} title={title} sub={sub} jobNumber={d.job_number} state={ownJobState(d)}
+        // 写真の無い求人は求人者（＝自分）のアイコン（2026-08-31）。my_farm_jobs は求人者の列を返さないので自分のプロフィールから
+        photo={ownJobPhoto(d)} avatarUrl={empMini?.avatar_url || ""} avatarName={empMini?.nickname || me?.name || ""}
+        onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
+          : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
+          : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })}
+        badge={qn > 0 ? (
+          // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。カードのタップとは別動作（stopPropagation）。
+          // 公開中でない求人では詳細が開けない＝カードのタップに任せる（バッジは表示のみ）
           <span onClick={canOpenQ ? (e => {
-            e.preventDefault(); e.stopPropagation();
+            e.stopPropagation();
             try { sessionStorage.setItem("cb_jobBackTo", "/profile/employer/active"); } catch {}
             window.location.hash = "/work/job/" + d.job_number + "/questions";
           }) : undefined}
             role={canOpenQ ? "button" : undefined}
             aria-label={canOpenQ ? "未回答の質問を見る" : undefined}
             className="f-sans" style={{ position:"absolute", top:10, right:10, zIndex:4, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, borderRadius:20, padding:"3px 10px", boxShadow:"0 1px 4px rgba(0,0,0,0.2)", cursor: canOpenQ ? "pointer" : undefined }}>?{qn}</span>
-        )}
-      </div>
+        ) : null} />
     );
   };
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
@@ -1168,105 +1120,46 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           （☰メニュー・PCヘッダー・フッターの「求人を出す」は2026-08-19たきと指示で削除） */}
       {/* 旧タブ列は廃止（2026-07-14）：ナビは入口カードメニューに一本化。現在地の見出しだけ残す */}
       {/* 作成中⇄公開中は上部タブで行き来できる（2026-07-16）。入口ボックスはそれぞれ自分のページ（hash）を開く */}
-      {(jobTab==="draft" || jobTab==="active") ? (
-        <div style={{ display:"flex", gap:8, margin:"0 0 16px" }}>
-          {[
-            { k:"draft",  l:"作成中", h:"/profile/employer/drafts", n:dbDrafts.length },
-            { k:"active", l:"公開中", h:"/profile/employer/active", n:dbActive.length },
-          ].map(t => (
-            <button key={t.k} onClick={()=>{ if (jobTab !== t.k) { setJobTab(t.k); window.location.hash = t.h; } }} className="f-sans"
-              style={{ flex:1, padding:"11px 0", borderRadius:12, border: jobTab===t.k ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:14, fontWeight: jobTab===t.k ? 800 : 600, color: jobTab===t.k ? "#222" : "#999", cursor:"pointer" }}>
-              {t.l}{t.n > 0 ? `（${t.n}）` : ""}
-            </button>
-          ))}
-        </div>
-      ) : (jobTab==="calendar" || jobTab==="profile") ? null : (
+      {isOwnJobsTab ? null : (jobTab==="calendar" || jobTab==="profile") ? null : (
         /* 応募者ページの見出し「応募者」は削除（2026-07-26たきと指示）。現在地は下部ナビの点灯が示す。
            「雇い手プロフィール」の見出しも削除（2026-08-03たきと指示・名刺カードから開けば現在地は明らか） */
         <h2 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{(JOB_TABS.find(t => t.k === jobTab) || {}).l || ""}</h2>
       )}
-      {/* 作成中⇄公開中はページャー（2026-07-16）：文字・絵文字・ボタン・カードが指に追従して実際に横移動する */}
-      {(jobTab==="draft" || jobTab==="active") ? (
-      <div onTouchStart={onPagerStart} onTouchMove={onPagerMove} onTouchEnd={onPagerEnd} style={{ overflow:"hidden", touchAction:"pan-y" }}>
-        <div ref={pagerTrackRef} style={{ display:"flex", width:"200%", transform: jobTab==="draft" ? "translateX(0%)" : "translateX(-50%)", transition:"transform .3s ease" }}>
-          <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingRight:5 }}>
-            <div ref={skelDraftRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:16 }}>{/* 作成中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
-      {draftsLoading ? (
-          /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
-          <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmDrafts" /></div>
-        ) : dbDrafts.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>
-            <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={40} /></div>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>作成中の求人はありません</p>
-            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 求人の掲載</button>
-          </div>
-        ) : (
-          (() => {
-            // 作成中と審査中をセクションで分離（2026-07-16）。審査中は閲覧のみ（再開/削除は作成中のみ）
-            // カードは「その他の求人」と同じ設計＝renderOwnJobCard（JobCard wide）に集約（2026-08-23）。
-            // タブ名（作成中）と同じ帯は出さない（重複排除）。公開間近だけ帯を出す
-            // ＝「審査中」ではなく前向きな色（2026-08-07）
-            const renderDraftCard = (d) => renderOwnJobCard(d, {
-              ribbon: d.status === "pending" ? <StatusRibbon label="公開間近" color="#0E8A6B" /> : null,
-            });
-            const making = dbDrafts.filter(d => d.status === "draft");
-            const pending = dbDrafts.filter(d => d.status === "pending");
-            return (
-              <>
-                {making.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 -2px" }}>作成中（{making.length}）</p>}
-                {making.length > 0 && <JobRow count={making.length}>{making.map(renderDraftCard)}</JobRow>}
-                {pending.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#0E8A6B", margin:"8px 0 -2px" }}>公開間近（{pending.length}）</p>}
-                {pending.length > 0 && <JobRow count={pending.length}>{pending.map(renderDraftCard)}</JobRow>}
-              </>
-            );
-          })()
-        )}
-            </div>
-          </div>
-          <div style={{ width:"50%", flexShrink:0, boxSizing:"border-box", paddingLeft:5 }}>
-            <div ref={skelActiveRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:16 }}>{/* 公開中パネル（縦一列・カードはさがすと同じ設計・2026-08-23） */}
-      {draftsLoading ? (
-          /* 読み込み中に「公開中の求人はありません」を出すと一瞬ゼロに見える。確定するまでは仮配置 */
-          <div style={{ gridColumn:"1/-1" }}><AutoSkeleton shapeKey="farmActive" /></div>
-        ) : (dbActive.length === 0 && dbExpired.length === 0) ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0" }}>{/* 空状態は作成中ページと全く同じ配置（2026-07-16） */}
-            <div style={{ display:"flex", justifyContent:"center", marginBottom:12, color:"#C8C8C8" }}><NavIcon name="image" size={40} /></div>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>公開中の求人はありません</p>
-            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 求人の掲載</button>
-          </div>
-        ) : (
-          (() => {
-            // 審査中(pending)と公開中(open)をセクションで分離（2026-07-16）。
-            // 終了（作業日程が過ぎた求人）も公開中ボックスに残す（2026-07-22）。
-            // カードは「その他の求人」と同じ設計＝renderOwnJobCard（JobCard wide）に集約（2026-08-23）。
-            // 帯は見出しと重複させない（2026-07-25／2026-07-27たきと指示）：タブ名と同じ「公開中」は出さず、
-            // 区画見出し「終了（N）」thatある終了の段も帯を出さない（hideEndLabel）。
-            // ★公開中の段では終了帯を出す＝満員（募集終了（満員））thatカードで分かる。
-            //   従来この面は満員を表示できず、公開中の求人と見分けthatつかなかった
-            const renderActiveJobCard = (d, ended=false) => renderOwnJobCard(d, {
-              hideEndLabel: ended,
-              ribbon: (!ended && d.status !== "open")
-                ? <StatusRibbon label={d.status==="draft" ? "一時非公開" : "公開間近"} color={d.status==="draft" ? "#757575" : "#0E8A6B"} />
-                : null,
-            });
-            const open = dbActive.filter(d => d.status === "open");
-            const unpub = dbActive.filter(d => d.status === "draft"); // 一時非公開（掲載歴あり）
-            const ended = dbExpired; // 作業日程が過ぎた求人＝終了（探すからは自動で外れるが、農家の公開中ボックスには残す）
-            return (
-              <>
-                {open.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 -2px" }}>公開中（{open.length}）</p>}
-                {open.length > 0 && <JobRow count={open.length}>{open.map(d => renderActiveJobCard(d))}</JobRow>}
-                {unpub.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#757575", margin:"8px 0 -2px" }}>一時非公開（{unpub.length}）</p>}
-                {unpub.length > 0 && <JobRow count={unpub.length}>{unpub.map(d => renderActiveJobCard(d))}</JobRow>}
-                {ended.length > 0 && <p className="f-sans" style={{ gridColumn:"1/-1", fontSize:13, fontWeight:700, color:"#9E9E9E", margin:"8px 0 -2px" }}>終了（{ended.length}）</p>}
-                {ended.length > 0 && <JobRow count={ended.length}>{ended.map(d => renderActiveJobCard(d, true))}</JobRow>}
-              </>
-            );
-          })()
-        )}
-            </div>
-          </div>
+      {/* ── あなたの求人＝Airbnbのホストの「リスティング」ページの型（2026-09-02たきと指示）──
+           上＝大きな題名「あなたの求人」＋右に黒い丸の＋（新しく求人を出す）／その下＝絞り込みのチップ
+           （作成中／公開中／終了・件数つき・選択中は黒）／本体＝カードの格子（スマホ2列・PCは幅なり）。
+           旧・作成中⇄公開中の2枚並びページャーとグループごとの横スライド（2026-08-23）は廃止。
+           URL（/profile/employer/drafts・/active・/expired）と jobTab はそのまま＝チップが面を切り替える */}
+      {isOwnJobsTab ? (
+      <div ref={skelDraftRef}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"4px 0 14px" }}>
+          <h2 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:0, letterSpacing:"-0.01em" }}>あなたの求人</h2>
+          <button onClick={onNewJob} aria-label="新しく求人を出す" className="f-sans cb-btn-press"
+            style={{ width:40, height:40, borderRadius:"50%", background:"#222", color:"#fff", border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0, flexShrink:0 }}>
+            <NavIcon name="plus" size={20} />
+          </button>
         </div>
+        <div style={{ display:"flex", gap:8, overflowX:"auto", margin:"0 0 18px", paddingBottom:2 }}>
+          {OWN_JOB_FILTERS.map(t => { const on = jobTab === t.k; const n = ownJobsOf(t.k).length; return (
+            <button key={t.k} onClick={()=>{ if (!on) { setJobTab(t.k); window.location.hash = t.h; } }} className="f-sans" aria-pressed={on}
+              style={{ flexShrink:0, padding:"9px 16px", borderRadius:30, border: on ? "1px solid #222" : "1px solid #DDDDDD", background: on ? "#222" : "#fff", color: on ? "#fff" : "#222", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+              {t.l}{n > 0 ? ` ${n}` : ""}
+            </button>
+          ); })}
+        </div>
+        {draftsLoading ? (
+          /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
+          <AutoSkeleton shapeKey="farmOwnJobs" />
+        ) : ownJobsOf(jobTab).length === 0 ? (
+          <div style={{ textAlign:"center", padding:"56px 0 40px" }}>
+            <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name={jobTab === "expired" ? "ended" : "sprout"} size={40} /></div>
+            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{OWN_JOB_EMPTY[jobTab]}</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 20px" }}>{OWN_JOB_EMPTY_SUB[jobTab]}</p>
+            <button onClick={onNewJob} className="btn-primary" style={{ padding:"12px 28px", fontSize:14 }}>＋ 求人の掲載</button>
+          </div>
+        ) : (
+          <div className={OWN_JOB_GRID_CLASS}>{ownJobsOf(jobTab).map(renderOwnJobTile)}</div>
+        )}
       </div>
       ) : (
       <div ref={appGridRef}
@@ -1660,23 +1553,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
               : [calendarTop, ...body, workerCards];
           })()
         )
-      ) : jobTab==="expired" ? (
-        dbExpired.length === 0 ? (
-          <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-            <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><NavIcon name="ended" size={40} /></div>
-            <p style={{ fontSize:14, margin:0 }}>期限切れの求人はありません</p>
-            <p style={{ fontSize:12, margin:0, marginTop:6, color:"#B0B0B0" }}>作業日程が過ぎた求人がここに入ります。</p>
-          </div>
-        ) : (
-          // カードは「その他の求人」と同じ設計＝作成中・公開中と同じ renderOwnJobCard（2026-08-23）。
-          // 帯は「期限切れ」だけ＝このタブ自体that期限切れso、JobCardの終了帯は出さない（重複排除）
-          <JobRow count={dbExpired.length}>
-            {dbExpired.map(d => renderOwnJobCard(d, {
-              hideEndLabel: true,
-              ribbon: <StatusRibbon label="期限切れ" color="#9E9E9E" />,
-            }))}
-          </JobRow>
-        )
       ) : jobList.length === 0 ? (
         <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"56px 0 40px" }}>
           <div style={{ marginBottom:14, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name="sprout" size={44} /></div>
@@ -1866,7 +1742,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
            最終確認は削除・非公開のみ（runJobAction内のconfirm）。再開・コピーは即実行。
            3つ目のピルはペインで切替：作成中＝削除／公開中＝非公開（key切替でcbPillSwapアニメ）。
            削除の対象は下書き（一度も掲載していない）のみ＝DBの trg_block_delete_past_job と二重の壁 */}
-      {(jobTab === "draft" || jobTab === "active") && (<>
+      {isOwnJobsTab && (<>
         {/* モード中の案内バブル：画面中央に配置（2026-08-07たきと指示。ピル行の左端anchorだと右にはみ出していた）。
             pointer-events:none＝下のカードのタップを妨げない */}
         {armedAction && (
@@ -1895,10 +1771,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button key="unpublish" onClick={()=>armJobAction("unpublish")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
               background: armedAction === "unpublish" ? "#C77700" : "#fff", color: armedAction === "unpublish" ? "#fff" : "#C77700", border:"1.5px solid #FFB020",
               boxShadow: armedAction === "unpublish" ? "0 0 0 3px rgba(199,119,0,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "unpublish") ? 1 : 0.45 }}>非公開</button>
-          ) : (
+          ) : jobTab === "draft" ? (
             <button key="delete" onClick={()=>armJobAction("delete")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
               background: armedAction === "delete" ? "#E24B4A" : "#fff", color: armedAction === "delete" ? "#fff" : "#E24B4A", border:"1.5px solid #E24B4A",
               boxShadow: armedAction === "delete" ? "0 0 0 3px rgba(226,75,74,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "delete") ? 1 : 0.45 }}>削除</button>
+          ) : (
+            /* 終了の絞り込み＝削除も非公開もできない（過去の求人は消さない・2026-08-05）＝枠だけ空けて詰めない */
+            <span aria-hidden="true" className="f-sans" style={{ visibility:"hidden", pointerEvents:"none", padding:"12px 16px", fontSize:13, fontWeight:800, border:"none", borderRadius:24, whiteSpace:"nowrap" }}>削除</span>
           )}
         </div>
       </>)}

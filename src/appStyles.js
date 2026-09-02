@@ -1391,6 +1391,15 @@ html.cb-drag-lock, body.cb-drag-lock { overflow: hidden !important; overscroll-b
   }
 }
 
+/* ── あなたの求人の格子（Airbnbのホストの Listings・2026-09-02）──
+   スマホ＝2列（160px以上で折り返し）／PC＝大きめのカード（240px以上）で幅なりの列数。
+   minmax(0 側は min(100%, …)) で、1行で省略する題名が列幅を押し広げない（2026-08-16の子minWidth:0と同じ理屈）。
+   使い手＝FarmerDashboard（本番）と AdminFarmerPagesRoom（見本帳）＝クラス名は OwnJobTile の OWN_JOB_GRID_CLASS */
+.cb-own-jobs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: 18px 12px; }
+@media (min-width: 760px) {
+  .cb-own-jobs-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 28px 20px; }
+}
+
 /* ── 求人詳細（スマホ専用）：末尾の余白を詰める ──
    .job-detail-back-btn（写真の上の空きスペーサー）は 2026-09-01 に本体ごと削除＝規則も消した */
 @media (max-width: 759px) {
