@@ -1306,7 +1306,7 @@ export function JobSearchMapView({ onRegister, me }) {
           alignItems:"center", justifyContent:"space-between", gap:24,
         }}>
           <span className="f-mono" style={{ fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(selectedJob)}</span>
-          <button onClick={()=>setOwnMenuOpen(true)} className="btn-primary f-sans"
+          <button data-guide="own-job-btn" onClick={()=>setOwnMenuOpen(true)} className="btn-primary f-sans"
             style={{ padding:"14px 32px", fontSize:15, fontWeight:700, borderRadius:14, whiteSpace:"nowrap" }}>あなたの求人</button>
         </div>
       )}

@@ -109,7 +109,9 @@ export function ApplyBarMobile({ selectedJob, isOwnJob, ownLoaded, setOwnMenuOpe
       <div className="mobile-apply-bar" style={{ boxShadow:"0 -4px 16px rgba(0,0,0,0.08)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
           <span className="f-mono" style={{ fontSize:16, fontWeight:800, color:"#222", flexShrink:0, whiteSpace:"nowrap" }}>{payLabel(selectedJob)}</span>
-          <button onClick={()=>setOwnMenuOpen(true)} className="btn-primary f-sans"
+          {/* data-guide="own-job-btn"＝この画面の説明が「自分の求人の詳細」だと見分ける目印＋スポットライトの的
+              （2026-09-02たきと指示「自分の求人詳細は分けて説明しよう」）。応募ボタンの apply-btn と対 */}
+          <button data-guide="own-job-btn" onClick={()=>setOwnMenuOpen(true)} className="btn-primary f-sans"
             style={{ flex:1, minWidth:0, padding:"12px 12px", fontSize:14, fontWeight:700, borderRadius:14, lineHeight:1.35, textAlign:"center" }}>あなたの求人</button>
         </div>
         <p className="f-sans" style={{ fontSize:11, color:"#888", textAlign:"center", margin:0, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>

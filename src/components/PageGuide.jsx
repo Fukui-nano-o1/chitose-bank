@@ -74,6 +74,16 @@ const GUIDE_ART = {
       <path d="M44 44h32" /><path d="M44 52h32" /><path d="M44 60h22" />
     </svg>
   ),
+  // 自分の求人の詳細＝同じ書面に「自分のもの」の印（右上のレ点つきの丸）
+  jobDetailOwn: (
+    <svg {...ART_PROPS}>
+      <rect x="30" y="12" width="44" height="60" rx="6" />
+      <rect x="36" y="18" width="32" height="18" rx="3" />
+      <path d="M36 44h32" /><path d="M36 52h32" /><path d="M36 60h22" />
+      <circle cx="86" cy="18" r="11" fill="#fff" />
+      <path d="M80.5 18.5l3.5 3.5 7-7.5" />
+    </svg>
+  ),
   // カレンダー（働き手・農家で共用）＝盤面と決まった日
   calendar: (
     <svg {...ART_PROPS}>
@@ -164,9 +174,27 @@ const PAGE_GUIDES = [
     ],
     spots: [{ sel: '[data-guide="job-card"]', label: "求人カードです。タップすると、仕事のくわしい内容が開きます。" }],
   },
+  // ★同じURL（work/job/N）に2つの説明がある＝自分が出した求人か、ほかの人の求人か（2026-09-02たきと指示
+  //   「自分の求人詳細は分けて説明しよう」）。URLでは見分けられないので detect＝画面のボタンで見分ける：
+  //   下部が「あなたの求人」（own-job-btn）なら自分の、「応募する」（apply-btn）ならほかの人の。
+  //   どちらもまだ無い（求人の読み込み中・自分の求人かの判定待ち）なら【保留】＝resolveGuide が pending を返し、
+  //   自動表示は少し待って撃ち直す（先に決めて間違った説明を出さない・既読にもしない）
+  {
+    key: "jobDetailOwn", title: "あなたが出した求人", art: "jobDetailOwn",
+    match: (h) => h.startsWith("work/job/"),
+    detect: () => !!document.querySelector('[data-guide="own-job-btn"]'),
+    lead: "あなたが出した求人を、働き手に見えているのと同じ姿で確認する画面です。",
+    rows: [
+      { icon: "views", t: "働き手にはこう見えています", d: "写真・日程・場所・報酬を、応募する人と同じ形で確かめられます" },
+      { icon: "postJob", t: "操作は下の「あなたの求人」から", d: "コピーして新しく出す／一時非公開にする／応募者一覧を見る" },
+      { icon: "inbox", t: "応募が来たら応募者一覧へ", d: "この求人に届いた応募だけが並び、承認や採用へ進めます" },
+    ],
+    spots: [{ sel: '[data-guide="own-job-btn"]', label: "あなたの求人の操作はここから。コピー・一時非公開・応募者一覧が出ます。" }],
+  },
   {
     key: "jobDetail", title: "求人のくわしい内容", art: "jobDetail",
     match: (h) => h.startsWith("work/job/"),
+    detect: () => !!document.querySelector('[data-guide="apply-btn"]'),
     lead: "1つの求人のくわしい内容の画面です。",
     rows: [
       { icon: "clipboard", t: "内容は上から順に", d: "仕事の内容・日程・場所・報酬・保険が並びます" },
@@ -269,7 +297,24 @@ const PAGE_GUIDES = [
   },
 ];
 
+export const GUIDE_PENDING = "pending";
+// URLと画面の両方で決める。返り値＝台帳の1件／null（説明の無いページ）／GUIDE_PENDING
+// （URLは合うが detect がまだどれも真でない＝画面の読み込み待ち）。
+export function resolveGuide(hash) {
+  const h = (hash || "").replace(/^#\/?/, "");
+  let waiting = false;
+  for (const g of PAGE_GUIDES) {
+    if (!g.match(h)) continue;
+    if (!g.detect) return g;
+    if (g.detect()) return g;
+    waiting = true;
+  }
+  return waiting ? GUIDE_PENDING : null;
+}
+// ☰の項目の出し分けなど「いま何か説明があるか」だけ知りたい側＝保留なら、URLで合う先頭の説明に倒す
 export function guideForHash(hash) {
+  const r = resolveGuide(hash);
+  if (r !== GUIDE_PENDING) return r;
   const h = (hash || "").replace(/^#\/?/, "");
   for (const g of PAGE_GUIDES) { if (g.match(h)) return g; }
   return null;
@@ -337,22 +382,35 @@ export function PageGuide({ suspend = false }) {
   // はじめて開いたページで一度だけ自動表示。連続の画面移動では出さない（800ms落ち着いてから）
   useEffect(() => {
     let timer = 0;
+    // 画面の読み込み待ち（resolveGuide が pending）の撃ち直し＝400msごと・最大15回（約6秒）。
+    // それでも決まらなければ諦める（既読にしない＝次に開いた時にまた試す）
+    const PENDING_RETRY_MS = 400, PENDING_RETRY_MAX = 15;
     const consider = () => {
       clearTimeout(timer);
       setSpot(null); // 画面が変わったらスポットライトは畳む（的の位置がもう無い）
-      const g = guideForHash(window.location.hash);
-      if (!g) return;
-      if (readSeen()[g.key]) return;
-      timer = setTimeout(() => {
+      const startHash = window.location.hash;
+      const r0 = resolveGuide(startHash);
+      if (!r0) return;
+      if (r0 !== GUIDE_PENDING && readSeen()[r0.key]) return;
+      let tries = 0;
+      const fire = () => {
+        if (window.location.hash !== startHash) return; // もう別のページ
+        const r = resolveGuide(window.location.hash);
+        if (!r) return;
+        if (r === GUIDE_PENDING) {                    // 自分の求人か・ほかの人のかが、まだ画面に出ていない
+          if (++tries >= PENDING_RETRY_MAX) return;
+          timer = setTimeout(fire, PENDING_RETRY_MS);
+          return;
+        }
         if (suspendRef.current) return;               // 全画面の用件（登録・再同意）が先
-        if (readSeen()[g.key]) return;                // 待っている間に別経路で既読になった
-        if (guideForHash(window.location.hash)?.key !== g.key) return; // もう別のページ
+        if (readSeen()[r.key]) return;                // 待っている間に別経路で既読になった
         // 他のボックスが開いている間は出さない（お知らせ・祝祭などに重ねない）。
         // 既読にはしない＝次にこのページを開いた時にあらためて出る
         if (document.querySelector(".cb-box-overlay, .cb-sheet-up")) return;
-        markSeen(g.key); // 出した時点で既読（同じ説明で二度さえぎらない）
-        open(g);
-      }, 800);
+        markSeen(r.key); // 出した時点で既読（同じ説明で二度さえぎらない）
+        open(r);
+      };
+      timer = setTimeout(fire, 800);
     };
     consider();
     window.addEventListener("hashchange", consider);
