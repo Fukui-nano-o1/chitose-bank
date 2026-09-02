@@ -501,6 +501,45 @@ function PhotoCell({ photo, className, onOpen, alt }) {
   );
 }
 
+// 上部のバー（Airbnbのスマホ・2026-09-02たきと指示「上部にもバーを設置。写真と重複する時は
+// 背景を少しずつ透明に」）。写真の上では透明＝丸い浮遊ボタンだけが見える。白い紙（.job-detail-sheet）が
+// 上端に近づくにつれて白くなり、届いた時に白いバー＋下のうすい線になる。同時に丸ボタンの
+// 白い丸・影が消えて素のアイコンになる（Airbnbの写真の上→バーの上の変わり方）。
+// ・進み具合は 1 つの CSS 変数 --job-bar（0＝写真の上／1＝紙の上）に書き、バーの背景・線・
+//   丸ボタンの丸は全部その変数から色を作る（appStyles）＝数字を1箇所に置く
+// ・紙の上端がバーの下端から120px手前に来たら色づき始め、届いたら1になる
+// ・スクロールの読みは rAF で1フレーム1回。スマホだけ（PCは上部ヘッダーが別にある）
+// ・バーは見た目だけ（pointer-events:none）。完全に白くなった時だけ下の中身を押させない（is-solid）
+export function JobTopBar() {
+  const barRef = useRef(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    let raf = 0;
+    const tick = () => {
+      raf = 0;
+      const mobile = window.matchMedia && window.matchMedia("(max-width: 759px)").matches;
+      const sheet = mobile ? document.querySelector(".job-detail-sheet") : null;
+      if (!sheet) { root.style.setProperty("--job-bar", "0"); return; }
+      const barH = barRef.current ? barRef.current.getBoundingClientRect().height : 62;
+      const top = sheet.getBoundingClientRect().top;
+      const p = Math.max(0, Math.min(1, 1 - (top - barH) / 120));
+      root.style.setProperty("--job-bar", p.toFixed(3));
+      if (barRef.current) barRef.current.classList.toggle("is-solid", p >= 0.999);
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(tick); };
+    tick();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+      root.style.removeProperty("--job-bar");
+    };
+  }, []);
+  return <div ref={barRef} className="job-topbar" aria-hidden="true" />;
+}
+
 // いちばん上で指を下に引くと、写真が指の分だけ寄る（Airbnbのスマホの「引き伸ばし」・
 // 2026-09-02たきと指示「トップまでスクロールしたら写真をすこしアップにして」）。
 // ・写真は下端を基点に大きくなる（transform-origin 50% 100%）＝ラバーバンドで画面が下がるぶんを

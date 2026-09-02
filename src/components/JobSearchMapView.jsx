@@ -27,7 +27,7 @@ import { readStoredSearch, writeStoredSearch } from "../features/jobs/search/fil
 import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/SearchFilterPanel";
 import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
   JobLocationSection, JobReviewsAndHost, JobThingsToKnow,
-  JobPhotoGallery, RelatedJobs } from "../features/jobs/search/components/JobDetailPanel";
+  JobPhotoGallery, RelatedJobs, JobTopBar } from "../features/jobs/search/components/JobDetailPanel";
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile, ApplyConfirmBox } from "../features/jobs/search/components/ApplyPanel";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
@@ -1136,6 +1136,9 @@ export function JobSearchMapView({ onRegister, me }) {
             根拠だった下部ナビの「今日」タブが無くなったため、出どころが用件ページ（/calendar/todo/*）でも
             浮遊の←が唯一の戻り道になる。古い端末の残骸（backTo="/calendar"）も←で戻れる
             （/calendar はマイページへリダイレクトされる） */}
+        {/* 上部のバー（スマホ・Airbnb）＝写真の上は透明、紙が上端に届くと白くなる。
+            丸ボタン3つ（job-float-btn）の丸も同じ進み具合で消える（2026-09-02たきと指示） */}
+        <JobTopBar />
         {(
         <button onClick={() => {
           // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
@@ -1150,7 +1153,7 @@ export function JobSearchMapView({ onRegister, me }) {
           // チャット等の出どころから来た場合はそこへ戻る（2026-07-16）
           if (backTo) { setSelectedJob(null); setBackTo(null); window.location.hash = backTo; return; }
           setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
-        }} className="f-sans job-float-back cb-btn-press cb-hover-tint"
+        }} className="f-sans job-float-back job-float-btn cb-btn-press cb-hover-tint"
           // 出どころで【読み上げの名前だけ】を変える。文字は出さない（2026-09-01たきと指示
           // 「←ボタンと共有するマークボタン、♡ボタンだけにしよう。文字は削除」）＝3つとも
           // 同じ大きさの丸に揃えた（Airbnbの写真の上の丸ボタンと同じ）。
@@ -1168,7 +1171,7 @@ export function JobSearchMapView({ onRegister, me }) {
         {/* 右上は横並び1列（2026-08-25たきと指示「詳細ページの右上に共有するを新設」）＝
             共有する ＋ いいね。いいねが出ない求人（自分の求人）では共有するが1つだけ右上に残る */}
         <div className="job-float-right">
-          <button onClick={shareJob} aria-label="この求人を共有する" className="f-sans cb-btn-press cb-hover-tint" style={{
+          <button onClick={shareJob} aria-label="この求人を共有する" className="f-sans job-float-btn cb-btn-press cb-hover-tint" style={{
             display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff",
             border:"1px solid #EBEBEB", borderRadius:"50%", color:"#222", cursor:"pointer", padding:0,
             boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
@@ -1177,7 +1180,7 @@ export function JobSearchMapView({ onRegister, me }) {
               いいねは♡マークだけ（2026-08-25たきと指示）＝文字を出さない丸ボタン。
               押した状態は塗り（heartFill・赤）で分かる。読み上げ用の名前は aria-label が持つ */}
           {!isOwnJob && canLike(selectedJob) && (
-          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans cb-btn-press cb-hover-tint" style={{
+          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-btn cb-btn-press cb-hover-tint" style={{
             display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff", border:"1px solid #EBEBEB", borderRadius:"50%",
             color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:0, boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
           }}><span className="cb-like-heart" style={{ display:"inline-flex" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={19} /></span></button>

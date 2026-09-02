@@ -1365,6 +1365,32 @@ html.cb-drag-lock, body.cb-drag-lock { overflow: hidden !important; overscroll-b
   .job-float-back, .job-float-right { top: 76px; } /* PCは上部ヘッダーの下 */
 }
 
+/* ── 求人詳細（スマホ）：上部のバー（Airbnbのスマホ・2026-09-02たきと指示
+   「上部にもバーを設置。写真と重複する時は背景を少しずつ透明に」）──
+   進み具合は --job-bar（0＝写真の上・透明／1＝紙の上・白）。JobTopBar（JobDetailPanel）が
+   スクロールのたびに書く。バーの白・下の線・丸ボタンの丸と影は【全部この1つの数から】色を作る
+   ＝写真の上では丸ボタンだけ、紙の上では白いバーに素のアイコン（Airbnbの変わり方）。
+   ★丸ボタンは style で白・枠・影を持つので !important で書き直す（inline は class より強い）。
+   ★PCは出さない（上部ヘッダーが別にある）＝変数は0のまま＝丸ボタンは従来どおり白い丸 */
+:root { --job-bar: 0; }
+.job-topbar { display: none; }
+@media (max-width: 759px) {
+  .job-topbar {
+    display: block; position: fixed; top: 0; left: 0; right: 0;
+    height: calc(62px + env(safe-area-inset-top, 0px));
+    z-index: 540; /* 丸ボタン（550）の下・紙（1）の上 */
+    pointer-events: none;
+    background: rgba(255,255,255, var(--job-bar));
+    border-bottom: 1px solid rgba(0,0,0, calc(0.08 * var(--job-bar)));
+  }
+  .job-topbar.is-solid { pointer-events: auto; } /* 真っ白の時だけ下の中身を押させない */
+  .job-float-btn {
+    background: rgba(255,255,255, calc(1 - var(--job-bar))) !important;
+    border-color: rgba(235,235,235, calc(1 - var(--job-bar))) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0, calc(0.12 * (1 - var(--job-bar)))) !important;
+  }
+}
+
 /* ── 求人詳細（スマホ専用）：末尾の余白を詰める ──
    .job-detail-back-btn（写真の上の空きスペーサー）は 2026-09-01 に本体ごと削除＝規則も消した */
 @media (max-width: 759px) {
