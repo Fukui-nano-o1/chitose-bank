@@ -804,6 +804,13 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
        inline は class より強いので !important で書き直す。求人フローの確認ページでも
        同じ部品を使うが、あちらは .job-hero の外＝丸いまま（この指定は届かない） */
   .job-hero .job-photo-fallback { border-radius: 0 !important; }
+  /* 写真の高さ＝画面の8割（2026-09-02たきと指示「写真が画面の8割くらい占めるように」）。
+     コマも写真なしの表紙も style で 392px を持つので !important で書き直す。
+     ★紙（.job-detail-sheet）が -32px 重なるぶんを足して、【見えている写真】がちょうど8割になるようにする。
+     svh＝URLバーを除いた画面の高さ（iOS Safari でバーの出入りで高さが跳ねない）。svh を知らない
+     ブラウザは前の行の vh に落ちる */
+  .job-hero .job-photo-slide,
+  .job-hero .job-photo-fallback { height: calc(80vh + 32px) !important; height: calc(80svh + 32px) !important; }
   .job-detail-sheet {
     position: relative; z-index: 1;
     background: #fff;
