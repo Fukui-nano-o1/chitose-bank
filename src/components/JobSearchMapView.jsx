@@ -1150,28 +1150,34 @@ export function JobSearchMapView({ onRegister, me }) {
           // チャット等の出どころから来た場合はそこへ戻る（2026-07-16）
           if (backTo) { setSelectedJob(null); setBackTo(null); window.location.hash = backTo; return; }
           setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
-        }} className="f-sans job-float-back" style={{
-          display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-          fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-        }}>{jobBackStack.length > 0 ? "← 前の求人に戻る"
-          // 出どころで戻り先の名前を変える。農家の求人ボックス（❓バッジ経由）も対象（2026-07-27）。
+        }} className="f-sans job-float-back cb-btn-press cb-hover-tint"
+          // 出どころで【読み上げの名前だけ】を変える。文字は出さない（2026-09-01たきと指示
+          // 「←ボタンと共有するマークボタン、♡ボタンだけにしよう。文字は削除」）＝3つとも
+          // 同じ大きさの丸に揃えた（Airbnbの写真の上の丸ボタンと同じ）。
           // ★カレンダー（働き手＝/saved／農家＝/profile/employer/calendar）から来た時は
           //   「カレンダーに戻る」（2026-08-23たきと指示）。/profile/employer の判定より先に見る
-          : (backTo === "/saved" || (backTo || "").startsWith("/profile/employer/calendar")) ? "← カレンダーに戻る"
-          : (backTo && backTo.startsWith("/profile/employer")) ? "← 求人に戻る" : "← 一覧に戻る"}</button>
+          aria-label={jobBackStack.length > 0 ? "前の求人に戻る"
+            : (backTo === "/saved" || (backTo || "").startsWith("/profile/employer/calendar")) ? "カレンダーに戻る"
+            : (backTo && backTo.startsWith("/profile/employer")) ? "求人に戻る" : "一覧に戻る"}
+          style={{
+            display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff",
+            border:"1px solid #EBEBEB", borderRadius:"50%", color:"#222", cursor:"pointer", padding:0,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}><NavIcon name="back" size={19} /></button>
         )}
         {/* 右上は横並び1列（2026-08-25たきと指示「詳細ページの右上に共有するを新設」）＝
-            共有する ＋ いいね。いいねthaが出ない求人（自分の求人）では共有するthatが1つだけ右上に残る */}
+            共有する ＋ いいね。いいねが出ない求人（自分の求人）では共有するが1つだけ右上に残る */}
         <div className="job-float-right">
-          <button onClick={shareJob} aria-label="この求人を共有する" className="f-sans" style={{
-            display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
-            fontSize:13, fontWeight:600, color:"#717171", cursor:"pointer", padding:"8px 14px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
-          }}><NavIcon name="share" size={16} />共有する</button>
+          <button onClick={shareJob} aria-label="この求人を共有する" className="f-sans cb-btn-press cb-hover-tint" style={{
+            display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff",
+            border:"1px solid #EBEBEB", borderRadius:"50%", color:"#222", cursor:"pointer", padding:0,
+            boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+          }}><NavIcon name="share" size={18} /></button>
           {/* 自分が出した求人にはいいねを出さない（2026-07-29たきと指示）。
               いいねは♡マークだけ（2026-08-25たきと指示）＝文字を出さない丸ボタン。
-              押した状態は塗り（heartFill・赤）で分かる。読み上げ用の名前は aria-label that持つ */}
+              押した状態は塗り（heartFill・赤）で分かる。読み上げ用の名前は aria-label が持つ */}
           {!isOwnJob && canLike(selectedJob) && (
-          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans" style={{
+          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans cb-btn-press cb-hover-tint" style={{
             display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff", border:"1px solid #EBEBEB", borderRadius:"50%",
             color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:0, boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
           }}><span className="cb-like-heart" style={{ display:"inline-flex" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={19} /></span></button>
