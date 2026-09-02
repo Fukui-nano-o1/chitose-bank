@@ -829,6 +829,27 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
   .cb-tour-out { animation: cbTourDown .22s ease forwards; }
 }
 
+/* 区画がスクロールで現れる（Airbnbの出方・2026-09-01「スクロールで発火するアニメーション」）。
+   ★仕組みが使えない端末では JS が最初から is-in を付ける＝見えなくなる事故は作らない */
+.cb-reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,0,0,1); }
+.cb-reveal.is-in { opacity: 1; transform: none; }
+
+/* 区画の目次（Airbnbのパソコンで、写真を過ぎると上から現れる帯）。スマホには出さない。
+   ★top:64px＝PCの上部ヘッダー（.app-header・sticky）の真下。ヘッダーの高さを変えたらここも合わせる
+     （浮遊ボタンの top:76px も同じ前提で置いてある） */
+.job-secnav { display: none; }
+@media (min-width: 760px) {
+  .job-secnav {
+    display: block; position: fixed; top: 64px; left: 0; right: 0; z-index: 30;
+    background: #fff; border-bottom: 1px solid #EBEBEB;
+    transform: translateY(-100%); opacity: 0; pointer-events: none;
+    transition: transform .28s cubic-bezier(.2,0,0,1), opacity .28s ease;
+  }
+  .job-secnav.is-on { transform: none; opacity: 1; pointer-events: auto; }
+  /* 目次から飛んだ時に、帯とヘッダーの下に見出しが隠れないための余白 */
+  [data-sec-label] { scroll-margin-top: 128px; }
+}
+
 .cb-btn-press { transition: transform .12s ease, background-color .15s ease; }
 .cb-btn-press:active { transform: scale(.96); }
 @media (hover: hover) { .cb-hover-tint:hover { background-color: #F7F7F7; } }
@@ -850,6 +871,8 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
   .cb-btn-press:active { transform: none; }
   .cb-carousel-arrow { transition: none; }
   .cb-carousel-arrow:hover, .cb-carousel-arrow:active { transform: translateY(-50%) !important; }
+  .cb-reveal { opacity: 1; transform: none; transition: none; }
+  .job-secnav { transition: none; }
 }
 
 @media (min-width: 760px) {

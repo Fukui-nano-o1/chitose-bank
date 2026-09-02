@@ -27,13 +27,100 @@ import { BelongingChips } from "../../../../components/BelongingTags";
 import { disp, stationLabel, payTermsLine, overtimeLine, ROLE_GREEN } from "../../../../lib/utils";
 import { NavIcon, NavIconInline } from "../../../../components/NavIcons";
 
+// スクロールで現れる（Airbnbの区画の出方・2026-09-01たきと指示「スクロールで発火するアニメーション」）：
+// 画面に入った区画が1度だけ、ふわりと上がって出る。
+//
+// ★IntersectionObserver は使わない（一度作って捨てた）：目次から飛ぶ・位置を復元するなど
+//   【飛び越えた】時、通り過ぎた区画は「画面の外→画面の外」で見張りが鳴らず、二度と現れない
+//   ＝白いままの区画が残る事故になる（実ブラウザで再現した）。
+//   代わりに「上端が画面の下から6%より上に来たら出す」を1つの見張りで見る＝飛び越えても必ず出る。
+// ★見えない事故を作らない：見張りは全部出し終わったら自分で止まり、
+//   動きを止めている端末（prefers-reduced-motion）ではCSS側が最初から見える形にする
+const revealTargets = new Set();
+let revealRaf = 0;
+function revealCheck() {
+  revealRaf = 0;
+  const h = window.innerHeight || 0;
+  for (const el of Array.from(revealTargets)) {
+    if (el.getBoundingClientRect().top < h * 0.94) { el.classList.add("is-in"); revealTargets.delete(el); }
+  }
+  if (revealTargets.size === 0) {
+    window.removeEventListener("scroll", revealOnScroll);
+    window.removeEventListener("resize", revealOnScroll);
+  }
+}
+function revealOnScroll() { if (!revealRaf) revealRaf = requestAnimationFrame(revealCheck); }
+function useReveal() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    revealTargets.add(el);
+    window.addEventListener("scroll", revealOnScroll, { passive: true });
+    window.addEventListener("resize", revealOnScroll);
+    revealCheck(); // 最初から画面に入っている区画はその場で出す
+    return () => { revealTargets.delete(el); };
+  }, []);
+  return ref;
+}
+
 // Airbnbの区切りの言語：細い線＋太い見出しで区画を積む（白カードに包まない）。
-// この部品の区画は必ずこれで区切る＝区切り方を画面内で2種類にしない
-function AirSection({ title, children, style }) {
+// この部品の区画は必ずこれで区切る＝区切り方を画面内で2種類にしない。
+// id＋見出しのある区画は【目次（JobSectionNav）に自動で並ぶ】＝data-sec-label ＝その印。
+// 区画を足す時に id を付けるだけで目次に載る（目次側に名前を書き写さない＝ズレようがない）
+function AirSection({ title, children, style, id }) {
+  const ref = useReveal();
   return (
-    <div style={{ borderTop:"1px solid #EBEBEB", marginTop:24, paddingTop:24, ...style }}>
+    <div ref={ref} id={id} data-sec-label={id && title ? title : undefined} className="cb-reveal"
+      style={{ borderTop:"1px solid #EBEBEB", marginTop:24, paddingTop:24, ...style }}>
       {title && <h3 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 14px" }}>{title}</h3>}
       {children}
+    </div>
+  );
+}
+
+// 区画の目次（Airbnbのパソコンで、写真を過ぎると上から現れる帯）。
+// ★並べるのは【実際に描かれた区画】＝DOMから読む。条件で出ない区画（作業内容・評価など）に
+//   空のリンクができない。スマホには出さない（Airbnbのスマホにも無い・CSSで display:none）
+export function JobSectionNav({ jobId }) {
+  const [secs, setSecs] = useState([]);
+  const [active, setActive] = useState("");
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    // 描かれた後に読む（求人が変わるたび作り直す）
+    const els = Array.from(document.querySelectorAll("[data-sec-label]"));
+    setSecs(els.map(e => ({ id: e.id, label: e.dataset.secLabel })));
+    setActive(els[0]?.id || "");
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        // 出す・引っ込める＝写真（.job-hero）を過ぎたら
+        const hero = document.querySelector(".job-hero");
+        setShown(hero ? hero.getBoundingClientRect().bottom < 80 : window.scrollY > 380);
+        // 現在地＝上から120pxの線を最後に越えた区画
+        let cur = "";
+        for (const e of els) { if (e.getBoundingClientRect().top <= 120) cur = e.id; }
+        setActive(cur || els[0]?.id || "");
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => { if (raf) cancelAnimationFrame(raf); window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
+  }, [jobId]);
+  if (secs.length === 0) return null;
+  return (
+    <div className={"job-secnav" + (shown ? " is-on" : "")}>
+      <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 24px", display:"flex", gap:26, overflowX:"auto" }}>
+        {secs.map(s => (
+          <button key={s.id} type="button" className="f-sans"
+            onClick={()=>{ const el = document.getElementById(s.id); if (el) el.scrollIntoView({ block:"start" }); }}
+            style={{ flexShrink:0, background:"none", border:"none", cursor:"pointer", padding:"16px 0 14px",
+                     fontSize:14, fontWeight: active === s.id ? 800 : 600, color: active === s.id ? "#222" : "#717171",
+                     borderBottom: active === s.id ? "2px solid #222" : "2px solid transparent" }}>{s.label}</button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -118,7 +205,7 @@ export function JobDescription({ job }) {
     ? { display:"-webkit-box", WebkitLineClamp:5, WebkitBoxOrient:"vertical", overflow:"hidden" }
     : {};
   return (
-    <AirSection title="作業内容">
+    <AirSection id="sec-desc" title="作業内容">
       <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...clamp }}><LinkifiedText text={body} /></p>
       {isLong && !expanded && (
         <button onClick={()=>setExpanded(true)} className="f-sans cb-btn-press" style={{ marginTop:10, padding:0, background:"none", border:"none", cursor:"pointer", fontSize:15, fontWeight:700, color:"#222", textDecoration:"underline" }}>もっと見る ›</button>
@@ -154,7 +241,7 @@ export function JobAmenities({ job }) {
   // Airbnbと同じく「ある待遇が先・無い待遇は後ろにまとめて」並べる
   const ordered = [...rows.filter(r => r.on), ...rows.filter(r => !r.on)];
   return (
-    <AirSection title="待遇">
+    <AirSection id="sec-perks" title="待遇">
       <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
         {ordered.map(r => (
           <div key={r.label} style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
@@ -178,7 +265,7 @@ export function JobAmenities({ job }) {
 export function JobScheduleSection({ job }) {
   if (!job.dateStart) return null;
   return (
-    <AirSection title="作業日程">
+    <AirSection id="sec-schedule" title="作業日程">
       {job.dateLabel && (
         <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"-8px 0 14px" }}>{job.dateLabel}</p>
       )}
@@ -194,7 +281,7 @@ export function JobScheduleSection({ job }) {
 // カレンダーは「作業日程」（JobScheduleSection）、保険は「知っておくこと」（JobThingsToKnow）へ移動（2026-09-01）
 export function JobLocationSection({ job, me }) {
   return (
-    <AirSection title="作業の場所">
+    <AirSection id="sec-place" title="作業の場所">
       {/* 地図（集合場所のおおよその位置・ピンのみ）。会員には番地込みの住所をGoogleマップ導線に渡す
           （2026-08-03・タイトルの住所表示と同じ開示粒度）。訪問者は従来どおり町域まで。
           訪問者（未ログイン）はピンを描かず半径1kmの円のみ（2026-08-05たきと指示）＝
@@ -225,7 +312,7 @@ export function JobThingsToKnow({ job, onPhoto }) {
   const hasDanger = (job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0);
   const sub = { fontSize:15, fontWeight:700, color:"#222", margin:"0 0 10px" };
   return (
-    <AirSection title="知っておくこと">
+    <AirSection id="sec-know" title="知っておくこと">
       {/* ── 仕事のきまり（Airbnbの House rules に当たる） ── */}
       <p className="f-sans" style={sub}>仕事のきまり</p>
       <div style={{ marginBottom:6 }}>
@@ -330,7 +417,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
         ReceivedReviews に委譲＝肯定的な選択項目と審査済みコメントだけ（規約第8条）。
         求人ページのクライアントは求人者のUIDを知らないので jobNumber 経由で引く。
         訪問者（未ログイン）はDB側が資格なしを返す＝「まだ評価はありません」と誤読させないため案内文に差し替える */}
-    <AirSection title={reviews && reviews.ok && reviews.total > 0 ? `評価（${reviews.total}件）` : "評価"}>
+    <AirSection id="sec-reviews" title={reviews && reviews.ok && reviews.total > 0 ? `評価（${reviews.total}件）` : "評価"}>
       {/* 見出しの件数＝Airbnbの「★4.9 · 12 reviews」の件数の位置（★の点数は出さない＝点数化の禁止）。
           showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
           ★総数が2件以上あるのに0の項目が並ぶと否定的な評価が読み取れる＝利用規約 第8条2との緊張。
@@ -342,7 +429,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
 
     {/* ── 募集主について（Airbnbの「Meet your host」＝評価の直下）── */}
     {name && (
-      <AirSection title="募集主について">
+      <AirSection id="sec-host" title="募集主について">
         {/* パスポート型カード（2026-08-25たきと指示「パクれ」）：白いカードに影・
             左＝大きなアイコン＋名前（縦中央）・右＝数字の縦積み（横線区切り）の2カラム。
             アイコン右下のバッジ＝連絡先確認済み（trust.id_checked・Airbnbの本人確認バッジに当たる位置）。

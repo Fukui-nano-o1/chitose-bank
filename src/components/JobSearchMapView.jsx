@@ -25,7 +25,7 @@ import { canSeeConsignment } from "../lib/consignAccess";
 import { calcMaxPay, jobMonths } from "../features/jobs/search/model";
 import { readStoredSearch, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
 import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/SearchFilterPanel";
-import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection,
+import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
   JobLocationSection, JobReviewsAndHost, JobThingsToKnow,
   JobPhotoGallery, RelatedJobs } from "../features/jobs/search/components/JobDetailPanel";
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile, ApplyConfirmBox } from "../features/jobs/search/components/ApplyPanel";
@@ -1201,6 +1201,10 @@ export function JobSearchMapView({ onRegister, me }) {
           <div className="job-hero">
             <JobPhotoGallery job={selectedJob} employer={empEmployer} photosLooped={photosLooped} activeSlide={activeSlide} scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} />
           </div>
+
+          {/* 区画の目次（PCのみ・写真を過ぎると上から現れる＝Airbnbの帯・2026-09-01）。
+              並ぶのは実際に描かれた区画＝質問タブの時は出さない */}
+          {detailTab !== "questions" && <JobSectionNav jobId={selectedJob.id} />}
 
           <div className="job-detail-sheet">
           {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}
