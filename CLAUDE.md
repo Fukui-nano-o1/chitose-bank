@@ -10230,3 +10230,23 @@ PC（1280）＝display:none・変数0・丸ボタン白。スクショで 透明
 白いバー＋線・素のアイコンになるか ③iPhoneのセーフエリア（ノッチ）の下にバーが正しく伸びているか
 ④バーが白い間、その下の紙の文字が押せないこと（隠れた文字を誤タップしない）
 ━━━ ここまで ━━━
+
+━━━ 2026-09-01(続5) 求人詳細の説明が出なかった真因＝pushState は hashchange を出さない（たきと報告）━━━
+【報告】「求人詳細ページも必要だと思う」＝台帳には最初から入っていたのに、実機では一度も出ていなかった。
+【真因】求人カードのタップで詳細を開く経路（JobSearchMapView.openJob）は history.pushState で
+#/work/job/N を書く。pushState は hashchange も popstate も【発火しない】ため、hashchange だけを
+聞いていた PageGuide には画面が変わったことが伝わらず、詳細の説明は直リンクで開いた時しか出なかった
+（戻るボタンの経路は popstate→hashchange が出るので無事＝片道だけ沈黙していた）。
+【修理】lib/pushRoute.js 新設＝pushState＋合図（cb:routeChanged）。JobSearchMapView の pushState 3箇所
+（カード→詳細／詳細→前の詳細／詳細→さがす）を pushRoute に置換。PageGuide は hashchange と
+cb:routeChanged の両方を聞く。★pushState を location.hash 書きに変えなかった理由＝JobSearchMapView 自身の
+onHash が走って詳細を作り直す（二重処理）ため、URLの書き方は変えず合図だけ足した。
+★規約：以後 pushState を直接呼ばず pushRoute を通す。hashchange を聞く部品は cb:routeChanged も聞く。
+　App.jsx の curHash（☰の項目の出し分け・ナビの点灯）は hashchange のみのまま＝詳細をカードから開いた時は
+　curHash が "search" のまま残る既存の挙動（ナビの「さがす」が点いたまま）を変えていない。☰の
+　「この画面の説明」は PageGuide 側が実際のURLを読むので、詳細でも正しい説明が開く。
+【検証】build成功・eslint 0 error（警告22＝基準と同数）。実ブラウザ（本物の PageGuide＋pushRoute）で
+10項目全OK：pushState経路でも詳細の説明が800ms後に出る・出したのは「求人のくわしい内容」・わかった→
+画面の外の応募ボタンを画面内に運んで照らす・戻る／開き直しで二度出ない・直リンク経路も従来どおり・pageerrorゼロ。
+【メモ】求人詳細の♥浮遊ボタン（.job-float-like）は現存しない（クラスの参照ゼロ）＝詳細の的は応募ボタンのみ。
+━━━ ここまで ━━━

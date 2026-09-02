@@ -49,6 +49,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSheetDragClose } from "../lib/sheetDrag";
+import { ROUTE_CHANGED } from "../lib/pushRoute";
 import { NavIcon } from "./NavIcons";
 
 // ── 上部のビジュアル（ひとこまの線画）──────────────────────────
@@ -355,10 +356,13 @@ export function PageGuide({ suspend = false }) {
     };
     consider();
     window.addEventListener("hashchange", consider);
+    // ★求人カード→詳細は history.pushState で URL を書く＝hashchange が出ない。pushRoute の合図で拾う
+    //   （これが無いと求人詳細の説明は直リンクの時しか出ない・2026-09-01たきと報告の真因）
+    window.addEventListener(ROUTE_CHANGED, consider);
     // ☰「この画面の説明」＝既読でもいつでも開き直せる入口
     const reopen = () => { const g = guideForHash(window.location.hash); if (g) { markSeen(g.key); open(g); } };
     window.addEventListener("cb:openPageGuide", reopen);
-    return () => { clearTimeout(timer); window.removeEventListener("hashchange", consider); window.removeEventListener("cb:openPageGuide", reopen); };
+    return () => { clearTimeout(timer); window.removeEventListener("hashchange", consider); window.removeEventListener(ROUTE_CHANGED, consider); window.removeEventListener("cb:openPageGuide", reopen); };
   }, []);
 
   // 下スワイプで閉じる（★フックは早期returnより前・PhaseInfoSheetと同じ作法）

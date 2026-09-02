@@ -5,6 +5,7 @@ import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
 import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
+import { pushRoute } from "../lib/pushRoute";
 import { copyJobToEdit } from "../lib/copyJobFlow";
 import { Avatar, Carousel, DangerItem, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
@@ -562,7 +563,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
-  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setDetailTab("content"); try{ window.history.pushState(null,"","#/work/job/"+job.id); }catch{} };
+  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setDetailTab("content"); pushRoute("#/work/job/"+job.id); };
 
   // ── 👀 閲覧数（2026-08-21たきと指示「❤️ボタンの左横に👀〇〇(数値)。求人をタップした総数」）──
   // 数える場所は【求人の詳細thatが開いた時】の1箇所だけ＝カードのタップも、通知やチャットからの
@@ -1146,13 +1147,13 @@ export function JobSearchMapView({ onRegister, me }) {
             const prev = jobBackStack[jobBackStack.length - 1];
             setJobBackStack(st => st.slice(0, -1));
             setSelectedJob(prev); setDetailTab("content");
-            try { window.history.pushState(null, "", "#/work/job/" + prev.id); } catch {}
+            pushRoute("#/work/job/" + prev.id);
             try { window.scrollTo(0, 0); } catch {}
             return;
           }
           // チャット等の出どころから来た場合はそこへ戻る（2026-07-16）
           if (backTo) { setSelectedJob(null); setBackTo(null); window.location.hash = backTo; return; }
-          setSelectedJob(null); try{ window.history.pushState(null,"","#/search"); }catch{}
+          setSelectedJob(null); pushRoute("#/search");
         }} className="f-sans job-float-back job-float-btn cb-btn-press cb-hover-tint"
           // 出どころで【読み上げの名前だけ】を変える。文字は出さない（2026-09-01たきと指示
           // 「←ボタンと共有するマークボタン、♡ボタンだけにしよう。文字は削除」）＝3つとも
