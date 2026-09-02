@@ -501,6 +501,79 @@ function PhotoCell({ photo, className, onOpen, alt }) {
   );
 }
 
+// いちばん上で指を下に引くと、写真が指の分だけ寄る（Airbnbのスマホの「引き伸ばし」・
+// 2026-09-02たきと指示「トップまでスクロールしたら写真をすこしアップにして」）。
+// ・写真は下端を基点に大きくなる（transform-origin 50% 100%）＝ラバーバンドで画面が下がるぶんを
+//   写真が上へ伸びて埋める。引いた量÷写真の高さ をそのまま倍率に足すので、指の量と伸びが1:1に近い
+// ・スマホだけ（≦759px）・ページのいちばん上（scrollY<=0）から始めた1本指だけ。横の動きが勝ったら
+//   写真の横スワイプに譲る（8pxの方向ロック＝家のスワイプの作法）
+// ・書き込みは rAF で1フレーム1回。離したら .35s で戻す（描画中は transition:none）
+// ・prefers-reduced-motion では何もしない（家の規約）
+// ・PWAの引き下げ更新（App.jsx・90pxで発火）とは両立：90px までは写真が寄り、超えたら更新が走る
+// ・対象は「写真の横スワイプの器」か、写真が無い時の表紙（getTargetRef.current() で触れた瞬間に決める。
+//   ref 経由にするのは、毎描画で関数が作り直されてリスナーが張り直されるのを避けるため）
+function useHeroStretch(getTargetRef) {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let el = null, startY = null, startX = null, axis = null, raf = 0, pull = 0;
+    const paint = () => {
+      raf = 0;
+      if (!el) return;
+      const h = el.getBoundingClientRect().height || 1;
+      const scale = Math.min(1.35, 1 + pull / h);
+      el.style.transition = "none";
+      el.style.transformOrigin = "50% 100%";
+      el.style.transform = `scale(${scale.toFixed(4)})`;
+    };
+    const release = () => {
+      if (!el) { startY = null; return; }
+      const t = el;
+      el = null; startY = null; axis = null; pull = 0;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      t.style.transition = "transform .35s cubic-bezier(.2,0,0,1)";
+      t.style.transform = "scale(1)";
+      const done = () => { t.style.transition = ""; t.style.willChange = ""; t.removeEventListener("transitionend", done); };
+      t.addEventListener("transitionend", done);
+      setTimeout(done, 450); // transitionend が来ない環境の保険
+    };
+    const onStart = (e) => {
+      if (e.touches.length !== 1) { release(); return; }
+      if (!(window.matchMedia && window.matchMedia("(max-width: 759px)").matches)) return;
+      if (window.scrollY > 0) return;
+      const t = getTargetRef.current ? getTargetRef.current() : null;
+      if (!t) return;
+      el = t; startY = e.touches[0].clientY; startX = e.touches[0].clientX; axis = null; pull = 0;
+      t.style.willChange = "transform";
+    };
+    const onMove = (e) => {
+      if (startY == null || !el) return;
+      if (e.touches.length !== 1) { release(); return; }
+      const dy = e.touches[0].clientY - startY;
+      const dx = e.touches[0].clientX - startX;
+      if (!axis) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        if (axis === "x") { release(); return; } // 写真の横スワイプに譲る
+      }
+      // 下へ引いている間だけ寄せる。上へ戻したら（ページが動き出したら）伸びも戻す
+      if (dy <= 0 || window.scrollY > 0) { pull = 0; } else { pull = dy; }
+      if (!raf) raf = requestAnimationFrame(paint);
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", release, { passive: true });
+    window.addEventListener("touchcancel", release, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", release);
+      window.removeEventListener("touchcancel", release);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [getTargetRef]);
+}
+
 // 写真ギャラリー（Airbnbの写真の見せ方をそのまま・2026-09-01たきと指示「写真もパクれ」）。
 // PC＝モザイク格子（左に大きい1枚＋右に2×2）／スマホ＝全幅の横スワイプ＋右下に「n / N」。
 // どちらもタップで【写真の一覧】（Airbnbの photo tour）を全画面で開く＝1枚ずつ大きく見られる。
@@ -508,9 +581,14 @@ function PhotoCell({ photo, className, onOpen, alt }) {
 // 1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示・ダミー写真は作らない）
 export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scrollerRef, onScroll }) {
   const [tourAt, setTourAt] = useState(null); // 全画面の一覧を開いた時の【最初に見せる番号】。null＝閉じている
+  // いちばん上で引き下げた時に寄せる相手＝写真の横スワイプの器（scrollerRef）／写真が無ければ表紙の箱
+  const fallbackRef = useRef(null);
+  const stretchTargetRef = useRef(null);
+  stretchTargetRef.current = () => (scrollerRef && scrollerRef.current) || fallbackRef.current;
+  useHeroStretch(stretchTargetRef);
   const photos = Array.isArray(job.photos) ? job.photos : [];
   if (photos.length === 0) return (
-    <div style={{ marginBottom:20 }}>
+    <div ref={fallbackRef} style={{ marginBottom:20 }}>
       <JobPhotoFallback url={employer?.avatar_url || job.employerAvatar} name={employer?.nickname || job.employerName || "？"} />
     </div>
   );

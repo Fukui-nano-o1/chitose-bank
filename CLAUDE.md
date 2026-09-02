@@ -10177,3 +10177,29 @@ appStyles を注入）で 390x844／375x667／430x932 の3サイズとも 紙の
 【実機目視の残り】スマホで写真が画面の8割を占め、下から白い紙が出て重なるか／写真が縦長に切り取られて
 主題が外れていないか（objectFit:cover の中央切り抜き）
 ━━━ ここまで ━━━
+
+━━━ 2026-09-02(続2) いちばん上で引き下げると写真が寄る（Airbnbの引き伸ばし・たきと指示）━━━
+【指示】「トップまでスクロールしたら写真をすこしアップにして。Airbnbがしている。パクれ」
+＝Airbnbのスマホは、いちばん上で指を下に引く（ラバーバンドの間）と写真が伸びて隙間を埋める。振る舞いだけを写した。
+【実装（JobDetailPanel.jsx の useHeroStretch・JSXは JobPhotoGallery に ref を足しただけ・CSS/DB不変）】
+・スマホ（≦759px）・ページのいちばん上（scrollY<=0）から始めた1本指の下向きの動きだけ。
+  写真の横スワイプの器（scrollerRef）／写真が無ければ表紙の箱を、下端を基点（transform-origin 50% 100%）に
+  scale(1 + 引いた量÷写真の高さ・上限1.35)。書き込みは rAF で1フレーム1回。離したら .35s で scale(1) へ
+  （描画中は transition:none・戻ってから transition/will-change を消す。transitionend が来ない環境は450msの保険）
+・譲る条件（家のスワイプの作法）＝8pxの方向ロックで横が勝ったら写真の横スワイプに譲る／2本目の指が乗ったら解除／
+  途中でページが動き出した（scrollY>0）・上へ戻した（dy<=0）ら伸びも戻す／prefers-reduced-motion では何もしない
+・伸びるのは写真だけ＝「n / N」の数えと ‹ › は据え置き（scrollerを伸ばし、兄弟の数え・矢印は触らない）。
+  横にはみ出したぶんは body の overflow-x:clip が切る。紙（.job-detail-sheet）は z-index が上なので覆われない
+・PWAの引き下げ更新（App.jsx・90pxで発火）とは両立＝90pxまでは写真が寄り、超えたら更新が走る
+・getTarget は ref 経由（stretchTargetRef.current）＝毎描画で関数が作り直されてリスナーが張り直されるのを避ける。
+  フックは early return（写真0枚）の前に呼ぶ（フックの順序の規則）
+【検証】build成功・eslint 0 error（警告22＝同数）。実ブラウザ（同梱Chromium・viteハーネス＋mock supabase・
+390x844・CDPタッチ）で写真あり9項目＋写真なし3項目：100px引きで1.14倍・200pxで1.25倍／離すと .35s の
+transition で戻り settled で scale(1)・transition/will-change が空／横スワイプ・途中・上向き・2本指では伸びない／
+表紙は下端707pxを固定したまま上端が -146px へ（上へ伸びる・幅470）／pageerror 0。スクショで紙・数え・矢印が
+据え置きなのを目視。ハーネス（.airtest）は検証後に削除。
+★pkill -f "vite --config .airtest" は自分のシェルも殺す（exit 144・2026-09-01の教訓の再発）＝
+  止めるときは ss -ltnp でポートからPIDを引く。
+【実機目視の残り】①いちばん上で下に引くと写真が寄るか（iOSのラバーバンドと合わせて隙間が埋まるか）
+②離すと元に戻るか ③写真の横スワイプが従来どおりか ④PWAでは90pxを超えると更新が走るか
+━━━ ここまで ━━━
