@@ -50,7 +50,7 @@ export function AdminChatRow() {
   return (
     // 一覧の最上部の行（他のスレッド行と同じ形：アイコン40px・名前・未読バッジ・下に1行の要約）。
     // 他の行と同じくページへ遷移する（ここで開かない）
-    <button onClick={()=>{ window.location.hash = ADMIN_CHAT_HASH; }}
+    <button data-guide="admin-chat-row" onClick={()=>{ window.location.hash = ADMIN_CHAT_HASH; }}
       className={"f-sans" + (unread > 0 ? " cb-urgent-card" : "")}
       style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
         border:"1px solid #EBEBEB", borderRadius:12, padding:CHAT_ROW_PAD, cursor:"pointer", marginBottom:CHAT_ROW_GAP }}>
