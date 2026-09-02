@@ -84,6 +84,17 @@ const GUIDE_ART = {
       <path d="M80.5 18.5l3.5 3.5 7-7.5" />
     </svg>
   ),
+  // 相手とのチャット＝相手の吹き出し・自分の吹き出し・下の入力欄
+  chatThread: (
+    <svg {...ART_PROPS}>
+      <rect x="14" y="8" width="52" height="22" rx="9" />
+      <path d="M24 30l-3 8 10-8" />
+      <rect x="54" y="34" width="52" height="22" rx="9" fill="currentColor" stroke="none" opacity="0.18" />
+      <rect x="54" y="34" width="52" height="22" rx="9" />
+      <rect x="14" y="62" width="70" height="13" rx="6.5" />
+      <circle cx="97" cy="68.5" r="7" fill="currentColor" stroke="none" />
+    </svg>
+  ),
   // カレンダー（働き手・農家で共用）＝盤面と決まった日
   calendar: (
     <svg {...ART_PROPS}>
@@ -202,6 +213,25 @@ const PAGE_GUIDES = [
       { icon: "hourglass", t: "応募は、すぐ採用ではありません", d: "農家が内容を見て承認します" },
     ],
     spots: [{ sel: '[data-guide="apply-btn"]', label: "応募はこのボタンから。押しても、すぐ採用にはなりません。" }],
+  },
+  // 相手とのチャット（#/chat/{応募ID}・2026-09-02たきと指示「相手のチャットを初めて開いた時の説明も」）。
+  // 運営チャット（chat/admin）は別の画面so対象外。★このページは下部バー・浮遊☰が消える（chat-full）ので、
+  // モバイルの☰からは開き直せない＝自動表示の一度きりが主な入口
+  {
+    key: "chatThread", title: "相手とのチャット", art: "chatThread",
+    match: (h) => h.startsWith("chat/") && h !== "chat/admin",
+    lead: "応募した仕事について、相手と直接やり取りする画面です。",
+    rows: [
+      { icon: "chats", t: "下の欄に書いて送ります", d: "送った内容は記録として残り、あとから消したり直したりはできません" },
+      { icon: "bell", t: "大事な連絡は自動で入ります", d: "承認・採用・保険の報告などのお知らせも、この画面に届きます" },
+      { icon: "profile", t: "相手の名前をタップ", d: "相手のプロフィール・記録・評価が見られます" },
+      { icon: "flag", t: "困ったときは「報告する」", d: "右上の「報告する」から、問題のあるコメントを運営に知らせられます" },
+    ],
+    spots: [
+      { sel: '[data-guide="chat-input"]', label: "ここに書いて「送信」。相手にすぐ届きます。" },
+      { sel: '[data-guide="chat-partner"]', label: "相手の名前です。タップするとプロフィールが見られます。" },
+      { sel: '[data-guide="chat-report"]', label: "困ったときはここから運営に報告できます。" },
+    ],
   },
   {
     key: "savedCalendar", title: "カレンダー", art: "calendar",
