@@ -1195,6 +1195,21 @@ body.cb-typing .cb-timeless-report-fab { display: none !important; }
 .consign-photo-strip::-webkit-scrollbar { display: none; }
 /* 受託面のカテゴリ帯（Airbnbのカテゴリバー）：横スクロール・スクロールバー非表示 */
 .consign-category-bar::-webkit-scrollbar { display: none; }
+/* 受託面の上部バナー（2026-09-03たきと指示「上部にバナーを追加。スクロール中は透明。静止時は白」）：
+   sticky で上端に留まる。静止時＝白＋細い下線（Airbnbの上部バーが白く戻った状態）／
+   スクロール中（.is-scrolling・JS側が scroll イベントで付け外し）＝透明・線なし。切替は .25s でふわっと。
+   親（.cb-consign-page）の上余白（24px+セーフエリア）と左右16pxを負マージンで打ち消し、
+   自分の padding にセーフエリアを持たせる＝白地がノッチの下まで届き、中身はノッチの下に収まる */
+.consign-top-banner {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+  margin: calc(-24px - env(safe-area-inset-top, 0px)) -16px 14px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 10px;
+  background-color: rgba(255,255,255,1);
+  box-shadow: 0 1px 0 #EBEBEB;
+  transition: background-color .25s ease, box-shadow .25s ease;
+}
+.consign-top-banner.is-scrolling { background-color: rgba(255,255,255,0); box-shadow: none; }
 /* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
    蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
    蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。

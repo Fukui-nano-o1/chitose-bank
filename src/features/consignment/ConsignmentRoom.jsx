@@ -132,6 +132,21 @@ export function ConsignmentRoom() {
   // 値は consignRecruitState(...).l のラベルか "all"。表示用の別状態＝保存しない（開くたび「すべて」）
   const [listFilter, setListFilter] = useState("all");
   const [contractorTask, setContractorTask] = useState(""); // 受託面のカテゴリ帯（作業で絞る・""=すべて）
+  // 受託面の上部バナーの透け（2026-09-03たきと指示「スクロール中は透明。静止時は白」）：
+  // scrollイベントが来ている間＝true、最後のイベントから180ms静止で false。受託面の表示中だけ張る。
+  // setState は同値なら再描画しない（Reactのbail-out）soスクロール中に毎回描き直しにはならない
+  const [contractorScrolling, setContractorScrolling] = useState(false);
+  useEffect(() => {
+    if (cTab !== "contractor") return;
+    let t = null;
+    const onScroll = () => {
+      setContractorScrolling(true);
+      if (t) clearTimeout(t);
+      t = setTimeout(() => setContractorScrolling(false), 180);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); if (t) clearTimeout(t); setContractorScrolling(false); };
+  }, [cTab]);
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」／2026-08-05に草を3群へ）：
   // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→④草・右上(1.15s〜)
@@ -886,7 +901,7 @@ export function ConsignmentRoom() {
   return (
     <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "") + (returning ? " consign-returning" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
       {/* 委託機能利用特約：同意後は右上の浮遊ボックスからいつでも再読できる（2026-08-02たきと指示） */}
-      {termsOk && !leaving && (
+      {termsOk && !leaving && cTab !== "contractor" && ( /* 受託面ではバナーの中に畳む（アバターと重なるため・2026-09-03） */
         <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:12.1, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
       )}
       {/* 委託⇄受託の切替トグル（2026-08-05たきと指示「求人求職の切り替えトグルと同じ構造」）。
@@ -1144,12 +1159,17 @@ export function ConsignmentRoom() {
           .filter(d => !contractorTask || String((d.spec || {}).task || "").split("・").map(s => s.trim()).includes(contractorTask))
           .slice().sort((a, b) => contractorRank(a.status) - contractorRank(b.status));
         return (<div className="consign-list-content">
-        {/* ①上部：戻る（左）＋自分（右：役割ピル＋アバター）。Airbnbの上部バー（左に戻る・右にアカウント）の写し。
+        {/* ①上部バナー（2026-09-03たきと指示「上部にバナーを追加。スクロール中は透明。静止時は白」）：
+            sticky で上端に留まる。静止時＝白＋細い下線／スクロール中＝透明・線なし（Airbnbのスマホの
+            上部バーが写真の上で透ける感じ）。中身＝←戻る（左）・題名（中央）・利用特約／役割ピル／アバター（右）。
+            右上に固定していた「利用特約」はこの面ではここに畳む（固定ボタンとアバターが重なるため）。
             戻り先は委託面と同じ雇い手プロフィール入口。受託者情報の登録ページはまだ無いので
-            アバターにタップ先は持たせない（行き先の無いボタンを作らない） */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:14 }}>
-          <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 戻る</button>
-          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8 }}>
+            アバターにタップ先は持たせない（行き先の無いボタンを作らない）。見た目はCSS .consign-top-banner */}
+        <div className={"consign-top-banner f-sans" + (contractorScrolling ? " is-scrolling" : "")}>
+          <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ flexShrink:0, display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 戻る</button>
+          <span className="f-sans" style={{ flex:1, minWidth:0, textAlign:"center", fontSize:15.4, fontWeight:800, color:"#111111", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>受けられる委託</span>
+          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            {termsOk && <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"7px 10px", fontSize:12.1, fontWeight:800, cursor:"pointer" }}>利用特約</button>}
             <span className="f-sans" style={{ fontSize:13.2, fontWeight:800, color:"#111111", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"3px 12px" }}>受託者</span>
             <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={36} bg="#111111" />
           </div>
