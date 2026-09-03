@@ -98,6 +98,28 @@ export const CONSIGN_WIZ_STEPS = [
   { t:"確認・掲載", q:"内容を確認して掲載します",     d:"掲載ミスを防ぐ最終チェックです。" },
 ];
 
+// ウィザードの頁立て＝Airbnbの掲載作成フロー（Become a Host）の写し（2026-09-03たきと指示「委託フローもパクれ」）。
+// 写したのは構成だけ：①最初に全体像（3つの段）②各段の頭に大きな「ステップ n」の扉ページ③1ページ1つの問い
+// ④下部に固定の進捗バー（3分割・段の中で少しずつ満ちる）＋左「戻る」（下線の文字）＋右の黒いボタン。
+// 5つの問い（CONSIGN_WIZ_STEPS）の中身・順番・入力部品は不変＝頁の並べ方と器だけを変えた。
+// 段を足す・問いを移すときはこの2つの表だけを直す（進捗バー・扉・ボタンの文言は表から自動で追従する）
+export const CONSIGN_WIZ_PHASES = [
+  { n:1, t:"何を頼むかを伝える", d:"作物・作業・圃場と、どう終われば完了かを決めます。受託者が「できるか」を判断する材料になります。", icon:"pin",      steps:[1, 2] },
+  { n:2, t:"条件を決める",       d:"報酬・日程・危険の情報です。受託者が「引き受けるか」を決める材料になります。",                     icon:"calendar", steps:[3, 4] },
+  { n:3, t:"確認して掲載する",   d:"内容を見直して掲載します。掲載すると募集が始まり、受託者から応募が届くようになります。",             icon:"check",    steps:[5] },
+];
+export const CONSIGN_WIZ_PAGES = CONSIGN_WIZ_PHASES.reduce(
+  (acc, ph) => [...acc, { kind:"phase", phase: ph.n }, ...ph.steps.map(step => ({ kind:"q", step, phase: ph.n }))],
+  [{ kind:"overview" }]
+);
+// 進捗バーの各段の満ち具合（0〜1）：その段の頁のうち、いま居る頁までの割合。手前の段は1・先の段は0
+export const consignWizProgress = (pageIdx) => CONSIGN_WIZ_PHASES.map(ph => {
+  const idx = CONSIGN_WIZ_PAGES.map((p, i) => (p.phase === ph.n ? i : -1)).filter(i => i >= 0);
+  if (!idx.length) return 0;
+  const passed = idx.filter(i => i <= pageIdx).length;
+  return passed / idx.length;
+});
+
 export const CONSIGN_TEXT_FIELDS = [
   { k:"inspection", l:"検収基準", ph:"例：2L以上・軸2cm・コンテナ渡し" },
   // 検収基準を外れた作物の扱い（2026-08-03たきと指示）：基準＝合否の線引き、本項＝外れた分をどうするか。

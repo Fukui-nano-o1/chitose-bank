@@ -17,7 +17,7 @@ import {
   CONSIGNOR_CORP_FIELDS, CONSIGNOR_PUBLIC_FIELDS, corpNoCheckOk, consignorPartyRows,
   CONSIGNOR_CONSENT_VERSION, CONSIGNOR_CONSENT_TEXT, CONSIGNOR_DISCLOSURE_STAGES, seedConsignorData,
   CONSIGNOR_IDENTITY_KEYS, stripConsignorIdentity, consignScrollTop, CONSIGN_LEND_KINDS,
-  CONSIGN_LEND_PH, normalizeLendItems,
+  CONSIGN_LEND_PH, normalizeLendItems, CONSIGN_WIZ_PHASES, CONSIGN_WIZ_PAGES, consignWizProgress,
 } from "./model";
 import { CONSIGN_TERMS_INTRO, CONSIGN_TERMS_SECTIONS, CONSIGN_TERMS_CHECK, CONSIGN_TERMS_HELP,
   ConsignTermsBody } from "./terms";
@@ -220,7 +220,9 @@ export function ConsignmentRoom() {
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [showDeadlineCal, setShowDeadlineCal] = useState(false);
-  const [wizStep, setWizStep] = useState(1); // 新規ウィザードの現在ステップ（1〜5・cTab==="new"時のみ有効）
+  // 新規ウィザードの現在の頁＝CONSIGN_WIZ_PAGES の添字（0=全体像／扉／問い・cTab==="new"時のみ有効）。
+  // 2026-09-03 Airbnbの掲載作成フローの写しで「ステップ1〜5」から「頁の添字」に変わった。問いの番号は頁から導く（qStep）
+  const [wizStep, setWizStep] = useState(0);
   const [leaving, setLeaving] = useState(false); // 退場演出中（新しく委託を出す→蔓→太陽→中身の順に画面外へ・2026-07-31たきと指示）
   // 標準取引条件（支払期限・手数料負担・検収期間・キャンセル条件）は委託掲載を初めて行うときに
   // ウィザード内で設定する（2026-07-31たきと指示）。未設定の項目だけSTEP3に出し、掲載時に委託者情報へ保存
@@ -545,7 +547,7 @@ export function ConsignmentRoom() {
     setBusy(false);
   };
   const openDealState = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
-  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(1); setCTab("new"); };
+  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(0); setCTab("new"); };
   const openDeal = (d) => { openDealState(d); window.location.hash = "/admin/consignment/deal/" + d.id; };
   // 新しく委託を出す：まず蔓が画面外へ→次に太陽→最後に名刺・ボックス・文言が退場→ウィザードへ（2026-07-31たきと指示）。
   // 振り付けはCSS（.consign-leaving）。動きを減らす設定の端末は演出なしで即遷移
@@ -1263,24 +1265,66 @@ export function ConsignmentRoom() {
           「入力順」でなく「契約が成立するまでの思考順」＝受託者の頭の中
           （何やる？→できる？→いくら？→いつ？→危なくない？→応募）に合わせた5ステップ。
           1ページ1つの問い。入力部品は案件ダッシュボードと共用（renderBasicField等） */}
-      {cTab === "new" && termsOk && (
+      {cTab === "new" && termsOk && (() => {
+        // ═══ Airbnbの掲載作成フローの写し（2026-09-03たきと指示「委託フローもパクれ」）＝
+        // 頁の並び（全体像→扉→問い…）は CONSIGN_WIZ_PAGES、段は CONSIGN_WIZ_PHASES。
+        // 上＝左に「終了」（保存はしない＝下書き=募集中の設計so中途の保存は作らない）・右は従来の浮遊「利用特約」。
+        // 下＝固定バー（3段の進捗バー＋下線の「戻る」＋黒い「次へ／はじめる／掲載する」）。
+        // 問いの中身・入力部品・保存（save）は不変
+        const page = CONSIGN_WIZ_PAGES[Math.min(wizStep, CONSIGN_WIZ_PAGES.length - 1)] || CONSIGN_WIZ_PAGES[0];
+        const qStep = page.kind === "q" ? page.step : 0;
+        const phase = page.phase ? CONSIGN_WIZ_PHASES.find(p => p.n === page.phase) : null;
+        const isLast = wizStep >= CONSIGN_WIZ_PAGES.length - 1;
+        const goBack = () => { if (wizStep <= 0) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); consignScrollTop(); } };
+        const goNext = () => { setWizStep(v => Math.min(v + 1, CONSIGN_WIZ_PAGES.length - 1)); consignScrollTop(); };
+        const progress = consignWizProgress(wizStep);
+        return (
         <div className="fade-in">
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-            <button onClick={()=>{ if (wizStep === 1) { window.location.hash = "/admin/consignment"; } else { setWizStep(v => v - 1); consignScrollTop(); } }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 戻る</button>
-            <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#111111" }}>{wizStep}/5　{CONSIGN_WIZ_STEPS[wizStep-1].t}</span>
+          {/* 上のバー：終了（一覧へ）。Airbnbの「保存して終了」の位置。右上の「利用特約」は従来の浮遊ボックス */}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:22 }}>
+            <button onClick={()=>{ window.location.hash = "/admin/consignment"; }} className="f-sans" style={{ background:"#fff", border:"1px solid #DDDDDD", borderRadius:20, fontSize:13.2, fontWeight:700, color:"#111111", cursor:"pointer", padding:"8px 16px" }}>終了</button>
+            {phase && <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#717171", marginRight:88 }}>ステップ {phase.n} / {CONSIGN_WIZ_PHASES.length}</span>}
           </div>
-          {/* 進捗（5分割の黒バー） */}
-          <div style={{ display:"flex", gap:4, marginBottom:18 }}>
-            {CONSIGN_WIZ_STEPS.map((st, i) => (
-              <div key={st.t} style={{ flex:1, height:4, borderRadius:2, background: i < wizStep ? "#111111" : "#E5E5E5" }} />
-            ))}
-          </div>
-          {/* 1ページ1つの問い */}
-          <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].q}</h2>
-          <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 18px" }}>{CONSIGN_WIZ_STEPS[wizStep-1].d}</p>
+
+          {/* 全体像（Airbnbの「〇〇はかんたんです」＝3つの段を番号つきで並べる） */}
+          {page.kind === "overview" && (
+            <div>
+              <h2 className="f-sans" style={{ fontSize:30.8, fontWeight:800, color:"#111111", margin:"8px 0 28px", lineHeight:1.25 }}>委託を出すのは、かんたんです</h2>
+              {CONSIGN_WIZ_PHASES.map((ph, i) => (
+                <div key={ph.n} style={{ display:"flex", alignItems:"flex-start", gap:14, padding:"22px 0", borderTop: i === 0 ? "none" : "1px solid #EBEBEB" }}>
+                  <span className="f-sans" style={{ flexShrink:0, fontSize:19.8, fontWeight:800, color:"#111111", width:24 }}>{ph.n}</span>
+                  <span style={{ flex:"1 1 auto", minWidth:0 }}>
+                    <span className="f-sans" style={{ display:"block", fontSize:19.8, fontWeight:800, color:"#111111", lineHeight:1.3 }}>{ph.t}</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:14.3, color:"#717171", marginTop:6, lineHeight:1.7 }}>{ph.d}</span>
+                  </span>
+                  <span style={{ flexShrink:0, width:64, height:64, borderRadius:16, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", color:"#111111" }}>
+                    <NavIcon name={ph.icon} size={34} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 段の扉（Airbnbの「ステップ1 / 物件について教えてください」＝大きな数字と題名、右に絵） */}
+          {page.kind === "phase" && phase && (
+            <div>
+              <div style={{ height:180, borderRadius:20, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", color:"#111111", marginBottom:26 }}>
+                <NavIcon name={phase.icon} size={84} />
+              </div>
+              <p className="f-sans" style={{ margin:"0 0 8px", fontSize:15.4, fontWeight:800, color:"#111111" }}>ステップ {phase.n}</p>
+              <h2 className="f-sans" style={{ fontSize:33, fontWeight:800, color:"#111111", margin:"0 0 14px", lineHeight:1.2 }}>{phase.t}</h2>
+              <p className="f-sans" style={{ fontSize:16.5, color:"#717171", margin:0, lineHeight:1.8 }}>{phase.d}</p>
+            </div>
+          )}
+
+          {/* 1ページ1つの問い（大きな題名＋灰色の一言）。中身は従来どおり */}
+          {qStep > 0 && (<>
+            <h2 className="f-sans" style={{ fontSize:26.4, fontWeight:800, color:"#111111", margin:"0 0 6px", lineHeight:1.25 }}>{CONSIGN_WIZ_STEPS[qStep-1].q}</h2>
+            <p className="f-sans" style={{ fontSize:15.4, color:"#717171", margin:"0 0 22px", lineHeight:1.7 }}>{CONSIGN_WIZ_STEPS[qStep-1].d}</p>
+          </>)}
 
           {/* STEP1 案件概要：何を頼むのか */}
-          {wizStep === 1 && (<>
+          {qStep === 1 && (<>
             {/* 登録済みの圃場の呼び出し（2026-08-02たきと指示）：タップで圃場名・地域・面積・設備を流し込む */}
             {fields.length > 0 && (
               <div style={{ marginBottom:14 }}>
@@ -1300,13 +1344,13 @@ export function ConsignmentRoom() {
             {renderPhotos()}
           </>)}
           {/* STEP2 作業仕様：どう終われば完了か（圃場設備は圃場登録時＝ここで案件ごとに設定） */}
-          {wizStep === 2 && (<>
+          {qStep === 2 && (<>
             {CONSIGN_TEXT_FIELDS.filter(f => f.k !== "special").map(renderTextField)}
             {renderFacilities()}
             {CONSIGN_TEXT_FIELDS.filter(f => f.k === "special").map(renderTextField)}
           </>)}
           {/* STEP3 報酬：いくら払うのか */}
-          {wizStep === 3 && (<>
+          {qStep === 3 && (<>
             {["unit_price_10a","advance","pay_method"].map(k => renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === k)))}
             {/* 報酬イメージ（単価×面積の自動計算・派生表示ので保存しない） */}
             {(() => { const u = Number(spec.unit_price_10a), a = Number(spec.area_a);
@@ -1321,7 +1365,7 @@ export function ConsignmentRoom() {
           </>)}
           {/* 標準取引条件（初回のみ・2026-07-31たきと指示）：委託者情報では聞かず、
               初めての掲載時にここで設定→掲載と同時に委託者情報(consignor_data)へ保存＝次回から出ない */}
-          {wizStep === 3 && (() => {
+          {qStep === 3 && (() => {
             const cd = (consignor && consignor.consignor_data) || {};
             const STD = [
               { k:"cmn_pay_due",    l:"標準支払期限", ph:"例：検収後7日以内" },
@@ -1367,13 +1411,59 @@ export function ConsignmentRoom() {
             );
           })()}
           {/* STEP4 日程・安全：いつ・危険情報 */}
-          {wizStep === 4 && (<>
+          {qStep === 4 && (<>
             {renderBasicField(CONSIGN_BASIC_FIELDS.find(f => f.k === "deadline"))}
             {renderHazards()}
             {renderOnsiteContact()}
           </>)}
           {/* STEP5 確認・掲載：公開前チェック（プレビュー＋定型条項＋掲載） */}
-          {wizStep === 5 && (<>
+          {qStep === 5 && (<>
+            {/* 掲載の顔（Airbnbの「リスティングを確認」＝一覧に出るカードそのものを先頭に見せる）。
+                中身は委託トップのカードと同じ組み立て（写真220・状態帯・題名・地域・単価）＝掲載後の見え方をそのまま */}
+            {(() => {
+              const ph0 = (spec.photos || [])[0];
+              const st = consignRecruitState("draft");
+              return (
+                <div style={{ position:"relative", overflow:"hidden", borderRadius:16, marginBottom:18, border:"1px solid #EBEBEB" }}>
+                  <span className="f-sans" style={{ position:"absolute", top:10, left:10, zIndex:2, padding:"4px 12px", borderRadius:8, fontSize:12.1, fontWeight:800, background:st.bg, color:st.fg, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{st.l}</span>
+                  {ph0 && ph0.url ? (
+                    <img src={ph0.url} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block" }} />
+                  ) : (
+                    <div style={{ width:"100%", height:220, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="image" size={40} /></div>
+                  )}
+                  <div style={{ padding:"12px 14px 14px" }}>
+                    <div style={{ display:"flex", alignItems:"baseline", gap:6, marginBottom:4 }}>
+                      <p className="f-sans" style={{ fontSize:17.6, fontWeight:600, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {spec.field_name || "（圃場未記入）"}　{[spec.crop, spec.task].filter(Boolean).join(" ")}
+                      </p>
+                      <span className="f-sans" style={{ fontSize:12.1, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>{spec.region}</span>
+                    </div>
+                    <p className="f-mono" style={{ fontSize:16.5, fontWeight:700, color:"#111111", margin:0 }}>
+                      {spec.unit_price_10a ? Number(spec.unit_price_10a).toLocaleString() + "円/10a" : "単価未設定"}
+                      {spec.area_a ? <span className="f-sans" style={{ fontSize:13.2, fontWeight:700, color:"#717171", marginLeft:8 }}>{spec.area_a}a</span> : null}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+            {/* 掲載するとどうなるか（Airbnbの「次に起こること」の写し）＝この設計の事実だけを書く */}
+            <div style={{ marginBottom:18 }}>
+              <p className="f-sans" style={{ fontSize:17.6, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>掲載するとどうなるか</p>
+              {[
+                ["inbox", "募集が始まります", "委託一覧に「募集中」として並び、受託者から応募が届くようになります。"],
+                ["clipboard", "仕様書がそのまま契約の土台になります", "ここで入力した内容が仕様書に印字され、合意で凍結されます。あとから変えるときは合意の前に。"],
+                ["profile", "委託者情報は登録内容から自動で載ります", "氏名・所在地・連絡先は登録情報からそのまま印字されます（緊急連絡先・振込情報は載りません）。"],
+              ].map(([icon, t, d]) => (
+                <div key={t} style={{ display:"flex", gap:12, padding:"12px 0", borderTop:"1px solid #EBEBEB" }}>
+                  <span style={{ flexShrink:0, width:36, height:36, borderRadius:10, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", color:"#111111" }}><NavIcon name={icon} size={20} /></span>
+                  <span style={{ minWidth:0 }}>
+                    <span className="f-sans" style={{ display:"block", fontSize:14.3, fontWeight:800, color:"#111111" }}>{t}</span>
+                    <span className="f-sans" style={{ display:"block", fontSize:13.2, color:"#717171", marginTop:2, lineHeight:1.7 }}>{d}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="f-sans" style={{ fontSize:15.4, fontWeight:800, color:"#111111", margin:"0 0 10px" }}>入力した内容</p>
             {(spec.photos || []).length > 0 && (
               <div style={{ display:"flex", gap:6, overflowX:"auto", marginBottom:12 }}>
                 {(spec.photos || []).map((ph, i) => (
@@ -1418,15 +1508,32 @@ export function ConsignmentRoom() {
             </div>
           </>)}
 
-          <div style={{ marginTop:20 }}>
-            {wizStep < 5 ? (
-              <button onClick={()=>{ setWizStep(v => v + 1); consignScrollTop(); }} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer" }}>次へ →</button>
-            ) : (
-              <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? <>掲載中<Dots /></> : "掲載する（募集を開始）"}</button>
-            )}
+          {/* 下の固定バー（Airbnbの写し）：上端に3段の進捗バー（段の中で少しずつ満ちる）・左に下線の「戻る」・
+              右に黒いボタン（全体像＝はじめる／扉・問い＝次へ／最後＝掲載する）。
+              fixed＝この部屋の親は opacity だけのfade-inso基準は画面（右上の浮遊「利用特約」と同じ前提）。
+              中身の下端はページの下余白120pxが受ける（バーの高さ＋余白） */}
+          <div style={{ position:"fixed", left:0, right:0, bottom:0, zIndex:55, background:"#fff", borderTop:"1px solid #EBEBEB", paddingBottom:"env(safe-area-inset-bottom, 0px)" }}>
+            <div style={{ display:"flex", gap:6, padding:"0 16px" }}>
+              {progress.map((v, i) => (
+                <div key={i} style={{ flex:1, height:6, background:"#E5E5E5", overflow:"hidden" }}>
+                  <div style={{ width: (Math.round(v * 100)) + "%", height:"100%", background:"#111111", transition:"width .35s ease" }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ maxWidth:640, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, padding:"12px 16px 14px" }}>
+              {page.kind === "overview" ? <span /> : (
+                <button onClick={goBack} className="f-sans" style={{ background:"transparent", border:"none", padding:"10px 4px", fontSize:15.4, fontWeight:700, color:"#111111", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>戻る</button>
+              )}
+              {isLast ? (
+                <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ padding:"13px 24px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1, minWidth:150 }}>{saving ? <>掲載中<Dots /></> : "掲載する"}</button>
+              ) : (
+                <button onClick={goNext} className="f-sans" style={{ padding:"13px 28px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", minWidth: page.kind === "overview" ? 150 : 110 }}>{page.kind === "overview" ? "はじめる" : "次へ"}</button>
+              )}
+            </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {cTab === "deal" && (
         <div className="fade-in">
