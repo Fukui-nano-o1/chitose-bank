@@ -1675,8 +1675,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                 setDraftJobNumber(null);
                 setPublishModal(false);
-                // 完了は「ページ」でなくアニメーション（2026-08-07たきと指示）。Appに掲載成功を伝え、
-                // App側で祝祭アニメ＋60秒アイドル→さがす を出す。onPublished 未指定時のみ従来の完了ページに倒す
+                // 完了はこのフローの中のページでなく、Appthat出す掲載完了の画面（2026-09-02＝Airbnbの型：
+                // 白い全画面の「おめでとうございます」＋求人カード＋「完了」・アニメ無し・自動遷移無し）。
+                // onPublished 未指定時のみ従来の完了ページに倒す
                 // 掲載＝即公開の祝祭。修正のお願い中の再掲載（publishedNow=false）だけ
                 // 「公開の準備が整いしだい」側に分岐（2026-08-14）
                 if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }

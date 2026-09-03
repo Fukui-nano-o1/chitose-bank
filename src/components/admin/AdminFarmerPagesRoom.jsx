@@ -22,6 +22,7 @@ import { NavIcon, NavIconInline } from "../NavIcons";
 import { JobCard } from "../JobCard";
 import { OwnJobTile, ownJobState, OWN_JOB_GRID_CLASS } from "../OwnJobTile";
 import { Celebration } from "../Celebration";
+import { PublishDone } from "../PublishDone";
 import { WorkerTrustCard } from "../TrustCards";
 import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
 
@@ -407,15 +408,17 @@ const STEPS = [
         </div>
       </div>
     ) },
-  { ch:"掲載する", name:"掲載しました（祝祭）", url:"#/profile/employer", act:"完了ページではなく祝祭の演出が出て、自分の求人の場所に着地する。60秒何もしなければ さがす に移る。",
+  { ch:"掲載する", name:"掲載しました", url:"#/profile/employer", act:"祝祭の演出ではなく、白い全画面の「おめでとうございます、〇〇さん」＋掲載した求人のカード＋「完了」が出る（Airbnbの掲載完了の型・2026-09-02）。入る直前の画面に着地し、「完了」でその画面に戻る。",
     body: (api) => (
       <div style={{ padding:18 }}>
         <p className="f-sans" style={{ fontSize:13, color:SUB, lineHeight:1.9, margin:"0 0 14px" }}>
-          本番と同じ演出（components/Celebration）をそのまま再生します。暗幕 → 打ち上げの尾 → 閃光 → 菊の光条 → 特大の押印と画面の揺れ → 追い花火 → 幕引き。約3秒で自動的に終わります（音と振動も本番と同じ）。
+          本番と同じ部品（components/PublishDone）をそのまま開きます。アニメーションはありません。利用者が「完了」を押すまで残り、自動で別のページへは送りません。
         </p>
-        <PlayBtn onClick={() => api.play("公開しました！")}>▶ 掲載の祝祭を再生する</PlayBtn>
+        <PlayBtn onClick={() => api.publishDone(true)}>掲載完了の画面を開く（即公開）</PlayBtn>
+        <div style={{ height:8 }} />
+        <PlayBtn onClick={() => api.publishDone(false)}>掲載完了の画面を開く（公開間近）</PlayBtn>
         <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>
-          即公開（運営本人の自己募集）は「公開しました！」、一般農家は「求人ができました！」になります。
+          即公開は「求人が公開されました」、修正のお願い中の再掲載（公開間近）は「公開の準備が整いしだい、働き手に届きます」になります。
         </p>
       </div>
     ) },
@@ -725,7 +728,8 @@ export function AdminFarmerPagesRoom() {
   const onPrev = () => { if (first) window.location.hash = "/admin"; else go(step - 1); };
   const onNext = () => { if (last) window.location.hash = "/admin"; else go(step + 1); };
   const s = STEPS[step - 1];
-  const api = { play: (title) => setCelebration({ title }) };
+  const [pubDone, setPubDone] = useState(null); // 掲載完了の画面（PublishDone）のpreview { open }
+  const api = { play: (title) => setCelebration({ title }), publishDone: (open) => setPubDone({ open }) };
 
   return (
     /* cb-admin-page＝サイトフッターを隠す目印／cb-farmer-walk-page＝下部バーと浮遊☰を
@@ -762,6 +766,8 @@ export function AdminFarmerPagesRoom() {
       {celebration && (
         <Celebration title={celebration.title} onDone={() => setCelebration(null)} />
       )}
+      {/* 掲載完了の画面（本物の PublishDone・preview＝通信も遷移もしない・見本の求人を描く） */}
+      {pubDone && <PublishDone preview open={pubDone.open} jobNumber={SAMPLE_JOB.id} name="千歳農園" previewJob={SAMPLE_JOB} onClose={() => setPubDone(null)} />}
 
       {/* 下部バーの差し替え（戻る／次へ）。この画面では本来の下部バー・浮遊☰は出ない */}
       <div className="cb-walk-bar">

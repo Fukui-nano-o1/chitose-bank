@@ -10,7 +10,7 @@ import { useSheetDragClose } from "./lib/sheetDrag";
 import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
 import { installFixedRepin } from "./lib/fixedRepin";
 import { Celebration } from "./components/Celebration";
-import { PublishChoiceCard } from "./components/PublishChoiceCard";
+import { PublishDone } from "./components/PublishDone";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { NavIcon, NavIconInline } from "./components/NavIcons";
@@ -603,9 +603,7 @@ export default function App(){
   const [applyBurst,setApplyBurst]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")!=="1");
   // 求人の掲載完了は「ページ」でなくアニメーション（祝祭）に（2026-08-07たきと指示）。
   // 祝祭が消えたあと、60秒ノーアクションなら さがす へ自動遷移（何かタップ/操作すれば取り消す）。
-  const [pubCelebrate,setPubCelebrate]=useState(null); // { open:bool } | null（3秒の祝祭）
-  const [pubIdle,setPubIdle]=useState(false);          // 60秒アイドル→/search の見張り
-  const [pubChoice,setPubChoice]=useState(null);       // 祝祭後の選択カード { open, jobNumber } | null（60秒で自動的に消える）
+  const [pubDone,setPubDone]=useState(null);           // 掲載完了の画面 { open, jobNumber } | null（Airbnbの型・利用者が「完了」を押すまで残る）
   // 応募完了も「ページ」でなくアニメーション化（2026-08-07たきと指示・①）。祝祭＋法的一言トースト＋
   // 応募状況に着地＋60秒ノーアクションで さがす。法的一文（まだ採用でない・当事者間契約）は消さずトーストで残す。
   const [applyNote,setApplyNote]=useState(false); // 着地先で1回だけ出す法的一言トースト
@@ -2302,11 +2300,12 @@ export default function App(){
           新規登録・再同意の全画面を挟んでいる間は自動表示しない */}
       <PageGuide suspend={needsAccountHolder || openAccountForm || needsPrivacyReconsent} />
 
-      {/* 掲載完了はページでなくアニメーション（2026-08-07たきと指示）。タブに依らずグローバルに出す＝
-          掲載後に /profile/employer へ遷移した先で祝祭が重なり、60秒ノーアクションで さがす へ送る */}
-      {pubCelebrate && <Celebration title={pubCelebrate.open ? "公開しました！" : "求人ができました！"} onDone={()=>{ setPubChoice({ open: pubCelebrate.open, jobNumber: pubCelebrate.open ? pubCelebrate.jobNumber : null }); setPubCelebrate(null); }} />}
-      {pubChoice && <PublishChoiceCard jobNumber={pubChoice.jobNumber} onClose={()=>setPubChoice(null)} />}
-      {pubIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setPubIdle(false); if (fired) { setPubChoice(null); window.location.hash="/search"; } }} />}
+      {/* 掲載完了＝Airbnbの Publish celebration の型（2026-09-02たきと指示「掲載完了アニメーションを削除。
+          Airbnbの完了をパクれ」）：白い全画面の「おめでとうございます、〇〇さん」＋掲載した求人のカード＋「完了」。
+          祝祭アニメ・60秒静止で さがす へ・選択カードは廃止。入る直前の画面（flowBackToRef）に着地した上に重なり、
+          「完了」でその画面に戻る。名前は雇い手プロフィールの手元の写し（お仕事タブが保存するキャッシュ）から */}
+      {pubDone && <PublishDone open={pubDone.open} jobNumber={pubDone.jobNumber}
+        name={(getCache("farm:empMini") ?? snapGet("empMini"))?.nickname || ""} onClose={()=>setPubDone(null)} />}
 
       {/* 応募完了もアニメーション（2026-08-07・①）。祝祭（新規到着のみ）＋法的トースト＋60秒アイドル→さがす。
           着地先（応募状況）の上に重なる。promotedCount/applyAlready で見出しを出し分ける */}
@@ -2340,7 +2339,7 @@ export default function App(){
           // 求人フローの出口は【すべて入る直前の画面へ強制遷移】（2026-08-19「戻る」→2026-08-21 全出口に拡張）。
           // カレンダーの日付シートから コピー／内容を編集 で入った時も、終わればカレンダーに戻る。
           // 行き先の控えは flowBackToRef（フロー以外のハッシュを通るたびに更新）＝1箇所で持つ
-          onPublished={(wasOpen, jobNumber)=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; setPubCelebrate({ open: !!wasOpen, jobNumber: jobNumber || null }); setPubIdle(true); }}
+          onPublished={(wasOpen, jobNumber)=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; setPubDone({ open: !!wasOpen, jobNumber: jobNumber || null }); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}

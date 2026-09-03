@@ -10432,3 +10432,30 @@ steps の無いボックス（w:worked・w:reviewed・f:applied・f:worked）は
 リンクthat押せる・pageerrorゼロ。スクショで目視。
 【実機目視の残り】承認された働き手thatアプリを開く→ボックスに3行that出るか／「チャットを開く →」でチャットへ
 ━━━ ここまで ━━━
+
+━━━ 2026-09-02(続4) 掲載完了アニメを廃止＝Airbnbの Publish celebration の型（たきと指示「掲載完了アニメーションを削除。Airbnbの完了をパクれ」）━━━
+【廃止】掲載成功時の祝祭アニメ（Celebration「公開しました！」「求人ができました！」）／60秒静止で さがす へ送る
+見張り（pubIdle）／祝祭後の選択カード（components/PublishChoiceCard.jsx＝ファイルごと削除）。
+PublishIdleRedirect 自体は応募完了（applyIdle）that使うので残置。
+【新設 components/PublishDone.jsx＝Airbnbの掲載おめでとう画面の写し（コードは流用しない・構成だけ）】
+白い全画面（data-takeover・cb-lock-scroll＝FinalReviewSheet・HireConfirm と同じ器）：
+・大きな題名「おめでとうございます、〇〇さん」（名前は2行目＝長い農園名that途中で折れないため。名前が無ければ題名だけ）
+・一言＝即公開「求人が公開されました。働き手の「さがす」に並び、応募が届くとお知らせします」／
+　公開間近（修正のお願い中の再掲載・2026-08-14）「求人ができました。公開の準備が整いしだい、働き手に届きます」
+・掲載した求人のカード＝本物の JobCard（wide）。当事者用の窓口 fetchJobRowForMe で引く（公開前でも自分の求人so読める）。
+　届くまでは灰色の枠だけ（ダミーの求人を作らない・憲法3条）。♥は出さない（自分の求人にいいねは無い）
+・即公開だけ「掲載した求人を見る」の下線リンク／下部固定の黒い「完了」＝閉じるだけ（URLは入る直前の画面のまま
+　＝2026-08-21「出口は入る直前の画面へ」の規則どおり）。自動では消えない・自動で別のページへ送らない
+・名前＝雇い手プロフィールの手元の写し（getCache("farm:empMini") ?? snapGet("empMini")）から。通信は増やしていない
+【PageGuide】自動表示の抑止に [data-takeover] を追加＝この画面の下でマイページ等の説明that重ならない。
+【管理の見本帳・演出一覧】AdminFarmerPagesRoom の「掲載しました（祝祭）」→本物の PublishDone を preview で開く2ボタン／
+AdminAnimationsRoom の掲載2種の祝祭を一覧から外し、「掲載完了の画面（静止）」の2ボタンに（preview＝通信も遷移もしない）。
+【検証】build成功・eslint 0 error（警告22＝基準と同数）。実ブラウザ（同梱Chromium・viteハーネス・390x844・
+lib/supabase を mock に alias＝jobForMe that supabase を読むため）で11項目OK：題名と名前・一言・本物のJobCard・
+リンク・白い全画面・「完了」that画面内・この画面の説明that出ない・3.5秒たっても消えず遷移しない・完了で閉じてURL不変・
+公開間近の出し分け・pageerrorゼロ。スクショで目視（題名の折れ・♥を直した）。
+★ハーネスの alias は相対指定子 "./supabase" にも当てる正規表現にすること（/^.*\\/lib\\/supabase$/ だけだと
+jobForMe の "./supabase" that素通りして supabaseUrl is required で全滅＝今回1回踏んだ）。
+【実機目視の残り】①掲載する→白い画面に名前・求人カードthat出るか ②「完了」で入る直前の画面（マイページ／
+カレンダー）に戻るか ③「掲載した求人を見る」で求人詳細へ ④公開間近（修正のお願い中の再掲載）の文言
+━━━ ここまで ━━━

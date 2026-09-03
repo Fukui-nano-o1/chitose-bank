@@ -444,7 +444,7 @@ export function PageGuide({ suspend = false }) {
         if (readSeen()[r.key]) return;                // 待っている間に別経路で既読になった
         // 他のボックスが開いている間は出さない（お知らせ・祝祭などに重ねない）。
         // 既読にはしない＝次にこのページを開いた時にあらためて出る
-        if (document.querySelector(".cb-box-overlay, .cb-sheet-up")) return;
+        if (document.querySelector(".cb-box-overlay, .cb-sheet-up, [data-takeover]")) return;
         markSeen(r.key); // 出した時点で既読（同じ説明で二度さえぎらない）
         open(r);
       };
