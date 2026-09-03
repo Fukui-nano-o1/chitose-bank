@@ -24,7 +24,7 @@ import { DataConstitution } from "./app/legal/DataConstitution";
 import { HelpCenter, InstallGuide } from "./app/help/HelpCenter";
 import { FeedbackModal } from "./app/diagnostics/FeedbackModal";
 import { PageGuide, guideForHash } from "./components/PageGuide";
-import { StageBoxBody, APPROVED_STEPS } from "./components/StageBoxBody";
+import { StageBoxBody, APPROVED_STEPS, APPLIED_STEPS, WORKED_STEPS, F_WORKED_STEPS } from "./components/StageBoxBody";
 import { WorkerPreviewSheet, EmployerPreviewSheet } from "./app/preview/PreviewSheets";
 import { openWorkerPreview } from "./lib/previewBus";
 // ルート分割の自己修復（lazyChunk / prepareFreshReload / ChunkUpdating）→ app/chunkReload.jsx へ移設（2026-08-17）
@@ -1361,15 +1361,15 @@ export default function App(){
         const defs = {
           // 承認された時＝つぎに起きること3行（APPROVED_STEPS・2026-09-02たきと指示「承認された時の説明を追加」）
           "w:approved": { iconName:"party", head:"承認されました！", body:`「${title}」に承認されました。`, steps: APPROVED_STEPS, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
-          "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
+          "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。`, steps: WORKED_STEPS, link:"評価する →", hash:"/profile/worker/approved" },
           // ★w:reviewed の行き先はページ遷移でなく【いまの画面の上に実績の面を開く】（2026-08-31たきと指示
           //   「マイページに遷移するだけだ。Airbnbはどうしている？パクれ」）＝Airbnbは評価後の「見る」に
           //   新しいページを作らず、既存のプロフィールのレビュー欄へ直行させる。うちの同じ場所＝
           //   自分のプロフィールプレビューの記録タブ（わたしの実績カードと同じ openWorkerPreview(me.id, 1)）。
           //   新ページは作らない・マイページの入口にも落とさない
           "w:reviewed": { iconName:"star", head:"評価を送りました", body:`ありがとうございました。「${title}」の実績が、あなたのプロフィールに反映されます。`, link:"実績を見る →", action: () => openWorkerPreview(me.id, 1) },
-          "f:applied":  { iconName:"inbox", head:"新しい応募が届きました", body:`「${title}」に新しい応募があります。プロフィールを見て、承認するか決めましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
-          "f:worked":   { iconName:"check", head:"作業が完了しました", body:`「${title}」の作業が完了しました。働き手を評価しましょう。`, link:"応募者を見る →", hash:"/profile/employer/applicants" },
+          "f:applied":  { iconName:"inbox", head:"新しい応募が届きました", body:`「${title}」に新しい応募があります。`, steps: APPLIED_STEPS, link:"応募者を見る →", hash:"/profile/employer/applicants" },
+          "f:worked":   { iconName:"check", head:"作業が完了しました", body:`「${title}」の作業が完了しました。`, steps: F_WORKED_STEPS, link:"応募者を見る →", hash:"/profile/employer/applicants" },
         };
         const d = defs[`${fresh.role}:${fresh.stage}`];
         if (d && !cancelled) setStageBox(d);
@@ -2233,8 +2233,9 @@ export default function App(){
       {/* この画面の説明（2026-09-01たきと指示「訪問者にページの説明をすべき」＝Airbnbの
           初回教育＋(i)入口の写し）：はじめて開いたページで一度だけ自動表示・
           以後は☰「この画面の説明」から。台帳と仕組みは components/PageGuide.jsx が唯一のソース。
-          新規登録・再同意の全画面を挟んでいる間は自動表示しない */}
-      <PageGuide suspend={needsAccountHolder || openAccountForm || needsPrivacyReconsent} />
+          再同意の全画面を挟んでいる間は自動表示しない（新規登録の本人情報のフォームには専用の説明を出す＝
+          台帳の account が画面の目印 data-guide="account-form" で見分ける・2026-09-02） */}
+      <PageGuide suspend={needsPrivacyReconsent} />
 
       {/* 掲載完了＝Airbnbの Publish celebration の型（2026-09-02たきと指示「掲載完了アニメーションを削除。
           Airbnbの完了をパクれ」）：白い全画面の「おめでとうございます、〇〇さん」＋掲載した求人のカード＋「完了」。

@@ -218,7 +218,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
             <div className="fade-in">
               <div style={{ marginBottom:16 }}>
                 <label className="lbl f-sans">メールアドレス</label>
-                <input className="field f-sans" type="email" placeholder="your@email.com"
+                <input data-guide="login-email" className="field f-sans" type="email" placeholder="your@email.com"
                   value={email} autoFocus
                   onChange={e=>{setEmail(e.target.value);setErr("");}}/>
               </div>
@@ -238,7 +238,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
                 {sending ? <>確認中<Dots /></> : "ログイン"}
               </button>
               <div style={{ textAlign:"center", marginTop:18, display:"flex", flexDirection:"column", gap:8 }}>
-                <button onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans cb-hop"
+                <button data-guide="login-signup" onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans cb-hop"
                   style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
                   はじめての方はこちら（新規登録）
                 </button>

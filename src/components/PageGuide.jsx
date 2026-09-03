@@ -95,6 +95,33 @@ const GUIDE_ART = {
       <circle cx="97" cy="68.5" r="7" fill="currentColor" stroke="none" />
     </svg>
   ),
+  // ログイン＝メールと、届いた6桁のコード
+  login: (
+    <svg {...ART_PROPS}>
+      <rect x="14" y="18" width="52" height="36" rx="6" />
+      <path d="M14 24l26 18 26-18" />
+      <rect x="62" y="40" width="44" height="28" rx="6" fill="#fff" />
+      <path d="M70 54h4" /><path d="M78 54h4" /><path d="M86 54h4" /><path d="M94 54h4" />
+    </svg>
+  ),
+  // 本人情報の登録＝書面と、ほかの人には見えない錠前
+  account: (
+    <svg {...ART_PROPS}>
+      <rect x="22" y="8" width="54" height="64" rx="6" />
+      <path d="M30 22h38" /><path d="M30 32h38" /><path d="M30 42h24" /><path d="M30 52h30" />
+      <rect x="78" y="46" width="26" height="22" rx="5" fill="#fff" />
+      <path d="M84 46v-6a7 7 0 0 1 14 0v6" fill="none" />
+      <circle cx="91" cy="57" r="2.6" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  // 仕事の当日＝時計（開始も終わりも自動）
+  workday: (
+    <svg {...ART_PROPS}>
+      <circle cx="60" cy="42" r="30" />
+      <path d="M60 22v20l13 8" />
+      <path d="M22 70h76" />
+    </svg>
+  ),
   // カレンダー（働き手・農家で共用）＝盤面と決まった日
   calendar: (
     <svg {...ART_PROPS}>
@@ -174,6 +201,37 @@ const GUIDE_ART = {
 // 台帳。lead＝この画面が何かの1文（題名の下の灰色）／rows＝アイコン＋太字見出し＋灰色説明（3つまで）／
 // art＝上部のビジュアル（GUIDE_ARTの鍵）／spots＝スポットライトの的（セレクタ＋一言・無ければ飛ばす）
 const PAGE_GUIDES = [
+  // ★本人情報の登録はURLでなく画面の目印で見分ける（domOnly）：登録直後は #/login のまま自動で出る画面so、
+  //   台帳の先頭に置き、フォームが画面にある時だけこの説明が勝つ。無ければ飛ばす（保留にはしない）
+  {
+    key: "account", title: "本人情報の登録", art: "account", domOnly: true,
+    match: () => true,
+    detect: () => !!document.querySelector('[data-guide="account-form"]'),
+    lead: "はじめてのときだけ、あなたの情報を登録します。",
+    rows: [
+      { icon: "profile", t: "氏名・生年月日・住所を入れます", d: "雇用の手続きに必要な情報です。18歳未満は登録できません" },
+      { icon: "lock", t: "ほかの人には見えません", d: "表示されるのはニックネームなど、あとで作るプロフィールだけ。氏名は採用が決まった相手にだけ表示されます" },
+      { icon: "check", t: "同意して「登録する」", d: "利用規約とプライバシーポリシーに同意して押します。終わると「さがす」に戻ります" },
+    ],
+    spots: [
+      { sel: '[data-guide="account-name"]', label: "氏名はここに。ほかの利用者には表示されません。" },
+      { sel: '[data-guide="account-submit"]', label: "入れ終わったら、同意にチェックしてここを押します。" },
+    ],
+  },
+  {
+    key: "login", title: "ログイン", art: "login",
+    match: (h) => h === "login",
+    lead: "メールアドレスとパスワードで入ります。はじめての方は、下のボタンから登録します。",
+    rows: [
+      { icon: "mail", t: "メールアドレスを入れます", d: "パスワードをお持ちなら、そのまま「ログイン」を押します" },
+      { icon: "sprout", t: "はじめての方は「はじめての方はこちら」", d: "6桁の認証コードがメールで届きます。入れたあと、パスワードを決めます" },
+      { icon: "lock", t: "パスワードを忘れたら", d: "同じ認証コードで、もう一度パスワードを決められます" },
+    ],
+    spots: [
+      { sel: '[data-guide="login-email"]', label: "メールアドレスはここに入れます。" },
+      { sel: '[data-guide="login-signup"]', label: "はじめての方はここから。認証コードがメールで届きます。" },
+    ],
+  },
   {
     key: "search", title: "さがす", art: "search",
     match: (h) => h === "" || h === "search",
@@ -232,6 +290,20 @@ const PAGE_GUIDES = [
       { sel: '[data-guide="chat-partner"]', label: "相手の名前です。タップするとプロフィールが見られます。" },
       { sel: '[data-guide="chat-report"]', label: "困ったときはここから運営に報告できます。" },
     ],
+  },
+  // 仕事の当日＝今日の記録の用件ページ（農家 day_report／働き手 w_day_report）。自動開始・自動完了の説明の置き場
+  // （2026-09-02たきと指示「優先度高いものから実装」＝当日に特別な操作は要らない、を伝える場所が無かった）
+  {
+    key: "workday", title: "仕事の当日", art: "workday",
+    match: (h) => h === "calendar/todo/day_report" || h === "calendar/todo/w_day_report",
+    lead: "作業の当日は、特別な操作は要りません。",
+    rows: [
+      { icon: "clock", t: "開始は自動で記録されます", d: "作業の開始時刻になると、自動で「作業中」になります。打刻は要りません" },
+      { icon: "check", t: "終わりも自動です", d: "最終日の終了時刻に、自動で「完了」になります" },
+      { icon: "clipboard", t: "何かあった日だけ記録します", d: "遅刻・欠勤・会えない・予定と違う、など。何もなかった日は入力不要です" },
+      { icon: "star", t: "評価は最終日に", d: "仕事が終わったら、カレンダーのカードの「評価する」から" },
+    ],
+    spots: [{ sel: '[data-guide="day-report-card"]', label: "いま進んでいる仕事です。何かあった日は「記録する」から。" }],
   },
   {
     key: "savedCalendar", title: "カレンダー", art: "calendar",
@@ -345,6 +417,7 @@ export function resolveGuide(hash) {
     if (!g.match(h)) continue;
     if (!g.detect) return g;
     if (g.detect()) return g;
+    if (g.domOnly) continue; // 画面の目印だけで見分ける説明＝無ければ飛ばす（保留にしない）
     waiting = true;
   }
   return waiting ? GUIDE_PENDING : null;
@@ -354,7 +427,7 @@ export function guideForHash(hash) {
   const r = resolveGuide(hash);
   if (r !== GUIDE_PENDING) return r;
   const h = (hash || "").replace(/^#\/?/, "");
-  for (const g of PAGE_GUIDES) { if (g.match(h)) return g; }
+  for (const g of PAGE_GUIDES) { if (!g.domOnly && g.match(h)) return g; }
   return null;
 }
 

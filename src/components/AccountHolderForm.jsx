@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
+import { ROUTE_CHANGED } from "../lib/pushRoute";
 import { C, THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION } from "../lib/utils";
 import { Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
@@ -9,6 +10,9 @@ import { NavIcon } from "./NavIcons";
 // ── AccountHolderForm — 新規登録①（本人確認・口座名義人情報）────
 // 送信は届出完了までADMIN_EMAIL限定。一般ユーザーはボタン無効「準備中」表示（RLS側もadmin限定で二重ゲート）
 export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onShowPrivacy }) {
+  // この画面はURLを変えずに出ることがある（登録直後の自動表示）＝出た瞬間に画面の合図を送り、
+  // この画面の説明（PageGuide）が「本人情報の登録」の説明を出せるようにする（2026-09-02）
+  useEffect(() => { try { window.dispatchEvent(new Event(ROUTE_CHANGED)); } catch {} }, []);
   const [sess, setSess] = useState(undefined); // undefined=確認中 / null=未ログイン
   const [fullName, setFullName] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -124,7 +128,9 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
   if (sess === undefined) return <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:13,color:"#B0B0B0"}}>確認中<Dots /></p></div>;
 
   return (
-    <div className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
+    /* data-guide="account-form"＝この画面の説明（PageGuide）が「本人情報の登録」だと見分ける目印。
+       URLでは分からない（登録直後は #/login のまま自動で出る）ので画面の目印で判定する（2026-09-02） */
+    <div data-guide="account-form" className="fade-in" style={{ minHeight:"80vh", padding:"28px 24px 64px" }}>
       <div style={{ width:"100%", maxWidth:"100%", margin:"0 auto" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ display:"flex", justifyContent:"center", marginBottom:12, color:"#717171" }}><NavIcon name="edit" size={36} /></div>
@@ -157,7 +163,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
             <div className="f-sans" style={{ fontSize:13, fontWeight:700, color:C.ink, marginBottom:14 }}>本人情報</div>
             <div style={{ marginBottom:16 }}>
               <label className="lbl f-sans">{entityType==="corporate" ? "代表者氏名" : "氏名"}</label>
-              <input className="field f-sans" type="text" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="山田 太郎" />
+              <input data-guide="account-name" className="field f-sans" type="text" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="山田 太郎" />
             </div>
             {entityType === "corporate" && (
               <div className="fade-in" style={{ marginBottom:16 }}>
@@ -251,7 +257,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
           {err && <p className="f-sans" style={{ fontSize:12, color:C.shu }}>{err}</p>}
 
           <div>
-            <button className="btn-primary" style={{ width:"100%" }} disabled={!canSubmit || busy} onClick={submit}>
+            <button data-guide="account-submit" className="btn-primary" style={{ width:"100%" }} disabled={!canSubmit || busy} onClick={submit}>
               {isAllowed === null ? <>確認中<Dots /></> : !isAllowed ? "準備中" : busy ? <>登録中<Dots /></> : "登録する"}
             </button>
             {isAllowed === false && (

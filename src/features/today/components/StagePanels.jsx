@@ -367,7 +367,7 @@ export function DayReportPanel({ items, meId, role }) {
           const job = jobs[t.job_number];
           const open = () => setReportApp({ id: t.application_id });
           return (
-            <div key={t.application_id} style={{ display:"grid", gap:8 }}>
+            <div key={t.application_id} data-guide="day-report-card" style={{ display:"grid", gap:8 }}>
               {/* 相手（誰についての記録か・誰に届くか）。アイコンは相手の役割色（チャットの役割色枠と同じ規約） */}
               <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                 <Avatar url={t.partner_avatar} name={t.partner_name || "？"} size={32} ring={partnerColor} bg={partnerColor} />

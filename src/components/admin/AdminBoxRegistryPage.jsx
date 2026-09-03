@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { NoticeJumpText } from "../ui";
 import { NavIcon } from "../NavIcons";
 import { NavIconInline } from "../NavIcons";
-import { StageBoxBody, APPROVED_STEPS } from "../StageBoxBody";
+import { StageBoxBody, APPROVED_STEPS, APPLIED_STEPS, WORKED_STEPS, F_WORKED_STEPS } from "../StageBoxBody";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（ボックス台帳 ⇄ お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
@@ -14,12 +14,12 @@ import { StageBoxBody, APPROVED_STEPS } from "../StageBoxBody";
 // 文面は App 内の実定義(defs・17555付近)をサンプル題名で写したもの。実定義を変えたらここも合わせる
 const STAGE_BOX_PREVIEWS = {
   "w:approved": { iconName:"party", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。", steps: APPROVED_STEPS, link:"チャットを開く →" },
-  "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。最後に、お互いを評価しましょう。", link:"評価する →" },
+  "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。", steps: WORKED_STEPS, link:"評価する →" },
   // ★w:reviewed の「実績を見る →」はページ遷移でなく、自分のプロフィールプレビューの記録タブを
   //   その場で開く（App.jsx側は hash でなく action・2026-08-31）。見た目はこの写しのとおり
   "w:reviewed": { iconName:"star", head:"評価を送りました",         body:"ありがとうございました。「ブロッコリー 収穫」の実績が、あなたのプロフィールに反映されます。", link:"実績を見る →" },
-  "f:applied":  { iconName:"inbox", head:"新しい応募が届きました",   body:"「ブロッコリー 収穫」に新しい応募があります。プロフィールを見て、承認するか決めましょう。", link:"応募者を見る →" },
-  "f:worked":   { iconName:"check", head:"作業が完了しました",       body:"「ブロッコリー 収穫」の作業が完了しました。働き手を評価しましょう。", link:"応募者を見る →" },
+  "f:applied":  { iconName:"inbox", head:"新しい応募が届きました",   body:"「ブロッコリー 収穫」に新しい応募があります。", steps: APPLIED_STEPS, link:"応募者を見る →" },
+  "f:worked":   { iconName:"check", head:"作業が完了しました",       body:"「ブロッコリー 収穫」の作業が完了しました。", steps: F_WORKED_STEPS, link:"応募者を見る →" },
 };
 
 export function AdminBoxRegistryPage() {
