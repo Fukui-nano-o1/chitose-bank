@@ -119,7 +119,7 @@ export function WorkerExperiencePage() {
         <AutoSkeleton fallbackHeight={84} fallbackCount={4} /> /* 読み込み中は入力欄の仮配置（2026-07-27） */
       ) : (<>
         {/* 経験（最大5）／免許・資格・保険方針：縦１本（2026-08-28「経験項目はAirbnbをパクれ」） */}
-        <div style={{ marginBottom:20 }}>
+        <div data-guide="exp-entries" style={{ marginBottom:20 }}>
           <WorkerExperienceEntries expEntries={expEntries} setExpEntries={setExpEntries} selfDeclared={selfDeclared} setSelfDeclared={setSelfDeclared} />
         </div>
 

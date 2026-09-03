@@ -1101,7 +1101,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {/* ── HOME ── */}
           {step === 0 && (
             <>
-              <div className="step0-grid">
+              <div className="step0-grid" data-guide="flow-intro">
               <div>
               <div style={{ marginBottom:36 }}>
                 <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:"0 0 8px" }}>ステップ1</p>
@@ -1118,7 +1118,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               {/* 見本求人カード（🥦ブロッコリー）は削除（2026-07-16）：既に求人が作られていると誤認されたため。憲法3条（表示にダミー禁止）とも整合 */}
               </div>
               <div style={{ position:"absolute", bottom:24, right:20, zIndex:2 }}>
-                <button onClick={() => setStep(1)} className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
+                <button onClick={() => setStep(1)} data-guide="flow-next" className="btn-primary" style={{ padding:"14px 40px", fontSize:15, fontWeight:700 }}>次へ</button>
               </div>
             </>
           )}

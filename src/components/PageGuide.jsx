@@ -247,6 +247,20 @@ const GUIDE_ART = {
       <path d="M86 20c4-5 12-5 16 0-4 5-12 5-16 0z" /><circle cx="94" cy="20" r="1.6" fill="currentColor" />
     </svg>
   ),
+  // 求人をつくる＝書面と、右上の＋（新しく出す）
+  jobCreate: (
+    <svg {...ART_PROPS}>
+      <rect x="26" y="14" width="48" height="58" rx="6" /><path d="M34 30h32" /><path d="M34 42h32" /><path d="M34 54h20" />
+      <circle cx="92" cy="24" r="12" /><path d="M92 18v12" /><path d="M86 24h12" />
+    </svg>
+  ),
+  // 経験・できること＝クリップボードにレ点の行
+  experience: (
+    <svg {...ART_PROPS}>
+      <rect x="32" y="14" width="56" height="58" rx="6" /><rect x="50" y="8" width="20" height="10" rx="3" />
+      <path d="M42 34l4 4 7-8" /><path d="M58 36h22" /><path d="M42 50l4 4 7-8" /><path d="M58 52h22" />
+    </svg>
+  ),
 };
 
 // 台帳。lead＝この画面が何かの1文（題名の下の灰色）／rows＝アイコン＋太字見出し＋灰色説明（3つまで）／
@@ -425,6 +439,43 @@ const PAGE_GUIDES = [
       { icon: "support", t: "分からないときは運営チャットへ", d: "チャットのいちばん上の運営チャットから聞けます" },
     ],
     spots: [{ sel: '[data-guide="todo-row"]', label: "修正のお願いが届いた求人です。「修正する →」で直せます。" }],
+  },
+  // ── 低い優先度の残り（2026-09-03たきと指示「最後行こう」）＝求人をつくる／保険の準備／経験・できること
+  //    ★労働条件通知書は一覧の？で説明済み・いいねした求人の独立カードは現存しない・お知らせ一覧は運営専用＝台帳に載せない
+  {
+    key: "jobCreate", title: "求人をつくる", art: "jobCreate",
+    // URLは #/work/new（1ページ目だけ・2ページ目からは #/work/new/{step}）。下書きから途中の頁で再開した時は出さない
+    match: (h) => h === "work/new",
+    detect: () => !!document.querySelector('[data-guide="flow-intro"]'),
+    lead: "求人を1問ずつ作る画面です。必須は6つ、5分ほどで終わります。",
+    rows: [
+      { icon: "postJob", t: "必須の6つから", d: "作物・作業・場所・日程・人数・報酬。あとの写真や説明は任意で、あとから足せます" },
+      { icon: "check", t: "途中でやめても残ります", d: "右上の「終了」→「保存して終了」で下書きに。次に開くと続きから" },
+      { icon: "views", t: "最後に確認して掲載", d: "確認の画面で内容を見て「掲載する」を押すと、働き手の「さがす」に並びます" },
+    ],
+    spots: [{ sel: '[data-guide="flow-next"]', label: "「次へ」で1問目（作物）へ進みます。" }],
+  },
+  {
+    key: "insurancePrep", title: "保険の準備", art: "insurance",
+    match: (h) => h === "insurance",
+    lead: "入っている保険・準備する保険を、自己申告で選ぶ画面です。",
+    rows: [
+      { icon: "shield", t: "当てはまるものをONにします", d: "複数選べます。ひとこと（保険会社や補償の範囲など）も添えられます" },
+      { icon: "views", t: "求人とプロフィールに表示されます", d: "「農家の自己申告」として働き手に見えます。掲載した求人には、その時の申告が残ります" },
+      { icon: "clipboard", t: "運営が確認するものではありません", d: "事故のときの備えとして、正直に選んでください" },
+    ],
+    spots: [{ sel: '[data-guide="insurance-boxes"]', label: "当てはまる保険をONにして、下の「保存する」を押します。" }],
+  },
+  {
+    key: "experience", title: "経験・できること", art: "experience",
+    match: (h) => h === "experience",
+    lead: "農作業の経験や、持っている免許・資格を自己申告で書く画面です。",
+    rows: [
+      { icon: "clipboard", t: "作物×作業で経験を足します", d: "「ネギ×収穫」のように、何をどれくらいやったかを最大5つ" },
+      { icon: "check", t: "免許・資格・保険の方針", d: "普通免許やフォークリフト、刈払機など。当てはまるものをONにします" },
+      { icon: "views", t: "農家に「ご本人の申告」として見えます", d: "運営が確認するものではありません。はたらいた記録（実績）は別に自動でつきます" },
+    ],
+    spots: [{ sel: '[data-guide="exp-entries"]', label: "ここに経験を1つずつ足します。下の「保存する」で反映されます。" }],
   },
   {
     key: "savedCalendar", title: "カレンダー", art: "calendar",

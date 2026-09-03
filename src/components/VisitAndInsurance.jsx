@@ -64,7 +64,7 @@ export function InsurancePrepPage({ me }) {
       ) : (<>
         {/* 罫線で区切る行から、1項目=1ボックスへ（2026-07-29たきと指示・プロフィールの箱と同じ作法）。
             申告した項目は縁が緑。中身（トグル・ひとこと）と排他ルールは従来どおり */}
-        <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+        <div data-guide="insurance-boxes" style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
           {/* これから準備する選択中は他の保険を非表示（2026-07-25たきと指示・排他を見た目でも表現）。OFFに戻すと全箱復活 */}
           {(items.includes("considering") ? INSURANCE_ITEMS.filter(it => it.k === "considering") : INSURANCE_ITEMS).map((it) => {
             const on = items.includes(it.k);
