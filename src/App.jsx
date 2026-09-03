@@ -24,6 +24,7 @@ import { DataConstitution } from "./app/legal/DataConstitution";
 import { HelpCenter, InstallGuide } from "./app/help/HelpCenter";
 import { FeedbackModal } from "./app/diagnostics/FeedbackModal";
 import { PageGuide, guideForHash } from "./components/PageGuide";
+import { StageBoxBody, APPROVED_STEPS } from "./components/StageBoxBody";
 import { WorkerPreviewSheet, EmployerPreviewSheet } from "./app/preview/PreviewSheets";
 import { openWorkerPreview } from "./lib/previewBus";
 // ルート分割の自己修復（lazyChunk / prepareFreshReload / ChunkUpdating）→ app/chunkReload.jsx へ移設（2026-08-17）
@@ -1424,7 +1425,8 @@ export default function App(){
         const title = jobRow ? ([jobRow.crop, jobRow.task].filter(Boolean).join(" ") || `求人 #${fresh.a.job_number}`) : `求人 #${fresh.a.job_number}`;
         try { localStorage.setItem("cb_stageShown", JSON.stringify([...new Set([...shown, `${fresh.a.id}:${fresh.stage}:${fresh.role}`])])); } catch {}
         const defs = {
-          "w:approved": { iconName:"party", head:"承認されました！", body:`「${title}」に承認されました。打ち合わせ・面接をチャットで進めましょう。`, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
+          // 承認された時＝つぎに起きること3行（APPROVED_STEPS・2026-09-02たきと指示「承認された時の説明を追加」）
+          "w:approved": { iconName:"party", head:"承認されました！", body:`「${title}」に承認されました。`, steps: APPROVED_STEPS, link:"チャットを開く →", hash:"/chat/" + fresh.a.id },
           "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:`農家が「${title}」の作業完了を記録しました。最後に、お互いを評価しましょう。`, link:"評価する →", hash:"/profile/worker/approved" },
           // ★w:reviewed の行き先はページ遷移でなく【いまの画面の上に実績の面を開く】（2026-08-31たきと指示
           //   「マイページに遷移するだけだ。Airbnbはどうしている？パクれ」）＝Airbnbは評価後の「見る」に
@@ -1674,11 +1676,7 @@ export default function App(){
       {!consignRoom && stageBox && (
         <div className="cb-lock-scroll" onClick={()=>setStageBox(null)} style={{ position:"fixed", inset:0, zIndex:9630, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"28px 24px 22px", maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", textAlign:"left", boxShadow:"0 12px 48px rgba(0,0,0,0.25)", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <div style={{ marginBottom:8, color:"#00A86B" }}><NavIcon name={stageBox.iconName} size={34} /></div>
-            <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={stageBox.head} /></p>
-            <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-            <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{stageBox.body}</p>
-            <button onClick={()=>{ const { hash: h, action } = stageBox; setStageBox(null); if (action) action(); else window.location.hash = h; }} className="f-sans" style={{ marginTop:16, background:"none", border:"none", borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>{stageBox.link}</button>
+            <StageBoxBody box={stageBox} onLink={()=>{ const { hash: h, action } = stageBox; setStageBox(null); if (action) action(); else window.location.hash = h; }} />
           </div>
         </div>
       )}

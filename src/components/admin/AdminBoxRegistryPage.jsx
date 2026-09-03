@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { NoticeJumpText } from "../ui";
 import { NavIcon } from "../NavIcons";
 import { NavIconInline } from "../NavIcons";
+import { StageBoxBody, APPROVED_STEPS } from "../StageBoxBody";
 
 // ── ボックス一覧 専用ページ（#/boxes・管理者のみ・2026-07-17）：管理タブ「その他」のポップアップから昇格。
 //    2タブ構成（ボックス台帳 ⇄ お知らせ台帳・#/boxes / #/boxes/notices）。タブは指追従スワイプでも切替
@@ -12,7 +13,7 @@ import { NavIconInline } from "../NavIcons";
 // 段階お祝いボックスの本番見た目プレビュー（ボックス一覧の preview_key='stage:...' から参照）。
 // 文面は App 内の実定義(defs・17555付近)をサンプル題名で写したもの。実定義を変えたらここも合わせる
 const STAGE_BOX_PREVIEWS = {
-  "w:approved": { iconName:"party", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。打ち合わせ・面接をチャットで進めましょう。", link:"チャットを開く →" },
+  "w:approved": { iconName:"party", head:"承認されました！",         body:"「ブロッコリー 収穫」に承認されました。", steps: APPROVED_STEPS, link:"チャットを開く →" },
   "w:worked":   { iconName:"check", head:"お仕事おつかれさまでした", body:"農家が「ブロッコリー 収穫」の作業完了を記録しました。最後に、お互いを評価しましょう。", link:"評価する →" },
   // ★w:reviewed の「実績を見る →」はページ遷移でなく、自分のプロフィールプレビューの記録タブを
   //   その場で開く（App.jsx側は hash でなく action・2026-08-31）。見た目はこの写しのとおり
@@ -163,11 +164,7 @@ export function AdminBoxRegistryPage() {
                   <div style={{ marginBottom:18 }}>
                     <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:"0 0 8px" }}>本番の見た目（サンプル題名）</p>
                     <div className="f-sans" style={{ background:"#fff", border:"3px solid #00A86B", borderRadius:20, padding:"24px 20px 20px", boxShadow:"0 6px 24px rgba(0,0,0,0.12)", textAlign:"left" }}>
-                      <div style={{ marginBottom:8, color:"#00A86B" }}><NavIcon name={sb.iconName} size={34} /></div>
-                      <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={sb.head} /></p>
-                      <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
-                      <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0 }}>{sb.body}</p>
-                      <span className="f-sans" style={{ display:"inline-block", marginTop:16, borderBottom:"2px solid #00A86B", padding:"0 0 2px", fontSize:18, fontWeight:700, color:"#00A86B" }}>{sb.link}</span>
+                      <StageBoxBody box={sb} />
                     </div>
                   </div>
                 );
