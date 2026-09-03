@@ -30,7 +30,7 @@ import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
-import { Celebration } from "./Celebration";
+import { DoneScreen } from "./DoneScreen";
 import { DayReportSheet } from "./DayReportSheet";
 import { FinalReviewSheet } from "./FinalReviewSheet";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -98,7 +98,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const isOwnJobsTab = jobTab === "draft" || jobTab === "active" || jobTab === "expired";
   // 完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：承認・採用・完了評価の成功時に1回。
   // 演出のみ＝記録・ゲートには触れない。負の場面（見送り・欠勤）では使わない
-  const [celebrate, setCelebrate] = useState(null);
+  const [approveDone, setApproveDone] = useState(null); // 承認の完了画面 { id, name }（Airbnbの承諾後の型＝チャットへ誘う）
   useEffect(() => {
     const onHash = () => { const j = hashToJobTab(); if (j) setJobTab(j); };
     window.addEventListener("hashchange", onHash);
@@ -332,7 +332,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       //   写し忘れると、ボタンが「評価する」のまま残って二度目を開けてしまう（DBのUNIQUEは
       //   二度目の保存を拒むが、入力し終えてからエラーになる＝入口で止める）
       setReviewedAppIds(prev => { const n = new Set(prev); n.add(completeModalApp.id); return n; });
-      fbSuccess(); setCelebrate({ title:"おつかれさまでした" });
+      fbSuccess(); // 完了の控えは下の「評価登録完了」モーダルが担う（花火は廃止・2026-09-02）
       // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
       let jobLabel = "";
       const cached = dbActive.find(d => d.job_number === completeModalApp.job_number) || dbDrafts.find(d => d.job_number === completeModalApp.job_number);
@@ -835,7 +835,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         const { data, error } = await approveApplication(a.id);
                         if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                         setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
-                        fbSuccess(); setCelebrate({ title:"承認しました" });
+                        fbSuccess(); setApproveDone({ id: a.id, name: workerProfiles[a.worker_id]?.nickname || "" });
                       }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
                     </div>
                     {/* 記録が済んだら両方とも出さない（2026-08-16たきと指示「OKで保留と対応済みは非表示」） */}
@@ -982,7 +982,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     // サブページの上空白は15px固定（2026-07-25応募者→2026-07-26求人タブも・たきと指示で全サブページ統一）
     // 応募者ページは下余白もCSS側(20px)へ一本化するので、コンテナ自身の下80pxは持たせない（2026-07-26たきと指示）
     <div className={(jobTab === "applicants" || jobTab === "calendar") ? "emp-applicants-page" : undefined} style={{ maxWidth:1200, margin:"0 auto", padding: jobTab === "home" ? "0" : (jobTab === "applicants" || jobTab === "calendar") ? "15px 0 0" : "15px 0 80px" }}>
-      {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
+      {/* 承認しました＝白い全画面の完了画面（Airbnbの承諾後の型：メッセージを送る＝チャットへ誘う・2026-09-02）。
+          花火は廃止。承認は採用ではないこと・期限までに決めることをここで明示する */}
+      {approveDone && <DoneScreen takeover="approve-done"
+        title="承認しました"
+        lead={`${approveDone.name || "応募者"}さんに、承認をお知らせしました。`}
+        rows={[
+          { icon:"chats", t:"チャットで面接します", d:"質問や日程の相談をチャットで進めます" },
+          { icon:"hire", t:"採用は「採用する」で決めます", d:"承認は採用ではありません。話してから決めてください" },
+          { icon:"hourglass", t:"作業の開始日までに決めます", d:"決めないまま開始日が来ると、応募は自動で失効します" },
+        ]}
+        primary={{ label:"チャットを開く", onClick:()=>{ const id = approveDone.id; setApproveDone(null); window.location.hash = "/chat/" + id; } }}
+        secondary={{ label:"とじる", onClick:()=>setApproveDone(null) }} />}
       {/* その日の記録（最終の作業日より前の作業日・2026-08-19）。祝祭は出さない（祝う場面ではない） */}
       <DayReportSheet app={dayReportApp && { id: dayReportApp.id }} meId={me?.id} role="farmer"
         onClose={()=>setDayReportApp(null)} onDone={()=>setDayReportApp(null)} />

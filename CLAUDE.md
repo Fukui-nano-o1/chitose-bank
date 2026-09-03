@@ -10459,3 +10459,40 @@ jobForMe の "./supabase" that素通りして supabaseUrl is required で全滅�
 【実機目視の残り】①掲載する→白い画面に名前・求人カードthat出るか ②「完了」で入る直前の画面（マイページ／
 カレンダー）に戻るか ③「掲載した求人を見る」で求人詳細へ ④公開間近（修正のお願い中の再掲載）の文言
 ━━━ ここまで ━━━
+
+━━━ 2026-09-02(続5) 花火の祝祭（Celebration）を全廃＝完了画面をAirbnbの型に統一（たきと指示「全てAirbnbをパクれ」）━━━
+【廃止】components/Celebration.jsx（暗幕→打ち上げ→閃光→押印→追い花火・約3秒で自動終了）をファイルごと削除。
+残っていた8場面すべてを、掲載完了（PublishDone）と同じ器＝白い全画面の完了画面に置き換えた。あわせて
+応募系の黒いトースト（ApplyDoneNote）と「60秒静止で さがす へ」の見張り（PublishIdleRedirect・applyIdle）も廃止
+＝Airbnbの完了画面は利用者の操作で閉じる（自動では消えない・自動で別のページへ送らない）。
+【新設 components/DoneScreen.jsx＝完了画面の共有部品（Airbnbの Request sent／Thanks for your review の構成）】
+題名 → 一言 → つぎに起きること（rows・PageGuide／StageBoxBody と同じ言語）→ 中身（children）→ 小さな注記（note）→
+下部固定の黒い主ボタン（primary）＋下線の副リンク（secondary）。data-takeover（PageGuideの自動表示を止める目印）＋
+cb-lock-scroll。PublishDone もこの器に載せ替えた（固有なのは題名の名前・一言・求人カードだけ）。
+【8場面の置き換え】
+・応募完了（App.jsx applyDone）＝「応募を送りました／N件の応募を届けました／この求人には応募済みです」＋
+　3行（返事を待つ・期限で自動終了／承認されるとチャットで面接／採用が決まると確定）＋法的な注記
+　（まだ採用ではない・契約は当事者間＝旧トーストから消さず移した）。応募状況に着地した上に重なる
+・仮応募（pendDone）＝「仮応募をお預かりしました」＋2行（プロフィールを仕上げる／そろった時点で届く・
+　自己紹介の確認は待たない）＋副リンク「プロフィールを仕上げる」→ #/apply/pending（チェックリストページ）
+・働き手フロー完了（workerFlowDone）＝「ありがとうございます」＋構想段階の明示（職安法配慮・不変）
+・承認（FarmerDashboard approveDone）＝「承認しました」＋3行（チャットで面接／採用は「採用する」で／期限）＋
+　主ボタン「チャットを開く」（Airbnbの承諾後＝メッセージへ誘う）＋副「とじる」
+・働き手の評価（WorkerApplications reviewDone／StagePanels ReviewStagePanel done）＝「評価を送りました」＋
+　「お互いの評価が揃うか、仕事の完了から3日たつと相手に表示」
+・保険の報告（StagePanels InsuranceStagePanel reported）＝「報告しました」＋どの保険を誰のチャットへ。
+　片付け（onReported）は「完了」で閉じてから（先に消すとパネルごと消える罠は従来どおり）
+・農家の完了・評価（FarmerDashboard）＝花火だけ外した。控えは従来の「評価登録完了」モーダルが担う
+【管理】AdminAnimationsRoom（#/admin/animations）＝祝祭の再生部屋から【完了画面の一覧】に作り替え
+（DONE_SCREENS＝本番の文言の写し・本物の DoneScreen を preview で開く／掲載完了2種／埋め込みの動きへのリンク）。
+試し打ちは廃止。AdminFarmerPagesRoom の api.play も廃止（採用の見本は成立の画面＝HireConfirm への案内文に）。
+【残っている動き（意図的・祝祭ではない）】採用の押印（HireConfirm＝成立の画面の中・自動で消えない）／
+委託ページの入場演出／求人詳細の写真の動き／lib/feedback の音（fbCelebrate は LandingFlow の完了ページ到達で
+音だけ鳴る＝据え置き）。
+【検証】build成功・eslint 0 error（警告22＝基準と同数）・Celebration の参照ゼロ（feedback.js のコメント除く）。
+実ブラウザ（同梱Chromium・viteハーネス・390x844）で8項目OK：応募完了（題名・注記・3行・白い全画面・完了が画面内・
+説明が重ならない・自動で消えない・完了で閉じてURL不変）／承認（チャットを開く＋とじる・3行）／評価（題名と一言だけ）／
+pageerrorゼロ。スクショで目視。
+【実機目視の残り】①応募を送る→応募状況の上に白い完了画面→完了で閉じるか ②仮応募→副リンクでチェックリストへ
+③承認→「チャットを開く」でチャットへ ④評価・保険の報告の後の画面 ⑤どこにも花火が出ないこと
+━━━ ここまで ━━━

@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { fetchJobRowForMe } from "../lib/jobForMe";
 import { mapJobPublicRow } from "../lib/utils";
 import { JobCard } from "./JobCard";
+import { DoneScreen } from "./DoneScreen";
 
 export function PublishDone({ open = true, jobNumber, name, onClose, preview = false, previewJob = null }) {
   const [job, setJob] = useState(() => (preview ? previewJob : null));
@@ -30,31 +31,17 @@ export function PublishDone({ open = true, jobNumber, name, onClose, preview = f
     : "求人ができました。公開の準備が整いしだい、働き手に届きます。";
   const goJob = () => { onClose?.(); if (!preview && jobNumber) window.location.hash = "/work/job/" + jobNumber; };
   return (
-    /* data-takeover＝この画面の説明（PageGuide）が下の画面へ自動表示しない目印。cb-lock-scroll＝背後のスクロールと
-       下部バー・浮遊ボタンを止める（全画面テイクオーバーの家族＝FinalReviewSheet・HireConfirm と同じ器） */
-    <div data-takeover="publish-done" className="cb-lock-scroll f-sans" style={{ position:"fixed", inset:0, zIndex:11000, background:"#fff", display:"flex", flexDirection:"column" }}>
-      <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"calc(56px + env(safe-area-inset-top, 0px)) 24px 24px" }}>
-        <div style={{ maxWidth:560, margin:"0 auto" }}>
-          <h2 className="f-sans" style={{ fontSize:28, fontWeight:800, color:"#222", lineHeight:1.3, margin:"0 0 12px", letterSpacing:"-0.01em" }}>
-            おめでとうございます{name ? <>、<br />{name}さん</> : null}
-          </h2>
-          <p className="f-sans" style={{ fontSize:16, color:"#717171", lineHeight:1.8, margin:"0 0 28px" }}>{lead}</p>
-          {job ? (
-            <JobCard job={job} variant="wide" onOpen={goJob} hideEndLabel />
-          ) : (
-            /* 届くまでの間の枠（求人の中身は描かない） */
-            <div aria-hidden="true" style={{ height:220, borderRadius:16, background:"#F2F2F2" }} />
-          )}
-          {open && jobNumber && (
-            <button onClick={goJob} className="f-sans" style={{ display:"block", margin:"18px auto 0", background:"none", border:"none", padding:"6px 2px", fontSize:15, fontWeight:700, color:"#222", textDecoration:"underline", cursor:"pointer" }}>掲載した求人を見る</button>
-          )}
-        </div>
-      </div>
-      <div style={{ flexShrink:0, borderTop:"1px solid #EBEBEB", padding:"14px 24px calc(14px + env(safe-area-inset-bottom, 0px))", background:"#fff" }}>
-        <div style={{ maxWidth:560, margin:"0 auto" }}>
-          <button onClick={() => onClose?.()} className="f-sans" style={{ width:"100%", padding:"15px", fontSize:16, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:8, cursor:"pointer" }}>完了</button>
-        </div>
-      </div>
-    </div>
+    <DoneScreen takeover="publish-done"
+      title={<>おめでとうございます{name ? <>、<br />{name}さん</> : null}</>}
+      lead={lead}
+      primary={{ label:"完了", onClick: () => onClose?.() }}
+      secondary={open && jobNumber ? { label:"掲載した求人を見る", onClick: goJob } : null}>
+      {job ? (
+        <JobCard job={job} variant="wide" onOpen={goJob} hideEndLabel />
+      ) : (
+        /* 届くまでの間の枠（求人の中身は描かない） */
+        <div aria-hidden="true" style={{ height:220, borderRadius:16, background:"#F2F2F2" }} />
+      )}
+    </DoneScreen>
   );
 }

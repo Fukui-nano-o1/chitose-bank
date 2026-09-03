@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { fbSuccess, fbError } from "../lib/feedback";
-import { Celebration } from "./Celebration";
+import { DoneScreen } from "./DoneScreen";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
 import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow, photoThumb } from "../lib/utils";
@@ -51,7 +51,7 @@ export function WorkerApplications({ filter, me }) {
   // 同じ入力を使う＝2箇所で枝分かれさせない・2026-08-19）。ここが持つのは「どの応募を開いているか」だけ
   const [reviewModalApp, setReviewModalApp] = useState(null);
   // 完了の祝祭（2026-08-06）：評価送信の成功時。演出のみ＝記録には触れない
-  const [celebrate, setCelebrate] = useState(null);
+  const [reviewDone, setReviewDone] = useState(false); // 評価を送った後の完了画面（Airbnbの Thanks for your review の型）
   const openReviewModal = (a) => setReviewModalApp(a);
 
   // 欠勤記録への異議申立（Part2・attended=falseの代替導線）
@@ -495,7 +495,9 @@ export function WorkerApplications({ filter, me }) {
     // あなたの応募（applying）はタイトルと横線を出さない（2026-08-22たきと指示）＝
     // 見出しはProfileHub側で非表示・横線(borderTop)と見出しぶんの余白はここで外す。きょうの仕事は従来どおり
     <div style={filter !== "approved" ? { marginTop:8 } : { marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
-      {celebrate && <Celebration {...celebrate} onDone={()=>setCelebrate(null)} />}
+      {reviewDone && <DoneScreen takeover="review-done" title="評価を送りました"
+        lead="ありがとうございました。お互いの評価が揃うか、仕事の完了から3日たつと、相手に表示されます。"
+        primary={{ label:"完了", onClick:()=>setReviewDone(false) }} />}
       {/* ラベル「応募状況」＋説明文はページの先頭（2026-08-22たきと指示「応募状況は上に移植」
           「あなたが応募した求人の状況です。は応募状況の下に移植」）。
           ※同日「ラベルが最前線」を取り違えて一度ここから下へ移したが、指す先は求人カードの
@@ -578,7 +580,7 @@ export function WorkerApplications({ filter, me }) {
       <WorkerReviewSheet app={reviewModalApp && { id: reviewModalApp.id, farmer_id: reviewModalApp.farmer_id }} meId={me.id}
         dayCount={reviewModalApp ? appWorkDates(reviewModalApp, jobDates[reviewModalApp.job_number]).size || null : null}
         onClose={()=>setReviewModalApp(null)}
-        onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setCelebrate({ title:"ありがとうございました" }); }} />
+        onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setReviewDone(true); }} />
 
       {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
       {disputeModalApp && (

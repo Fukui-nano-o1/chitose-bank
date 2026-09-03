@@ -9,7 +9,7 @@ import { createIdleQueue } from "./lib/idleQueue";
 import { useSheetDragClose } from "./lib/sheetDrag";
 import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
 import { installFixedRepin } from "./lib/fixedRepin";
-import { Celebration } from "./components/Celebration";
+import { DoneScreen } from "./components/DoneScreen";
 import { PublishDone } from "./components/PublishDone";
 import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
@@ -58,66 +58,8 @@ function FlowLoading({ label = <>求人フローを開いています<Dots /></>
   );
 }
 
-function ApplyDoneNote({ promoted = 0, already = false, pending = false, worker = false, onClose }) {
-  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
-  useEffect(() => {
-    const t = setTimeout(() => onCloseRef.current?.(), 8000);
-    return () => clearTimeout(t);
-  }, []);
-  const head = worker ? "ありがとうございます"
-             : pending ? "仮応募をお預かりしました"
-             : promoted > 0 ? `${promoted}件の応募を農家さんにお届けしました`
-             : already ? "この求人には応募済みです" : "応募を農家さんにお届けしました";
-  return (
-    <div onClick={()=>onClose?.()} style={{ position:"fixed", left:0, right:0, bottom:0, zIndex:9500, display:"flex", justifyContent:"center", padding:"0 12px calc(12px + env(safe-area-inset-bottom, 0px))", animation:"fadeIn .25s ease" }}>
-      <div className="cb-sheet-up" style={{ maxWidth:460, width:"100%", background:"#111", color:"#fff", borderRadius:14, padding:"14px 16px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)", cursor:"pointer" }}>
-        <p className="f-sans" style={{ fontSize:14, fontWeight:800, margin:"0 0 4px" }}><NavIconInline name={worker ? "sprout" : pending ? "hourglass" : "inbox"} size={14} />{head}</p>
-        {worker ? (
-          <>
-            {/* 職安法配慮の明示（旧・働き手フロー完了ページstep8から移設）：構想段階＝稼働していないことを消さない */}
-            <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>この機能は現在構想段階です。実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。</p>
-            <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>ログインすると実証に参加できます。</p>
-          </>
-        ) : pending ? (
-          <>
-            {/* 正直さの明示（仮応募＝まだ届いていない）。旧ApplyPendingページの説明を消さずここへ */}
-            <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>プロフィールがそろうと、農家さんに応募が届きます。「プロフィールを仕上げる」から続けられます。</p>
-            <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>自己紹介文の確認は運営が行いますが、応募はそれを待たずに届きます。</p>
-          </>
-        ) : (
-          <>
-            <p className="f-sans" style={{ fontSize:12.5, lineHeight:1.7, color:"#E8E8E8", margin:0 }}>これはまだ採用ではありません。農家が内容を確認し、承認するとお知らせします。</p>
-            <p className="f-sans" style={{ fontSize:11, lineHeight:1.6, color:"#B8B8B8", margin:"6px 0 0" }}>chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。</p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PublishIdleRedirect({ seconds = 60, onEnd }) {
-  const onEndRef = useRef(onEnd); onEndRef.current = onEnd;
-  useEffect(() => {
-    let done = false;
-    let t;
-    // ユーザー操作（タップ・キー・スクロール・タッチ）を1つでも拾ったら取り消す。
-    // hashchange は入れない＝アプリ内部のルーティングで誤って取り消さないため（タブ移動はpointerdownで拾える）
-    const evs = ["pointerdown","keydown","touchstart","wheel"];
-    // 関数宣言（巻き上げ）で相互参照する（no-use-before-define の functions:false で許容）
-    function finish(fired) {
-      if (done) return; done = true;
-      clearTimeout(t);
-      evs.forEach(ev => window.removeEventListener(ev, cancel, true));
-      onEndRef.current?.(fired);
-    }
-    function cancel() { finish(false); }
-    t = setTimeout(() => finish(true), seconds * 1000);
-    evs.forEach(ev => window.addEventListener(ev, cancel, true));
-    return () => { clearTimeout(t); evs.forEach(ev => window.removeEventListener(ev, cancel, true)); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return null;
-}
+// 応募完了・仮応募・働き手フロー完了の「トースト＋花火＋60秒で さがす へ」は廃止（2026-09-02たきと指示
+// 「全てAirbnbをパクれ」）＝白い全画面の完了画面（components/DoneScreen）に置き換えた。下の描画を参照
 
 const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
 const AdminChatPage = lazyChunk(() => import("./components/AdminChat").then(m => ({ default: m.AdminChatPage })));
@@ -600,34 +542,30 @@ export default function App(){
   const [applyAlready,setApplyAlready]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")==="1");
   // 応募完了の祝祭（2026-08-06・赤ちゃん前提の第0歩）：apply/doneに新規到着した時だけ1回。
   // 応募済み（already）の再訪では祝わない。演出のみ＝記録・フローには触れない
-  const [applyBurst,setApplyBurst]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done" && sessionStorage.getItem("cb_applyAlready")!=="1");
+  // 応募完了の画面（Airbnbの Request sent の型）{ promoted, already } | null。到着時に組み、「完了」で閉じる
+  const [applyDone,setApplyDone]=useState(()=>{ try { const h=window.location.hash.replace(/^#\/?/,""); return h==="apply/done" ? { promoted:Number(sessionStorage.getItem("cb_promoted")||0), already: sessionStorage.getItem("cb_applyAlready")==="1" } : null; } catch { return null; } });
   // 求人の掲載完了は「ページ」でなくアニメーション（祝祭）に（2026-08-07たきと指示）。
   // 祝祭が消えたあと、60秒ノーアクションなら さがす へ自動遷移（何かタップ/操作すれば取り消す）。
   const [pubDone,setPubDone]=useState(null);           // 掲載完了の画面 { open, jobNumber } | null（Airbnbの型・利用者が「完了」を押すまで残る）
   // 応募完了も「ページ」でなくアニメーション化（2026-08-07たきと指示・①）。祝祭＋法的一言トースト＋
   // 応募状況に着地＋60秒ノーアクションで さがす。法的一文（まだ採用でない・当事者間契約）は消さずトーストで残す。
-  const [applyNote,setApplyNote]=useState(false); // 着地先で1回だけ出す法的一言トースト
-  const [applyIdle,setApplyIdle]=useState(false); // 60秒アイドル→/search の見張り（①応募完了・②仮応募で共用）
   // 仮応募の直後も同じ型でアニメーション化（2026-08-07たきと指示・②）。ただしハイブリッド＝
   // 新規の仮応募（JobSearchMapViewがcb_pendingNewを立てて遷移）だけ祝祭＋トースト＋応募状況へ着地し、
   // 再訪（応募状況「プロフィールを仕上げる→」・求人詳細の応募ボタン）は従来どおり ApplyPending の
   // チェックリスト（残り項目のタップ入力・昇格ボタン）を出す＝あの導線の受け皿は消さない
-  const [pendBurst,setPendBurst]=useState(false); // 仮応募の祝祭（✅・新規到着だけ1回）
-  const [pendNote,setPendNote]=useState(false);   // 仮応募の案内トースト（届くのはプロフィール完成後＝正直さの明示）
+  const [pendDone,setPendDone]=useState(false);       // 仮応募の完了画面（新規到着だけ1回）
+  const [workerFlowDone,setWorkerFlowDone]=useState(false); // 働き手フロー完了の画面（構想段階の明示＝職安法配慮を消さない）
   // 働き手フロー完了（LandingFlow step8）もアニメーション化（2026-08-07たきと指示・③）。
   // ※このフローの本番導線は現在無し（setRole("worker")は管理タブdevJump「働3」等のみ）＝実質プレースホルダーの整理。
   // 旧ページの3ボタンの置き換え＝主役「実証に参加する」→ログインへ着地／「公開データを見る」→60秒アイドルのさがす行き
-  const [workerFlowBurst,setWorkerFlowBurst]=useState(false); // 祝祭（✅ありがとうございます）
-  const [workerFlowNote,setWorkerFlowNote]=useState(false);   // 案内トースト（構想段階の明示＝職安法配慮を消さない）
+  const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
   // apply/done に来たら：完了ページを出さず、応募状況（/profile/worker/applying）へ着地させ、
-  // 祝祭（applyBurst・既存）＋法的トースト＋アイドル見張りを起動する。promotedCount/applyAlready/applyBurst は
-  // hashハンドラが先に設定済み（この効果はそれらの設定後に走る）。
+  // その上に完了画面（applyDone・Airbnbの型）を出す。promotedCount/applyAlready はhashハンドラが先に設定済み
   useEffect(() => {
     if (!showApplyDone) return;
-    setApplyNote(true);
-    setApplyIdle(true);
+    setApplyDone({ promoted: promotedCount, already: applyAlready });
     window.location.hash = "/profile/worker/applying";
-  }, [showApplyDone]);
+  }, [showApplyDone, promotedCount, applyAlready]);
   // ボックスの出現アニメ中の「すり抜けタップ」で閉じない（2026-08-18たきと指示「一括修理しろ」）。
   // 【原因】.cb-sheet-up は cbPopGate で最初の0.8秒 pointer-events:none になる（アニメ中は中身が
   // 動いていて狙った位置と当たる要素がずれるため・2026-07-27の日程チップ修理）。pointer-events は
@@ -674,7 +612,6 @@ export default function App(){
   // スクロールに追従しない・全ページ」）。中身と発火の節目は lib/fixedRepin.js に集約
   useEffect(() => installFixedRepin(), []);
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
-  const [promotedCount,setPromotedCount]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"")==="apply/done" ? Number(sessionStorage.getItem("cb_promoted") || 0) : 0; } catch { return 0; } });
   const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/(admin|[0-9a-f-]+)$/); return m?m[1]:null; });
 
   // チャットの前回の会話の先読み（2026-08-26 Speed-4B）：ChatViewは遅れて読み込まれるチャンクなので、
@@ -714,7 +651,7 @@ export default function App(){
       if (_pendNew) {
         try { sessionStorage.removeItem("cb_pendingNew"); } catch {}
         setShowApplyPending(false);
-        setPendBurst(true); setPendNote(true); setApplyIdle(true);
+        setPendDone(true);
         window.location.hash = "/profile/worker/applying";
       } else {
         setShowApplyPending(rawHash === "apply/pending");
@@ -733,7 +670,6 @@ export default function App(){
         try {
           const already = sessionStorage.getItem("cb_applyAlready")==="1";
           setApplyAlready(already); sessionStorage.removeItem("cb_applyAlready");
-          setApplyBurst(!already); // 新しい応募の到着だけ祝う（2026-08-06）
         } catch {}
         try { setPromotedCount(Number(sessionStorage.getItem("cb_promoted") || 0)); sessionStorage.removeItem("cb_promoted"); } catch {}
       }
@@ -2307,19 +2243,33 @@ export default function App(){
       {pubDone && <PublishDone open={pubDone.open} jobNumber={pubDone.jobNumber}
         name={(getCache("farm:empMini") ?? snapGet("empMini"))?.nickname || ""} onClose={()=>setPubDone(null)} />}
 
-      {/* 応募完了もアニメーション（2026-08-07・①）。祝祭（新規到着のみ）＋法的トースト＋60秒アイドル→さがす。
-          着地先（応募状況）の上に重なる。promotedCount/applyAlready で見出しを出し分ける */}
-      {applyBurst && <Celebration
-        title={promotedCount > 0 ? `${promotedCount}件を届けました` : "応募できました"} onDone={()=>setApplyBurst(false)} />}
-      {applyNote && <ApplyDoneNote promoted={promotedCount} already={applyAlready} onClose={()=>setApplyNote(false)} />}
-      {/* 仮応募の新規到着もアニメーション（2026-08-07・②ハイブリッド）。祝祭＋案内トースト。
-          再訪は従来どおり ApplyPending のチェックリストページ（残り項目の受け皿）を出す */}
-      {pendBurst && <Celebration title="仮応募をお預かりしました" onDone={()=>setPendBurst(false)} />}
-      {pendNote && <ApplyDoneNote pending onClose={()=>setPendNote(false)} />}
-      {/* 働き手フロー完了もアニメーション（2026-08-07・③）。祝祭＋構想段階トースト。着地はログイン画面 */}
-      {workerFlowBurst && <Celebration title="ありがとうございます" onDone={()=>setWorkerFlowBurst(false)} />}
-      {workerFlowNote && <ApplyDoneNote worker onClose={()=>setWorkerFlowNote(false)} />}
-      {applyIdle && <PublishIdleRedirect seconds={60} onEnd={(fired)=>{ setApplyIdle(false); if (fired) window.location.hash="/search"; }} />}
+      {/* 応募完了・仮応募・働き手フロー完了＝白い全画面の完了画面（Airbnbの Request sent の型・2026-09-02）。
+          着地先（応募状況／ログイン）の上に重なり、「完了」で閉じる。花火・トースト・60秒の自動遷移は廃止。
+          法的な一言（まだ採用ではない／契約は当事者間／構想段階）は旧トーストから消さずここへ移した */}
+      {applyDone && <DoneScreen takeover="apply-done"
+        title={applyDone.promoted > 0 ? `${applyDone.promoted}件の応募を届けました` : applyDone.already ? "この求人には応募済みです" : "応募を送りました"}
+        lead={applyDone.already ? "すでに応募しています。返事は応募状況で確認できます。" : "農家が内容を確認し、承認するとお知らせします。これはまだ採用ではありません。"}
+        rows={applyDone.already ? [] : [
+          { icon:"hourglass", t:"農家の返事を待ちます", d:"承認・見送りは農家が決めます。作業の開始日までに決まらないと、応募は自動で終わります" },
+          { icon:"chats", t:"承認されるとチャットで面接", d:"農家から質問や日程の相談が届きます" },
+          { icon:"calendar", t:"採用が決まると確定", d:"はたらく日は農家が決め、カレンダーに確定の予定として並びます" },
+        ]}
+        note="chitose-bankは求人情報の提供と連絡の場を用意します。雇用の契約は当事者間で行われます。"
+        primary={{ label:"完了", onClick:()=>setApplyDone(null) }} />}
+      {pendDone && <DoneScreen takeover="apply-pending"
+        title="仮応募をお預かりしました"
+        lead="プロフィールがそろうと、農家さんに応募が届きます。"
+        rows={[
+          { icon:"profile", t:"プロフィールを仕上げます", d:"応募状況の「プロフィールを仕上げる」から続けられます" },
+          { icon:"inbox", t:"そろった時点で届きます", d:"自己紹介文の確認は運営が行いますが、応募はそれを待たずに届きます" },
+        ]}
+        primary={{ label:"完了", onClick:()=>setPendDone(false) }}
+        secondary={{ label:"プロフィールを仕上げる", onClick:()=>{ setPendDone(false); window.location.hash="/apply/pending"; } }} />}
+      {workerFlowDone && <DoneScreen takeover="worker-flow"
+        title="ありがとうございます"
+        lead="この機能は現在構想段階です。実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。"
+        note="ログインすると実証に参加できます。"
+        primary={{ label:"完了", onClick:()=>setWorkerFlowDone(false) }} />}
 
       {/* ★LandingFlowのオーバーレイ3つはAppErrorBoundary（タブ描画側）の外にあるので、個別に包む
           （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーが
@@ -2329,8 +2279,8 @@ export default function App(){
           onComplete={()=>setShowLanding(false)}
           onSkip={()=>{setShowLanding(false);setTab("search");}}
           onLogin={()=>{setShowLanding(false);setTab("login");}}
-          onWorkerDone={()=>{ /* ③（2026-08-07）：完了ページの代わりに祝祭＋トースト＋ログインへ着地＋60秒でさがす */
-            setShowLanding(false); setTab("login"); setWorkerFlowBurst(true); setWorkerFlowNote(true); setApplyIdle(true); }}
+          onWorkerDone={()=>{ /* ③（2026-08-07→2026-09-02）：完了ページの代わりに白い完了画面＋ログインへ着地 */
+            setShowLanding(false); setTab("login"); setWorkerFlowDone(true); }}
         /></Suspense></AppErrorBoundary>
       )}
       {me&&showJobPost&&!needsPrivacyReconsent&&(
@@ -2352,8 +2302,8 @@ export default function App(){
           onComplete={()=>setShowDevJump(false)}
           onSkip={()=>setShowDevJump(false)}
           onLogin={()=>setShowDevJump(false)}
-          onWorkerDone={()=>{ /* devJump（管理者の確認用）：閉じて祝祭＋トーストだけ出す（ログインへは送らない） */
-            setShowDevJump(false); setWorkerFlowBurst(true); setWorkerFlowNote(true); }}
+          onWorkerDone={()=>{ /* devJump（管理者の確認用）：閉じて完了画面だけ出す（ログインへは送らない） */
+            setShowDevJump(false); setWorkerFlowDone(true); }}
         /></Suspense></AppErrorBoundary>
       )}
       {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}

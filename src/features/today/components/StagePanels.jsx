@@ -22,7 +22,7 @@ import { JobCard } from "../../../components/JobCard";
 import { WorkerReviewSheet } from "../../../components/WorkerReviewSheet";
 import { DayReportSheet } from "../../../components/DayReportSheet";
 import { InsurancePanel } from "../../../components/InsurancePanel";
-import { Celebration } from "../../../components/Celebration";
+import { DoneScreen } from "../../../components/DoneScreen";
 import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { fbSuccess, fbError } from "../../../lib/feedback";
 
@@ -267,7 +267,7 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
   //   この面は開いた時に1往復するだけso、素直に毎回引く
   const [jobs, setJobs] = useState({}); // job_number → mapJobPublicRow
   const [reviewApp, setReviewApp] = useState(null); // 展開中の 終了の確認・評価
-  const [done, setDone] = useState(null);           // 送信できた祝祭（演出のみ）
+  const [done, setDone] = useState(false);          // 評価を送った後の完了画面（Airbnbの Thanks for your review の型）
   const numsKey = items.map(t => t.job_number).filter(Boolean).join(",");
   useEffect(() => {
     let cancelled = false;
@@ -318,8 +318,10 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
       </div>
       <WorkerReviewSheet app={reviewApp} meId={meId} dayCount={reviewApp?.dayCount || null}
         onClose={()=>setReviewApp(null)}
-        onDone={(id)=>{ setReviewApp(null); setDone({ title:"ありがとうございました" }); onReviewed(id); }} />
-      {done && <Celebration title={done.title} onDone={()=>setDone(null)} />}
+        onDone={(id)=>{ setReviewApp(null); setDone(true); onReviewed(id); }} />
+      {done && <DoneScreen takeover="review-done" title="評価を送りました"
+        lead="ありがとうございました。お互いの評価が揃うか、仕事の完了から3日たつと、相手に表示されます。"
+        primary={{ label:"完了", onClick:()=>setDone(false) }} />}
     </>
   );
 }
@@ -431,7 +433,7 @@ export function InsuranceStagePanel({ items, onReported }) {
   const [confirmPick, setConfirmPick] = useState(null); // { t, k }＝どの応募の・どの保険をタップしたか
   const [sending, setSending] = useState(false);
   const [doneIds, setDoneIds] = useState(() => new Set()); // 報告できたもの＝この画面から消す
-  const [celebrate, setCelebrate] = useState(null);        // { title, appId }＝演出が終わってから onReported
+  const [reported, setReported] = useState(null);          // 報告の完了画面 { appId, label, title }＝「完了」で閉じてから onReported
   const sheetRef = useRef(null), scrollRef = useRef(null);
   useSheetDragClose(sheetRef, scrollRef, ()=>{ if (!sending) setConfirmPick(null); }, !!confirmPick);
   const numsKey = items.map(t => t.job_number).filter(Boolean).join(",");
@@ -467,7 +469,7 @@ export function InsuranceStagePanel({ items, onReported }) {
     setConfirmPick(null);
     setDoneIds(prev => new Set(prev).add(pick.t.application_id));
     fbSuccess();
-    setCelebrate({ title:"報告しました", appId: pick.t.application_id });
+    setReported({ appId: pick.t.application_id, label: labelOf(pick.k), title: titleOf(pick.t) });
   };
   // 入口のボタンで指された応募だけに絞る（無ければ・見つからなければ全件）
   const focused = focusAppId ? items.filter(t => t.application_id === focusAppId) : [];
@@ -528,9 +530,11 @@ export function InsuranceStagePanel({ items, onReported }) {
           </div>
         );
       })()}
-      {/* ★片付け（onReported＝親のremoveTodo）は演出が終わってから：先に消すと最後の1件で
-          親が空状態へ切り替わり、パネルごと演出が消える（2026-08-06の採用アニメと同じ罠） */}
-      {celebrate && <Celebration title={celebrate.title} onDone={()=>{ const id = celebrate.appId; setCelebrate(null); if (onReported) onReported(id); }} />}
+      {/* ★片付け（onReported＝親のremoveTodo）は「完了」で閉じてから：先に消すと最後の1件で
+          親が空状態へ切り替わり、パネルごと画面が消える（2026-08-06の採用アニメと同じ罠） */}
+      {reported && <DoneScreen takeover="insurance-done" title="報告しました"
+        lead={`「${reported.label}」の準備ができたことを、「${reported.title}」の相手のチャットにお知らせしました。`}
+        primary={{ label:"完了", onClick:()=>{ const id = reported.appId; setReported(null); if (onReported) onReported(id); } }} />}
     </>
   );
 }

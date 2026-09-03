@@ -4,7 +4,7 @@
 // ★2026-08-11たきと指示「すべて実際に稼働しているページやアニメーション、規格等を再現して」により、
 //   似せて描くのをやめ、【本番の部品をそのまま使う】方式にした：
 //   LFCropGrid／LFWizCard／LFPillSelect／LFCardBtn／Avatar／StatusRibbon（components/ui）、
-//   JobCard、WorkerTrustCard、Celebration（本物の祝祭アニメ）、CROP_OPTIONS／TASK_OPTIONS／
+//   JobCard、WorkerTrustCard、PublishDone（本物の掲載完了の画面）、CROP_OPTIONS／TASK_OPTIONS／
 //   APP_PHASE_LABEL・COLOR（lib/utils）。本番の見た目が変われば、この見本帳も自動で追従する。
 //   本物の部品が無い画面だけ、本番のJSXから文言と規格（色・角丸・字送り）を写して組んである。
 // ★読み取り専用：DBを読まない・書かない・保存も入力もしない（supabaseをimportしない）。
@@ -21,7 +21,6 @@ import { LFWizCard, LFCropGrid, LFPillSelect, Avatar } from "../ui";
 import { NavIcon, NavIconInline } from "../NavIcons";
 import { JobCard } from "../JobCard";
 import { OwnJobTile, ownJobState, OWN_JOB_GRID_CLASS } from "../OwnJobTile";
-import { Celebration } from "../Celebration";
 import { PublishDone } from "../PublishDone";
 import { WorkerTrustCard } from "../TrustCards";
 import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
@@ -106,7 +105,7 @@ function Msg({ me, children, name }) {
     </div>
   );
 }
-/* 本番の祝祭アニメを実際に再生するボタン（Celebrationは全画面・自動で終わる） */
+/* 本番の完了画面（PublishDone）を実際に開くボタン */
 function PlayBtn({ onClick, children }) {
   return (
     <button type="button" onClick={onClick} className="f-sans"
@@ -135,7 +134,7 @@ const SAMPLE_TRUST = { joined_at:"2026-05-01T00:00:00Z", verified_at:"2026-05-02
 
 /* ── 農家が通る画面（順序どおり）───────────────────────────────────────────
    ch=章 / name=画面名 / url=本番のURL（実コードで実在を確認済み） / act=その画面で農家がする動作 /
-   body(api)=見本の中身。api.play(title)＝本物の祝祭アニメを再生（絵は渡さない・2026-08-19） */
+   body(api)=見本の中身。api.publishDone(open)＝本物の掲載完了の画面を開く（祝祭アニメは全廃・2026-09-02） */
 const STEPS = [
   /* ═══ 準備（アカウント）═══ */
   /* 玄関は素通りになった（2026-08-17・同意画面の撤去）。QRの着地点として章には残すが、
@@ -522,7 +521,9 @@ const STEPS = [
           <p className="f-sans" style={{ fontSize:12, color:SUB, lineHeight:1.9, margin:"0 0 12px" }}>9月10日〜12日 ・ 日給9,000円<br />契約が成立すると、お互いの本名が表示されます（雇用の法定手続きのため）。</p>
           <div style={{ display:"flex" }}><Btn kind="green">OK・採用する</Btn></div>
         </Card>
-        <PlayBtn onClick={() => api.play("採用しました")}>▶ 採用の祝祭を再生する</PlayBtn>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.8, marginTop:12 }}>
+          OKを押すと、白い全画面の「成立の画面」（判子の押印＋「チャットを開く」）になる。本物は components/HireConfirm.jsx＝採用するページで実行した時に出る。
+        </p>
       </div>
     ) },
 
@@ -712,7 +713,6 @@ const readStep = () => {
 
 export function AdminFarmerPagesRoom() {
   const [step, setStep] = useState(readStep);
-  const [celebration, setCelebration] = useState(null); // 本物の祝祭アニメ（Celebration）を再生中
   // ブラウザの戻る／URL直打ちに追従（URL＝場所の原則。次へ・戻るはhashを書くだけ）
   useEffect(() => {
     const onHash = () => setStep(readStep());
@@ -729,7 +729,7 @@ export function AdminFarmerPagesRoom() {
   const onNext = () => { if (last) window.location.hash = "/admin"; else go(step + 1); };
   const s = STEPS[step - 1];
   const [pubDone, setPubDone] = useState(null); // 掲載完了の画面（PublishDone）のpreview { open }
-  const api = { play: (title) => setCelebration({ title }), publishDone: (open) => setPubDone({ open }) };
+  const api = { publishDone: (open) => setPubDone({ open }) };
 
   return (
     /* cb-admin-page＝サイトフッターを隠す目印／cb-farmer-walk-page＝下部バーと浮遊☰を
@@ -762,10 +762,6 @@ export function AdminFarmerPagesRoom() {
         ここからは何も保存されません。見本の中のボタンは押しても動きません。
       </p>
 
-      {/* 本物の祝祭アニメ（components/Celebration）。全画面・約3秒で自動的に終わる */}
-      {celebration && (
-        <Celebration title={celebration.title} onDone={() => setCelebration(null)} />
-      )}
       {/* 掲載完了の画面（本物の PublishDone・preview＝通信も遷移もしない・見本の求人を描く） */}
       {pubDone && <PublishDone preview open={pubDone.open} jobNumber={SAMPLE_JOB.id} name="千歳農園" previewJob={SAMPLE_JOB} onClose={() => setPubDone(null)} />}
 
