@@ -612,7 +612,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           {avatarUrl ? "写真を変更" : <>写真を追加<span aria-label="未設定" style={{ width:8, height:8, borderRadius:"50%", background:"#E24B4A" }} /></>}
         </button>
       </div>
-      <div>
+      <div data-guide="profile-rows">
         {[
           // req:true=看板の核（未設定を赤で示す）。それ以外は任意＝灰色の「未設定」
           { k:"nickname", l:"氏名・名称",     req:true, v: recruiterName },

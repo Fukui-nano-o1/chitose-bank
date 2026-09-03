@@ -56,7 +56,7 @@ export function EmergencyStagePanel({ items, role, meId }) {
           const photo = photoThumb(e.photos?.[0]);
           const phase = phaseOf(e);
           return (
-            <div key={e.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
+            <div key={e.application_id} data-guide="emergency-card" style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
               {/* 左：求人のトップ写真。タイトル・#No.を写真下部に重ねる（ステータスページと同じ作法・枠は3:4固定） */}
               <button onClick={()=>setBoxItem(e)} aria-label="この仕事の緊急連絡を開く" className="f-sans"
                 style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
@@ -218,7 +218,7 @@ export function HireStagePanel({ items, meId, onHired }) {
           return (
             /* 横幅を2分割（2026-08-19たきと指示）：写真／アイコン。どちらを押しても最終確認が開く
                ＝カード全体が「この人を採用する」の入口（押す場所を選ばせない） */
-            <div key={t.application_id} style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
+            <div key={t.application_id} data-guide="hire-card" style={{ position:"relative", display:"flex", alignItems:"stretch", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
               {/* ①求人のトップ写真＋タイトル・#No.（応募者ページのカードと同じ作法・枠は3:4固定） */}
               <button onClick={()=>openConfirm(t)} aria-label="この応募者を採用する" className="f-sans"
                 style={{ flex:"1 1 0", minWidth:0, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
@@ -301,7 +301,7 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
             // ★黒の枠線（2026-08-19たきと指示）は包みで描く＝JobCard（枠なしカード）は触らない。
             //   写真の角丸(16)と同じ半径＋overflow:hidden so、写真の角が枠から出ない
             return (
-              <div key={t.application_id} style={{ border:"1.5px solid #222", borderRadius:16, overflow:"hidden" }}>
+              <div key={t.application_id} data-guide="review-card" style={{ border:"1.5px solid #222", borderRadius:16, overflow:"hidden" }}>
                 <JobCard job={job} variant="wide" onOpen={open} hideEndLabel />
               </div>
             );
@@ -481,7 +481,7 @@ export function InsuranceStagePanel({ items, onReported }) {
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"28px 0" }}>報告しました。この用事は片付きました</p>
         )}
         {shown.map(t => (
-            <div key={t.application_id} style={{ display:"grid", gap:8 }}>
+            <div key={t.application_id} data-guide="insurance-cards" style={{ display:"grid", gap:8 }}>
               {/* 複数並ぶ時だけ、どの相手の報告かの小さな1行（1件だけなら保険カードだけ） */}
               {shown.length > 1 && (
                 <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>

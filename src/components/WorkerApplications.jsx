@@ -175,6 +175,12 @@ export function WorkerApplications({ filter, me }) {
   // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
   const appSheetSheetRef = useRef(null), appSheetScrollRef = useRef(null);
   useSheetDragClose(appSheetSheetRef, appSheetScrollRef, ()=>setSheetAppId(null), !!sheetAppId);
+  // 終わった応募の説明（2026-09-03たきと指示「では次」＝見送り・失効・取り消しになった時の説明）：
+  // 過去の応募の行をタップすると、なぜ終わったか・つぎにできることをその場で出す（祝わない・急かさない）。
+  // ★新しい記録は作らない（読むだけ）。求人ページへは中のリンクから
+  const [endedApp, setEndedApp] = useState(null);
+  const endedSheetRef = useRef(null), endedScrollRef = useRef(null);
+  useSheetDragClose(endedSheetRef, endedScrollRef, ()=>setEndedApp(null), !!endedApp);
   // 仮配置の骨を測るref：タブごとに形が違う（返事待ち／きょうの仕事）ので鍵も分ける
   const skelRef = useSkeletonProbe("wapp:" + filter);
   // 帯は「働き手側の実態」を出す：農家が完了記録済みでも、こちらの終了確認・評価が残っていれば「評価待ち」
@@ -313,8 +319,9 @@ export function WorkerApplications({ filter, me }) {
       ? (a.status === "rejected" ? (a.rejected_reason === "unpublished" ? "掲載取り下げ" : "見送り") : a.status === "canceled" ? "取り消し" : "失効")
       : null;
     const sub = [term, dateStr, place].filter(Boolean).join("・") || `応募日 ${new Date(a.created_at).toLocaleDateString("ja-JP")}`;
+    // 過去の行＝タップで「なぜ終わったか・つぎにできること」のシート（2026-09-03）。求人ページへはシートの中から
     const open = opts.past
-      ? () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + a.job_number; }
+      ? () => setEndedApp(a)
       : () => setSheetAppId(a.id);
     return (
       <button key={a.id} type="button" onClick={open} className="f-sans"
@@ -568,6 +575,73 @@ export function WorkerApplications({ filter, me }) {
               </div>
               <div ref={appSheetScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"16px 16px calc(16px + env(safe-area-inset-bottom, 0px))" }}>
                 {filter === "approved" ? renderAppCard(live) : renderWaitingCard(live)}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 終わった応募の説明シート（2026-09-03）：見送り／掲載取り下げ／失効／取り消しの4通り。
+          文は APP_PHASE_DESC と同じ事実だけ（理由の推測・評価の言葉は入れない＝記録は不利に残らない・規約第6条2）。
+          外タップ・下スワイプで閉じる（✕は置かない） */}
+      {endedApp && (() => {
+        const a = endedApp;
+        const raw = jobDates[a.job_number];
+        const fb = !raw && Array.isArray(actionRows) ? actionRows.find(r => r.job_number === a.job_number) : null;
+        const src = raw || fb || {};
+        // 題名が無い求人は「求人 #N」だけ（#N を二度書かない）
+        const named = [src.crop, src.task].filter(Boolean).join(" ");
+        const title = named ? `${named}　#${a.job_number}` : ("求人 #" + a.job_number);
+        const kind = a.status === "canceled" ? "canceled" : a.status === "expired" ? "expired"
+          : a.rejected_reason === "unpublished" ? "unpublished" : "rejected";
+        const ENDED = {
+          rejected: { head: "見送りになりました", lead: "農家が、今回は見送りました。",
+            rows: [
+              { icon: "views", t: "理由は表示されません", d: "見送りの理由を運営がお伝えすることはありません。あなたのせいとは限りません（人数・日程の都合など）" },
+              { icon: "clipboard", t: "記録に残りません", d: "見送りは、あなたのプロフィールや「はたらいた記録」には出ません" },
+              { icon: "search", t: "ほかの求人に応募できます", d: "同じ農家の別の求人にも応募できます" },
+            ] },
+          unpublished: { head: "掲載が取り下げられました", lead: "農家がこの求人を取り下げたため、応募が終わりました。選考の結果ではありません。",
+            rows: [
+              { icon: "clipboard", t: "記録に残りません", d: "あなたのプロフィールや「はたらいた記録」には出ません" },
+              { icon: "search", t: "また掲載されたら応募できます", d: "同じ求人が再び公開されたら、もう一度応募できます" },
+            ] },
+          expired: { head: "自動で終了しました", lead: "作業の開始日までに農家の判断がなかったため、応募が自動で終わりました。",
+            rows: [
+              { icon: "clock", t: "農家が決めないまま当日を迎えました", d: "承認も見送りもされないと、作業の開始日に自動で終了します" },
+              { icon: "clipboard", t: "記録に不利に残りません", d: "失効は欠勤にも回数にも数えません。プロフィールにも出ません" },
+              { icon: "search", t: "ほかの求人に応募できます", d: "同じ農家の別の求人にも応募できます" },
+            ] },
+          canceled: { head: "取り消しました", lead: "あなたが、この応募を取り消しました。",
+            rows: [
+              { icon: "clipboard", t: "記録として残ります", d: "取り消したことは残りますが、評価やはたらいた記録には数えません" },
+              { icon: "search", t: "もう一度応募できます", d: "求人がまだ公開中なら、同じ求人にもう一度応募できます" },
+            ] },
+        }[kind];
+        const goJob = () => { try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} setEndedApp(null); window.location.hash = "/work/job/" + a.job_number; };
+        return (
+          <div onClick={()=>setEndedApp(null)} className="cb-box-overlay cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+            <div ref={endedSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" data-guide="ended-sheet"
+              style={{ position:"absolute", left:0, right:0, bottom:0, maxHeight:"88vh", maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div ref={endedScrollRef} className="f-sans" style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"22px 20px calc(20px + env(safe-area-inset-bottom, 0px))" }}>
+                <p style={{ fontSize:12, color:"#999", margin:"0 0 6px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{title}</p>
+                <h3 style={{ fontSize:22, fontWeight:800, color:"#222", margin:"0 0 6px" }}>{ENDED.head}</h3>
+                <p style={{ fontSize:14, color:"#717171", lineHeight:1.7, margin:"0 0 18px" }}>{ENDED.lead}</p>
+                <div style={{ display:"grid", gap:16 }}>
+                  {ENDED.rows.map((r, i) => (
+                    <div key={i} style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
+                      <span style={{ flexShrink:0, color:"#222", display:"flex", marginTop:2 }}><NavIcon name={r.icon} size={26} /></span>
+                      <span style={{ minWidth:0 }}>
+                        <span style={{ display:"block", fontSize:15, fontWeight:700, color:"#222" }}>{r.t}</span>
+                        <span style={{ display:"block", fontSize:13, color:"#717171", lineHeight:1.6, marginTop:2 }}>{r.d}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display:"grid", gap:8, marginTop:22 }}>
+                  <button onClick={goJob} className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#fff", color:"#222", border:"1.5px solid #222", borderRadius:10, cursor:"pointer" }}>求人ページを見る</button>
+                  <button onClick={()=>{ setEndedApp(null); window.location.hash = "/search"; }} className="f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>ほかの求人をさがす</button>
+                </div>
               </div>
             </div>
           </div>

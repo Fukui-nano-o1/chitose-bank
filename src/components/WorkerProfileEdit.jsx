@@ -552,7 +552,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         ];
         if (steps.every(s => s.done)) return null;
         return (
-          <div className="f-sans" style={{ background:"#FFF6EF", border:"1px solid " + ROLE_ORANGE + "33", borderRadius:16, padding:"16px", marginBottom:20 }}>
+          <div className="f-sans" data-guide="apply-ready-guide" style={{ background:"#FFF6EF", border:"1px solid " + ROLE_ORANGE + "33", borderRadius:16, padding:"16px", marginBottom:20 }}>
             <p style={{ fontSize:14, fontWeight:800, color:ROLE_ORANGE, margin:"0 0 4px" }}>この3つで応募できます</p>
             <p style={{ fontSize:11, color:"#717171", margin:"0 0 12px", lineHeight:1.6 }}>この3つが埋まれば求人に応募できます。あとからいつでも足せます。</p>
             <div style={{ display:"grid", gap:8 }}>
@@ -587,7 +587,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           {avatarUrl ? "写真を変更" : <>写真を追加<span aria-label="未設定" style={{ width:8, height:8, borderRadius:"50%", background:"#E24B4A" }} /></>}
         </button>
       </div>
-      <div>
+      <div data-guide="profile-rows">
         {[
           // req:true=看板の核（未設定を赤で示す）。それ以外は任意＝灰色の「未設定」
           // 並びは従来のまま（条件系→属性→問いかけ系が最後）。アイコンは上のブロックが受け持つ

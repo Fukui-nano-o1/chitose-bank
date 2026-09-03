@@ -196,6 +196,57 @@ const GUIDE_ART = {
       <path d="M56 32h40" /><path d="M56 42h40" /><path d="M56 52h28" />
     </svg>
   ),
+  // 保険の報告＝盾のカード2枚（どれを準備したかを選ぶ）
+  insurance: (
+    <svg {...ART_PROPS}>
+      <rect x="14" y="16" width="42" height="50" rx="6" /><path d="M35 26l9 4v8c0 7-4 11-9 13-5-2-9-6-9-13v-8z" />
+      <rect x="64" y="16" width="42" height="50" rx="6" /><path d="M85 26l9 4v8c0 7-4 11-9 13-5-2-9-6-9-13v-8z" /><path d="M80 40l4 4 7-8" />
+    </svg>
+  ),
+  // 採用する＝人とレ点（この人に決める）
+  hire: (
+    <svg {...ART_PROPS}>
+      <circle cx="46" cy="30" r="12" /><path d="M24 66c3-13 41-13 44 0" />
+      <circle cx="88" cy="52" r="14" /><path d="M81 52l5 5 10-11" />
+    </svg>
+  ),
+  // 仕事の評価＝3つの問いのカードと星
+  finalReview: (
+    <svg {...ART_PROPS}>
+      <rect x="18" y="12" width="60" height="56" rx="6" />
+      <rect x="26" y="22" width="44" height="10" rx="3" /><rect x="26" y="36" width="44" height="10" rx="3" /><rect x="26" y="50" width="44" height="10" rx="3" />
+      <path d="M96 20l4 8 9 1-7 6 2 9-8-5-8 5 2-9-7-6 9-1z" />
+    </svg>
+  ),
+  // 緊急連絡＝受話器と吹き出し（相手に届く）
+  emergency: (
+    <svg {...ART_PROPS}>
+      <path d="M22 22c0 22 18 38 38 38l8-8-10-8-6 4c-8-4-14-10-18-18l4-6-8-10z" />
+      <path d="M76 18h30v22H90l-8 7v-7h-6z" /><path d="M85 26h12" /><path d="M85 32h8" />
+    </svg>
+  ),
+  // 求人の質問＝吹き出しの？
+  question: (
+    <svg {...ART_PROPS}>
+      <path d="M26 14h68a8 8 0 0 1 8 8v30a8 8 0 0 1-8 8H56l-14 12v-12H26a8 8 0 0 1-8-8V22a8 8 0 0 1 8-8z" />
+      <path d="M52 32c0-6 5-9 9-9s8 3 8 7c0 5-8 6-8 12" /><circle cx="61" cy="49" r="1.6" fill="currentColor" />
+    </svg>
+  ),
+  // 修正のお願い＝書面と鉛筆
+  revision: (
+    <svg {...ART_PROPS}>
+      <rect x="24" y="10" width="48" height="60" rx="6" /><path d="M32 24h32" /><path d="M32 34h32" /><path d="M32 44h20" />
+      <path d="M84 52l16-16 8 8-16 16h-8z" /><path d="M96 40l8 8" />
+    </svg>
+  ),
+  // プロフィール編集＝行が並ぶ書面と、右に「見える相手」の人と目
+  profileEdit: (
+    <svg {...ART_PROPS}>
+      <rect x="14" y="12" width="56" height="56" rx="6" /><path d="M22 26h40" /><path d="M22 38h40" /><path d="M22 50h28" />
+      <circle cx="94" cy="32" r="9" /><path d="M78 60c2-11 30-11 32 0" />
+      <path d="M86 20c4-5 12-5 16 0-4 5-12 5-16 0z" /><circle cx="94" cy="20" r="1.6" fill="currentColor" />
+    </svg>
+  ),
 };
 
 // 台帳。lead＝この画面が何かの1文（題名の下の灰色）／rows＝アイコン＋太字見出し＋灰色説明（3つまで）／
@@ -305,6 +356,76 @@ const PAGE_GUIDES = [
     ],
     spots: [{ sel: '[data-guide="day-report-card"]', label: "いま進んでいる仕事です。何かあった日は「記録する」から。" }],
   },
+  // ── 用件の専用ページ（#/calendar/todo/{stage}）＝マイページのやること箱・カレンダーのカードのボタンから来る
+  //    （2026-09-03たきと指示「では次」＝中くらいの優先度の1つ目）。仕事の当日（workday）は上に別建て
+  {
+    key: "insurance", title: "保険の準備の報告", art: "insurance",
+    match: (h) => h === "calendar/todo/insurance",
+    lead: "今回の仕事のために用意した保険を、相手に知らせる画面です。",
+    rows: [
+      { icon: "shield", t: "カードをタップします", d: "用意した保険のカードを1枚選びます。？を押すと保険の説明が出ます" },
+      { icon: "chats", t: "OKでチャットに届きます", d: "「報告しますか？」のOKで、相手のチャットに報告が送られ、時刻が記録に残ります" },
+      { icon: "clipboard", t: "自己申告です", d: "運営が加入を確認するものではありません。事故のときの備えとして正直に" },
+    ],
+    spots: [{ sel: '[data-guide="insurance-cards"]', label: "用意した保険のカードをタップすると、報告の確認が出ます。" }],
+  },
+  {
+    key: "hire", title: "採用する", art: "hire",
+    match: (h) => h === "calendar/todo/hire",
+    lead: "面接を終えた応募者を採用する画面です。",
+    rows: [
+      { icon: "hire", t: "カードをタップします", d: "最終確認が出ます。日程が重なる人には警告が出ます" },
+      { icon: "check", t: "OKで採用が決まります", d: "労働条件がこの時点の内容で確定し、労働条件通知書として双方に残ります" },
+      { icon: "profile", t: "お互いの本名が表示されます", d: "雇用の手続きのため。採用が決まった相手にだけです" },
+    ],
+    spots: [{ sel: '[data-guide="hire-card"]', label: "この人を採用するなら、カードをタップして最終確認へ。" }],
+  },
+  {
+    key: "finalReview", title: "仕事の評価", art: "finalReview",
+    match: (h) => h === "calendar/todo/w_review" || h === "calendar/todo/complete",
+    lead: "仕事が終わったら、相手を評価する画面です。これで全部の工程が終わります。",
+    rows: [
+      { icon: "star", t: "3つの問いに答えます", d: "選ぶだけです。自由記述はありません" },
+      { icon: "views", t: "相手に見えるのは「はい」だけ", d: "「いいえ」は相手に表示されません。お互いの評価が揃うか、完了から3日たつと見られます" },
+      { icon: "clock", t: "終わって24時間ここに並びます", d: "それを過ぎても、カレンダーのカードの「評価する」から評価できます" },
+    ],
+    spots: [
+      { sel: '[data-guide="review-card"]', label: "終わった仕事です。タップすると評価の画面が開きます。" },
+      { sel: '[data-guide="todo-row"]', label: "終わった仕事です。「完了・評価 →」で評価の画面へ。" },
+    ],
+  },
+  {
+    key: "emergency", title: "緊急連絡", art: "emergency",
+    match: (h) => h === "calendar/todo/t_emergency",
+    lead: "作業当日の急な連絡（遅れる・休む・会えない）をする画面です。",
+    rows: [
+      { icon: "alert", t: "カードをタップします", d: "採用が決まった仕事が並びます。開いた中の「緊急連絡をする」から" },
+      { icon: "chats", t: "相手に届き、記録に残ります", d: "お知らせとチャットで相手に届きます。あとで確認できるように残ります" },
+      { icon: "phone", t: "作業中は緊急連絡先も見られます", d: "仕事の開始から終了までの間だけ、相手の緊急連絡先が表示されます" },
+    ],
+    spots: [{ sel: '[data-guide="emergency-card"]', label: "連絡したい仕事のカードをタップします。" }],
+  },
+  {
+    key: "question", title: "求人の質問", art: "question",
+    match: (h) => h === "calendar/todo/question",
+    lead: "あなたの求人に届いた質問に答える画面です。",
+    rows: [
+      { icon: "question", t: "「回答する →」で求人ページの質問へ", d: "質問と回答は求人ページに公開されます（誰が質問したかは出ません）" },
+      { icon: "noSmoke", t: "連絡先は書けません", d: "電話番号・メールアドレス・URLは自動で拒否されます。やり取りはチャットで" },
+    ],
+    spots: [{ sel: '[data-guide="todo-row"]', label: "届いた質問です。「回答する →」で答えられます。" }],
+  },
+  {
+    key: "revision", title: "修正のお願い", art: "revision",
+    match: (h) => h === "calendar/todo/revision" || h === "calendar/todo/w_revision",
+    lead: "運営から内容の修正をお願いしたときに、ここから直す画面です。",
+    rows: [
+      { icon: "edit", t: "「修正する →」で直します", d: "指摘のあった箇所を直して、もう一度掲載します" },
+      { icon: "views", t: "直したあとは運営が確認します", d: "修正のお願いがあった求人だけ、再掲載の前に運営が確認してから公開されます" },
+      { icon: "support", t: "分からないときは運営チャットへ", d: "チャットのいちばん上の運営チャットから聞けます" },
+    ],
+    spots: [{ sel: '[data-guide="todo-row"]', label: "修正のお願いが届いた求人です。「修正する →」で直せます。" }],
+  },
   {
     key: "savedCalendar", title: "カレンダー", art: "calendar",
     match: (h) => h === "saved",
@@ -381,6 +502,33 @@ const PAGE_GUIDES = [
       { icon: "ended", t: "過去の応募", d: "見送り・取り消し・失効になった記録です" },
     ],
     spots: [{ sel: '[data-guide="job-card"]', label: "応募した求人のカードです。タップすると返事の状況が見られます。" }],
+  },
+  // ── プロフィール編集（2026-09-03）：どの項目が誰に見えるかを、入力の前に伝える。
+  //    一覧の面（#/profile/worker/profile・#/profile/employer/profile）だけ＝項目ごとの編集ページ（/{項目}）では出さない
+  {
+    key: "profileWorkerEdit", title: "プロフィールの入力", art: "profileEdit",
+    match: (h) => h === "profile/worker/profile",
+    lead: "農家に見せるあなたの情報です。本名や電話番号はここには入りません。",
+    rows: [
+      { icon: "views", t: "農家に見えるのはこの一覧の内容", d: "ニックネーム・居住地（市町村まで）・自己紹介・移動手段・経験など。応募した先の農家が見ます" },
+      { icon: "lock", t: "本名・電話は採用が決まった相手だけ", d: "新規登録で入れた本人情報は、ここには表示されません。採用が決まった相手にだけ氏名が出ます" },
+      { icon: "check", t: "この3つで応募できます", d: "ニックネーム・居住地・自己紹介。保存するとすぐ表示されます（連絡先を書くと自動で拒否されます）" },
+    ],
+    spots: [
+      { sel: '[data-guide="apply-ready-guide"]', label: "まずこの3つ。埋まれば応募できます。" },
+      { sel: '[data-guide="profile-rows"]', label: "タップして1つずつ入力します。保存すると次の未入力へ進みます。" },
+    ],
+  },
+  {
+    key: "profileEmployerEdit", title: "農家プロフィールの入力", art: "profileEdit",
+    match: (h) => h === "profile/employer/profile",
+    lead: "働き手に見せる農家の情報です。氏名・住所・連絡先は求人ページに載ります。",
+    rows: [
+      { icon: "views", t: "氏名・住所・連絡先は求人ページに表示", d: "募集者の情報として、法律で明示が求められています。ログインした人に見えます" },
+      { icon: "gift", t: "待遇と保険は掲載のときに固定", d: "求人を掲載した時点の内容が、その求人に残ります。あとで変えても掲載中の求人は変わりません" },
+      { icon: "lock", t: "緊急連絡先は作業中の相手だけ", d: "採用が決まった相手に、仕事の開始から終了までの間だけ表示されます" },
+    ],
+    spots: [{ sel: '[data-guide="profile-rows"]', label: "タップして1つずつ入力します。赤い印は掲載に必要な項目です。" }],
   },
   // ★マイページの中身は2026-08-25の大整理後の実態（やることの格子・応募者一覧カード・掲載カードは無い）
   {
