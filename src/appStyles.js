@@ -1191,6 +1191,10 @@ body:has(.cb-box-overlay) .consign-role-fab { display: none !important; }
 body.cb-scroll-hide .cb-timeless-report-fab { transform: translate3d(-50%, 64px, 0); }
 /* 入力中（キーボード表示中）は下部バーと同じく隠す＝入力欄と被らせない（2026-07-19の規約に合流） */
 body.cb-typing .cb-timeless-report-fab { display: none !important; }
+/* 受託面のカード写真スワイプ（Airbnb型・2026-08-05）：スクロールバーを出さない（Firefoxはインラインの scrollbarWidth:none） */
+.consign-photo-strip::-webkit-scrollbar { display: none; }
+/* 受託面のカテゴリ帯（Airbnbのカテゴリバー）：横スクロール・スクロールバー非表示 */
+.consign-category-bar::-webkit-scrollbar { display: none; }
 /* 退場演出（2026-07-31たきと指示・新しく委託を出す→ウィザードへ）：
    蔓(0〜0.5s)→太陽と空(0.4〜0.9s)→名刺・ボックス・文言(0.8〜1.2s)の順に画面外へ。
    蔓は各svgでなく容器ごと持ち上げる（svg個々のsway用インラインduration/delayに勝てないため。

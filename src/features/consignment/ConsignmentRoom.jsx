@@ -57,6 +57,57 @@ import { CONSIGN_SPRIGS, CONSIGN_CLUSTER_BASES, CONSIGN_GRASS_SCALE, makeConsign
 // 背景の空（2026-07-31たきと指示「背景に太陽追加。朝昼夜を演出。時間によって太陽が左から右に移動」）。
 // 入場演出（草・蔓・空） → features/consignment/entranceArt.js へ移設（2026-08-17）
 
+// ── 受託面のカード写真（Airbnb型・2026-08-05たきと指示「画面を刷新する。Airbnbをパクれ」）──
+// Airbnbのリスティングカードと同じ：ほぼ正方形の写真を横スワイプ（CSS scroll-snap）＋下中央のドット。
+// 現在位置はスクロール量から算出＝写真ごとにstateを持たない。ドットは最大5個の窓（Airbnbと同じ）。
+// ★モジュールレベル定義（コンポーネント内部定義はフォーカス消失バグの原因＝CLAUDE.md技術メモ）
+function ConsignListingPhotos({ photos, badge }) {
+  const [idx, setIdx] = useState(0);
+  const list = (photos || []).filter(p => p && p.url);
+  const onScroll = (e) => {
+    const el = e.currentTarget;
+    const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+    if (i !== idx) setIdx(i);
+  };
+  // ドットの窓：5個まで表示し、現在位置が端に寄ったら窓をずらす
+  const n = list.length;
+  const winStart = Math.max(0, Math.min(idx - 2, n - 5));
+  const dots = n > 1 ? Array.from({ length: Math.min(5, n) }, (_, k) => winStart + k) : [];
+  return (
+    <div style={{ position:"relative", width:"100%", aspectRatio:"20 / 19", borderRadius:12, overflow:"hidden", background:"#F0F0F0" }}>
+      {n > 0 ? (
+        <div className="consign-photo-strip" onScroll={onScroll} style={{ display:"flex", width:"100%", height:"100%", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
+          {list.map((p, i) => (
+            <img key={i} loading="lazy" src={p.url} alt="" draggable={false} style={{ flex:"0 0 100%", width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", display:"block" }} />
+          ))}
+        </div>
+      ) : (
+        <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <span className="f-sans" style={{ fontSize:13.2, color:"#999999" }}>写真はまだありません</span>
+        </div>
+      )}
+      {badge}
+      {dots.length > 0 && (
+        <div style={{ position:"absolute", left:0, right:0, bottom:10, display:"flex", justifyContent:"center", gap:5, pointerEvents:"none" }}>
+          {dots.map(i => (
+            <span key={i} style={{ width: i === idx ? 7 : 6, height: i === idx ? 7 : 6, borderRadius:"50%", background:"#fff", opacity: i === idx ? 1 : 0.55, boxShadow:"0 0 2px rgba(0,0,0,0.4)", transition:"opacity .15s, width .15s, height .15s" }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 受託面の並び：募集中（draft）を先頭に、次に作業中、募集終了、完了の順（Airbnbが予約可能な物件を前に出すのと同じ）。
+// 同順位の中は台帳の並び（created_at 降順）をそのまま保つ（Array.sort は安定）
+const contractorRank = (status) => {
+  if (!status || status === "draft") return 0;
+  if (["working", "inspected", "paid"].includes(status)) return 1;
+  if (status === "agreed") return 2;
+  return 3; // done
+};
+
+
 export function ConsignmentRoom() {
   // 画面切替はURLで裏打ちする（2026-08-01たきと報告「スワイプで前のページに戻らない」の根治）：
   // 一覧=#/admin/consignment／新規=#/admin/consignment/new／案件=#/admin/consignment/deal/{id}／
@@ -77,10 +128,10 @@ export function ConsignmentRoom() {
   const [cTab, setCTab] = useState(() => { const v = readConsignView().view; return v === "list" ? "list" : v === "contractor" ? "contractor" : v === "profile" ? "profile" : v === "new" ? "new" : "deal"; }); // list=委託面（一覧）/ contractor=受託面 / deal=案件ダッシュボード / profile=委託専用プロフィール
   // 委託⇄受託の反転アニメ（ProfileHubのpTab切替と同じ2段階：pflip-out 0.4s→面切替→pflip-in 0.4s）
   const [cAnim, setCAnim] = useState("");
-  const [contractorFlip, setContractorFlip] = useState(false); // 「委託をさがす」カードの反転（掲載板は準備中）
   // 委託トップの絞り込みチップ（Airbnbホストの「今日」の予約タブの写し・2026-09-03たきと指示「Airbnbをパクれ」）。
   // 値は consignRecruitState(...).l のラベルか "all"。表示用の別状態＝保存しない（開くたび「すべて」）
   const [listFilter, setListFilter] = useState("all");
+  const [contractorTask, setContractorTask] = useState(""); // 受託面のカテゴリ帯（作業で絞る・""=すべて）
   // 入場演出（ポケモンバトル風・2026-07-31たきと指示）：入室のたびに1回だけ再生。
   // ステップ展開（2026-07-31たきと指示・順序改定「まず太陽→草」／2026-08-05に草を3群へ）：
   // 線(0.22s)→①太陽・上段(0.10s〜)→②草・右下(0.45s〜)→③草・左中(0.80s〜)→④草・右上(1.15s〜)
@@ -1071,60 +1122,87 @@ export function ConsignmentRoom() {
 
       </div>)}
 
-      {/* ═══ 受託面（#/admin/consignment/contractor・2026-08-05たきと指示）═══
-          委託面（出す側）の対になる「受ける側」の面。並びは委託面と同じ＝共通ナビ／戻る／名刺／
-          ワイドカード／一覧、で骨を揃える（1アカウントが両面を持つ世界でUIの骨が変わらない・
-          求人求職のカード対称性と同じ理屈）。
-          ★ここは読み取り専用＝DBへの書き込み・入力は一切置かない。受託者情報の登録と掲載板は
-          CLAUDE.md「保存・入力機能の取り扱い」に従い、たきとの確認を取ってから別途実装する。
-          表示にダミーは置かない（憲法3条）＝実データが無い箇所は「まだありません」と理由を明記する */}
-      {cTab === "contractor" && (<div className="consign-list-content">
-      {/* 戻り先は委託面と同じ雇い手プロフィール入口＝「新しく委託を出す」カードが置いてある場所 */}
-      <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", marginBottom:16 }}>← 戻る</button>
-      {/* 名刺（受託者）。委託面の名刺と同じ寸法・同じ枠で、役割ピルだけ濃淡を反転させる
-          （委託主＝黒ベタ／受託者＝白地に黒枠）。受託者情報の登録ページはまだ無いのでタップ先を
-          持たせない＝押せるのに何も起きないボタンにしない（2026-08-03「タップ不能はやめよう」の裏返しで、
-          行き先の無いボタンを作らない）。div＝表示カードとして置く */}
-      <div className="f-sans" style={{ position:"relative", width:"100%", background:"#fff", border:"2px solid #111111", borderRadius:24, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:12, boxShadow:"0 2px 12px rgba(0,0,0,0.05)", minHeight:180, boxSizing:"border-box", marginBottom:12 }}>
-        <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={84} bg="#111111" />
-        <span style={{ textAlign:"center" }}>
-          <span className="f-sans" style={{ display:"block", fontSize:24.2, fontWeight:800, color:"#111111" }}>{empMini?.nickname || "名称未設定"}</span>
-          <span className="f-sans" style={{ display:"inline-block", marginTop:6, fontSize:14.3, fontWeight:800, color:"#111111", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"3px 14px" }}>受託者</span>
-        </span>
-      </div>
+      {/* ═══ 受託面（#/admin/consignment/contractor・2026-08-05たきと指示・同日「画面を刷新する。Airbnbをパクれ」）═══
+          委託面＝Airbnbのホスト側なら、受託面＝Airbnbのゲスト側ホーム。構成をそのまま写す：
+          ①上部＝戻る＋自分（アバター・役割ピル） ②カテゴリ帯（横スクロール・選択中は下線）
+          ③リスティングカード（ほぼ正方形の写真を横スワイプ＋ドット／左上に状態バッジ／写真の下に
+          太字の見出し→グレーの補足2行→太字の価格）。枠なし・角丸12px・カード間は広め。
+          ・カテゴリは実在する委託の作業から生成（ダミー禁止・憲法3条）。1種類しか無ければ帯を出さない。
+          ・検索ピルは置かない（委託が数件の市場に検索バーは嘘になる＝骨格②の段階解禁と同じ判断）。
+          ・♡（いいね）は置かない（委託に保存機能が無い＝行き先の無いボタンを作らない）。
+          ・データは委託面と同じ deals（consignment_deals・RLSは app_admins 限定＝この部屋の内側）。
+            並びは募集中を先頭に（Airbnbが予約可能な物件を前に出すのと同じ）。
+          ★読み取り専用＝DBへの書き込み・入力は一切置かない。受託者情報の登録と受託の申込は
+          CLAUDE.md「保存・入力機能の取り扱い」に従い、たきとの確認を取ってから別途実装する */}
+      {cTab === "contractor" && (() => {
+        // 帯の候補＝実在する委託の作業（「・」区切り）を CONSIGN_TASKS の順で並べ、それ以外は末尾
+        const taskSet = new Set(deals.flatMap(d => String((d.spec || {}).task || "").split("・").map(s => s.trim()).filter(Boolean)));
+        const taskChips = [...CONSIGN_TASKS.filter(t => taskSet.has(t)), ...[...taskSet].filter(t => !CONSIGN_TASKS.includes(t))];
+        const shown = deals
+          .filter(d => !contractorTask || String((d.spec || {}).task || "").split("・").map(s => s.trim()).includes(contractorTask))
+          .slice().sort((a, b) => contractorRank(a.status) - contractorRank(b.status));
+        return (<div className="consign-list-content">
+        {/* ①上部：戻る（左）＋自分（右：役割ピル＋アバター）。Airbnbの上部バー（左に戻る・右にアカウント）の写し。
+            戻り先は委託面と同じ雇い手プロフィール入口。受託者情報の登録ページはまだ無いので
+            アバターにタップ先は持たせない（行き先の無いボタンを作らない） */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:14 }}>
+          <button onClick={()=>{ window.location.hash = "/profile/employer"; }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px" }}>← 戻る</button>
+          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span className="f-sans" style={{ fontSize:13.2, fontWeight:800, color:"#111111", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"3px 12px" }}>受託者</span>
+            <Avatar url={empMini?.avatar_url} name={empMini?.nickname} size={36} bg="#111111" />
+          </div>
+        </div>
 
-      {/* 「委託をさがす」＝委託面の「新しく委託を出す」と対になるワイドカード。
-          掲載板（受託者が委託を探す市場）は手動1件目のあとに判断する方針（2026-07-19記載）なので、
-          機能・入力・保存を持たないプレースホルダーにし、タップで反転して理由を明記する
-          （ProfileHubの「新しく求職を出す」＝届出待ちカードと同じ作法） */}
-      <div style={{ perspective:800, marginBottom:16 }}>
-        <button onClick={()=>setContractorFlip(v=>!v)} className="f-sans" aria-label="委託をさがす（準備中）" style={{
-          position:"relative", width:"100%", background:"transparent", border:"none", padding:0, cursor:"pointer",
-          transformStyle:"preserve-3d", transition:"transform .5s", transform: contractorFlip ? "rotateY(180deg)" : "none", textAlign:"left",
-        }}>
-          {/* 表面 */}
-          <span style={{ position:"relative", overflow:"hidden", display:"block", background:"#111111", borderRadius:20, padding:"20px 18px", boxSizing:"border-box", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
-            <VineCorner flip size={110} style={{ top:-6, right:-6, opacity:0.5 }} />
-            <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:17.6, fontWeight:800, color:"#fff", letterSpacing:".02em" }}>委託をさがす</span>
-            <span className="f-sans" style={{ position:"relative", zIndex:1, display:"block", fontSize:14.3, color:"#B9B9B9", marginTop:4, lineHeight:1.6 }}>出されている委託から、受けられる仕事を探します。</span>
-          </span>
-          {/* 裏面（タップで反転） */}
-          <span style={{ position:"absolute", inset:0, display:"block", background:"#fff", border:"2px solid #111111", borderRadius:20, padding:"20px 18px", boxSizing:"border-box", transform:"rotateY(180deg)", backfaceVisibility:"hidden", WebkitBackfaceVisibility:"hidden" }}>
-            <span className="f-sans" style={{ display:"block", fontSize:15.4, fontWeight:800, color:"#111111" }}>準備中です</span>
-            <span className="f-sans" style={{ display:"block", fontSize:13.2, color:"#111111", marginTop:4, lineHeight:1.6 }}>委託の掲載板は、手で進める1件目を終えてから開きます。開いたら、ここから受けられる委託を探せるようになります。</span>
-          </span>
-        </button>
-      </div>
+        {/* ②カテゴリ帯（Airbnbのカテゴリバー）：文字だけ・選択中は黒＋下線2px・他はグレー。
+            「すべて」＋実在する作業。作業が1種類以下なら帯を出さない（切替の意味が無い） */}
+        {taskChips.length >= 2 && (
+          <div className="consign-category-bar" style={{ display:"flex", gap:22, overflowX:"auto", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", borderBottom:"1px solid #EBEBEB", marginBottom:18 }}>
+            {[["", "すべて"], ...taskChips.map(t => [t, t])].map(([k, l]) => {
+              const on = contractorTask === k;
+              return (
+                <button key={k} type="button" onClick={()=>setContractorTask(k)} className="f-sans" style={{ flexShrink:0, background:"transparent", border:"none", borderBottom: on ? "2px solid #111111" : "2px solid transparent", padding:"10px 2px 12px", fontSize:13.2, fontWeight: on ? 800 : 600, color: on ? "#111111" : "#8A8A8A", cursor:"pointer", marginBottom:-1 }}>{l}</button>
+              );
+            })}
+          </div>
+        )}
 
-      {/* 受託した委託の一覧（委託面の案件カード一覧と対になる枠）。
-          consignment_deals に受託者の列はまだ無く、受託側の案件は1件も存在しない＝
-          ダミーを並べず、空であることとその理由を書く */}
-      <p className="f-sans" style={{ fontSize:12.1, color:"#999999", fontWeight:700, letterSpacing:".06em", margin:"0 0 8px", borderLeft:"3px solid #111111", paddingLeft:8 }}>受託した委託</p>
-      <div style={{ background:"#fff", border:"1px solid #E5E5E5", borderRadius:16, padding:"20px 18px" }}>
-        <p className="f-sans" style={{ fontSize:14.3, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>受託した委託はまだありません</p>
-        <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0, lineHeight:1.8 }}>委託を受けると、その案件がここに並びます。進み具合（合意・着手金・作業中・検収・支払）も、委託面と同じ段階でこの面から追えるようにします。</p>
-      </div>
-      </div>)}
+        {/* ③リスティングカード一覧 */}
+        {shown.length === 0 ? (
+          <div className="f-sans" style={{ textAlign:"center", padding:"56px 16px" }}>
+            <p className="f-sans" style={{ fontSize:15.4, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>{contractorTask ? "「" + contractorTask + "」の委託はいまありません" : "受けられる委託はいまありません"}</p>
+            <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:0, lineHeight:1.8 }}>委託が出されると、ここに並びます。</p>
+          </div>
+        ) : (
+          <div style={{ display:"grid", gap:28, gridTemplateColumns:"minmax(0, 1fr)" }}>
+            {shown.map(d => {
+              const s = d.spec || {};
+              const st = consignRecruitState(d.status);
+              const when = deadlineLabel(s.date_start, s.date_end) || s.deadline || "";
+              const where = [s.field_name, s.region, s.area_a ? s.area_a + "a" : ""].filter(x => (x || "").trim()).join("・");
+              return (
+                <div key={d.id} role="button" tabIndex={0} onClick={()=>openDeal(d)} onKeyDown={(e)=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDeal(d); } }} className="f-sans" style={{ cursor:"pointer", outline:"none" }}>
+                  <ConsignListingPhotos photos={s.photos}
+                    badge={<span className="f-sans" style={{ position:"absolute", top:12, left:12, zIndex:2, padding:"5px 12px", borderRadius:8, fontSize:12.1, fontWeight:800, background:st.bg, color:st.fg, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{st.l}</span>} />
+                  <div style={{ padding:"10px 2px 0" }}>
+                    {/* 見出し＝何の仕事か（3秒判断）。Airbnbの1行目（所在地）にあたる太字 */}
+                    <p className="f-sans" style={{ fontSize:15.4, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{[s.crop, s.task].filter(Boolean).join(" ") || "（作業未記入）"}</p>
+                    {/* 補足2行＝どこで・いつ（Airbnbの「ホスト」「日付」のグレー行） */}
+                    {where && <p className="f-sans" style={{ fontSize:14.3, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{where}</p>}
+                    {when && <p className="f-sans" style={{ fontSize:14.3, color:"#717171", margin:"2px 0 0" }}>{when}</p>}
+                    {/* 価格＝太字＋単位は細く（Airbnbの「¥x 泊」） */}
+                    <p className="f-sans" style={{ fontSize:15.4, color:"#222", margin:"6px 0 0" }}>
+                      {s.unit_price_10a
+                        ? <><span className="f-mono" style={{ fontWeight:800 }}>{Number(s.unit_price_10a).toLocaleString()}円</span><span style={{ color:"#717171" }}> /10a</span></>
+                        : <span style={{ color:"#717171" }}>単価未設定</span>}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        </div>);
+      })()}
       </div>
       )}
 
