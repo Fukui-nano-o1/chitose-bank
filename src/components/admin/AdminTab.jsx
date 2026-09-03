@@ -23,7 +23,7 @@ const OTHER_CARDS = [
   { k:"upcoming", l:"まもなく開始" },
   { k:"evaluation", l:"評価" },
   { k:"farmerpages", l:"農家のアクションページ" },
-  { k:"animations", l:"アニメーション" },
+  { k:"animations", l:"完了画面" },
 ];
 // 並びの読み書き（localStorage＝この端末だけの表示設定。表示専用＝権限・データの正には使わない・2026-08-02規則）
 const OTHER_ORDER_KEY = "cb_adminOtherOrder_v1";
