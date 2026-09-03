@@ -66,7 +66,7 @@ function ApplicantCard({ app, job, profile, trust }) {
     window.location.hash = "/work/job/" + app.job_number;
   };
   return (
-    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
+    <div data-guide="applicant-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden" }}>
       <div style={{ display:"flex", alignItems:"stretch" }}>
         <button onClick={openJob} aria-label="求人を見る" className="f-sans"
           style={{ flexShrink:0, width:104, aspectRatio:"3 / 4", padding:0, border:"none", borderRight:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left" }}>
