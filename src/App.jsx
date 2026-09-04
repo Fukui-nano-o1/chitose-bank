@@ -612,12 +612,13 @@ export default function App(){
   // スクロールに追従しない・全ページ」）。中身と発火の節目は lib/fixedRepin.js に集約
   useEffect(() => installFixedRepin(), []);
   // 仮応募からの昇格件数（プロフィール保存の直後に promote_my_pending_applications が返した数）
-  const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/(admin|[0-9a-f-]+)$/); return m?m[1]:null; });
+  // "admin"＝自分の運営スレッド／"admin/<uuid>"＝運営がその利用者のスレッドを開く（2026-09-04・運営専用）
+  const [chatAppId,setChatAppId]=useState(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^chat\/(admin(?:\/[0-9a-f-]+)?|[0-9a-f-]+)$/); return m?m[1]:null; });
 
   // チャットの前回の会話の先読み（2026-08-26 Speed-4B）：ChatViewは遅れて読み込まれるチャンクなので、
   // URLがチャットだと分かったこの時点で復号を始めておく＝画面が立ち上がった瞬間に本文を出せる。
   // 表示専用の控えを読むだけ（ネットワークは使わない・送信権限や既読の正には一切関わらない）
-  useEffect(() => { if (chatAppId) prefetchChatBody(chatAppId); }, [chatAppId]);
+  useEffect(() => { if (chatAppId && !chatAppId.startsWith("admin")) prefetchChatBody(chatAppId); }, [chatAppId]);
 
   // ↓ここに置く理由：この中で使う state（openAccountForm・showJobPost 等）の宣言より後ろでないと
   //   宣言前参照になる（no-use-before-define。2026-07-29に並べ替え・中身は不変）
@@ -673,7 +674,7 @@ export default function App(){
         } catch {}
         try { setPromotedCount(Number(sessionStorage.getItem("cb_promoted") || 0)); sessionStorage.removeItem("cb_promoted"); } catch {}
       }
-      const _cm = rawHash.match(/^chat\/(admin|[0-9a-f-]+)$/);
+      const _cm = rawHash.match(/^chat\/(admin(?:\/[0-9a-f-]+)?|[0-9a-f-]+)$/);
       setChatAppId(_cm ? _cm[1] : null);
       if (rawHash === "account") {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -1174,7 +1175,7 @@ export default function App(){
     // 自分の送信分・今まさに開いているチャットは出さない
     const showToast = (hash, title, text) => {
       const cur = window.location.hash.replace(/^#\/?/, "");
-      if (hash === "/chat/admin" && cur === "chats") return; // 運営DM：一覧に行と未読が出ているので二重に出さない
+      if (hash.startsWith("/chat/admin") && cur === "chats") return; // 運営DM（自分宛・運営宛とも）：一覧に行と未読が出ているので二重に出さない
       if (hash.startsWith("/chat/") && cur === hash.replace(/^#?\/?/, "").replace(/^\//, "")) return;
       if (hash.startsWith("/chat/") && cur.startsWith("chat/")) return; // チャットを開いている間は出さない
       setMsgToast({ title: title || "新しいメッセージ", text, hash });
@@ -1199,8 +1200,16 @@ export default function App(){
     const onDm = (payload) => {
       refresh();
       const m = payload?.new;
-      if (!m || !m.from_admin) return;
-      showToast("/chat/admin", "運営", msgSnippet(m.body)); // 運営チャットのページへ（2026-08-24）
+      if (!m) return;
+      // ★運営のRealtimeにはRLSどおり全スレッドのイベントが届く（一般利用者は自分のスレッドだけ）
+      if (m.from_admin) {
+        if (isAdmin(me) && m.user_id !== me.id) return; // 運営自身の送信（他スレッド宛）＝自分にトーストしない
+        showToast("/chat/admin", "運営", msgSnippet(m.body)); // 運営チャットのページへ（2026-08-24）
+        return;
+      }
+      // 利用者→運営（2026-09-04たきと報告「利用者が運営にチャットから連絡してもこちらに送信されない」）：
+      // 運営の端末にトーストを出し、その利用者のスレッド（返信ページ）へ飛べるようにする
+      if (isAdmin(me) && m.user_id !== me.id) showToast("/chat/admin/" + m.user_id, "運営への連絡", msgSnippet(m.body));
     };
     // ナビバッジと同じ理由で遷移時は20秒スロットル（2026-07-27）。新着はRealtime、既読はcb:unreadRefreshが即反映
     let lastAt = 0;
@@ -1216,7 +1225,7 @@ export default function App(){
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, onDm)
       .subscribe() : null;
     return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); if (ch) supabase.removeChannel(ch); };
-  }, [me?.id, realtimeBootReady]);
+  }, [me?.id, realtimeBootReady]); // eslint-disable-line react-hooks/exhaustive-deps -- isAdmin(me)はme.email参照＝idが同じなら不変。オブジェクトの identityで購読を張り直さない
   // 画面の復帰で再取得の合図を出す（2026-08-18 Speed-1B／1B.1で二重発火を除去）。
   // バックグラウンドに置いている間はRealtimeのWebSocketが凍結・切断され、イベントを取りこぼす
   // （iOS PWAで顕著。チャットが2026-07-27に同じ理由で復帰再読込を入れている）。
@@ -1987,12 +1996,13 @@ export default function App(){
           }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : needsPrivacyReconsent ? (
           <PrivacyReconsent authId={me?.id} onAgreed={()=>setNeedsPrivacyReconsent(false)} onShowPrivacy={()=>setShowPrivacy(true)} />
-        ) : chatAppId === "admin" ? (
-          /* 運営チャット（#/chat/admin）＝当事者チャットと同じ器に相乗り（AdminChat.jsx冒頭の注記）。
+        ) : chatAppId && chatAppId.startsWith("admin") ? (
+          /* 運営チャット（#/chat/admin＝自分のスレッド／#/chat/admin/{uid}＝運営がその利用者のスレッドを
+             開いて返信・2026-09-04）＝当事者チャットと同じ器に相乗り（AdminChat.jsx冒頭の注記）。
              ★←は history.back() でなく行き先を名指しする：この部屋の入口はチャット一覧の行so戻り先は必ず一覧。
              back() は直前の履歴（＝プッシュ通知から開いた時や、hashを二度書いた時のマイページ等）へ飛び、
              「戻るを押すとマイページに行く／押しても何も起きない」になっていた（2026-08-24たきと報告） */
-          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage onBack={()=>{ window.location.hash = "/chats"; }} /></Suspense>
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage targetUserId={chatAppId.startsWith("admin/") ? chatAppId.slice("admin/".length) : null} onBack={()=>{ window.location.hash = "/chats"; }} /></Suspense>
         ) : chatAppId ? (
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
         ) : showApplyPending ? (

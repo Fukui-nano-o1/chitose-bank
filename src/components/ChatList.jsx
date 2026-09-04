@@ -8,7 +8,7 @@ import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
 import { Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD, CHAT_ROW_DIVIDER } from "./ui";
-import { AdminChatRow } from "./AdminChat";
+import { AdminChatRow, AdminDmInboxRows } from "./AdminChat";
 import { NavIcon } from "./NavIcons";
 
 // 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
@@ -278,6 +278,9 @@ export function ChatList() {
       {/* 運営チャット＝一覧の最上部の行（2026-08-19たきと指示「浮遊ボックスは撤回。チャット一覧に移植」）。
           読み込み中・チャット0件でも出す＝運営への連絡口はいつでもここにある */}
       <AdminChatRow />
+      {/* 運営専用：利用者から運営宛のDMスレッド（2026-09-04たきと報告「利用者が運営にチャットから
+          連絡してもこちらに送信されない」の受け皿）。運営以外・0件なら何も描かない */}
+      <AdminDmInboxRows />
       {loading ? (
         /* 空白や「読み込み中...」でなく、これから出るスレッドと同じ形の箱を並べる（2026-07-27たきと指示） */
         <AutoSkeleton shapeKey="chats" />
