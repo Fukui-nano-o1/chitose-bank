@@ -10639,3 +10639,37 @@ viewport の user-scalable=no / maximum-scale=1。★iOS Safari は iOS10 以降
 【実機目視の残り】①最終日を過ぎた採用済み・作業中のカードが黒く覆われず「評価する」が押せるか
 ②本当に失効した応募には「失効」の覆いが出てボタンが無いこと ③完了・見送り・取り消しの見え方
 ━━━ ここまで ━━━
+
+━━━ 2026-09-02(続5) ボックス版の求人詳細（JobDetailBody）もAirbnbの並びに（たきと指示「同じ構造にしよう」）━━━
+【何をしたか】カレンダーのカード・応募者シートなど、面の中に開く求人詳細（components/JobDetailBody）を、
+求人詳細ページ（JobSearchMapView）と同じ Airbnb の掲載ページの並びにした。
+★区画の部品はページ側と【同じもの】を import（JobDetailPanel の JobPhotoGallery／JobKeyFacts／JobHostRow／
+JobHighlights／JobDescription／JobAmenities／JobScheduleSection／JobReviewsAndHost／JobLocationSection／
+JobThingsToKnow）＝見た目・並びを2箇所で作らない。並びの正は JobDetailPanel.jsx 冒頭のコメント＝
+ページ側を並べ替えたらボックスも揃える（JobDetailBody 冒頭に明記）。
+旧・ボックス独自の中身（主要情報の白カードのグリッド／雇い手カード＋待遇9行の表／作業内容カード／
+経験持ち物備考の表／危険箇所カード／地図／カレンダー／保険カード）は全部この部品群に置き換え。
+【ページと違うところ（ボックスの都合・意図的）】
+・写真は .job-hero で包まない＝面の中で sticky にしない（留めると中身が読めない）。角は丸いまま
+  （appStyles .job-detail-boxed .job-photo-slide { border-radius:12px }）
+・★写真の引き伸ばし（useHeroStretch）は切る＝JobPhotoGallery に stretch prop を新設（既定 true・ボックスは false）。
+  面の中では window.scrollY が常に0なので、切らないと面の中の下向きの指が全部「いちばん上の引き下げ」に
+  見えて写真が伸びる（実ブラウザで「伸びない」を実測）
+・目次の帯（JobSectionNav）／応募パネル／その他の求人／報告リンクは置かない（ページの固定位置・外の操作）
+・農園紹介モーダル（onOpenIntro）は持ち込まない＝募集主の行・募集主カードはタップしても開かない
+【★区画の「現れる動き」（.cb-reveal）の見張りを capture に】useReveal の scroll リスナーを
+{ passive:true, capture:true } に（外す時も true）。scroll イベントは泡立たないので、面の中（内側スクロール）で
+区画が上がってきても window には届かず、ボックスの中では区画が永久に透明のまま残る所だった。
+capture ならどの要素のスクロールでも拾える＝ページでもボックスでも同じ1つの見張りで済む。
+実測：内側の箱を最下部まで送ると is-in が 1→9（全区画）。
+【検証】build成功・eslint 0 error（警告22＝同数）・CSS波括弧の均衡・dist に包含。実ブラウザ（同梱Chromium・
+viteハーネス＋mock supabase・本物の JobDetailBody を高さ600の overflow:auto の箱に入れて・390x844）：
+区画の並び＝作業内容→待遇→作業日程→評価→募集主について→作業の場所→知っておくこと／題名3行（作物 作業・場所・
+事実の1行）＋#No.／募集主の行・ポイント・「n / N」の数え／写真の角丸12px／箱の中の引き下げで写真が伸びない／
+内側スクロールで全区画が現れる／pageerror 0。スクショで上部と中ほどを目視。
+【触っていないもの】AdminJobPreview（審査・オーナープレビュー）＝別の写し。旧 JobDetailBody の冒頭コメントに
+「AdminJobPreview側と揃える」とあったが、今回はたきと指示の範囲（ボックス版）だけ。揃えるなら別途。
+【実機目視の残り】①カレンダーのカード→ボックスの求人詳細が新しい並びか ②応募者シート・働き手のカレンダーの
+埋め込みも同じか ③写真の横スワイプ・タップの写真一覧 ④下スワイプで畳む・最初のタブで右スワイプ＝戻る
+⑤区画が下から順に現れるか ⑥右下の「トップ」で先頭に戻るか
+━━━ ここまで ━━━

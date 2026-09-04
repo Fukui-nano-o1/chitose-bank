@@ -45,7 +45,7 @@ function revealCheck() {
     if (el.getBoundingClientRect().top < h * 0.94) { el.classList.add("is-in"); revealTargets.delete(el); }
   }
   if (revealTargets.size === 0) {
-    window.removeEventListener("scroll", revealOnScroll);
+    window.removeEventListener("scroll", revealOnScroll, true);
     window.removeEventListener("resize", revealOnScroll);
   }
 }
@@ -55,7 +55,11 @@ function useReveal() {
   useEffect(() => {
     const el = ref.current; if (!el) return;
     revealTargets.add(el);
-    window.addEventListener("scroll", revealOnScroll, { passive: true });
+    // ★scroll は capture で聞く（第3引数 true）：scroll イベントは泡立たないので、ボックスの中
+    //   （内側スクロールの面＝JobDetailBody）で区画が下から上がってきても window には届かない。
+    //   capture なら「どの要素のスクロールでも」拾える＝ページでもボックスでも同じ1つの見張りで済む
+    //   （外す時も同じ true を渡さないと外れない・2026-09-02）
+    window.addEventListener("scroll", revealOnScroll, { passive: true, capture: true });
     window.addEventListener("resize", revealOnScroll);
     revealCheck(); // 最初から画面に入っている区画はその場で出す
     return () => { revealTargets.delete(el); };
@@ -618,12 +622,15 @@ function useHeroStretch(getTargetRef) {
 // どちらもタップで【写真の一覧】（Airbnbの photo tour）を全画面で開く＝1枚ずつ大きく見られる。
 // ★格子に出すのは最初の5枚まで＝残りは「すべての写真を表示」から（Airbnbと同じ）。
 // 1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示・ダミー写真は作らない）
-export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scrollerRef, onScroll }) {
+// stretch＝いちばん上で引き下げた時の写真の引き伸ばし（既定ON）。ボックスの中（内側スクロールの面・
+// JobDetailBody）では OFF＝window.scrollY が常に0なので、面の中の下向きの指がすべて「いちばん上の引き下げ」に
+// 見えてしまうため（2026-09-02）
+export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scrollerRef, onScroll, stretch = true }) {
   const [tourAt, setTourAt] = useState(null); // 全画面の一覧を開いた時の【最初に見せる番号】。null＝閉じている
   // いちばん上で引き下げた時に寄せる相手＝写真の横スワイプの器（scrollerRef）／写真が無ければ表紙の箱
   const fallbackRef = useRef(null);
   const stretchTargetRef = useRef(null);
-  stretchTargetRef.current = () => (scrollerRef && scrollerRef.current) || fallbackRef.current;
+  stretchTargetRef.current = () => stretch ? ((scrollerRef && scrollerRef.current) || fallbackRef.current) : null;
   useHeroStretch(stretchTargetRef);
   const photos = Array.isArray(job.photos) ? job.photos : [];
   if (photos.length === 0) return (

@@ -788,6 +788,8 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
 /* スマホの写真1枚（横スワイプの1コマ）。画面いっぱいの表紙＝角は丸めない。
    ★このコマが出るのはスマホだけ（PCは .job-photo-carousel を display:none にしている） */
 .job-photo-slide { border-radius: 0; }
+/* ボックス版の求人詳細（JobDetailBody・面の中に開く）は全面にしない＝写真の角は丸いまま（2026-09-02） */
+.job-detail-boxed .job-photo-slide { border-radius: 12px; }
 
 /* ── スクロールの作り（Airbnbのスマホと同じ・2026-09-01たきと指示
    「写真は移動していない。詳細がスクロールしている」）──
