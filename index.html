@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- maximum-scale=1 / user-scalable=no（2026-09-04たきと指示「仕事をさがすの横幅指定」）：
-         ピンチ等の倍率がページに残ると、fixedの検索パネルごと拡大されて右端が画面外に切れる
-         （2026-08-16記録の既知の性質）。写真の拡大はパン方式ライトボックスが担うのでピンチは不要 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- ★user-scalable=no / maximum-scale は書かない（2026-09-04・一度入れて同日に撤回）：
+         iOS Safari は iOS10 以降この指定を無視するため実機で効かない。加えて 70代の利用者から
+         「読むための拡大」を奪うのは本末転倒。拡大の事故は
+         ①body の touch-action:manipulation（二本指の拡大は残し、二度叩きの拡大だけ止める）
+         ②lib/visualViewportFit（拡大中でも fixed の被せを見えている画面に合わせる）で受ける -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#00A86B" />
     <!-- OSダークモードでも native の選択肢（select/option/日時ピッカー）の文字が消えないよう明色に固定（2026-08-07） -->
     <meta name="color-scheme" content="light" />

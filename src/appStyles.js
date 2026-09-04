@@ -7,7 +7,12 @@ export const CSS = `
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; background: #fff; overflow-x: clip; color-scheme: light; }
-body { background: #fff; overflow-x: clip; }
+/* touch-action:manipulation（2026-09-04）＝【二度叩きの拡大】だけを止める。
+   二本指の拡大（読むための拡大）は残る＝70代の利用者から拡大を奪わない。
+   狙い：画面that意図せず1.3倍のまま残り、fixedの被せ（検索パネル等）that右へはみ出す事故の予防。
+   ★これで防げないのは本人that意図して拡大した時＝そちらは lib/visualViewportFit that受ける。
+   ★個々の要素の touch-action（pan-y・none）は従来どおり勝つ＝スワイプ・ドラッグの機構は不変 */
+body { background: #fff; overflow-x: clip; touch-action: manipulation; }
 
 ::-webkit-scrollbar { width: 2px; height: 2px; }
 ::-webkit-scrollbar-thumb { background: #EBEBEB; border-radius: 1px; }

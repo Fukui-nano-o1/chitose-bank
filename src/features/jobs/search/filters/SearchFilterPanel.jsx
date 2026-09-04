@@ -6,7 +6,9 @@
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 
 // 下部バー直上の浮遊ピル。適用中は条件の要約＋件数＋✕クリアを出す
+import { useRef } from "react";
 import { NavIcon } from "../../../../components/NavIcons";
+import { useVisualViewportFit } from "../../../../lib/visualViewportFit";
 
 export function SearchFab({ active, summary, count, onOpen, onClear }) {
   return (<>
@@ -31,21 +33,30 @@ export function SearchFab({ active, summary, count, onOpen, onClear }) {
 // noValue / onNoChange＝求人No.でさがす（2026-08-31たきと指示「No.検索だ」）。数字だけを受け、
 // 入力の瞬間に一覧へ反映（チップと同じリアルタイム方式）。条件の持ち主は親（selNo）＝この部品は入力欄だけ
 export function SearchFilterPanel({ open, onClose, sections, section, onSection, noValue = "", onNoChange, onClear, resultCount }) {
+  // 画面that拡大されている時だけ、被せを「見えている画面」に合わせる（2026-09-04・拡大の実測で確定）。
+  // ★フックは早期returnより前に置く（rules-of-hooks）。拡大していなければ何も書かない＝従来の見た目
+  const overlayRef = useRef(null);
+  useVisualViewportFit(overlayRef, open);
   if (!open) return null;
   return (<>
-    <div className="fade-in cb-search-overlay cb-lock-scroll" onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
+    <div ref={overlayRef} className="fade-in cb-search-overlay cb-lock-scroll" onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)", overflowY:"auto", WebkitOverflowScrolling:"touch", display:"flex" }}>{/* モザイク（すりガラス）処理（2026-07-27たきと指示）：暗幕では背景が見えすぎたためblurに。輪郭と件数の増減は伝わるが文字は読めない */}
       {/* margin:auto＝縦横中央（2026-07-27たきと指示）。中身が画面より高い時はflex+autoマージンで正しくスクロールできる */}
       {/* ★この包み(全幅)では止めない（2026-08-06）：ここでstopPropagationすると、カードとカードの
            隙間・左右の余白も「枠内」になり、枠外タップで閉じられなくなる。止めるのは白いカード自身だけ */}
       <div style={{ width:"100%", maxWidth:520, margin:"auto", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 24px", boxSizing:"border-box" }}>
       {/* ✕閉じるボタンは削除（2026-07-27たきと指示）：モザイク部分のタップで閉じられるため不要 */}
-      <div style={{ display:"grid", gap:12, alignContent:"start" }}>
+      {/* ★列は minmax(0, 1fr)（2026-09-04）：既定の auto だと「列は中身の最小幅より狭くなれない」ため、
+           器より広い列thatできてカードthat右へはみ出す（2026-08-23 JobRow で踏んだのと同じ型）。
+           実測：No.の入力カードの最小幅286px > 320pt端末の器288px＝余裕2px、拡大時は必ずはみ出していた */}
+      <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:12, alignContent:"start" }}>
         {/* 求人No.でさがす：アコーディオンに隠さず常設の入力欄（番号を知っていて打ちに来る操作なので
             開く1タップを挟まない）。★font-size 16px 必須＝iOS Safariの自動ズーム回避（appStylesの規約） */}
         {onNoChange && (
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, boxShadow:"0 1px 6px rgba(0,0,0,0.06)", padding:"12px 18px", display:"flex", alignItems:"center", gap:10 }}>
             <span className="f-sans" style={{ fontSize:13, fontWeight:600, color:"#717171", flexShrink:0 }}>No.</span>
-            <input value={noValue} onChange={e=>onNoChange(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+            {/* ★size={1}（2026-09-04）：inputは既定で20文字ぶんの実寸を持ち、flex:1・minWidth:0 でも
+                 その実寸thatカードの最小幅（実測286px）を押し上げていた。flex:1 で横いっぱいに伸びるので見た目は不変 */}
+            <input size={1} value={noValue} onChange={e=>onNoChange(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
               inputMode="numeric" placeholder="求人番号でさがす（例：1028）" aria-label="求人番号でさがす"
               className="f-sans" style={{ flex:1, minWidth:0, border:"none", outline:"none", fontSize:16, fontWeight:700, color:"#222", background:"transparent", padding:"4px 0" }} />
             {noValue && (
