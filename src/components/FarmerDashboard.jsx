@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { OwnJobTile, ownJobState, ownJobPhoto, OWN_JOB_GRID_CLASS } from "./OwnJobTile";
@@ -1324,16 +1324,24 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   //   「バイトの評価」（旧・完了して評価する）から来ても応募者カードに触れず、完了記録・評価ができなかった。
                   //   todoAppIds（my_todo_items由来＝完了記録・評価が残っている応募）が1件でもあれば暗幕を出さない
                   const jobPendingAction = capps.some(a => todoAppIds.has(a.id));
-                  // ★「失効」は【応募の状態】から出す＝日程が過ぎただけでは貼らない（2026-09-04たきと報告
-                  //   「評価するボタンがタップできる。失効ラベルが貼られているのに」）。
-                  //   採用・作業中のまま日程を過ぎた応募は、まだやること（評価）が残っている＝覆わない。
-                  //   逆に、本当に失効した応募（expired）は日程が未来でも覆う（期間求人は開始時刻に失効するため
-                  //   最終日が来るまで datePast が偽だった＝働き手側は2026-08-16に同じ穴を塞いである）。
-                  //   ★覆いのラベルと下のボタンは同じソース（appPhaseKey）から出す＝食い違わせない
+                  // ★終わり方は【応募の状態】から出す＝求人の日程では決めない（2026-09-04たきと報告
+                  //   「評価するボタンがタップできる。失効ラベルが貼られているのに」／同日スクショ
+                  //   「見送りの応募に失効のスタンプ」）。ラベル・覆い・ボタンを同じソース（appPhaseKey）に
+                  //   揃える＝「失効なのに評価する」「見送りなのに失効」を作らない。
+                  //   日程を使うのは【応募のいない求人カード】だけ（言うことが他に無いため）
                   const onePhase = one ? appPhaseKey(one) : null;
                   const activeApp = ["interview", "contracted", "working"].includes(onePhase);
-                  const jobPast = (datePast || onePhase === "expired") && !jobPendingAction && !activeApp;
-                  const jobCompleted = jobPast && capps.some(a => a.status === "completed");
+                  const endedKind = one
+                    ? (activeApp ? null
+                      : onePhase === "completed" ? (jobPendingAction ? null : "completed")  // 評価が残っている完了は終わり扱いにしない
+                      : onePhase === "expired" ? "expired"
+                      : onePhase === "rejected" ? "rejected"
+                      : onePhase === "canceled" ? "canceled" : null)
+                    : (datePast ? "expired" : null);
+                  const ended = endedKind ? ENDED_FACE[endedKind] : null;
+                  // タップを殺すのは完了・失効だけ（見送り・取り消しの求人はまだ生きていて新しい応募が
+                  // 来ることがある・2026-08-23の判断を維持）
+                  const jobPast = endedKind === "completed" || endedKind === "expired";
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。
                   // 既存の .cb-urgent-card（赤影＋3.5秒の浮遊ループ）をそのまま使う。終わった求人は静かにする
@@ -1342,29 +1350,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   // 表示している応募が全員その状態で終わっている求人に、最前線のラベルを出す。
                   // ★ただしタップは殺さない（暗幕を pointerEvents:none にする）：失効・完了と違い、
                   //   求人自体はまだ生きていて新しい応募が来ることがあるため、開けなくしてはいけない
-                  const endedAll = !jobPast && capps.length > 0 && capps.every(a => a.status === "rejected" || a.status === "canceled");
-                  const endedLabel = !endedAll ? null : (capps.some(a => a.status === "rejected") ? "見送り" : "取り消し");
-                  const endedColor = endedLabel === "見送り" ? (APP_PHASE_COLOR.rejected || "#9E9E9E") : (APP_PHASE_COLOR.canceled || "#9E9E9E");
                   return (
                     <div key={`job-${jn}-${one ? one.id : "empty"}`} className={"cb-app-jobcard" + (cardUrgent ? " cb-urgent-card" : "")}
                       style={{ gridColumn:"1/-1", position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", marginTop:2, pointerEvents: jobPast ? "none" : undefined }}>
-                      {jobPast && (
-                        // ★zIndex:5＝カードの中で最前線（2026-08-23たきと指示「失効等のラベルを最前線に」・
-                        //   適用はこの応募者一覧ページのみ）。2のままだと、後から描かれる同じzIndexの
-                        //   タイトル帯（写真の下部のグラデ）が勝ち、「失効」の文字が求人名の裏に潜っていた
-                        /* ★暗幕はタップを飲み込まない（2026-08-24たきと指示）＝pointerEvents:none。
-                           押せるもの（求人の写真・アイコン・チャット・評価する・通知書）は各要素で auto に戻す */
-                        <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-                          <span className="f-sans" style={{ background: jobCompleted ? "#607D8B" : "#111", color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{jobCompleted ? "完了" : "失効"}</span>
-                        </div>
-                      )}
-                      {endedLabel && (
-                        // 見送り・取り消し（2026-08-23）：失効・完了と同じ最前線のラベル。
-                        // pointerEvents:none＝暗幕が乗ってもカードは従来どおりタップできる
-                        <div style={{ position:"absolute", inset:0, zIndex:5, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-                          <span className="f-sans" style={{ background: endedColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{endedLabel}</span>
-                        </div>
-                      )}
                       {/* 上：求人のトップ写真（2026-08-23たきと指示「求人カードを縦に」＝旧・左104pxの横並びから
                           カード幅いっぱいの上下積みに）。タイトル・No.は写真の下部に重ね、暗いグラデーション越しに
                           写真が透ける（2026-07-26たきと指示・求人カードのカバー写真と同じ作法）。
@@ -1375,7 +1363,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                             （2026-08-06「縦幅が求人ごとに違う。統一しろ」の狙いはそのまま） */}
                       <button onClick={()=>setPreviewJob({ num: jn })} aria-label="求人を見る" className="f-sans"
                         style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left", pointerEvents:"auto" }}>
-                        {photo && <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }} />}
+                        {photo && <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: ended ? "grayscale(70%)" : "none" }} />}
                         {/* 写真の真ん中に求人者のアイコン（2026-08-23たきと指示「真ん中に求人者のアイコン」）。
                             写真の有無に関わらず必ず置く＝旧は「写真が1枚も無い求人だけ代わりに出す」だった。
                             この面の求人はすべて自分が出したものので求人者＝自分＝empMini。アイコン未設定なら
@@ -1387,7 +1375,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         <span role="button" tabIndex={0} aria-label="農家のプレビューを見る"
                           onClick={(e)=>{ e.stopPropagation(); if (me?.id) openEmployerPreview(me.id); }}
                           onKeyDown={(e)=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); if (me?.id) openEmployerPreview(me.id); } }}
-                          style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:3, display:"block", lineHeight:0, borderRadius:"50%", cursor:"pointer", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: (jobPast || endedAll) ? "grayscale(70%)" : "none" }}>
+                          style={{ position:"absolute", left:"50%", top:"50%", transform:"translate(-50%, -50%)", zIndex:3, display:"block", lineHeight:0, borderRadius:"50%", cursor:"pointer", boxShadow: photo ? "0 2px 10px rgba(0,0,0,0.35)" : "none", filter: ended ? "grayscale(70%)" : "none" }}>
                           <Avatar url={empMini?.avatar_url} name={empMini?.nickname || "？"} size={72} ring={photo ? "#fff" : undefined} bg={ROLE_GREEN} />
                         </span>
                         {/* タイトルと#No.は同じ行に（2026-08-23たきと指示「タイトルの横にナンバー」）。
@@ -1397,6 +1385,16 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                           <span style={{ flexShrink:0, fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.82)", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{jn}</span>
                         </span>
                       </button>
+                      {ended && (
+                        // 終わった応募の言い方（Airbnbの型・2026-09-04たきと指示「これらもAirbnbをパクれるか？」）：
+                        // 写真に文字を焼く（黒い幕＋中央のスタンプ）のをやめ、写真の【下】に小さな点＋言葉で
+                        // 1回だけ言う＝Airbnbの掲載一覧の「● 掲載中／● 掲載していない」の写し。
+                        // ★写真は素のまま（グレーに落として静かにするだけ）＝題名がスタンプに隠れない
+                        <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", borderBottom:"1px solid #F0F0F0", boxSizing:"border-box" }}>
+                          <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:ended.color, flexShrink:0 }} />
+                          <span style={{ fontSize:13, fontWeight:700, color:"#717171" }}>{ended.label}</span>
+                        </div>
+                      )}
                       {/* 下：応募者アイコンスワイプ（人数「N名 →」は削除・2026-07-26たきと指示） */}
                       <div style={{ width:"100%", minWidth:0, padding:"10px 12px 12px", display:"flex", alignItems:"center", boxSizing:"border-box" }}>
                         {/* 応募者ゼロでもカードは出す（2026-08-21）：右側は理由の一言。

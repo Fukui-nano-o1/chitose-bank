@@ -840,6 +840,21 @@ export const APP_PHASE_DESC = {
   canceled:   "働き手が取り消した応募です",
 };
 export const APP_PHASE_COLOR = { applied:"#C77700", interview:"#8E24AA", contracted:"#00897B", working:"#E24B4A", completed:"#607D8B", rejected:"#9E9E9E", expired:"#111111", canceled:"#757575" };
+// ── 終わった応募の言い方（カードの状態の行・唯一のソース・2026-09-04）───────────
+// Airbnbの型（たきと指示「これらもAirbnbをパクれるか？」）：写真に文字を焼く（黒い幕＋中央の
+// スタンプ）のをやめ、写真の【下】に小さな点＋言葉で1回だけ言う＝Airbnbの掲載一覧の
+// 「● 掲載中／● 掲載していない」の写し。写真は素のまま（グレーに落として静かにするだけ）。
+// ★応募者カード（FarmerDashboard）と働き手のカード（SavedJobsView）で同じ言葉・同じ色を使う
+//   ＝終わり方の言い方を2箇所に書かない。言葉を変える時はここだけ直す。
+// ★どのキーを使うかは【応募の状態】から決める（appPhaseKey）＝求人の日程では決めない
+//   （2026-09-04「見送りなのに失効」「失効なのに評価する」の根治）
+export const ENDED_FACE = {
+  completed:   { label: "完了",         color: APP_PHASE_COLOR.completed },
+  expired:     { label: "失効",         color: APP_PHASE_COLOR.expired },
+  rejected:    { label: "見送り",       color: APP_PHASE_COLOR.rejected },
+  canceled:    { label: "取り消し",     color: APP_PHASE_COLOR.canceled },
+  unpublished: { label: "掲載取り下げ", color: "#757575" },  // 働き手側だけ（rejected_reason='unpublished'）
+};
 // ── 4段目「作業中」の“今”の姿（2026-08-18たきと指示「作業していない時間は作業中ではない」）──
 // working は記録の上では「自動開始〜完了記録」の間ずっと立つ（降ろす手は完了記録だけ）。
 // 複数日の採用だと、働いていない日も「作業中」と出ていた（実データ #1232＝働く日 8/18・20・21・24・31）。

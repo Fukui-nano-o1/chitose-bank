@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
-import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
+import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
@@ -377,8 +377,8 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   } : null; return a ? appPhaseKey(a) : null; };
   const shownRows = rows;
   // 並びの順（2026-08-19たきと指示「上からラベルなしカード、完了、見送り、失効、取り消しの順」）。
-  // ★下の描画のラベル（covered / coverLabel）と同じ式・同じ優先順で判定する（片方だけ変えない）＝
-  //   並びと貼られたラベルthat食い違わない。掲載取り下げは見送りの一種so見送りと同じ組に入る
+  // ★下の描画の状態（covered / ended）と同じ式・同じ優先順で判定する（片方だけ変えない）＝
+  //   並びと貼られたラベルが食い違わない。掲載取り下げは見送りの一種なので見送りと同じ組に入る
   const ROW_RANK = { none: 0, completed: 1, rejected: 2, expired: 3, canceled: 4 };
   const rowRank = (r) => {
     const jobEnd = r.date_end || r.date_start;
@@ -388,11 +388,14 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     const isCanceled = st === "canceled";
     const isExpired = st === "expired";
     const isCompleted = st === "completed";
-    if (!(jobPast || isRejected || isCanceled || isExpired || isCompleted)) return ROW_RANK.none; // ラベルなし＝進行中
+    // ★採用・作業中のまま日程を過ぎた応募は【進行中】の組（2026-09-04）＝描画側の activeApp と同じ規則。
+    //   ここを揃えないと「終わりのラベルが無いカード」が失効の組に並ぶ
+    const activeApp = ["contracted", "working"].includes(truePhaseOf(r));
+    if (!((jobPast && !activeApp) || isRejected || isCanceled || isExpired || isCompleted)) return ROW_RANK.none; // ラベルなし＝進行中
     if (isCompleted) return ROW_RANK.completed;
     if (isRejected) return ROW_RANK.rejected;
     if (isCanceled) return ROW_RANK.canceled;
-    return ROW_RANK.expired; // 失効（応募の失効／日程that過ぎただけのいいね＝どちらも「失効」のラベル）
+    return ROW_RANK.expired; // 失効（応募の失効／日程が過ぎただけのいいね＝どちらも「失効」のラベル）
   };
   // 安定ソートso、同じ組の中の並び（求人番号の新しい順）はそのまま保たれる
   const orderedRows = [...shownRows].sort((a, b) => rowRank(a) - rowRank(b))
@@ -413,7 +416,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
     terms_confirmed_farmer_at: r.terms_confirmed_farmer_at,
   } : null;
   // 見送り・失効のアイコンは「その時の状態」で出す（2026-07-27たきと指示）。どちらも応募中から進まずに
-  // 終わった応募なので、アイコンは応募中のまま。終わった事実はカード全体の暗幕＋ラベルが担う
+  // 終わった応募なので、アイコンは応募中のまま。終わった事実は写真の下の状態の行（ended）が担う
   const phaseOf = (r) => { const a = appOf(r); return a ? appPhaseKey((a.status === "expired" || a.status === "rejected" || a.status === "canceled") ? { ...a, status: "applied" } : a) : null; };
   // openJobPage（求人ページへの遷移）は削除（2026-08-08たきと指示「ボックスの求人ページは不要」）
   // ＝ボックス内の確認は求人カードタップ→詳細面が担う。求人ページ自体は さがす から従来どおり開ける
@@ -471,23 +474,22 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
             //   採用・作業中のまま日程を過ぎた応募は、まだやること（評価）が残っている＝覆わない。
             //   ★覆いのラベルと下のボタンは同じソース（応募の状態）から出す＝食い違わせない
             //   （2026-08-19「箱のバッジは専用ページと同じソースから数える」と同じ規則）
-            const activeApp = ["contracted", "working"].includes(phaseOf(r));
+            const activeApp = ["contracted", "working"].includes(truePhaseOf(r));
             const covered = ((jobPast && !activeApp) || isRejected || isCanceled || isExpired || jobCompleted) && !pendingReview;
-            const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : isCanceled ? "取り消し" : "失効";
-            const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : isCanceled ? APP_PHASE_COLOR.canceled : "#111";
+            // 終わり方の言い方は共有の ENDED_FACE（lib/utils）から＝応募者カードと同じ言葉・同じ色
+            // （2026-09-04・Airbnbの型：写真に焼かず、写真の下に「点＋言葉」で1回だけ言う）
+            const ended = !covered ? null
+              : jobCompleted ? ENDED_FACE.completed
+              : isWithdrawn ? ENDED_FACE.unpublished
+              : isRejected ? ENDED_FACE.rejected
+              : isCanceled ? ENDED_FACE.canceled
+              : ENDED_FACE.expired;
             const phase = phaseOf(r);
             const emp = empMap[r.job_number] || null; // 募集主の公開アイコン（分からなければ null）
             // カレンダーで選んだ日に該当する求人は光らせる（応募者ページと同じ引き継ぎ）
             return (
               <div key={r.job_number}
                 style={{ position:"relative", display:"flex", flexDirection:"column", background:"#fff", border:"1px solid #EBEBEB", borderRadius:14, overflow:"hidden", pointerEvents: covered ? "none" : undefined }}>
-                {covered && (
-                  /* ★暗幕はタップを飲み込まない（2026-08-24たきと指示「チャットと評価する、求人と求人者
-                     アイコンもタップ可能に」）＝pointerEvents:none。押せるものは各要素で auto に戻す */
-                  <div style={{ position:"absolute", inset:0, zIndex:2, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
-                    <span className="f-sans" style={{ background: coverColor, color:"#fff", fontSize:13, fontWeight:800, borderRadius:8, padding:"6px 20px", letterSpacing:"0.15em" }}>{coverLabel}</span>
-                  </div>
-                )}
                 {/* 上：求人のトップ写真（2026-08-23たきと指示「働き手のカレンダーも同じ構造で」＝
                     雇い手の求人カードと同じ縦積み・高さ180px固定・objectFit:coverで切り取る）。
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
@@ -515,6 +517,16 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     <span style={{ flexShrink:0, fontSize:12, fontWeight:700, color:"rgba(255,255,255,0.82)", textShadow:"0 1px 3px rgba(0,0,0,0.6)" }}>#{r.job_number}</span>
                   </span>
                 </button>
+                {ended && (
+                  // 終わった応募の言い方（Airbnbの型・2026-09-04たきと指示「これらもAirbnbをパクれるか？」）：
+                  // 写真に文字を焼く（黒い幕＋中央のスタンプ）のをやめ、写真の【下】に小さな点＋言葉で
+                  // 1回だけ言う＝Airbnbの掲載一覧の「● 掲載中／● 掲載していない」の写し。
+                  // ★言葉と色は共有の ENDED_FACE（lib/utils）＝応募者カードと同じ
+                  <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", borderBottom:"1px solid #F0F0F0", boxSizing:"border-box" }}>
+                    <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background:ended.color, flexShrink:0 }} />
+                    <span style={{ fontSize:13, fontWeight:700, color:"#717171" }}>{ended.label}</span>
+                  </div>
+                )}
                 {/* 下：自分のアイコン＋自分の段階。応募していない求人は「未応募」＋求人への導線
                     （雇い手カードの「応募者アイコンの列」と同じ位置＝相手側の並び） */}
                 <div style={{ width:"100%", minWidth:0, padding:"10px 12px 8px", display:"flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>
