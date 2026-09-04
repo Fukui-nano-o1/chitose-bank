@@ -239,12 +239,11 @@ const GUIDE_ART = {
       <path d="M84 52l16-16 8 8-16 16h-8z" /><path d="M96 40l8 8" />
     </svg>
   ),
-  // プロフィール編集＝行が並ぶ書面と、右に「見える相手」の人と目
+  // プロフィール編集＝行が並ぶ書面（中央に1枚）。★目は付けない（2026-09-04たきと指示「イラストの目が不必要」・
+  // 人物を添えると「頭の上に目」になった前例）
   profileEdit: (
     <svg {...ART_PROPS}>
-      <rect x="14" y="12" width="56" height="56" rx="6" /><path d="M22 26h40" /><path d="M22 38h40" /><path d="M22 50h28" />
-      <circle cx="94" cy="32" r="9" /><path d="M78 60c2-11 30-11 32 0" />
-      <path d="M86 20c4-5 12-5 16 0-4 5-12 5-16 0z" /><circle cx="94" cy="20" r="1.6" fill="currentColor" />
+      <rect x="36" y="10" width="48" height="60" rx="6" /><path d="M46 26h28" /><path d="M46 38h28" /><path d="M46 50h18" />
     </svg>
   ),
   // 求人をつくる＝書面と、右上の＋（新しく出す）
