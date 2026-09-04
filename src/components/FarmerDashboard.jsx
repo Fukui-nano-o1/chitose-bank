@@ -1324,7 +1324,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   //   「バイトの評価」（旧・完了して評価する）から来ても応募者カードに触れず、完了記録・評価ができなかった。
                   //   todoAppIds（my_todo_items由来＝完了記録・評価が残っている応募）が1件でもあれば暗幕を出さない
                   const jobPendingAction = capps.some(a => todoAppIds.has(a.id));
-                  const jobPast = datePast && !jobPendingAction;
+                  // ★「失効」は【応募の状態】から出す＝日程が過ぎただけでは貼らない（2026-09-04たきと報告
+                  //   「評価するボタンがタップできる。失効ラベルが貼られているのに」）。
+                  //   採用・作業中のまま日程を過ぎた応募は、まだやること（評価）が残っている＝覆わない。
+                  //   逆に、本当に失効した応募（expired）は日程が未来でも覆う（期間求人は開始時刻に失効するため
+                  //   最終日が来るまで datePast が偽だった＝働き手側は2026-08-16に同じ穴を塞いである）。
+                  //   ★覆いのラベルと下のボタンは同じソース（appPhaseKey）から出す＝食い違わせない
+                  const onePhase = one ? appPhaseKey(one) : null;
+                  const activeApp = ["interview", "contracted", "working"].includes(onePhase);
+                  const jobPast = (datePast || onePhase === "expired") && !jobPendingAction && !activeApp;
                   const jobCompleted = jobPast && capps.some(a => a.status === "completed");
                   // カレンダーで選んだ日に該当する求人は光らせる（アジェンダ廃止の引き継ぎ・2026-07-27）
                   // 未対応（＝農家の番）の応募が1件でもあるカードは、赤影＋跳ねで気づかせる（2026-07-27たきと指示）。

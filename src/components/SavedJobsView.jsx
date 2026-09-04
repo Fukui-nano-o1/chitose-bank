@@ -466,7 +466,13 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
             //   覆うとカード下の「評価する」が押せない。雇い手の求人カード（todoAppIds が1件でもあれば
             //   暗幕を出さない）と同じ規則を働き手側にも通す
             const pendingReview = jobCompleted && !!r.application_id && !reviewedIds.includes(r.application_id);
-            const covered = (jobPast || isRejected || isCanceled || isExpired || jobCompleted) && !pendingReview;
+            // ★日程が過ぎただけでは「失効」にしない（2026-09-04たきと報告「評価するボタンがタップできる。
+            //   失効ラベルが貼られているのに」）：失効は【応募の状態（expired）】であって日付ではない。
+            //   採用・作業中のまま日程を過ぎた応募は、まだやること（評価）が残っている＝覆わない。
+            //   ★覆いのラベルと下のボタンは同じソース（応募の状態）から出す＝食い違わせない
+            //   （2026-08-19「箱のバッジは専用ページと同じソースから数える」と同じ規則）
+            const activeApp = ["contracted", "working"].includes(phaseOf(r));
+            const covered = ((jobPast && !activeApp) || isRejected || isCanceled || isExpired || jobCompleted) && !pendingReview;
             const coverLabel = jobCompleted ? "完了" : isWithdrawn ? "掲載取り下げ" : isRejected ? "見送り" : isCanceled ? "取り消し" : "失効";
             const coverColor = jobCompleted ? "#607D8B" : isWithdrawn ? "#757575" : isRejected ? APP_PHASE_COLOR.rejected : isCanceled ? APP_PHASE_COLOR.canceled : "#111";
             const phase = phaseOf(r);
