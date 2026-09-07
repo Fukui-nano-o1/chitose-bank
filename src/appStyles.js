@@ -528,7 +528,9 @@ input:focus { outline: none; }
      戻したので、残る使い手に合わせて中立な名前にした */
   .cb-float-box { transform: translate3d(0, 0, 0); will-change: transform; transition: transform .25s ease; }
   body.cb-scroll-hide .cb-float-box { transform: translate3d(0, calc(100% + 64px + 12px + env(safe-area-inset-bottom, 0px)), 0); }
-  /* 求人詳細（応募フッターあり）では下部バーと同様に非表示（既存ガードと整合） */
+  /* 求人詳細（応募フッターあり）：浮遊☰だけは引き続き出さない。
+     下部ヘッダー自体は2026-09-07から求人詳細でも表示する（たきと指示）が、☰の定位置
+     （左下・bottom:64px+12px）は持ち上げた応募フッターの真上＝報酬の文字に重なるため */
   body:has(.mobile-apply-bar) .app-header-mobile-float { display: none; }
   /* 応募者ページの絞り込みバー（2026-07-27たきと指示）：下部バーの真上に浮かせ、
      スクロール格納・入力中の退避・オーバーレイ中の非表示を☰浮遊ボタンと完全に同じ作法で揃える */
@@ -967,7 +969,11 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
 
 /* ── 求人詳細（スマホ専用）：下部応募フッター。スクロール中は常時表示（cb-scroll-hide対象外）。
    ただし最下部から50px以内（body.cb-at-bottom・App.jsxのスクロールハンドラが付与）では
-   下へ格納し、フッター（サポート等）が読めるようにする（2026-07-25たきと指示） ── */
+   下へ格納し、フッター（サポート等）が読めるようにする（2026-07-25たきと指示）。
+   ★2026-09-07たきと指示「掲載ページのトップは下部ヘッダーとか非表示にしない」＝
+   求人詳細でも下部ヘッダー（.app-header-mobile）を隠さない。応募フッターは下部ヘッダーの
+   【上】（bottom: 64px+safe-area）に載せ、スクロールで下部ヘッダーが格納される（cb-scroll-hide）
+   ときは同じ .25s ease で 64px+safe ぶん下りて画面下端に着地する＝2つが一緒に動いて見える ── */
 .mobile-apply-bar {
   display: none;
 }
@@ -976,7 +982,7 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
     display: flex;
     flex-direction: column;
     position: fixed;
-    bottom: 0; left: 0; right: 0;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0;
     z-index: 500;
     background: #fff;
     border-top: 1px solid #EBEBEB;
@@ -986,14 +992,18 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
     gap: 4px;
     transition: transform 0.25s ease;
   }
-  body.cb-at-bottom .mobile-apply-bar { transform: translateY(105%); }
-  /* 求人詳細ページでは下部タブバーを完全非表示にし、下部応募フッターと二重に重ならないようにする
-     （両方ともbottom:0のため。2026-07-14: タブバーのtop→bottom移設で新たに必要になったガード） */
+  /* 下部ヘッダーが格納されている間（下スクロール中）と入力中（cb-typing＝ヘッダーがdisplay:noneで
+     消える）は、応募フッターが画面下端まで下りる＝下に64pxの空白を残さない */
+  body.cb-scroll-hide .mobile-apply-bar,
+  body.cb-typing .mobile-apply-bar { transform: translateY(calc(64px + env(safe-area-inset-bottom, 0px))); }
+  /* 最下部では自分の高さぶんも足して完全に画面外へ（フッターのサポート等が読める）。
+     ★cb-scroll-hide と同時に付くことがあるため、このルールを【後】に置いて勝たせる */
+  body.cb-at-bottom .mobile-apply-bar { transform: translateY(calc(105% + 64px + env(safe-area-inset-bottom, 0px))); }
+  /* 旧.bottom-tab-bar（遺物）だけは従来どおり出さない */
   body:has(.mobile-apply-bar) .bottom-tab-bar { display: none; }
-  /* 統合後の下部バー(.app-header-mobile)も同様に、求人詳細ページでは応募フッターと
-     二重にbottom:0で重ならないよう非表示にする（旧.bottom-tab-bar用ガードと同じ作法）。
-     このdisplay:noneはスクロール連動の格納機構(下記cb-scroll-hide)より優先される。 */
-  body:has(.mobile-apply-bar) .app-header-mobile { display: none; }
+  /* 求人詳細で下部ヘッダー（.app-header-mobile）を消していた旧ガード（display:none）は
+     2026-09-07に撤去＝求人詳細でも下部ヘッダーを出す（応募フッターはその上に載る）。
+     スクロール格納（cb-scroll-hide）は他のページと同じに効く＝トップでは必ず見える */
   /* チャット表示中は下部バー・浮遊☰を隠す（2026-07-22・LINE式＝チャットに集中）。
      ChatViewのルート .chat-full を目印に、詳細ページと同じ body:has() 方式で非表示にする */
   body:has(.chat-full) .app-header-mobile,
