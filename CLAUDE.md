@@ -10747,3 +10747,34 @@ pageerror 0。build成功・eslint 0 error / 22 warnings（基準と同数）。
 【実機目視の残り】iPhoneのログイン画面で 1/2→2/2 と進めた時、穴が「はじめての方はこちら」に重なっているか／
 幕の上で指を動かしてもページが動かないか（動いても穴が付いてくるか）
 ━━━ ここまで ━━━
+
+━━━ 2026-09-08 「求人のコピーと移動が失敗する」の調査＝RPCは無罪・DBの一時停止（503）の窓に当たっていた ━━━
+【たきと報告】「求人のコピーと移動が失敗する。」
+【調べ方】①app_errors（画面のエラー記録）②copy_job／move_job_dates の定義とトリガー・制約
+③本人のJWTを立てて両RPCを実弾（ロールバック付き）④edge_logs／postgres_logs（直近48時間）
+⑤cron の実行履歴⑥pg_stat_statements。
+【結果1・RPC自体は健全（本人として実弾・全ロールバック・残置ゼロ）】copy_job(1299)→ok（新No.1303）／
+move_job_dates(1299, 翌週)→ok／move_job_dates(1292＝draft)→ok。壁（has_applications・past_date・bad_status・
+not_yours）も設計どおり。app_errors には画面側のエラー記録なし＝JSは落ちていない。
+【結果2・失敗の正体＝DBが約20秒応答しなかった窓】edge_logs に 2026-09-08 23:22:20 JST
+POST rpc/move_job_dates → 503（iPhone・本人）。その直前 23:22:12 に postgres_logs
+「canceling statement due to statement timeout」、直後の約17秒は【全リクエストが503】
+（saved_jobs・admin_notice_registry・get_my_calendar_jobs・my_farm_applicants・my_farm_jobs）＝
+PostgRESTがDBに届かず一斉に落ちた。移動の失敗はこの窓の中。copy_job のリクエストは48時間の
+edge_logs に1件も無い＝同じ窓で「コピーしています…」の目隠しのまま応答が返らず、リクエストが
+ゲートウェイに記録される前に切れたか、その後の押し直しが錠前（inFlight）で黙って捨てられた可能性
+（どちらかは特定できない・記録が無い）。
+【結果3・負荷の出どころ】23:20 JST の cron は全て0.3秒未満で成功＝無罪。pg_stat_statements に
+非常に重い do $$ ブロック（最大51.6秒・32.5秒）・create temp table _t（26秒）・grant insert on _t（10秒）
+＝並走セッションの検証スクリプト（合成データの通し検証）がnanoインスタンスを占有していた型。
+2026-08-07 の cancel_application 503 事件（同じく検証の重いDOブロックと重なった）と同じ。
+【結論】コピー・移動のコードに欠陥は無い。DBが一時的に応答しない窓に当たった。
+もう一度やれば通る（実弾で確認済み）。
+【運用の注意（再掲・強化）】重い検証（DOブロック・temp table・全件走査）は、たきとが本番を操作して
+いる時間帯に流さない。流すなら「いまから検証を流す」と一言入れてから。nano インスタンスは
+1本の重いトランザクションで全利用者の画面が落ちる。
+【未実装・たきと判断】503／statement timeout の時の文言＝いまは
+「コピーに失敗しました：<生のメッセージ>」「うごかせませんでした：<生のメッセージ>」。
+「通信が混み合っています。少し待ってからもう一度お試しください」に差し替える案（copyJobFlow.js と
+MyCalendar.doMove の2箇所・数行）。自動の再試行は入れない＝copy_job は冪等でない（2回通ると下書きが2つ）。
+━━━ ここまで ━━━
