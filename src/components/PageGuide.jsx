@@ -674,9 +674,44 @@ export function PageGuide({ suspend = false }) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       const r = el.getBoundingClientRect();
       if (r.width < 4 || r.height < 4) { runSpot(list, i + 1); return; }
-      setSpot({ rect: { top: r.top, left: r.left, width: r.width, height: r.height }, label: list[i].label, i, list });
+      setSpot({ el, rect: { top: r.top, left: r.left, width: r.width, height: r.height }, label: list[i].label, i, list });
     }));
   };
+  // ★穴は的に追従させる（2026-09-04たきと報告「照らしている箇所が使い方ガイド等になっている」）：
+  //   iOS Safari は html/body の overflow:hidden では【指のスクロールを止めない】ので、幕が出た後に
+  //   ページが動くと、一度だけ測った穴が取り残されて別の場所を照らしていた。
+  //   ①スクロール・画面の大きさが変わるたびに的を測り直す（rAFで1フレーム1回）
+  //   ②幕が出ている間は指のスクロールを止める（passive:false の touchmove＝Reactのハンドラでは効かない）
+  useEffect(() => {
+    const el = spot?.el;
+    if (!el) return;
+    let raf = 0;
+    const update = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        setSpot((s) => {
+          if (!s || s.el !== el) return s;
+          const o = s.rect;
+          if (Math.abs(o.top - r.top) < 0.5 && Math.abs(o.left - r.left) < 0.5 && Math.abs(o.width - r.width) < 0.5 && Math.abs(o.height - r.height) < 0.5) return s;
+          return { ...s, rect: { top: r.top, left: r.left, width: r.width, height: r.height } };
+        });
+      });
+    };
+    const stopTouch = (e) => { if (e.cancelable) e.preventDefault(); };
+    const vv = window.visualViewport;
+    window.addEventListener("scroll", update, { capture: true, passive: true });
+    window.addEventListener("resize", update);
+    vv?.addEventListener("resize", update); vv?.addEventListener("scroll", update);
+    document.addEventListener("touchmove", stopTouch, { passive: false });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+      vv?.removeEventListener("resize", update); vv?.removeEventListener("scroll", update);
+      document.removeEventListener("touchmove", stopTouch);
+    };
+  }, [spot?.el]);
   // ★数え方＝【いま画面にある的だけ】で数える（台帳の数ではない）。台帳の数で数えると、
   //   チャットが0件の人に「1 / 2・つぎへ →」と出て、押した瞬間に終わる（無い的を数えた嘘）
   const startTour = (spots) => runSpot((spots || []).filter((sp) => findTarget(sp.sel)), 0);
