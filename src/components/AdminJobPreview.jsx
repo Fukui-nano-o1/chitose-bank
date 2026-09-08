@@ -1,26 +1,25 @@
 // 審査プレビュー兼オーナープレビュー（分割・大物①・2026-07-24）：働き手視点の求人詳細を全画面表示。
 // 管理タブの審査（掲載/差し戻し）・農家自身の下書き/公開中プレビュー（閲覧のみ）の二役。
-import { NavIcon, NavIconInline } from "./NavIcons";
+import { NavIconInline } from "./NavIcons";
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
-import { mapJobPublicRow, payLabel, disp, stationLabel, fmtJstShort, payTermsLine, overtimeLine } from "../lib/utils";
-import { Carousel, JobFlagBadges, DangerItem, Dots, LinkifiedText, MaskedAddress } from "./ui";
+import { mapJobPublicRow, payLabel, fmtJstShort, payTermsLine } from "../lib/utils";
+import { Dots } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
-import { CalendarView } from "./CalendarView";
-import { JobLocationMap } from "./JobLocationMap";
-import { BelongingChips } from "./BelongingTags";
-import { JobInsuranceSection } from "./InsurancePanel";
+import { JobDetailBody } from "./JobDetailBody";
 // 求人審査プレビューの「指摘」で選べる問題の種類（2026-07-19・タップ式修正依頼）
 const JOB_REVISION_ISSUE_TYPES = ["最低賃金違反","虚偽・誇大の疑い","差別的な条件","連絡先の直書き・外部誘導","危険情報の欠落","個人情報・肖像権","表現が不明瞭","写真が不適切","その他"];
 
 // ── AdminJobPreview（審査前プレビュー：働き手視点の求人詳細を管理者専用RPCで取得し全画面表示） ──
-// 求人詳細の描画（写真ギャラリー・情報グリッド・disp()の「ー」・危険箇所・地図・カレンダー）を
-// JobSearchMapViewの選択済み求人詳細と同じ見た目で再構成した軽量コンポーネント。
-// JobSearchMapViewの詳細ブロックは応募状態(myApplication)・雇い手プロフィール取得・レビュー・
-// 関連求人リストと密結合で、管理者プレビュー（未応募・審査中）には持ち込めない部分が多いため、
-// mapJobPublicRow()で同じ形に整形したオブジェクトを、表示専用のこのコンポーネントに渡す方式にした。
+// 本文は JobDetailBody（求人詳細ページと同じ Airbnb の並び・区画の部品はページ側と同じもの）に
+// 一本化した（2026-09-08たきと指示「求人詳細ページと同じ構成にしろ」）。この部品が持つのは
+// ①取得（本人＝jobs の owner RLS／審査＝admin_preview_job）②掲載前の確認の記録 ③審査の
+// 「指摘」チップ（decorate で区画ごとに差し込む）④右スワイプで公開 ⑤下の報酬バー（ページの
+// 応募バーに当たる部分＝本文に報酬は無いため）だけ。区画の並びを変える時は JobDetailBody を直す。
+// 審査（!ownerView）は noTabs＝仕事の内容／質問のタブを出さない（右スワイプ＝公開のジェスチャと
+// 取り合うため）。本人（ownerView）は求人詳細ページと同じタブつき。
 export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onRequestRevision, ownerView }) {
   // 前回開いた同じ求人（viewCache）は即描画→裏で最新に差し替え（SWR・2026-08-07たきと指示「一瞬でだせ」）。
   // ★キャッシュには生の行（JSON安全）だけを入れ、読む側で mapJobPublicRow する
@@ -48,8 +47,18 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     })();
     return () => { cancelled = true; };
   }, [jobNumber]);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [dangerLightbox, setDangerLightbox] = useState(null);
+  // 本文（JobDetailBody）{ga}番地の開示・Q&A・評価の閲覧に使うログイン中の利用者（本人・運営とも）
+  const [me, setMe] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!cancelled) setMe(session?.user ? { id: session.user.id, email: session.user.email } : null);
+      } catch { if (!cancelled) setMe(null); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   // タップ式修正依頼（2026-07-19）：審査中、プレビューの各項目の「指摘」を押して、何がどう問題かを積み上げる
   const [findings, setFindings] = useState([]); // [{target, issueType, note}]
   const [editTarget, setEditTarget] = useState(null); // 指摘編集中の項目ラベル
@@ -111,11 +120,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
     })();
     return () => { cancelled = true; };
   }, [jobNumber, ownerView]);
-
-  const handlePhotoScroll = e => {
-    const el = e.target;
-    setActiveSlide(Math.round(el.scrollLeft / el.clientWidth));
-  };
 
   // 右スワイプで公開（2026-08-07たきと指示「公開の役割は右スワイプ。指に連動。公開するボタン削除」）。
   // しきい値（画面幅35%・最大140px）を超えて離すと公開、未満なら弾んで戻る。
@@ -316,190 +320,32 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               );
             })()}
           </div>
-          {/* 写真ギャラリー */}
-          {(() => {
-            const photos = job.photos.length > 0 ? job.photos : [null, null, null];
-            const bgColors = ["#F0F0F0", "#EAEAEA", "#F0F0F0"];
-            return (
-              <div style={{ position:"relative", borderRadius:12, ...revOutline("写真"), marginBottom:8 }}>
-                {revChip("写真")}
-                <Carousel
-                  className="carousel-scroll"
-                  style={{ display:"flex", overflowX:"auto", scrollSnapType:"x mandatory" }}
-                  wrapperStyle={{ marginBottom:8 }}
-                  onScroll={handlePhotoScroll}
-                >
-                  {photos.map((photo, i) => {
-                    const src = typeof photo === "string" ? photo : photo?.url;
-                    const cap = typeof photo === "string" ? "" : photo?.caption;
-                    return (
-                      <div key={i} style={{
-                        flexShrink:0, width:"100%", height:392, borderRadius:12,
-                        background: bgColors[i % bgColors.length],
-                        display:"flex", alignItems:"center", justifyContent:"center", fontSize:72,
-                        scrollSnapAlign:"start", position:"relative", overflow:"hidden",
-                      }}>
-                        {job.photos.length > 0
-                          ? <img loading="lazy" src={src} alt={cap || ""} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                          : <NavIcon name="image" size={72} style={{ color:"#C8C8C8" }} />}
-                        {cap && (
-                          <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, boxSizing:"border-box" }}>{cap}</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </Carousel>
-                <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
-                  {photos.map((_, i) => (
-                    <span key={i} style={{ fontSize:10, color: i===activeSlide ? "#00A86B" : "#D0D0D0" }}>{i===activeSlide ? "●" : "○"}</span>
-                  ))}
-                </div>
+          {/* 本文＝求人詳細ページと同じ並び（JobDetailBody）。審査は区画ごとに「指摘」チップと
+              指摘済みの枠を decorate で差し込む。本人は飾りなし・タブつき（ページと同じ） */}
+          <JobDetailBody job={job} me={me} noTabs={!ownerView}
+            decorate={ownerView ? undefined : (label, node) => (
+              <div key={label} style={{ position:"relative", borderRadius:12, ...revOutline(label) }}>
+                {revChip(label)}
+                {node}
               </div>
-            );
-          })()}
-          <div style={{ marginBottom:12 }} />
-
-          {/* ヘッダー */}
-          <div style={{ position:"relative", marginBottom:20, borderRadius:12, padding: ownerView ? 0 : 4, ...revOutline("求人タイトル・募集タグ") }}>
-            {revChip("求人タイトル・募集タグ")}
-            {/* 集合場所は番地まで明記（2026-08-03たきと指示）。この画面は管理者の審査・農家本人の
-                プレビューので常にログイン済み＝unlocked。訪問者向けのモザイクは求人詳細側が担う */}
-            <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
-              {job.crop} {job.task}{job.region ? `｜${job.region}` : ""}
-              {job.region && <MaskedAddress value={job.workAddress} unlocked={true} exists={job.hasWorkAddress} />}
-            </h2>
-            <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"4px 0 0", userSelect:"text" }}>#{job.id}</p>
-            {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
-              <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
-                <JobFlagBadges beginner={job.beginnerOk} expert={job.experiencedPreferred} repeat={job.instantApproveRepeat} />
-              </div>
-            )}
-          </div>
-
-          {/* 主要情報 */}
-          <div style={{ position:"relative", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("報酬・勤務条件・日程") }}>
-            {revChip("報酬・勤務条件・日程")}
-            <div className="job-detail-info-grid">
-              {[
-                // 日程は確認ページと同じ設計（2026-07-16）：「〜終了日」を下段に折り返し
-                { label:"日程",     value: (job.dateLabel || "").replace("〜", "\n〜") },
-                { label:"勤務時間", value: job.workTime },
-                { label:"休憩時間", value: job.breakTime },
-                { label:"採用人数", value: job.count },
-                { label:"移動時間", value: stationLabel(job.nearestStation, job.commuteTime) },
-                { label:"報酬",     value: payLabel(job) },
-              ].filter(row => row.value && String(row.value).trim()).map(row => (
-                <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
-                  <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0" }}>{row.label}</span>
-                  <span className="f-sans" style={{ fontSize:15, color:"#222", fontWeight:600, lineHeight:1.6, whiteSpace:"pre-line" }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-            {/* 掲載時に確定保存された支払条件を表示（2026-08-02・ハードコード廃止） */}
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>{payTermsLine(job)}</p>
-          </div>
-
-          {/* 作業説明 */}
-          {job.jobBody && job.jobBody.trim() && (
-          <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("作業内容") }}>
-            {revChip("作業内容")}
-            <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:8, letterSpacing:".06em" }}>作業内容</p>
-            <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={job.jobBody} /></p>
-          </div>
-          )}
-
-          {/* 経験・持ち物・備考（配列駆動・未入力は「ー」）。希望する働き手は削除・必要経験と持ち物はバッジ表示（2026-07-16） */}
-          <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, ...revOutline("持ち物・備考") }}>
-            {revChip("持ち物・備考")}
-            {[
-              { label:"持ち物",     value: disp(job.items), chips:true },
-              { label:"備考・注意", value: disp(job.cautions) },
-              // 時間外労働（2026-08-03たきと指示・詳細/確認ページと同じ位置・同じ体裁）
-              { label:"時間外労働", value: disp(overtimeLine(job.overtimePolicy, job.overtimeDetail)) },
-              // 労働条件の明示・掲載時凍結の3項目（2026-08-21・詳細ページと同じ体裁）
-              { label:"変更の範囲", value: disp((job.placeChangeScope || job.taskChangeScope) ? `場所：${job.placeChangeScope || "変更なし"}／作業：${job.taskChangeScope || "変更なし"}` : "") },
-              { label:"契約の更新", value: disp(job.contractRenewal) },
-              { label:"労災・雇用保険", value: disp(job.laborInsuranceStatus) },
-            ].map(row => (
-              <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>{row.label}</span>
-                {/* 持ち物＝アイコンつきタグチップ（2026-08-28・旧📌チップの置き換え。分割・アイコン対応は BelongingChips に一本化） */}
-                {row.chips && row.value !== "ー"
-                  ? <BelongingChips text={String(row.value)} />
-                  : <span className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.6, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", display:"block", textAlign:"center" }}>{row.value}</span>}
-              </div>
-            ))}
-          </div>
-
-          {/* 危険区域セクション（両方空なら見出しごと非表示） */}
-          {((job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0)) && (
-          <div style={{ position:"relative", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:20, ...revOutline("危険箇所") }}>
-            {revChip("危険箇所")}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-              <span style={{ display:"flex", color:"#E8A33D" }}><NavIcon name="alert" size={18} /></span>
-              <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
-            </div>
-
-            {(job.dangerPlaces && job.dangerPlaces.length > 0) && (
-              <>
-                <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
-                  {job.dangerPlaces.map((place, i) => {
-                    const placePhotos = place.photos || [];
-                    return (
-                    <DangerItem key={i} icon={place.icon} label={place.label} desc={place.desc} photos={placePhotos} onPhotoClick={setDangerLightbox} />
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {(job.dangerTasks && job.dangerTasks.length > 0) && (
-              <>
-                <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                  {job.dangerTasks.map((task, i) => {
-                    const taskPhotos = task.photos || [];
-                    return (
-                    <DangerItem key={i} icon={task.icon} label={task.label} desc={task.desc} photos={taskPhotos} onPhotoClick={setDangerLightbox} />
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-          )}
-
-          {/* 地図（集合場所のおおよその範囲・円のみ） */}
-          <div style={{ position:"relative", width:"100%", marginBottom:20, borderRadius:12, ...revOutline("場所・地図") }}>
-            {revChip("場所・地図")}
-            {/* 番地まで明記する画面ので、Googleマップ導線にも番地を渡す（2026-08-03）。
-                ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる */}
-            <JobLocationMap lat={job.lat} lng={job.lng} radius={job.radius} label={job.region}
-              mapQuery={job.workAddress ? job.region + job.workAddress : job.region}
-              addressShown={!!job.workAddress} />
-          </div>
-
-          {/* 開催期間カレンダー */}
-          {job.dateStart && (
-            <div style={{ marginBottom:20 }}>
-              <CalendarView start={job.dateStart} end={job.dateEnd} readOnly={true} holidays={job.holidays} />
-            </div>
-          )}
-
-          {/* 保険カード（カレンダーの下・2026-08-19たきと指示。求人詳細・確認ページと同じ位置） */}
-          {/* 見るのは掲載時に凍結された insuranceSnapshot だけ（2026-08-02・プロフィール現在値への
-              フォールバック禁止）。掲載前の下書きはまだ凍結されていない＝区画ごと出ない
-              （そこでの見え方は求人フローの確認ページthaが受け持つ）。
-              複数枚は指連動の横スワイプ＝中の .carousel-scroll は公開の右スワイプthaが掴まない（L138の除外） */}
-          {job.insuranceSnapshot && (
-            <JobInsuranceSection
-              style={{ position:"relative", marginBottom:20, ...revOutline("保険") }}
-              employer={{ insurance_items: job.insuranceSnapshot.items, insurance_notes: job.insuranceSnapshot.notes }}>
-              {revChip("保険")}
-            </JobInsuranceSection>
-          )}
+            )} />
         </>)}
       </div>
       </div>
+
+      {/* 報酬バー（2026-09-08）＝求人詳細ページの下の応募バー（報酬＋支払条件）に当たる部分。
+          本文（JobDetailBody）は報酬を持たない（ページでは下のバーが担う）ので、ここに置く。
+          本人＝報酬だけのバー／審査＝操作ボタンの上に同じ行（指摘は「報酬」のチップで） */}
+      {job && (
+        <div style={{ flexShrink:0, position:"relative", background:"#fff", borderTop:"1px solid #EBEBEB",
+          padding: ownerView ? "10px 16px calc(10px + env(safe-area-inset-bottom, 0px))" : "10px 16px 6px", zIndex:2, ...revOutline("報酬") }}>
+          {revChip("報酬")}
+          <div style={{ paddingRight: (!ownerView && revMode) ? 72 : 0 }}>
+            <span className="f-mono" style={{ display:"block", fontSize:18, fontWeight:800, color:"#222" }}>{payLabel(job)}</span>
+            <span className="f-sans" style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.5, marginTop:2 }}>{payTermsLine(job)}</span>
+          </div>
+        </div>
+      )}
 
       {/* 本人ビューの操作ボタンはこのシートに置かない（2026-08-07〜08たきと指示）＝
           再開・削除・コピー・非公開はすべて求人一覧ページの浮遊ピル（FarmerDashboardの
@@ -523,18 +369,6 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
               border:"1px solid #EA580C", borderRadius:12, cursor:"pointer", opacity: (job && !revSending) ? 1 : 0.6 }}>
             {revSending ? <>送信中<Dots /></> : !revMode ? "修正を依頼" : findings.length > 0 ? `修正を依頼（${findings.length}）を送信` : "指摘をやめる"}
           </button>
-        </div>
-      )}
-
-      {/* 危険箇所の写真ライトボックス（全画面拡大） */}
-      {dangerLightbox && (
-        <div className="cb-lock-scroll" onClick={() => setDangerLightbox(null)} style={{
-          position:"fixed", inset:0, zIndex:10000,
-          background:"rgba(0,0,0,0.92)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
-        }}>
-          <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
 

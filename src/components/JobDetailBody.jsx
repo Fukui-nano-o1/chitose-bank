@@ -17,6 +17,10 @@
 //   ＝「記録なし」という嘘の表示になる。開示するならDB側の判断が先（勝手に開けない）。
 // job は mapJobPublicRow() で整形済みのオブジェクトを渡すこと。me は Q&A の投稿判定・評価の閲覧・
 // 番地の開示に使う（任意）。
+// noTabs＝仕事の内容／質問のタブと横スワイプの器を出さない（審査プレビュー＝右スワイプが「公開する」の
+//   ジェスチャと取り合うため・2026-09-08）。decorate(label, node)＝区画ごとの飾り（審査の「指摘」チップと
+//   指摘済みの枠）を外から差し込む口。ラベルは修正依頼の文面（【ラベル】→ 種類）にそのまま載る。
+//   ★区画の並びは1箇所（この部品）＝審査プレビュー（AdminJobPreview）もここを使う（自前に並べない）
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { MaskedAddress, MaskedText } from "./ui";
@@ -24,7 +28,8 @@ import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
 import { JobPhotoGallery, JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities,
   JobScheduleSection, JobReviewsAndHost, JobLocationSection, JobThingsToKnow } from "../features/jobs/search/components/JobDetailPanel";
 
-export function JobDetailBody({ job, me, onBack }) {
+export function JobDetailBody({ job, me, onBack, noTabs, decorate }) {
+  const wrap = (label, node) => (decorate ? decorate(label, node) : node);
   const [activeSlide, setActiveSlide] = useState(0);
   // 仕事の内容／質問のタブ（2026-08-08たきと指示）＝求人詳細ページと同じ部品（ContentQTabs＋ContentQSwipeArea）。
   // ★最初のタブでさらに右スワイプ＝onEdgeSwipe("prev")→onBack（面を戻る）＝
@@ -88,28 +93,14 @@ export function JobDetailBody({ job, me, onBack }) {
     if (settled && idx === photoCount + 1) { el.scrollLeft = w; setActiveSlide(0); return; }
     setActiveSlide(((idx - 1) % photoCount + photoCount) % photoCount);
   };
-  return (
-    <div ref={rootRef} className="job-detail-boxed">
-      {/* 写真＝ページと同じギャラリー部品（スマホ＝横スワイプ＋「n / N」・タップで写真の一覧／PC＝モザイク）。
-          原寸で見せる（カード用サムネにしない・2026-08-02規則）。.job-hero で包まない＝面の中では留めない */}
-      <JobPhotoGallery job={job} employer={emp} photosLooped={photosLooped} activeSlide={activeSlide}
-        scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} stretch={false} />
-
-      {/* 仕事の内容／質問（2026-08-08たきと指示）＝求人詳細ページと同じタブ＋横スワイプ。
-          最初のタブでさらに右スワイプ＝面を戻る（onBack）＝1つの指の動きで両立させる */}
-      <ContentQSwipeArea value={tab} onChange={setTab}
-        onEdgeSwipe={(d)=>{ if (d === "prev" && onBack) onBack(); }}>
-      <ContentQTabs value={tab} onChange={setTab} />
-      {tab === "questions" ? (
-        /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側が従来どおり） */
-        <JobQuestions jobNumber={job.id} me={me} />
-      ) : (<>
-
+  // 区画の本文（タブの中身）。並びの正はこの1箇所
+  const body = (
+    <>
       {/* ── ここからAirbnbの掲載ページの並び（ページ側 JobSearchMapView と同じ・2026-09-02）── */}
       {/* タイトルブロック＝1行目 作物 作業／2行目 場所／3行目 事実の1行（灰色）。
           番地の開示はDB側が正（jobs_publicのanonマスク）＝ログインしていれば届いた値が出る。
           町域の伏せ字は masked_fields に載っている時だけ描く＝町域が未設定の求人に偽のモザイクを出さない */}
-      <div style={{ marginBottom:0 }}>
+      {wrap("求人タイトル・募集タグ", <div style={{ marginBottom:0 }}>
         <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>
           {job.crop} {job.task}
         </h2>
@@ -122,25 +113,45 @@ export function JobDetailBody({ job, me, onBack }) {
         )}
         <JobKeyFacts job={job} />
         <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"6px 0 0", userSelect:"text" }}>#{job.id}</p>
-      </div>
+      </div>)}
 
       {/* 募集主の行（Hosted by）→ ポイント（Highlights）→ 作業内容（Description）→ 待遇（Amenities）→ 作業日程 */}
       <JobHostRow job={job} employer={emp} trust={empTrust} />
       <JobHighlights job={job} />
-      <JobDescription job={job} />
-      <JobAmenities job={job} />
-      <JobScheduleSection job={job} />
+      {wrap("作業内容", <JobDescription job={job} />)}
+      {wrap("待遇", <JobAmenities job={job} />)}
+      {wrap("報酬・勤務条件・日程", <JobScheduleSection job={job} />)}
 
       {/* 評価 → 募集主について（Reviews → Meet your host。1部品＝評価の取得を1回にするため） */}
       <JobReviewsAndHost job={job} employer={emp} trust={empTrust} me={me} />
 
       {/* 作業の場所（地図）＝Where you'll be */}
-      <JobLocationSection job={job} me={me} />
+      {wrap("場所・地図", <JobLocationSection job={job} me={me} />)}
 
       {/* 知っておくこと＝きまり（持ち物・備考・時間外・支払条件ほか）／危険箇所／保険（掲載時凍結の snapshot のみ） */}
-      <JobThingsToKnow job={job} onPhoto={setDangerLightbox} />
-      </>)}
+      {wrap("持ち物・備考・危険箇所・保険", <JobThingsToKnow job={job} onPhoto={setDangerLightbox} />)}
+    </>
+  );
+  return (
+    <div ref={rootRef} className="job-detail-boxed">
+      {/* 写真＝ページと同じギャラリー部品（スマホ＝横スワイプ＋「n / N」・タップで写真の一覧／PC＝モザイク）。
+          原寸で見せる（カード用サムネにしない・2026-08-02規則）。.job-hero で包まない＝面の中では留めない */}
+      {wrap("写真", <JobPhotoGallery job={job} employer={emp} photosLooped={photosLooped} activeSlide={activeSlide}
+        scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} stretch={false} />)}
+
+      {/* 仕事の内容／質問（2026-08-08たきと指示）＝求人詳細ページと同じタブ＋横スワイプ。
+          最初のタブでさらに右スワイプ＝面を戻る（onBack）＝1つの指の動きで両立させる */}
+      {noTabs ? body : (
+      <ContentQSwipeArea value={tab} onChange={setTab}
+        onEdgeSwipe={(d)=>{ if (d === "prev" && onBack) onBack(); }}>
+      <ContentQTabs value={tab} onChange={setTab} />
+      {tab === "questions" ? (
+        /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側が従来どおり） */
+        <JobQuestions jobNumber={job.id} me={me} />
+      ) : body}
       </ContentQSwipeArea>
+      )}
+
 
       {/* 右下の「トップ」浮遊ボックス（2026-08-08たきと指示）：sticky＝面のスクロールに合わせて
           右下に留まる（position:fixedは親のtransform（面の横スライド）で基準がずれるため使わない）。
