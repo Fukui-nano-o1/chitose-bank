@@ -792,6 +792,18 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
 .job-photo-slide { border-radius: 0; }
 /* ボックス版の求人詳細（JobDetailBody・面の中に開く）は全面にしない＝写真の角は丸いまま（2026-09-02） */
 .job-detail-boxed .job-photo-slide { border-radius: 12px; }
+/* 写真をタップした後の「全部の写真が縦に並ぶ」状態（.job-photo-expanded・2026-09-02たきと指示
+   「写真タップで切り替わり、下スクロールで詳細の方に進めよう」）：
+   ①写真を留めない（.job-hero の sticky を外す＝縦に長い写真の列が画面に貼り付いて紙に覆われるのを防ぐ）
+   ②紙（.job-detail-sheet）を重ねない＝写真の列の下にそのまま続く
+   ③浮遊ボタン（←・共有・♡）と上部のバーを隠す＝帯の✕と末尾の「写真をとじる」が出口 */
+.job-hero:has(.job-photo-expanded) { position: static; z-index: auto; }
+body:has(.job-photo-expanded) .job-float-back,
+body:has(.job-photo-expanded) .job-float-right,
+body:has(.job-photo-expanded) .job-topbar { display: none !important; }
+@media (max-width: 759px) {
+  .job-detail-body-mobile:has(.job-photo-expanded) .job-detail-sheet { margin-top: 0; border-radius: 0; box-shadow: none; padding-top: 12px; }
+}
 
 /* ── スクロールの作り（Airbnbのスマホと同じ・2026-09-01たきと指示
    「写真は移動していない。詳細がスクロールしている」）──

@@ -619,40 +619,128 @@ function useHeroStretch(getTargetRef) {
 
 // 写真ギャラリー（Airbnbの写真の見せ方をそのまま・2026-09-01たきと指示「写真もパクれ」）。
 // PC＝モザイク格子（左に大きい1枚＋右に2×2）／スマホ＝全幅の横スワイプ＋右下に「n / N」。
-// どちらもタップで【写真の一覧】（Airbnbの photo tour）を全画面で開く＝1枚ずつ大きく見られる。
+// ★写真をタップすると【その場で切り替わる】：全部の写真が縦に並ぶ形になり、そのまま下へスクロールすると
+//   詳細（募集主の行・作業内容…）に続く（2026-09-02たきと指示「写真タップで切り替わり、下スクロールで
+//   詳細の方に進めよう」）。以前の全画面の被せ（JobPhotoTour）はやめた＝別画面にしない。
+//   上の帯（✕＋枚数）は sticky で写真の間だけ留まり、詳細が来ると自然に消える。✕か末尾の「写真をとじる」で
+//   元の形（横スワイプ／格子）に戻る。押した写真の位置へ運ぶ（写真の高さは読み込むまで分からないので、
+//   読み込むたびに測り直し、利用者が自分で動かしたら止める＝旧・一覧と同じ作法）
 // ★格子に出すのは最初の5枚まで＝残りは「すべての写真を表示」から（Airbnbと同じ）。
 // 1枚も無い求人は求人者のアイコンを1枚だけ大きく出す（2026-07-30たきと指示・ダミー写真は作らない）
 // stretch＝いちばん上で引き下げた時の写真の引き伸ばし（既定ON）。ボックスの中（内側スクロールの面・
 // JobDetailBody）では OFF＝window.scrollY が常に0なので、面の中の下向きの指がすべて「いちばん上の引き下げ」に
 // 見えてしまうため（2026-09-02）
+// 最寄りのスクロール容器（ボックスの中なら内側の面・ページなら null＝window）
+function scrollerOf(el) {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    try {
+      const st = window.getComputedStyle(n);
+      if ((st.overflowY === "auto" || st.overflowY === "scroll") && n.scrollHeight > n.clientHeight + 1) return n;
+    } catch { break; }
+  }
+  return null;
+}
+const EXPANDED_HEAD_H = 56; // 上の帯（✕＋枚数）の高さ＝押した写真の位置へ運ぶ時に、帯の下に頭が隠れないぶん
 export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scrollerRef, onScroll, stretch = true }) {
-  const [tourAt, setTourAt] = useState(null); // 全画面の一覧を開いた時の【最初に見せる番号】。null＝閉じている
-  // いちばん上で引き下げた時に寄せる相手＝写真の横スワイプの器（scrollerRef）／写真が無ければ表紙の箱
+  const [expanded, setExpanded] = useState(false); // 写真が縦に全部並ぶ状態
+  const [startAt, setStartAt] = useState(0);       // 押した写真の番号（その位置へ運ぶ）
+  const rootRef = useRef(null);
+  const listRef = useRef(null);
+  const settledRef = useRef(false);
+  // いちばん上で引き下げた時に寄せる相手＝写真の横スワイプの器（scrollerRef）／写真が無ければ表紙の箱。
+  // 縦に並んだ状態では器が無い（null）＝寄せない
   const fallbackRef = useRef(null);
   const stretchTargetRef = useRef(null);
   stretchTargetRef.current = () => stretch ? ((scrollerRef && scrollerRef.current) || fallbackRef.current) : null;
   useHeroStretch(stretchTargetRef);
+  // 求人が変わったら元の形に戻す
+  useEffect(() => { setExpanded(false); }, [job?.id]);
+  // 押した写真の位置へ運ぶ（帯の高さぶん手前に）。ページなら window・ボックスの中なら内側の面
+  const toStart = () => {
+    const el = listRef.current; if (!el || settledRef.current) return;
+    const target = el.querySelector(`[data-photo-idx="${startAt}"]`); if (!target) return;
+    const sc = scrollerOf(el);
+    if (sc) {
+      const y = target.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - EXPANDED_HEAD_H;
+      sc.scrollTop = Math.max(0, y);
+    } else {
+      const y = target.getBoundingClientRect().top + window.scrollY - EXPANDED_HEAD_H;
+      window.scrollTo(0, Math.max(0, y));
+    }
+  };
+  useEffect(() => {
+    if (!expanded) return;
+    settledRef.current = false;
+    toStart();
+    const t = setTimeout(toStart, 400); // 読み込みがどれも走らない（キャッシュ済み等）場合の保険
+    const stop = () => { settledRef.current = true; }; // 利用者が自分で動かしたら、運ぶのをやめる
+    window.addEventListener("touchstart", stop, { passive: true, capture: true });
+    window.addEventListener("wheel", stop, { passive: true, capture: true });
+    return () => { clearTimeout(t); window.removeEventListener("touchstart", stop, true); window.removeEventListener("wheel", stop, true); };
+  }, [expanded, startAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const photos = Array.isArray(job.photos) ? job.photos : [];
   if (photos.length === 0) return (
     <div ref={fallbackRef} style={{ marginBottom:20 }}>
       <JobPhotoFallback url={employer?.avatar_url || job.employerAvatar} name={employer?.nickname || job.employerName || "？"} />
     </div>
   );
+  const open = (i) => { setStartAt(i); setExpanded(true); };
+  const close = () => {
+    setExpanded(false);
+    // 元の形に戻したら先頭へ（写真の途中で畳むと、詳細の途中に取り残されるため）
+    const sc = scrollerOf(rootRef.current);
+    if (sc) sc.scrollTop = 0; else window.scrollTo(0, 0);
+  };
   const grid = photos.slice(0, 5);
-  const openTour = i => setTourAt(i);
   // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
   const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
+  if (expanded) return (
+    // ── 写真が縦に全部並ぶ状態（旧・全画面の一覧をその場に置いた形）── .job-photo-expanded＝CSSの目印：
+    //    写真を留めない（.job-hero の sticky を外す）・紙を重ねない・浮遊ボタンと上部のバーを隠す（帯の✕が出口）
+    <div ref={rootRef} className="job-photo-expanded" style={{ marginBottom:20, background:"#fff" }}>
+      <div style={{ position:"sticky", top:0, zIndex:3, background:"#fff", display:"flex", alignItems:"center", gap:10,
+                    padding:"calc(10px + env(safe-area-inset-top, 0px)) 12px 10px", borderBottom:"1px solid #EBEBEB" }}>
+        <button type="button" onClick={close} aria-label="写真をとじる" className="f-sans cb-btn-press cb-hover-tint"
+          style={{ width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", background:"none", border:"none", cursor:"pointer", color:"#222", borderRadius:"50%" }}>
+          <NavIcon name="close" size={20} />
+        </button>
+        <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>写真 {photos.length}枚</span>
+      </div>
+      <div ref={listRef} style={{ padding:"8px 12px 0" }}>
+        <div style={{ maxWidth:760, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+          {photos.map((p, i) => {
+            const src = typeof p === "string" ? p : p?.url;
+            const cap = typeof p === "string" ? "" : p?.caption;
+            return (
+              <div key={i} data-photo-idx={i}>
+                {/* 読み込みがないうちは高さが0＝位置がずれるので、読み込むたびに運び直す（上のtoStart） */}
+                {src && <FadeImg src={src} alt={cap} onReady={toStart} style={{ width:"100%", borderRadius:12, display:"block" }} />}
+                {/* 番号は必ず出す（いま何枚目か見失わせない）。説明があればその下に */}
+                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"6px 0 0" }}>{i + 1} / {photos.length}</p>
+                {cap && <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.7, margin:"4px 0 0", whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{cap}</p>}
+              </div>
+            );
+          })}
+        </div>
+        {/* 末尾の出口＝そのまま下へ行けば詳細に続く（ボタンを押さなくてもよい）。押せば先頭の元の形へ */}
+        <div style={{ textAlign:"center", padding:"18px 0 6px" }}>
+          <button type="button" onClick={close} className="f-sans cb-btn-press cb-hover-tint"
+            style={{ background:"#fff", border:"1px solid #222", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:700, color:"#222", cursor:"pointer" }}>写真をとじる</button>
+        </div>
+      </div>
+    </div>
+  );
   return (
-    <div style={{ marginBottom:20 }}>
+    <div ref={rootRef} style={{ marginBottom:20 }}>
       {/* ── PC：モザイク格子（枚数で組み方が変わる＝クラスは m-1〜m-5・CSSはappStyles） ── */}
       <div className={`job-photo-mosaic m-${Math.min(grid.length, 5)}`}>
         {grid.map((p, i) => (
-          <PhotoCell key={i} photo={p} onOpen={()=>openTour(i)} alt={`写真 ${i + 1} 枚目を開く`}
+          <PhotoCell key={i} photo={p} onOpen={()=>open(i)} alt={`写真 ${i + 1} 枚目を開く`}
             className={"m-cell" + (i === 0 && grid.length >= 3 ? " m-main" : "")} />
         ))}
         {/* すべての写真を表示（Airbnbの Show all photos＝格子の右下の白いボタン）。
             cb-btn-press＝押すと少し縮む／cb-hover-tint＝指を乗せると薄く色が付く（Airbnbのボタンの手応え） */}
-        <button type="button" onClick={()=>openTour(0)} className="f-sans cb-btn-press cb-hover-tint"
+        <button type="button" onClick={()=>open(0)} className="f-sans cb-btn-press cb-hover-tint"
           style={{ position:"absolute", right:16, bottom:16, zIndex:2, display:"flex", alignItems:"center", gap:6,
                    background:"#fff", border:"1px solid #222", borderRadius:8, padding:"8px 14px",
                    fontSize:13, fontWeight:700, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>
@@ -660,7 +748,7 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
         </button>
       </div>
 
-      {/* ── スマホ：全幅の横スワイプ（1枚ずつ）＋右下に「n / N」。タップで一覧を開く ── */}
+      {/* ── スマホ：全幅の横スワイプ（1枚ずつ）＋右下に「n / N」。タップでその場で縦に全部並ぶ ── */}
       <div className="job-photo-carousel" style={{ position:"relative" }}>
         <Carousel
           className="carousel-scroll"
@@ -677,8 +765,8 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
             // クローンを除いた本物の番号（先頭のクローンがあれば1つずれる）
             const realIdx = photosLooped ? (i === 0 ? photos.length - 1 : (i === slides.length - 1 ? 0 : i - 1)) : i;
             return (
-              <div key={i} onClick={()=>openTour(realIdx)} role="button" tabIndex={0} className="cb-photo-tile job-photo-slide"
-                onKeyDown={e=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTour(realIdx); } }}
+              <div key={i} onClick={()=>open(realIdx)} role="button" tabIndex={0} className="cb-photo-tile job-photo-slide"
+                onKeyDown={e=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(realIdx); } }}
                 style={{
                   flexShrink:0, width:"100%", height:392, background:"#F0F0F0", /* 角丸は .job-photo-slide（CSS）が持つ＝スマホの全面表示では0にする */
                   display:"flex", alignItems:"center", justifyContent:"center",
@@ -699,68 +787,13 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
           </span>
         )}
       </div>
-
-      {tourAt != null && <JobPhotoTour photos={photos} startAt={tourAt} onClose={()=>setTourAt(null)} />}
     </div>
   );
 }
 
-// 写真の一覧（Airbnbの photo tour）：全画面の白い面に、写真を縦に積んで大きく見せる。
-// ★左上の✕＝出口（✕全廃の明示的な例外・全画面の写真を見る面は「外」がないため。
-//   承認の流れ図の大画面・評価の全画面と同じ扱い）。開いた瞬間に、押した写真の位置へ運ぶ
-function JobPhotoTour({ photos, startAt, onClose }) {
-  const wrapRef = useRef(null);
-  // 押した写真の位置へ運ぶ。★写真の高さは読み込まれるまで分からない（＝開いた瞬間はどれも高さ0で
-  //   位置が全部0になる）so、上にある写真が1枚読み込まれるたびに位置を測り直す。
-  //   利用者が自分で動かしたら、その時点で運ぶのをやめる（指の操作を奪わない）
-  const settledRef = useRef(false);
-  const toStart = () => {
-    const el = wrapRef.current; if (!el || settledRef.current) return;
-    const target = el.querySelector(`[data-photo-idx="${startAt}"]`);
-    if (target) el.scrollTop = target.offsetTop - 8;
-  };
-  useEffect(() => {
-    settledRef.current = false;
-    toStart();
-    // 読み込みがどれも走らない（キャッシュ済み等）場合の保険
-    const t = setTimeout(toStart, 400);
-    return () => clearTimeout(t);
-  }, [startAt]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 閉じる動き（スマホ＝下へ降りる／PC＝軽く沈んで消える）を見せてから畳む。
-  // ★時間はCSSの cbTourOut / cbTourDown と対＝片方を変えたら必ず両方合わせる（PageGuideと同じ作法）
-  const [closing, setClosing] = useState(false);
-  const close = () => { setClosing(true); setTimeout(onClose, 220); };
-  return (
-    <div className={"cb-lock-scroll " + (closing ? "cb-tour-out" : "cb-tour-in")}
-      style={{ position:"fixed", inset:0, zIndex:10200, background:"#fff", display:"flex", flexDirection:"column" }}>
-      <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 12px 10px", borderBottom:"1px solid #EBEBEB" }}>
-        <button type="button" onClick={close} aria-label="閉じる" className="f-sans cb-btn-press cb-hover-tint"
-          style={{ width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", background:"none", border:"none", cursor:"pointer", color:"#222", borderRadius:"50%" }}>
-          <NavIcon name="close" size={20} />
-        </button>
-        <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>写真 {photos.length}枚</span>
-      </div>
-      <div ref={wrapRef} onTouchStart={()=>{ settledRef.current = true; }} onWheel={()=>{ settledRef.current = true; }}
-        style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"8px 12px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
-        <div style={{ maxWidth:760, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
-          {photos.map((p, i) => {
-            const src = typeof p === "string" ? p : p?.url;
-            const cap = typeof p === "string" ? "" : p?.caption;
-            return (
-              <div key={i} data-photo-idx={i}>
-                {/* 読み込みがないうちは高さが0＝位置がずれるので、読み込むたびに運び直す（上のtoStart） */}
-                {src && <FadeImg src={src} alt={cap} onReady={toStart} style={{ width:"100%", borderRadius:12, display:"block" }} />}
-                {/* 番号は必ず出す（いま何枚目か見失わせない）。説明があればその下に */}
-                <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"6px 0 0" }}>{i + 1} / {photos.length}</p>
-                {cap && <p className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.7, margin:"4px 0 0", whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{cap}</p>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+// JobPhotoTour（全画面の白い被せに写真を縦に積む一覧）は2026-09-02に廃止＝写真のタップは【その場で】
+// 縦に全部並ぶ形に切り替わり、下へスクロールすると詳細に続く（上の expanded）。git履歴から復元可。
+// CSS の cbTourIn/Out/Up/Down は読み手ゼロの残置（次の掃除の候補）
 
 // JobEmployerCard（募集主カード＝小さな行＋待遇表）と JobReviews（farmerReviews＝一度も実データが入らなかった
 // ガワ）は2026-09-01のAirbnb構成で廃止：カードの頭は JobHostRow・待遇表は JobAmenities に分かれ、
