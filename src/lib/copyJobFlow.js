@@ -9,6 +9,7 @@
 // ★コピーの入口を新しく作る時は必ずこの関数を使う（自前で copy_job を撃たない）。
 import { supabase } from "./supabase";
 import { fbError, fbSuccess } from "./feedback";
+import { describeRpcOutage } from "./rpcOutage";
 
 let inFlight = false;
 
@@ -41,10 +42,16 @@ export async function copyJobToEdit(jobNumber, opts = {}) {
   inFlight = true;
   const hideVeil = showBusyVeil("コピーしています…");
   try {
-    const { data, error } = await supabase.rpc("copy_job", { p_job_number: jobNumber });
+    const { data, error, status } = await supabase.rpc("copy_job", { p_job_number: jobNumber });
     if (error || !data?.ok) {
       fbError();
-      alert("コピーに失敗しました：" + (data?.reason || error?.message || "不明"));
+      // サーバーが応答しなかった型（5xx／statement timeout／通信切れ）は正確な文言で（2026-09-08）。
+      // ★応答が届かなかった時は「コピーされていない」と言い切らない＝copy_job は冪等でないため
+      const outage = describeRpcOutage(error, status, {
+        notDone: "求人はコピーされていません",
+        unknown: "コピーされたかどうかは確認できていません。作成中の一覧を確かめてから",
+      });
+      alert(outage || ("コピーに失敗しました：" + (data?.reason || error?.message || "不明")));
       return { ok: false };
     }
     try {

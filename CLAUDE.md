@@ -10778,3 +10778,26 @@ edge_logs に1件も無い＝同じ窓で「コピーしています…」の目
 「通信が混み合っています。少し待ってからもう一度お試しください」に差し替える案（copyJobFlow.js と
 MyCalendar.doMove の2箇所・数行）。自動の再試行は入れない＝copy_job は冪等でない（2回通ると下書きが2つ）。
 ━━━ ここまで ━━━
+
+━━━ 2026-09-08(続) コピー・移動の「503／タイムアウト」の文言を正確なものに（たきと指示）━━━
+【指示】「503やタイムアウトの時の文言は正確な文言に差し替え。」＝生の英文（<html>503…／canceling statement…／
+TypeError: Failed to fetch）を利用者に見せない。ただし起きたことに嘘をつかない文にする。
+【新設 lib/rpcOutage.js＝見分けと文言の唯一の置き場】supabase-js の返り値（error・status）から2段に見分ける：
+・down＝サーバーに届いたが処理されなかった（HTTP 5xx／PGRST00x＝DB接続エラー／57014＝statement timeout＝
+　トランザクションは巻き戻る）→「サーバーが一時的に応答していません（データベースが混み合うと、数十秒ほど
+　続くことがあります）。<処理は行われていない旨>。少し待ってから、もう一度お試しください。」
+・noResponse＝応答が届かなかった（fetchの失敗＝status 0・Failed to fetch／Load failed）→
+　「サーバーからの応答が届きませんでした（通信が切れたか、混み合っています）。<されたかどうかは確認できていない旨>、
+　少し待ってからもう一度お試しください。」★copy_job は冪等でないので、応答が無い時に「コピーされていません」と
+　言い切らない（サーバー側で通っている可能性がある）＝正確さの一線。
+・それ以外（RLS拒否・業務上の reason・404）は null＝呼び手が従来の文言を出す。
+【配線2箇所】copyJobToEdit（lib/copyJobFlow.js）＝notDone「求人はコピーされていません」／unknown「コピーされたか
+どうかは確認できていません。作成中の一覧を確かめてから」。MyCalendar.doMove＝notDone「日程は変わっていません」／
+unknown「日程が変わったかどうかは確認できていません。カレンダーを確かめてから」＋応答無しの時は盤面を取り直す
+（setReloadKey）。両方とも supabase.rpc の返り値から status も受け取る形に。自動の再試行は入れていない。
+【検証】実ソースを node で8ケース（gateway 503・PGRST001・57014・Failed to fetch・Load failed・RLS 401＝null・
+reason のみ＝null・404＝null）＋文面2種。build成功・eslint 0 error・警告22（基準と同数）・dist に文言の包含。
+supabase-js（postgrest-js）の実装を読んで確認＝fetch失敗は status 0・error.message「TypeError: Failed to fetch」／
+HTTPエラーは status に res.status・本文がJSONでなければ message に生の本文。
+【実機目視の残り】DBが落ちている瞬間は再現できない＝機内モードでコピー／移動を押すと noResponse の文言が出るか
+━━━ ここまで ━━━

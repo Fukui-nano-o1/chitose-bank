@@ -7,6 +7,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { copyJobToEdit } from "../lib/copyJobFlow";
+import { describeRpcOutage } from "../lib/rpcOutage";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
@@ -218,10 +219,17 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     if (!opts?.skipConfirm && !window.confirm(`#${jobNumber}「${title}」を ${calFmtDate(ymd)} 開始にうごかします。期間と休日も同じ日数ずれます。よろしいですか？`)) return { ok: false, canceled: true };
     setMoving(true);
     try {
-      const { data, error } = await supabase.rpc("move_job_dates", { p_job_number: jobNumber, p_new_start: ymd });
+      const { data, error, status } = await supabase.rpc("move_job_dates", { p_job_number: jobNumber, p_new_start: ymd });
       if (error || !data?.ok) {
         fbError();
         const r = data?.reason;
+        // サーバーが応答しなかった型は正確な文言で（2026-09-08）。応答が届かなかった時は
+        // 「変わっていない」と言い切らず、盤面を取り直して確かめてもらう
+        const outage = describeRpcOutage(error, status, {
+          notDone: "日程は変わっていません",
+          unknown: "日程が変わったかどうかは確認できていません。カレンダーを確かめてから",
+        });
+        if (outage) { alert(outage); if (status === 0) setReloadKey(k => k + 1); return { ok: false, reason: "outage" }; }
         alert(r === "has_applications" ? "応募が届いているため、日程はうごかせません。日程を変える場合はコピーで新しい求人として出してください。"
           : r === "past_date" ? "今日より前の日にはうごかせません。"
           : r === "bad_status" ? "終了した求人の日程はうごかせません。"
