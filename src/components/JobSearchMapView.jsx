@@ -588,10 +588,10 @@ export function JobSearchMapView({ onRegister, me }) {
   useEffect(() => {
     const n = selectedJob?.id;
     if (!Number.isFinite(n)) return;
-    if (!countJobView(n)) return;      // 10分以内の開き直しは数えない（libの規則）
-    // 自分の画面の数字も1つ進めておく（次の一覧取得でサーバーの値に揃う）。
-    // ★DB側は持ち主・運営を数えないので、その2者の画面でも進めない＝出ない値を出さない
-    if (!isOwnJob && !isAdmin(me)) setViewCounts(prev => ({ ...prev, [n]: (prev[n] || 0) + 1 }));
+    // 未ログインは撃たない・10分以内の開き直しは撃たない（libの規則）。
+    // ★手元の数字は進めない：数えるかどうか（持ち主・運営・30日以内の再閲覧は数えない）はDBが決めるため、
+    //   画面で+1すると「出ない値」を出すことがある（2026-09-08）。次の一覧取得でサーバーの値に揃う
+    countJobView(n, !!me);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedJob?.id]);
 

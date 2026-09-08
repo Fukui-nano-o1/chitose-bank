@@ -78,10 +78,15 @@ export async function fetchJobViewCounts(jobNumbers) {
   return map;
 }
 
-// 同じ端末で同じ求人を開き直しても10分は数えない（連打で増やさない・書き込みも減らす）
+// 同じ端末で同じ求人を開き直しても10分は数えない（連打の書き込みを減らす前段）。
+// ★かさ増しを止める本体はDB側（2026-09-08 migration job_view_no_padding）：
+//   未ログインは数えない／持ち主・運営は数えない／同じアカウント×同じ求人は30日に1回だけ（ハッシュ化した印で判定）。
+//   ここの10分ルールは端末の中だけの話であり、API直叩きへの壁ではない＝壁はDBが担う。
 const VIEW_DEDUPE_MS = 10 * 60 * 1000;
-export function countJobView(jobNumber) {
+export function countJobView(jobNumber, loggedIn) {
   if (!Number.isFinite(jobNumber)) return false;
+  // 未ログインはDBが数えない（EXECUTEも無い）ため撃たない＝無駄な往復と 401 のログを作らない
+  if (!loggedIn) return false;
   const key = "cb_jobViewed_" + jobNumber;
   try {
     const last = Number(sessionStorage.getItem(key) || 0);
@@ -89,7 +94,7 @@ export function countJobView(jobNumber) {
     sessionStorage.setItem(key, String(Date.now()));
   } catch {}
   // 記録だけ＝失敗しても画面は何も変えない（閲覧の妨げにしない）。
-  // 数えるかどうかの規則（持ち主・運営・下書きは数えない）はDB側 count_job_view that唯一のソース
+  // 数えるかどうかの規則（持ち主・運営・下書き・30日以内の再閲覧は数えない）はDB側 count_job_view が唯一のソース
   supabase.rpc("count_job_view", { p_job_number: jobNumber }).then(() => {}, () => {});
   return true;
 }
