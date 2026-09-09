@@ -432,30 +432,7 @@ input:focus { outline: none; }
   body:has(.cb-login-page).cb-typing .app-header-mobile { display: block !important; }
 }
 
-/* ── 下部ナビの初回コーチマーク（第12弾・2026-07-23）：下部バー直上に薄い1行。タップで消える ── */
-.nav-coach { display: none; }
-@media (max-width: 768px) {
-  .nav-coach {
-    display: block;
-    position: fixed;
-    left: 0; right: 0; width: 100%;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-    z-index: 50;
-    background: rgba(34,34,34,0.92);
-    color: #fff;
-    font-size: 12px;
-    text-align: center;
-    padding: 8px 12px;
-    border: none;
-    cursor: pointer;
-    font-family: 'Noto Sans JP', sans-serif;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.14);
-    animation: cbToastIn .3s ease both;
-  }
-  body:has(.mobile-apply-bar) .nav-coach,
-  body:has(.chat-full) .nav-coach,
-  body.cb-typing .nav-coach { display: none !important; }
-}
+
 
 /* ── チャット縦最大化（2026-07-19）：mainの上余白を打ち消し、下部バー直上まで拡大。
    PCは従来の70vh。モバイルはsafe-area(ノッチ)+8pxを上端、下部バー64px+safe-bottomを下端に。

@@ -408,9 +408,6 @@ export default function App(){
     window.addEventListener("cb:unreadRefresh", refreshNow);
     return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refreshNow); };
   }, [me?.id, empCtx]);
-  // 下部ナビの初回コーチマーク（第12弾）：「← 左から順に、仕事の流れです」を1度だけ。タップで消える（localStorage既読）
-  const [navCoach, setNavCoach] = useState(() => { try { return !localStorage.getItem("cb_navCoachSeen"); } catch { return false; } });
-  const dismissNavCoach = () => { setNavCoach(false); try { localStorage.setItem("cb_navCoachSeen","1"); } catch {} };
   // 下部ナビもモード切替で反転（プロフィールのカードフリップと同じpflip・2026-07-22）。初回マウントは回さない
   const [navFlip, setNavFlip] = useState("");
   const navFlipInit = useRef(true);
@@ -1864,10 +1861,6 @@ export default function App(){
         )}
       </div>}
 
-      {/* 下部ナビ初回コーチマーク（第12弾）：ログイン済みの初回1度だけ。タップで消える（localStorage既読） */}
-      {me && navCoach && !(needsAccountHolder || openAccountForm) && (
-        <button className="f-sans nav-coach" onClick={dismissNavCoach}>← 左から順に、仕事の流れです</button>
-      )}
 
       {/* ── MOBILE BOTTOM NAV（5機能タブ。☰は上部浮遊へ移設済み・第12弾で時系列順に）
            新規登録（本人情報の入力）表示中は非表示（2026-07-19） ── */}

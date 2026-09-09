@@ -97,9 +97,22 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   // 既存の方：メールアドレス＋パスワード
   const passwordLogin = async () => {
     setSending(true); setErr("");
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
+    // 「一度失敗して、もう一度で入れる」の正体（2026-09-09たきと報告）：
+    //   資格の誤りは status 400（invalid_credentials）だけ。通信・タイムアウト・混雑・コールドスタートは
+    //   status が無い／429／5xx になる。旧実装はどの失敗も「パスワードが違います」に丸めていたため、
+    //   起動直後の最初の認証リクエスト（nano のコールドスパイク・15秒タイムアウトで一時失敗しやすい・CLAUDE.md）が
+    //   正しく入力した人にも「間違い」と出て、赤ちゃん想定の利用者が諦めていた。
+    //   → 資格エラー以外は一度だけ静かに再試行する（＝1回目のタップで入れる）。それでも駄目なら理由を出し分ける。
+    const isBadCred = (e) => !!e && (e.status === 400 || /invalid.?credentials|invalid login|invalid_grant/i.test(String(e.message || e.code || "")));
+    let { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw });
+    if (error && !isBadCred(error)) {
+      ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw }));
+    }
     setSending(false);
-    if (error) { setErr("メールアドレスまたはパスワードが違います"); bounce(); return; }
+    if (error) {
+      setErr(isBadCred(error) ? "メールアドレスまたはパスワードが違います" : "通信が不安定です。もう一度お試しください");
+      bounce(); return;
+    }
     await completeLogin(data.user);
   };
 
