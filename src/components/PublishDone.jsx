@@ -12,7 +12,8 @@ import { mapJobPublicRow } from "../lib/utils";
 import { JobCard } from "./JobCard";
 import { DoneScreen } from "./DoneScreen";
 
-export function PublishDone({ open = true, jobNumber, name, onClose, preview = false, previewJob = null }) {
+// ・edited＝公開中の求人を掲載したまま編集した（2026-09-11）＝「おめでとう」ではなく「変更を保存しました」
+export function PublishDone({ open = true, edited = false, jobNumber, name, onClose, preview = false, previewJob = null }) {
   const [job, setJob] = useState(() => (preview ? previewJob : null));
   useEffect(() => {
     if (preview || !jobNumber) return;
@@ -26,13 +27,15 @@ export function PublishDone({ open = true, jobNumber, name, onClose, preview = f
     return () => { cancelled = true; };
   }, [jobNumber, preview]);
   // 名前は2行目に置く＝1行に続けると長い農園名that途中で折れる（実測「千／歳農園さん」）
-  const lead = open
+  const lead = edited
+    ? "公開中のまま、求人の内容を更新しました。働き手には新しい内容で表示されます。"
+    : open
     ? "求人が公開されました。働き手の「さがす」に並び、応募が届くとお知らせします。"
     : "求人ができました。公開の準備が整いしだい、働き手に届きます。";
   const goJob = () => { onClose?.(); if (!preview && jobNumber) window.location.hash = "/work/job/" + jobNumber; };
   return (
     <DoneScreen takeover="publish-done"
-      title={<>おめでとうございます{name ? <>、<br />{name}さん</> : null}</>}
+      title={edited ? "変更を保存しました" : <>おめでとうございます{name ? <>、<br />{name}さん</> : null}</>}
       lead={lead}
       primary={{ label:"完了", onClick: () => onClose?.() }}
       secondary={open && jobNumber ? { label:"掲載した求人を見る", onClick: goJob } : null}>

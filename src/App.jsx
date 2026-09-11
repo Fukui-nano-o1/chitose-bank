@@ -2244,7 +2244,7 @@ export default function App(){
           Airbnbの完了をパクれ」）：白い全画面の「おめでとうございます、〇〇さん」＋掲載した求人のカード＋「完了」。
           祝祭アニメ・60秒静止で さがす へ・選択カードは廃止。入る直前の画面（flowBackToRef）に着地した上に重なり、
           「完了」でその画面に戻る。名前は雇い手プロフィールの手元の写し（お仕事タブが保存するキャッシュ）から */}
-      {pubDone && <PublishDone open={pubDone.open} jobNumber={pubDone.jobNumber}
+      {pubDone && <PublishDone open={pubDone.open} edited={pubDone.edited} jobNumber={pubDone.jobNumber}
         name={(getCache("farm:empMini") ?? snapGet("empMini"))?.nickname || ""} onClose={()=>setPubDone(null)} />}
 
       {/* 応募完了・仮応募・働き手フロー完了＝白い全画面の完了画面（Airbnbの Request sent の型・2026-09-02）。
@@ -2293,7 +2293,7 @@ export default function App(){
           // 求人フローの出口は【すべて入る直前の画面へ強制遷移】（2026-08-19「戻る」→2026-08-21 全出口に拡張）。
           // カレンダーの日付シートから コピー／内容を編集 で入った時も、終わればカレンダーに戻る。
           // 行き先の控えは flowBackToRef（フロー以外のハッシュを通るたびに更新）＝1箇所で持つ
-          onPublished={(wasOpen, jobNumber)=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; setPubDone({ open: !!wasOpen, jobNumber: jobNumber || null }); }}
+          onPublished={(wasOpen, jobNumber, opts)=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; setPubDone({ open: !!wasOpen, edited: !!opts?.edited, jobNumber: jobNumber || null }); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}

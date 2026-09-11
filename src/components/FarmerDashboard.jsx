@@ -455,9 +455,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 選択シートは廃止（対象は画面のカードそのものを指させる＝赤ちゃん前提の直接操作）。
   // 最終確認（confirm）は削除・非公開のみ。再開・コピーはカードタップで即実行
   const [armedAction, setArmedAction] = useState(null); // 'resume'|'copy'|'delete'|'unpublish'
-  const ARMED_LABEL = { resume:"再開", copy:"コピー", delete:"削除", unpublish:"非公開" };
+  const ARMED_LABEL = { resume:"再開", edit:"編集", copy:"コピー", delete:"削除", unpublish:"非公開" };
   const runJobAction = async (kind, num) => {
     if (kind === "resume") { onResume(num); return; }
+    // 編集（公開中）＝一時非公開にせず編集フローへ（2026-09-11）。応募が届いている求人はフローが開いた時点で
+    // 止めてコピーへ誘導し、保存はDBの update_my_open_job が壁（本人・open・進行中の応募なし）を持つ
+    if (kind === "edit") { onResume(num); return; }
     if (kind === "unpublish") {
       // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
       // 再掲載は作成中→再開→掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「審査を通る」は誤り）。
@@ -491,11 +494,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (armedAction === kind) { setArmedAction(null); return; }
     const jobs = kind === "resume" ? dbDrafts.filter(d => d.status === "draft")
       : kind === "copy" ? [...dbDrafts, ...dbActive, ...dbExpired]
-      : kind === "unpublish" ? dbActive.filter(d => d.status === "open")
+      : kind === "unpublish" || kind === "edit" ? dbActive.filter(d => d.status === "open")
       : dbDrafts.filter(d => d.status === "draft" && !d.opened_at);
     if (jobs.length === 0) {
       alert(kind === "delete" ? "削除できる下書きがありません（一度でも掲載した求人・応募のある求人は削除できません）"
         : kind === "unpublish" ? "非公開にできる公開中の求人がありません"
+        : kind === "edit" ? "編集できる公開中の求人がありません"
         : kind === "resume" ? "作成中の求人がありません" : "コピーできる求人がありません");
       return;
     }
@@ -507,6 +511,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     if (kind === "resume" && d.status !== "draft") { alert("再開できるのは作成中の下書きだけです"); return; }
     if (kind === "delete" && !(d.status === "draft" && !d.opened_at)) { alert("削除できるのは一度も掲載していない下書きだけです"); return; }
     if (kind === "unpublish" && d.status !== "open") { alert("非公開にできるのは公開中の求人だけです"); return; }
+    if (kind === "edit" && d.status !== "open") { alert("編集できるのは公開中の求人だけです（作成中は「再開」から）"); return; }
     setArmedAction(null);
     runJobAction(kind, d.job_number);
   };
@@ -1779,7 +1784,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             <button key="resume" onClick={()=>armJobAction("resume")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
               boxShadow: armedAction === "resume" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "resume") ? 1 : 0.45 }}>再開</button>
           ) : (
-            <span aria-hidden="true" className="f-sans" style={{ visibility:"hidden", pointerEvents:"none", padding:"12px 16px", fontSize:13, fontWeight:800, border:"none", borderRadius:24, whiteSpace:"nowrap" }}>再開</span>
+            /* 公開中＝「編集」（2026-09-11）：応募が届く前の求人を、掲載したまま編集フローで直す（再開と同じ緑・同じ枠） */
+            <button key="edit" onClick={()=>armJobAction("edit")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
+              boxShadow: armedAction === "edit" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "edit") ? 1 : 0.45 }}>編集</button>
           )}
           <button onClick={()=>armJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
             background: armedAction === "copy" ? "#00A86B" : "#fff", color: armedAction === "copy" ? "#fff" : "#00A86B", border:"1.5px solid #00A86B",

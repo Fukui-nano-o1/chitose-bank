@@ -56,6 +56,16 @@ export const insertJob = (payload) =>
 export const publishMyJob = (jobNumber) =>
   supabase.rpc("publish_my_job", { p_job_number: jobNumber });
 
+// 公開中の求人を掲載したまま編集（2026-09-11）＝本人・open・進行中の応募なし の3つの壁をDB側が持つ1窓口。
+// 許可した列だけ更新し、掲載時の検査と凍結（最賃・時間外・受動喫煙・募集主情報・待遇・保険）を open→open でも走らせる
+export const updateMyOpenJob = (jobNumber, patch) =>
+  supabase.rpc("update_my_open_job", { p_job_number: jobNumber, p_patch: patch });
+
+// 進行中の応募（応募中〜作業中）の件数＝公開中の求人を編集フローで開く前の門番（DBの has_applications と同じ物差し）
+export const countLiveApplications = (jobNumber) =>
+  supabase.from("applications").select("id", { count: "exact", head: true })
+    .eq("job_number", jobNumber).in("status", ["applied","approved","meeting","interview","contracted","working"]);
+
 // 掲載前の確認の記録（追記のみの台帳・行動記録の憲法）
 export const insertJobPublishCheck = (row) =>
   supabase.from("job_publish_checks").insert(row);

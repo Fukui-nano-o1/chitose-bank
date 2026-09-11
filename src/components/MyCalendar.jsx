@@ -256,14 +256,11 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     const r = await copyJobToEdit(n);
     if (r.ok) setDaySheet(null);
   };
-  // 内容の編集＝既存レール（公開中は一時非公開にしてから編集フローへ・FarmerDashboardと同じ確認文言）。
-  // ★unpublish_job は作業前の応募（応募中・面接中・採用済み）を見送りにする（20260828050552で採用済みも対象に）＝確認文に明記
-  const editFromSheet = async (e) => {
-    if (e.status === "open") {
-      if (!window.confirm("内容を編集するには、いったん一時非公開にします。（さがすに表示されなくなります。作業が始まっていない応募（応募中・面接中・採用済み）は見送りになります。編集後にもう一度掲載できます）よろしいですか？")) return;
-      const { data, error } = await supabase.rpc("unpublish_job", { p_job_number: e.job_number });
-      if (error || !data?.ok) { fbError(); alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
-    }
+  // 内容の編集（2026-09-11「応募者がいない求人は編集可能に」）＝公開中でも一時非公開にせず、そのまま編集フローへ。
+  // 保存は update_my_open_job（本人・公開中・進行中の応募なし の壁つき）が掲載したまま更新する。
+  // このボタンが出るのは own＝応募が無い自分の求人だけ（応募が届くと行は application に置き換わる）。
+  // 旧レール（unpublish_job→編集→再掲載）は廃止＝編集の間もさがすから消えない
+  const editFromSheet = (e) => {
     setDaySheet(null);
     window.location.hash = "/work/edit/" + e.job_number;
   };
@@ -704,7 +701,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
                     </div>
                     {ownLive ? (
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>
-                        日程をうごかせるのは、応募が届く前だけです。届いた後に日程を変える場合は、コピーで新しい求人として出してください。
+                        日程や内容を変えられるのは、応募が届く前だけです。届いた後に変える場合は、コピーで新しい求人として出してください。
                       </p>
                     ) : ownWithApps ? (
                       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"8px 0 0" }}>

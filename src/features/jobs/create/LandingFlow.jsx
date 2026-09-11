@@ -22,6 +22,7 @@ import { geocodeTown } from "./jobCreateGeo";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
   fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
   fetchJobByNumber, fetchJobStatus, updateJob, insertJob, publishMyJob, insertJobPublishCheck,
+  updateMyOpenJob, countLiveApplications,
   uploadPhoto } from "./jobCreateApi";
 import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "./components/LFParts";
 import { lfStyles } from "./lfStyles";
@@ -63,6 +64,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
   const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)$/); return m ? parseInt(m[1],10) : null; })();
+  // 編集中の求人が【公開中(open)】か（2026-09-11「応募者がいない求人は編集可能に」）。
+  // 公開中の編集は一時非公開にせず、update_my_open_job（本人・open・進行中の応募なし の壁つき）で
+  // 掲載したまま保存する。draft/pending の編集は従来どおり（保存→掲載）
+  const [editingOpen, setEditingOpen] = useState(false);
   const [role, setRole] = useState(_devJump?.role ?? _draftInit?.role ?? (_editJobNumber ? "farmer" : null) ?? initialRole ?? ""); // "" | "farmer" | "worker"
   // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
   // 初期値が0（入口）だと、jobsを読み終えるまで「はじめから」の画面が見えてしまう。
@@ -546,6 +551,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // jobs行 → フローのstateへ復元（2026-08-03に関数化）。コピー直後の即時復元（prefill）と
   // 通常の読み込みで同じ対応表を使う＝どちらかだけ直して食い違う事故を防ぐ
   const applyJobRow = (data) => {
+        setEditingOpen(!!_editJobNumber && data.status === "open");
         setRole("farmer");
         setFarmerCropText(data.crop ?? "");
         setFarmerTaskText(data.task ?? "");
@@ -629,6 +635,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         if (jobRes?.error || !data) return;
         // 所有者チェックは維持（管理者はRLS上ずべての求人を読めるので、他人の求人を編集フローで開かせない）
         if (!uid || data.farmer_id !== uid) return;
+        // 公開中の求人は「進行中の応募が無い」時だけ編集できる（DBの update_my_open_job と同じ物差し）。
+        // あるなら入力させる前に止めてコピーへ誘導する（保存の時に拒否されると入力が無駄になる）
+        if (data.status === "open") {
+          try {
+            const { count, error } = await countLiveApplications(_editJobNumber);
+            if (!error && (count || 0) > 0) {
+              alert("応募が届いている求人は、内容を変えられません（応募した方はこの内容を見て決めています）。内容を変える場合は、コピーで新しい求人として出してください。");
+              if (typeof onSkip === "function") onSkip();
+              return;
+            }
+          } catch {}
+        }
         applyJobRow(data);
       } catch {}
     })();
@@ -796,7 +814,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     //   押せたのか分からず再タップを誘っていた（コピーの多重実行と同じ形）。
     //   ★どの経路でも必ず消すこと（失敗・未ログインの枝でも消す＝白い幕に閉じ込めない）
     if (exit) setDraftOverlay(true);
-    const res = await saveDraftToSupabase();
+    // 公開中の求人の編集＝「保存して終了」も掲載したまま保存（下書き(draft)に落とすとさがすから消える）。
+    // 検査（最賃など）に当たれば保存せず、その旨を出して留まる
+    const res = editingOpen && draftJobNumber ? await (async () => {
+      try {
+        const { data: { session } } = await getSession();
+        if (!session) return { ok:false, reason:"no_session" };
+        const patch = await buildJobPayload(session.user.id, "open");
+        delete patch.status; delete patch.draft_step; delete patch.farmer_id;
+        const { data: up, error } = await updateMyOpenJob(draftJobNumber, patch);
+        if (error) return { ok:false, reason:error.message };
+        if (!up?.ok) return { ok:false, reason: up?.reason === "has_applications" ? "応募が届いたため、内容を変えられません（コピーで新しい求人として出してください）" : (up?.reason || "不明") };
+        return { ok:true, jobNumber: draftJobNumber, keepOpen: true };
+      } catch (e) { return { ok:false, reason:String(e) }; }
+    })() : await saveDraftToSupabase();
     setDraftSaving(false);
     if (res.ok) {
       if (!exit) { // その場保存：遷移も cb_afterDraftSave（着地先の指定）もしない。保存できたことだけ知らせる
@@ -805,7 +836,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         savedToastTimer.current = setTimeout(() => setSavedToast(false), 1800);
         return;
       }
-      try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {}
+      if (!res.keepOpen) { try { sessionStorage.setItem("cb_afterDraftSave","1"); } catch {} } // 公開中のまま保存＝作成中の面へ寄せない
       // 行き先は親（App）that控えている入口の画面へ委ねる＝「戻る」（onSkip）と同じ作法（2026-08-21）。
       // ここで hash を書くと、親that入口の画面へ書き直す前に一瞬別の画面へ飛び、
       // 入口の控え（flowBackToRef）まで上書きされてしまう。onComplete を持たない呼び出しだけ従来の行き先に倒す。
@@ -1623,6 +1654,28 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 //    フラグが 'false' に戻された時は RPC が拒否し、求人は pending（公開間近）のまま残る＝従来の承認制に自動復帰。
                 const canOpen = isAdmin(session.user);
                 const payload = await buildJobPayload(session.user.id, canOpen ? "open" : "pending");
+                // 公開中の求人の編集＝掲載したまま保存（2026-09-11）。status・draft_step・farmer_id は送らない
+                // （窓口が受け付けない列）。掲載時の検査と凍結はDB側が open→open でも走らせる。
+                // 掲載前の確認の記録（job_publish_checks）は新しい掲載ではないので追記しない
+                if (editingOpen && _jn) {
+                  const patch = { ...payload };
+                  delete patch.status; delete patch.draft_step; delete patch.farmer_id;
+                  const { data: up, error: upErr } = await updateMyOpenJob(_jn, patch);
+                  if (upErr) { alert("保存エラー：" + upErr.message); return; }
+                  if (!up?.ok) {
+                    const r = up?.reason;
+                    alert(r === "has_applications" ? "応募が届いたため、この求人の内容は変えられません。内容を変える場合は、コピーで新しい求人として出してください。"
+                      : r === "bad_status" ? "この求人はいま公開中ではありません。作成中の一覧から再開して掲載してください。"
+                      : "保存できませんでした：" + (r || "不明"));
+                    return;
+                  }
+                  try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
+                  setDraftJobNumber(null);
+                  setPublishModal(false);
+                  if (typeof onPublished === "function") { onPublished(true, _jn, { edited: true }); }
+                  else { setPublishedOpen(true); setStep(12); }
+                  return;
+                }
                 if (_jn) {
                   const r = await updateJob(payload, _jn, session.user.id);
                   error = r.error;
@@ -2130,10 +2183,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 <div onClick={() => setPublishModal(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
                   <div onClick={(e) => e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="clipboard" size={14} />掲載前の確認</p>
+                      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="clipboard" size={14} />{editingOpen ? "変更の確認" : "掲載前の確認"}</p>
                     </div>
                     <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
-                      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>掲載前に、以下をご確認ください</p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>{editingOpen ? "公開中のまま内容を更新します。以下をもう一度ご確認ください" : "掲載前に、以下をご確認ください"}</p>
                       {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30）。
                           2026-08-07たきと指示：個別チェックをやめ本文の列挙にし、チェックは下の1つに集約 */}
                       {PUBLISH_CHECKS.map((text, i) => (
@@ -2142,7 +2195,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                           <span className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.6 }}>{text}</span>
                         </div>
                       ))}
-                      <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:"10px 0 0" }}>「掲載する」を押すと、働き手に公開されます。</p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:"10px 0 0" }}>{editingOpen ? "「変更を保存する」を押すと、働き手には新しい内容で表示されます。" : "「掲載する」を押すと、働き手に公開されます。"}</p>
                       </div>
                     {/* 下部の固定ボタン（待遇の変更ボックスと同じ規格）。まとめて1つの確認チェックはボタンの直上 */}
                     <div style={{ padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
@@ -2161,10 +2214,10 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                         className="btn-primary"
                         style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, ...(!publishConfirmed ? { background:"#EBEBEB", color:"#717171" } : {}) }}
                       >
-                        {jobSaving ? <>保存中<Dots /></> : "同意して掲載する"}
+                        {jobSaving ? <>保存中<Dots /></> : editingOpen ? "変更を保存する" : "同意して掲載する"}
                       </button>
                       {!publishConfirmed && (
-                        <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>「確認しました」にチェックすると掲載できます</p>
+                        <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>{editingOpen ? "「確認しました」にチェックすると保存できます" : "「確認しました」にチェックすると掲載できます"}</p>
                       )}
                     </div>
                   </div>
@@ -2444,7 +2497,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {isFarmer && step === 11 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? <>保存中<Dots /></> : "保存"}</button>
-              <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>掲載する</button>
+              <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>{editingOpen ? "変更を保存" : "掲載する"}</button>
             </div>
           )}
         </div>
@@ -2474,7 +2527,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           {isFarmer && step === 11 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", alignItems:"center", gap:10, ...sheetNavHide }}>
               <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>{draftSaving ? <>保存中<Dots /></> : "保存"}</button>
-              <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>掲載する</button>
+              <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)" }}>{editingOpen ? "変更を保存" : "掲載する"}</button>
             </div>
           )}
         </>)
