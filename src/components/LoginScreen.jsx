@@ -1,17 +1,26 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。メールOTP認証＋パスワードログイン。
 // 認証まわりの絶対規則（CLAUDE.md）：OTP・認証コードの取得入力を代行しない。実機検証はユーザー本人。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { C } from "../lib/utils";
 import { Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
+import "./auth.css";
 
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
-export function LoginScreen({ farmers, onLogin, onGoRegister }) {
+export function LoginScreen({ onLogin, embedded = false, onClose }) {
   // 認証の2経路（2026-07-16）：
   // ・既存の方＝メールアドレス＋パスワード（view "login"・デフォルト）
   // ・新規登録＝6桁コード認証→パスワード設定（view "otp"→"code"→"setpw"）
   //   パスワード未設定・忘れた既存の方も同じOTP経路で再設定できる（経路を増やさない）
+  const fieldId = useId();
+  const requestLock = useRef(false);
+  const headingRef = useRef(null);
+  const previousView = useRef("login");
+  const [intent, setIntent] = useState("signup");
+  const [resendAt, setResendAt] = useState(0);
+  const [resendSeconds, setResendSeconds] = useState(0);
+  const [resent, setResent] = useState(false);
+  const [codeFocused, setCodeFocused] = useState(false);
   const [view,    setView]    = useState("login"); // login | otp | code | setpw
   const [signupOpen, setSignupOpen] = useState(false); // 新規登録の開放（app_settings.signup_open・既定false=招待制）。ONにするのは運営（2026-07-21規約v2/プラポリv2で前提充足）
   useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
@@ -32,7 +41,20 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const [err,     setErr]     = useState("");
   const [shk,     setShk]     = useState(false);
   const [showPw,  setShowPw]  = useState(false); // パスワードの表示切替（👁タップ）。画面が変わったらモザイクに戻す
-  useEffect(() => { setShowPw(false); }, [view]);
+  useEffect(() => {
+    setShowPw(false);
+    if (previousView.current !== view) headingRef.current?.focus({ preventScroll: true });
+    previousView.current = view;
+  }, [view]);
+  useEffect(() => {
+    if (!resendAt) return;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
+      setResendSeconds(remaining);
+      if (remaining === 0) window.clearInterval(timer);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAt]);
   // 運営お知らせ「ログイン方法が変わりました」のリンクから、再設定の入口へその場で切り替える（2026-08-17）。
   // このお知らせは展開機会が login＝#/login でしか出ないため、link_hash="/login" では
   // 「いま見ているページ」へ飛ぶだけの死んだリンクだった。お知らせ台帳の event: 方式
@@ -40,18 +62,34 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   // 実際の動き（view="otp"）にする。中身は「パスワードを忘れた方・未設定の方」ボタンと同一ので
   // 入口が増えても経路は1本のまま
   useEffect(() => {
-    const f = () => { setView("otp"); setErr(""); setPw(""); setDirectSignup(false); };
+    const f = () => { if (requestLock.current) return; setIntent("reset"); setView("otp"); setErr(""); setPw(""); setDirectSignup(false); };
     window.addEventListener("cb:loginResetPw", f);
     return () => window.removeEventListener("cb:loginResetPw", f);
   }, []);
-  // パスワード欄の右端に置く👁ボタン（表示中は🙈）。inputはpaddingRightで重なりを避ける
   const eyeBtn = (
-    <button type="button" onClick={()=>setShowPw(v=>!v)} tabIndex={-1}
-      aria-label={showPw ? "パスワードを隠す" : "パスワードを表示する"}
-      style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", padding:4, lineHeight:1, color:"#717171", display:"flex" }}>
-      <NavIcon name={showPw ? "eyeOff" : "views"} size={18} />
+    <button type="button" onClick={() => setShowPw(v => !v)} className="cb-auth-eye"
+      aria-label={showPw ? "パスワードを隠す" : "パスワードを表示する"} aria-pressed={showPw}>
+      <NavIcon name={showPw ? "eyeOff" : "views"} size={20} />
     </button>
   );
+
+  // すべての送信を同じ入口に通し、Enterとタップの重複送信・通信例外による行き止まりを防ぐ。
+  const runAction = async (action) => {
+    if (requestLock.current) return;
+    requestLock.current = true;
+    setSending(true); setErr("");
+    try { await action(); }
+    catch { setErr("通信できませんでした。接続を確認して、もう一度お試しください"); }
+    finally { requestLock.current = false; setSending(false); }
+  };
+  const openEmail = (nextIntent) => {
+    setIntent(nextIntent); setView("otp"); setErr(""); setPw(""); setPw2("");
+    setCode(""); setDirectSignup(false); setResent(false);
+  };
+  const goBack = () => {
+    setErr(""); setCode(""); setPw(""); setPw2(""); setResent(false); setDirectSignup(false);
+    setView(view === "otp" ? "login" : view === "setpw" ? "code" : "otp");
+  };
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
 
@@ -96,7 +134,6 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
 
   // 既存の方：メールアドレス＋パスワード
   const passwordLogin = async () => {
-    setSending(true); setErr("");
     // 「一度失敗して、もう一度で入れる」の正体（2026-09-09たきと報告）：
     //   資格の誤りは status 400（invalid_credentials）だけ。通信・タイムアウト・混雑・コールドスタートは
     //   status が無い／429／5xx になる。旧実装はどの失敗も「パスワードが違います」に丸めていたため、
@@ -108,7 +145,6 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
     if (error && !isBadCred(error)) {
       ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw }));
     }
-    setSending(false);
     if (error) {
       setErr(isBadCred(error) ? "メールアドレスまたはパスワードが違います" : "通信が不安定です。もう一度お試しください");
       bounce(); return;
@@ -117,9 +153,7 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   };
 
   const requestCode = async () => {
-    setSending(true); setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: signupOpen } });
-    setSending(false);
     if (error) {
       // 失敗の理由を出し分ける（2026-08-01たきと報告「なぜ？」）。
       // 以前は「招待されていない」以外を全部「メール送信に失敗しました」に丸めていたため、
@@ -145,17 +179,18 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
     }
     setCode("");
     setDirectSignup(false);
+    setResent(view === "code");
+    setResendAt(Date.now() + 60000);
+    setResendSeconds(60);
     setView("code");
   };
 
   const verifyCode = async () => {
-    setSending(true); setErr("");
     const { data, error } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: code,
       type: 'email',
     });
-    setSending(false);
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
     // すでにアカウントを持っている人が、間違えて新規登録から入ってきた場合を見分ける（2026-08-01たきと指示）。
     // 判定は認証を通った"本人"についてだけ行う＝メールアドレスの存在をログイン前に外へ漏らさない。
@@ -179,13 +214,11 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
   const submitPassword = async () => {
     if (pw.length < 8) { setErr("パスワードは8文字以上で設定してください"); return; }
     if (pw !== pw2) { setErr("確認用パスワードが一致しません"); bounce(); return; }
-    setSending(true); setErr("");
     // 救済経路：認証コードを受け取っていない＝まだ認証されていないので、更新ではなく新規作成で通す。
     // メールアドレスの確認が無効な設定なら、その場でセッションが返り、メールを1通も受け取らずに登録が済む。
     // 有効な設定に戻したあとは session が返らず「確認メールを送りました」に落ちる＝どちらの設定でも壊れない。
     if (directSignup) {
       const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw });
-      setSending(false);
       if (error) {
         const m = String(error.message || "");
         setErr(/signup/i.test(m)
@@ -203,224 +236,158 @@ export function LoginScreen({ farmers, onLogin, onGoRegister }) {
       return;
     }
     const { error } = await supabase.auth.updateUser({ password: pw });
-    setSending(false);
     if (error) { setErr("パスワードの設定に失敗しました。時間をおいてもう一度お試しください"); return; }
     await completeLogin(authedUser);
   };
 
+  const isReset = intent === "reset";
+  const title = view === "login" ? "ログインまたは新規登録"
+    : view === "otp" ? (isReset ? "パスワードの再設定" : "新規登録")
+    : view === "code" ? "メールアドレスの確認" : "パスワードの設定";
+  const heading = view === "login" ? "chitose-bankへようこそ"
+    : view === "otp" ? "メールアドレスを入力"
+    : view === "code" ? "メールを確認してください"
+    : alreadyRegistered ? "パスワードを設定し直す" : "パスワードを設定";
+  const hasBack = view === "otp" || view === "code" || (view === "setpw" && directSignup);
+  const errorId = `${fieldId}-error`;
+  const emailId = `${fieldId}-email`;
+  const pwId = `${fieldId}-password`;
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   return (
-    /* cb-login-page＝下部バーを隠さない目印（2026-07-27たきと指示）。メール欄のautoFocusで
-       キーボードを出すと body.cb-typing により下部バーを隠す既定の挙動になっていた。
-       ログイン画面では常に表示する（CSSで打ち消し） */
-    <div className="fade-in cb-login-page" style={{ minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:28 }}>
-      <div style={{ width:"100%",maxWidth:360 }}>
-        {/* 旧ブランド「吉野川 農家/YOSHINOGAWA FARMERS」は削除（2026-07-16・前身アプリの遺物） */}
-        {/* 🥦は削除・ブランド名は黒文字に統一（2026-07-27たきと指示） */}
-        <div style={{ textAlign:"center",marginBottom:40 }}>
-          <div className="f-sans" style={{ fontSize:22,fontWeight:800,color:"#222",letterSpacing:".02em" }}>chitose-bank</div>
-        </div>
-
-        <div className="ledger-card" style={{ padding:32 }}>
-          <div className="f-sans" style={{ fontSize:14,fontWeight:700,color:C.ink,marginBottom:8,letterSpacing:".04em" }}>
-            {view === "login" ? "ログイン" : view === "setpw" ? "パスワードの設定" : "新規登録"}
-          </div>
-          <p className="f-sans" style={{ fontSize:11,color:C.dim,lineHeight:1.7,marginBottom:24 }}>{signupOpen ? "メールアドレスで登録・ログインできます" : "招待制で運営しています"}</p>
-
+    <div className={`cb-auth-page cb-login-page f-sans${embedded ? " cb-auth-embedded" : ""}`}>
+      <section className="cb-auth-panel" aria-label={title}>
+        <header className="cb-auth-header">
+          {hasBack ? (
+            <button type="button" className="cb-auth-back" onClick={goBack} disabled={sending} aria-label="前の画面に戻る">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+            </button>
+          ) : onClose ? (
+            <button type="button" className="cb-auth-back" onClick={onClose} disabled={sending} aria-label="ログイン画面を閉じる"><NavIcon name="close" size={18} /></button>
+          ) : null}
+          <p>{title}</p>
+        </header>
+        <div className="cb-auth-body cb-auth-enter" key={view}>
+          <h1 className="cb-auth-heading" ref={headingRef} tabIndex={-1}>{heading}</h1>
           {view === "login" ? (
-            /* ── 既存の方：メールアドレス＋パスワード ── */
-            <div className="fade-in">
-              <div style={{ marginBottom:16 }}>
-                <label className="lbl f-sans">メールアドレス</label>
-                <input data-guide="login-email" className="field f-sans" type="email" placeholder="your@email.com"
-                  value={email} autoFocus
-                  onChange={e=>{setEmail(e.target.value);setErr("");}}/>
-              </div>
-              <div style={{ marginBottom:20 }}>
-                <label className="lbl f-sans">パスワード</label>
-                <div style={{ position:"relative" }}>
-                  <input className={`field f-sans ${shk?"shake":""}`} type={showPw?"text":"password"} placeholder="パスワード" autoComplete="current-password"
-                    value={pw} style={{ paddingRight:44 }}
-                    onChange={e=>{setPw(e.target.value);setErr("");}}
-                    onKeyDown={e=>e.key==="Enter"&&email.trim()&&pw&&!sending&&passwordLogin()}/>
-                  {eyeBtn}
+            <>
+              <form onSubmit={e => { e.preventDefault(); if (validEmail && pw) runAction(passwordLogin); }} aria-busy={sending}>
+                <div className="cb-auth-field-group">
+                  <div className="cb-auth-field">
+                    <label htmlFor={emailId}>メールアドレス</label>
+                    <input id={emailId} data-guide="login-email" type="email" name="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
+                      placeholder="メールアドレスを入力" value={email} required readOnly={sending}
+                      onChange={e => { setEmail(e.target.value); setErr(""); }} />
+                  </div>
+                  <div className={`cb-auth-field cb-auth-password${shk ? " shake" : ""}`}>
+                    <label htmlFor={pwId}>パスワード</label>
+                    <input id={pwId} type={showPw ? "text" : "password"} name="password" autoComplete="current-password"
+                      placeholder="パスワードを入力" value={pw} required readOnly={sending} aria-describedby={err ? errorId : undefined}
+                      onChange={e => { setPw(e.target.value); setErr(""); }} />
+                    {eyeBtn}
+                  </div>
                 </div>
-                {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
-              </div>
-              <button className="btn-primary" style={{ width:"100%" }}
-                disabled={!email.trim()||!pw||sending} onClick={passwordLogin}>
-                {sending ? <>確認中<Dots /></> : "ログイン"}
+                {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
+                <button className="cb-auth-primary" disabled={!validEmail || !pw || sending}>
+                  {sending ? <>確認中<Dots /></> : "ログイン"}
+                </button>
+              </form>
+              <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => openEmail("reset")}>
+                パスワードを忘れた方・未設定の方
               </button>
-              <div style={{ textAlign:"center", marginTop:18, display:"flex", flexDirection:"column", gap:8 }}>
-                <button data-guide="login-signup" onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans cb-hop"
-                  style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
-                  はじめての方はこちら（新規登録）
-                </button>
-                <button onClick={()=>{setView("otp");setErr("");setPw("");setDirectSignup(false);}} className="f-sans"
-                  style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
-                  パスワードを忘れた方・未設定の方（6桁コードで再設定）
-                </button>
-              </div>
-            </div>
+              <div className="cb-auth-divider"><span>はじめてご利用の方</span></div>
+              <button type="button" data-guide="login-signup" className="cb-auth-secondary" disabled={sending} onClick={() => openEmail("signup")}>
+                新規登録
+              </button>
+              {!signupOpen && <p className="cb-auth-note cb-auth-center">現在は招待を受けた方にご利用いただけます。</p>}
+            </>
           ) : view === "otp" ? (
-            /* ── 新規登録①：メールアドレス→6桁コード送信 ── */
-            <div className="fade-in">
-              {/* すでに持っている人が間違えて新規登録に入ることがあるので先に伝える（2026-08-01たきと指示）。
-                  ここでは「そのアドレスが登録済みか」は出さない＝ログイン前にアカウントの有無を漏らさない */}
-              <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8, marginBottom:14, background:"#F7F7F7", borderRadius:8, padding:"10px 12px" }}>
-                すでにアカウントをお持ちの方も、この画面から同じメールアドレスでログインできます。<br/>
-                アカウントが二重に作られることはありません。
-              </p>
-              <div style={{ marginBottom:20 }}>
-                <label className="lbl f-sans">メールアドレス</label>
-                <input className="field f-sans" type="email" placeholder="your@email.com"
-                  value={email} autoFocus
-                  onChange={e=>{setEmail(e.target.value);setErr("");}}
-                  onKeyDown={e=>e.key==="Enter"&&email.trim()&&!sending&&requestCode()}/>
-                {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
-              </div>
-              <button className="btn-primary" style={{ width:"100%",position:"relative" }}
-                disabled={!email.trim()||sending} onClick={requestCode}>
-                {sending
-                  ? <span style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:8 }}>
-                      <span style={{ width:12,height:12,borderRadius:"50%",border:`2px solid ${C.washi}`,borderTopColor:"transparent",display:"inline-block",animation:"spin .8s linear infinite" }}/>
-                      送信中<Dots />
-                    </span>
-                  : "認証コードを送信する →"}
+            <>
+              <p className="cb-auth-description">{isReset ? "登録したメールアドレスに、確認コードをお送りします。" : signupOpen ? "確認コードをお送りします。" : "招待を受けたメールアドレスに、確認コードをお送りします。"}</p>
+              <form onSubmit={e => { e.preventDefault(); if (validEmail) runAction(requestCode); }} aria-busy={sending}>
+                <div className="cb-auth-field">
+                  <label htmlFor={emailId}>メールアドレス</label>
+                  <input id={emailId} type="email" name="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
+                    placeholder="メールアドレスを入力" value={email} required readOnly={sending} aria-invalid={!!err} aria-describedby={err ? errorId : undefined}
+                    onChange={e => { setEmail(e.target.value); setErr(""); }} />
+                </div>
+                {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
+                <button className="cb-auth-primary" disabled={!validEmail || sending}>{sending ? <>送信中<Dots /></> : "続ける"}</button>
+              </form>
+              <p className="cb-auth-note">すでに登録済みの方も、同じメールアドレスで続けられます。</p>
+              <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => { setView("login"); setErr(""); setDirectSignup(false); }}>
+                パスワードでログイン
               </button>
-              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-              <div style={{ textAlign:"center", marginTop:18 }}>
-                <button onClick={()=>{setView("login");setErr("");setDirectSignup(false);}} className="f-sans"
-                  style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
-                  ← 登録済みの方はこちら（メールアドレスとパスワード）
-                </button>
-              </div>
-            </div>
+            </>
           ) : view === "code" ? (
-            /* ── 新規登録②：6桁コード入力 ── */
-            <div className="fade-in">
-              <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
-                <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
-                  <strong>{email}</strong> に6桁のコードを送信しました。<br/>
-                  メールを確認してコードを入力してください。<br/>
-                  <span style={{ fontSize:10,color:C.dim }}>有効期限：10分</span>
-                </p>
-              </div>
-              <div style={{ marginBottom:20 }}>
-                <label className="lbl f-sans">認証コード（6桁）</label>
-                <input className={`field f-mono ${shk?"shake":""}`}
-                  type="text" inputMode="numeric" maxLength={6} placeholder="000000"
-                  value={code} autoFocus
-                  onChange={e=>{setCode(e.target.value.replace(/\D/g,"").slice(0,6));setErr("");}}
-                  onKeyDown={e=>e.key==="Enter"&&code.length===6&&verifyCode()}
-                  style={{
-                    fontSize:28,textAlign:"center",letterSpacing:".5em",
-                    borderColor:err?C.shu:undefined,
-                    background:err?C.shuPl:undefined,
-                  }}/>
-                {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
-              </div>
-              <button className="btn-primary" style={{ width:"100%",marginBottom:10 }}
-                disabled={code.length!==6||sending} onClick={verifyCode}>
-                認証する
-              </button>
-              <button onClick={()=>{setView("otp");setCode("");setErr("");setDirectSignup(false);}} className="f-sans"
-                style={{ width:"100%",background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3 }}>
-                ← メールアドレスを変更する
-              </button>
-              {/* 行き止まり防止（2026-08-04）。誰にでも同じように出す＝このボタンの有無で
-                  アドレスが登録済みかどうかは分からない（登録の有無をログイン前に漏らさない原則を維持） */}
-              <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid #EEE", textAlign:"center" }}>
-                <button onClick={()=>{setDirectSignup(true);setAlreadyRegistered(false);setAuthedUser(null);setPw("");setPw2("");setErr("");setView("setpw");}}
-                  className="f-sans"
-                  style={{ background:"none",border:"none",fontSize:12,fontWeight:700,color:"#00A86B",textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
-                  コードが届かない場合はこちら
+            <>
+              <p className="cb-auth-description cb-auth-recipient"><strong>{email.trim()}</strong> に送信した6桁のコードを入力してください。</p>
+              <button type="button" className="cb-auth-link cb-auth-change-email" disabled={sending} onClick={goBack}>メールアドレスを変更</button>
+              <form onSubmit={e => { e.preventDefault(); if (code.length === 6) runAction(verifyCode); }} aria-busy={sending}>
+                <label className="cb-auth-code-label" htmlFor={`${fieldId}-code`}>認証コード</label>
+                <div className={`cb-auth-code${err ? " has-error" : ""}${shk ? " shake" : ""}`}>
+                  <input id={`${fieldId}-code`} className="cb-auth-code-input" type="text" name="code" inputMode="numeric" autoComplete="one-time-code"
+                    maxLength={6} pattern="[0-9]{6}" required value={code} readOnly={sending} aria-invalid={!!err}
+                    aria-describedby={err ? errorId : undefined} aria-label="認証コード（6桁）"
+                    onFocus={() => setCodeFocused(true)} onBlur={() => setCodeFocused(false)}
+                    onPaste={e => {
+                      e.preventDefault();
+                      if (sending) return;
+                      setCode(e.clipboardData.getData("text").replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0)).replace(/\D/g, "").slice(0, 6));
+                      setErr("");
+                    }}
+                    onChange={e => { setCode(e.target.value.replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0)).replace(/\D/g, "").slice(0, 6)); setErr(""); }} />
+                  <div className="cb-auth-code-slots" aria-hidden="true">
+                    {Array.from({ length: 6 }, (_, i) => <span key={i} className={codeFocused && i === Math.min(code.length, 5) ? "is-active" : ""}>{code[i] || ""}</span>)}
+                  </div>
+                </div>
+                {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
+                <button className="cb-auth-primary" disabled={code.length !== 6 || sending}>{sending ? <>確認中<Dots /></> : "確認して続ける"}</button>
+              </form>
+              <div className="cb-auth-resend">
+                <span>コードが届きませんか？</span>
+                <button type="button" className="cb-auth-link" disabled={sending || resendSeconds > 0} onClick={() => runAction(requestCode)}>
+                  {resendSeconds > 0 ? `再送信（あと${resendSeconds}秒）` : "コードを再送信"}
                 </button>
-                <p className="f-sans" style={{ marginTop:6,fontSize:10,color:C.dim,lineHeight:1.7 }}>
-                  迷惑メールもご確認ください。それでも届かないときは、パスワードを決めて登録できます
-                </p>
               </div>
-            </div>
+              {resent && <p className="cb-auth-note" role="status">新しいコードを送信しました。</p>}
+              <details className="cb-auth-help">
+                <summary>それでも届かない場合</summary>
+                <p>迷惑メールフォルダもご確認ください。パスワードをお持ちの方は、ログイン画面からログインできます。</p>
+                <button type="button" className="cb-auth-link" disabled={sending} onClick={() => { setDirectSignup(true); setAlreadyRegistered(false); setAuthedUser(null); setPw(""); setPw2(""); setErr(""); setView("setpw"); }}>パスワードを決めて登録する</button>
+              </details>
+            </>
           ) : (
-            /* ── 新規登録③：パスワード設定（次回からメール＋パスワードでログイン） ── */
-            <div className="fade-in">
-              {/* すでにアカウントを持っていた人には、その旨をはっきり出す（2026-08-01たきと指示）。
-                  新しく作られていないこと・パスワードは設定し直せることを明記し、そのまま進む道も用意する */}
-              {directSignup ? (
-                <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
-                  <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
-                    認証コードを待たずに登録します。<br/>
-                    パスワードを決めると、そのまま登録が完了します。
-                  </p>
+            <>
+              <p className="cb-auth-description">{directSignup ? "8文字以上のパスワードを決めてください。メールの確認が必要な場合は、確認メールをお送りします。"
+                : alreadyRegistered ? "登録済みのアカウントを確認しました。新しくアカウントは作られません。"
+                : "メールアドレスを確認しました。次回のログインに使うパスワードを決めてください。"}</p>
+              <form onSubmit={e => { e.preventDefault(); if (pw.length >= 8 && pw2) runAction(submitPassword); }} aria-busy={sending}>
+                <div className="cb-auth-field-group">
+                  <div className="cb-auth-field cb-auth-password">
+                    <label htmlFor={pwId}>パスワード</label>
+                    <input id={pwId} type={showPw ? "text" : "password"} name="new-password" autoComplete="new-password" placeholder="8文字以上" minLength={8} required
+                      value={pw} readOnly={sending} onChange={e => { setPw(e.target.value); setErr(""); }} />
+                    {eyeBtn}
+                  </div>
+                  <div className={`cb-auth-field cb-auth-password${shk ? " shake" : ""}`}>
+                    <label htmlFor={`${pwId}-confirm`}>パスワード（確認用）</label>
+                    <input id={`${pwId}-confirm`} type={showPw ? "text" : "password"} name="confirm-password" autoComplete="new-password" placeholder="もう一度入力" minLength={8} required
+                      value={pw2} readOnly={sending} aria-describedby={err ? errorId : undefined}
+                      onChange={e => { setPw2(e.target.value); setErr(""); }} />
+                    {eyeBtn}
+                  </div>
                 </div>
-              ) : alreadyRegistered ? (
-                <div style={{ padding:"12px 14px",background:"#FFF8E7",borderRadius:8,border:"1px solid #F0E0B8",marginBottom:18 }}>
-                  <p className="f-sans" style={{ fontSize:12,color:"#8A6D1D",lineHeight:1.9 }}>
-                    <strong>このメールアドレスのアカウントは、すでにお持ちです。</strong><br/>
-                    新しく作られてはいません。いまログインした状態です。<br/>
-                    パスワードを忘れた場合は、ここで設定し直せます。
-                  </p>
-                </div>
-              ) : (
-                <div style={{ padding:"12px 14px",background:C.bambooPl,borderRadius:8,border:`1px solid ${C.bamboo}22`,marginBottom:18 }}>
-                  <p className="f-sans" style={{ fontSize:11,color:C.bamboo,lineHeight:1.8 }}>
-                    メールの確認ができました。<br/>
-                    次回からのログインに使うパスワードを設定してください。
-                  </p>
-                </div>
-              )}
-              <div style={{ marginBottom:16 }}>
-                <label className="lbl f-sans">パスワード（8文字以上）</label>
-                <div style={{ position:"relative" }}>
-                  <input className="field f-sans" type={showPw?"text":"password"} autoComplete="new-password" placeholder="8文字以上"
-                    value={pw} autoFocus style={{ paddingRight:44 }}
-                    onChange={e=>{setPw(e.target.value);setErr("");}}/>
-                  {eyeBtn}
-                </div>
-              </div>
-              <div style={{ marginBottom:20 }}>
-                <label className="lbl f-sans">パスワード（確認用）</label>
-                <div style={{ position:"relative" }}>
-                  <input className={`field f-sans ${shk?"shake":""}`} type={showPw?"text":"password"} autoComplete="new-password" placeholder="もう一度入力"
-                    value={pw2} style={{ paddingRight:44 }}
-                    onChange={e=>{setPw2(e.target.value);setErr("");}}
-                    onKeyDown={e=>e.key==="Enter"&&pw&&pw2&&!sending&&submitPassword()}/>
-                  {eyeBtn}
-                </div>
-                {err&&<p className="f-sans" style={{ marginTop:6,fontSize:11,color:C.shu }}>{err}</p>}
-              </div>
-              <button className="btn-primary" style={{ width:"100%" }}
-                disabled={!pw||!pw2||sending} onClick={submitPassword}>
-                {sending ? <>設定中<Dots /></> : directSignup ? "登録してはじめる" : alreadyRegistered ? "パスワードを設定し直す" : "設定してはじめる"}
-              </button>
-              {directSignup && (
-                <div style={{ textAlign:"center", marginTop:16 }}>
-                  <button onClick={()=>{setDirectSignup(false);setErr("");setView("code");}} disabled={sending} className="f-sans"
-                    style={{ background:"none",border:"none",fontSize:11,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
-                    ← 認証コードの入力に戻る
-                  </button>
-                </div>
-              )}
-              {/* 既存アカウントの人は、パスワードを変えずにそのまま入れる道を残す */}
-              {alreadyRegistered && (
-                <div style={{ textAlign:"center", marginTop:16 }}>
-                  <button onClick={()=>completeLogin(authedUser)} disabled={sending} className="f-sans"
-                    style={{ background:"none",border:"none",fontSize:12,color:C.dim,textDecoration:"underline",textUnderlineOffset:3,cursor:"pointer" }}>
-                    パスワードは変えずに、このまま続ける →
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {(view === "otp" || view === "code") && (
-            <div style={{ textAlign:"center", marginTop:22 }}>
-              <p className="f-sans" style={{ fontSize:11, color:C.dim, lineHeight:1.8 }}>
-                招待を受けた方のメールアドレスを入力して、認証コードを送信してください。
-              </p>
-            </div>
+                {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
+                <button className="cb-auth-primary" disabled={pw.length < 8 || pw2.length < 8 || sending}>
+                  {sending ? <>設定中<Dots /></> : directSignup ? "登録して続ける" : alreadyRegistered ? "パスワードを設定し直す" : "設定して続ける"}
+                </button>
+              </form>
+              {alreadyRegistered && <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => runAction(() => completeLogin(authedUser))}>パスワードを変えずに続ける</button>}
+            </>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }
