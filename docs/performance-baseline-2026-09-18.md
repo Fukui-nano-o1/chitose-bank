@@ -184,3 +184,58 @@ Chromeのパッチ／メジャー番号は実行ごとに異なり、サーバ�
 
 反映前3回の中央値は検索 FCP 5.0秒／LCP 8.9秒、登録URL FCP 4.8秒／LCP 6.3秒。
 反映後も同じ公開URLを3回測る。登録URLは引き続きお知らせを含む初訪問の測定として扱う。
+
+## 8. 公開後の確認とレイアウト補修
+
+`46b7cc7aba44a4126a3b81ed803bf80adef26bac` をmainへ反映し、GitHubに報告されたVercelの
+デプロイ成功を確認。公開検索のLCP要素が `loading="eager" fetchpriority="high"` へ変わり、
+登録URLのお知らせ画像にも1200×800の属性が付いたことをPageSpeedレポートで確認した。
+
+中間版の計測：
+
+| 対象 | FCP | LCP | CLS | レポート |
+| --- | ---: | ---: | ---: | --- |
+| 検索・1 | 4.4秒 | 6.6秒 | 0.319 | [06:40](https://pagespeed.web.dev/analysis/https-chitose-bank-com/zt7fi45ppg?form_factor=mobile) |
+| 検索・2 | 4.6秒 | 6.0秒 | 0.319 | [06:42](https://pagespeed.web.dev/analysis/https-chitose-bank-com/vh21flw8ai?form_factor=mobile) |
+| 登録URL・1 | 2.9秒 | 6.0秒 | 0.103 | [06:40](https://pagespeed.web.dev/analysis/https-www-chitose-bank-com/5wtb64kf0n?form_factor=mobile) |
+
+表示時間は短くなった一方、フッターの移動が検索で0.319、登録で0.103のCLSに寄与した。
+画像の寸法確保だけでは解消しなかったため、本文の最小高さを100svhにして、読み込み中も
+フッターが画面上方へ詰まらないように補修。同梱お知らせ画像にはCSSのaspect-ratioも明示した。
+ビルド・lintを通した後、`0ade95f8f37819addf9d65b7be563a67c8b98a1a` としてmainへ反映し、
+Vercelのデプロイ成功を確認した。最終版の計測はこの補修後の公開URLを対象にする。
+
+## 9. 最終版の公開計測結果
+
+対象コードは `0ade95f8`。低速4G・Moto G Power・初回訪問・Lighthouse 13.4.1で各3回。
+Chromeは検索が153.0.8010.36／151.0.7922.71／151.0.7922.173、登録URLは3回とも151.0.7922.71。
+
+| 対象・回 | FCP | LCP | CLS | TBT | Performance | レポート |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 検索・1 | 3.6秒 | 6.4秒 | 0.042 | 20ms | 65 | [06:46](https://pagespeed.web.dev/analysis/https-chitose-bank-com/lnixaqf39n?form_factor=mobile) |
+| 検索・2 | 3.2秒 | 8.7秒 | 0.042 | 0ms | 67 | [06:47](https://pagespeed.web.dev/analysis/https-chitose-bank-com/bj9m4g15zk?form_factor=mobile) |
+| 検索・3 | 3.6秒 | 8.0秒 | 0.042 | 100ms | 62 | [06:49](https://pagespeed.web.dev/analysis/https-chitose-bank-com/nhby4b97re?form_factor=mobile) |
+| 登録URL・1 | 4.1秒 | 6.0秒 | 0 | 0ms | 66 | [06:46](https://pagespeed.web.dev/analysis/https-www-chitose-bank-com/3c52ricbrc?form_factor=mobile) |
+| 登録URL・2 | 3.5秒 | 6.0秒 | 0 | 0ms | 66 | [06:48](https://pagespeed.web.dev/analysis/https-www-chitose-bank-com/on0wmzrm1m?form_factor=mobile) |
+| 登録URL・3 | 2.9秒 | 5.9秒 | 0 | 0ms | 72 | [06:49](https://pagespeed.web.dev/analysis/https-www-chitose-bank-com/mnf6w0pztl?form_factor=mobile) |
+
+| 中央値 | 反映前 | 最終版 |
+| --- | ---: | ---: |
+| 検索 FCP | 5.0秒 | 3.6秒 |
+| 検索 LCP | 8.9秒 | 8.0秒 |
+| 検索 CLS | 0.319 | 0.042 |
+| 検索 TBT | 0ms | 20ms |
+| 登録URL FCP | 4.8秒 | 3.5秒 |
+| 登録URL LCP | 6.3秒 | 6.0秒 |
+| 登録URL CLS | 0.006 | 0 |
+| 登録URL TBT | 0ms | 0ms |
+
+初描画と表示位置の安定性は改善した。検索LCPの改善は小さく、最終版でも6.4〜8.7秒のばらつきがある。
+登録URLのLCPも引き続き前面のお知らせ画像を含む測定であり、フォームの操作可能時間ではない。
+検索TBTは中央値20ms／最大100msだった。初回の1秒目標、全画面の再訪100ms目標は未達／未検証のまま。
+3回の模擬計測であり、実利用全体への効果を保証する値ではない。
+
+次の段階は、初回のデータ取得経路・画像転送・描画までの待ちを分解し、
+ログイン済みの検索／カレンダー／チャット／マイページ／管理画面で内容が操作可能になる時刻を測ること。
+現時点で残りの遅延をサーバー単独の原因とは断定しない。保存確定・別画面への反映・既存PWAの更新時間も残る。
+実アカウントのログイン操作はCLAUDE.mdの本人ログイン規則に従う。
