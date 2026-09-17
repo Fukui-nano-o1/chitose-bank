@@ -9,14 +9,13 @@
 import { NavIcon } from "./NavIcons";
 import { ROLE_ORANGE, ROLE_GREEN } from "../lib/utils";
 
-export function RoleSwitchOverlay({ target, creating }) {
+// ★「農家をはじめる準備をしています」の出し分け（creating）は廃止（2026-09-17たきと指示
+//   「農家に切り替えが農家を作るになっている。差し替えして」）＝ボタンの名前と幕の言葉をそろえる。
+//   雇い手の面を持っているかは見ない＝どちらも「農家に切り替えています」。
+export function RoleSwitchOverlay({ target }) {
   const worker = target === "worker";
   const color = worker ? ROLE_ORANGE : ROLE_GREEN;
-  const label = worker
-    ? "働き手に切り替えています"
-    : creating
-      ? "農家をはじめる準備をしています"
-      : "農家に切り替えています";
+  const label = worker ? "働き手に切り替えています" : "農家に切り替えています";
   return (
     <div className="cb-roleswitch f-sans" role="status" aria-live="polite">
       <div className="cb-roleswitch-badge" style={{ borderColor: color, color }}>

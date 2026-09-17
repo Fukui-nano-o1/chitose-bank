@@ -156,23 +156,11 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   // WORKER_TABS(サイドタブ列)は廃止（2026-07-14）：入口カードメニューに一本化
-  const [hasEmployerSide, setHasEmployerSide] = useState(() => getCache("hub:hasEmp") ?? false);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session || cancelled) return;
-        // 求人の有無と雇い手プロフィールの有無は独立なので同時に投げる（2026-07-27たきと指示）
-        const [{ count }, { data: ep }] = await Promise.all([
-          supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", session.user.id),
-          supabase.from("employer_profiles").select("auth_id").eq("auth_id", session.user.id).maybeSingle(),
-        ]);
-        if (!cancelled && ((count || 0) > 0 || ep)) { setHasEmployerSide(true); setCache("hub:hasEmp", true); }
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  // ★雇い手の面を持っているかの判定（hasEmployerSide）は廃止した（2026-09-17たきと指示
+  //   「農家に切り替えが農家を作るになっている。差し替えして」）＝切替のボタンも幕も
+  //   いつも「農家に切替」。行き先は同じ農家の面で、プロフィールが無ければその面が作り方を案内する
+  //   （名乗り前の人に別の言葉を出すより、入口の名前がひとつである方が迷わない）。
+  //   判定に使っていた jobs の件数と employer_profiles の2本の問い合わせも一緒に消えた。
   // applying の見出しは「返事待ち」→「あなたの応募」（2026-08-22たきと指示・入口カードの名前とも一致）
   const WORKER_TAB_TITLES = { wprofile:"働き手プロフィール", applying:"あなたの応募", approved:"きょうの仕事" };
   // 入口カードメニュー用：本人のworker_profiles(表示名/アバター)と応募件数（バッジ表示）
@@ -242,7 +230,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   return (
     <div className="profile-employer-edge" style={{maxWidth:1024,margin:"0 auto",padding:"32px 4px 0"}}>{/* プロフィール両面とも画面端から10pxに統一（モバイル・CSS側の負マージン併用） */}
       {/* 役割切替の全画面アニメ（Airbnb風・2026-08-22）：幕が出ている間に下で面が入れ替わる */}
-      {roleSwitch && <RoleSwitchOverlay target={roleSwitch} creating={roleSwitch === "employer" && !hasEmployerSide} />}
+      {roleSwitch && <RoleSwitchOverlay target={roleSwitch} />}
       {/* 浮遊ボタンはトグル式：働き手側の表示中→「雇う」(雇い手空間へ)／農家プロ(雇い手空間)の表示中→「働く」(働き手側へ)。
           表示は両面の入口(カードメニュー)のみ＝編集・サブページでは非表示（2026-07-14）。
           切替はAirbnb風の全画面アニメ（2026-08-22・旧pflip 0.4s×2を置き換え）：
@@ -259,8 +247,7 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
               ラベルの色名「（橙）（緑）」は削除した（2026-08-22たきと指示）＝色は見れば分かる */}
           {pTab === "employer"
             ? <><NavIconInline name="swap" size={13} style={{ verticalAlign:"-2px" }} />働き手に切替</>
-            : (hasEmployerSide ? <><NavIconInline name="swap" size={13} style={{ verticalAlign:"-2px" }} />農家に切替</>
-                               : <><NavIconInline name="sprout" size={13} style={{ verticalAlign:"-2px" }} />農家を作る</>)}
+            : <><NavIconInline name="swap" size={13} style={{ verticalAlign:"-2px" }} />農家に切替</>}
         </button>
       )}
       {/* 面の中身をkey={pTab}で包む：切替時に再マウント→fade-inが再生される（幕の下で入れ替わり、
