@@ -1935,7 +1935,7 @@ export default function App(){
       </div>}
 
       {/* ── MAIN ── */}
-      <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px"}}>
+      <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px",minHeight:"100svh",boxSizing:"border-box"}}>
         <DevBadge label="App(Dashboard/Home)" />
         <AppErrorBoundary>
         <Suspense fallback={<RouteLoading />}>

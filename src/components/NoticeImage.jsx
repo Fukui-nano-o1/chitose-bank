@@ -9,5 +9,6 @@ const sizes = {
 export function NoticeImage({ src, alt }) {
   const dimensions = Object.hasOwn(sizes, src) ? sizes[src] : {};
   return <img src={src} alt={alt} {...dimensions} loading="eager" fetchPriority="high"
-    style={{ display: "block", width: "100%", height: "auto", borderRadius: 12 }} />;
+    style={{ display: "block", width: "100%", height: "auto", borderRadius: 12,
+      aspectRatio: dimensions.width ? `${dimensions.width} / ${dimensions.height}` : undefined }} />;
 }
