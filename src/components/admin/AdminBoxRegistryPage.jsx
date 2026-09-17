@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { NoticeJumpText } from "../ui";
+import { NoticeImage } from "../NoticeImage";
 import { NavIcon } from "../NavIcons";
 import { NavIconInline } from "../NavIcons";
 import { StageBoxBody, APPROVED_STEPS, APPLIED_STEPS, WORKED_STEPS, F_WORKED_STEPS } from "../StageBoxBody";
@@ -190,7 +191,7 @@ export function AdminBoxRegistryPage() {
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={nPreview.name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {nPreview.image_url
-              ? <img src={nPreview.image_url} alt={nPreview.name} style={{ display:"block", width:"100%", borderRadius:12 }} />
+              ? <NoticeImage src={nPreview.image_url} alt={nPreview.name} />
               : <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{nPreview.body}</p>}
             {nPreview.link_label && nPreview.link_hash && (
               <p style={{ margin:"22px 0 0" }}>

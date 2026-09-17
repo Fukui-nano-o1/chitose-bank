@@ -27,7 +27,7 @@ export const JOB_CARD_PHOTO_H = 220;
 //   ページの展開ボックス）専用。既定は従来どおり表示ので、渡していない呼び出し元は無変更
 // views（任意・2026-08-21たきと指示）：この求人thatタップされた総数。❤️の左横に 👀N で出す。
 //   渡さない／0以下なら何も出さない＝呼び出し元は無変更（数字thatゼロの求人に0を出さない・憲法3条）
-export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views }) {
+export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
@@ -108,7 +108,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
         </div>
       )}
       {topSrc ? (
-        <img loading="lazy" src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
+        <img loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
       ) : (
         /* 写真が無い求人は求人者のアイコンを大きく出す（2026-07-30たきと指示・詳細/確認ページと同じ扱い）。
            アイコン未設定なら Avatar が名前の頭文字の丸を出し、名前も無ければ作物の絵文字に落とす */

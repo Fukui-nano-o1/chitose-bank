@@ -11,17 +11,23 @@ import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
 import { installFixedRepin } from "./lib/fixedRepin";
 import { DoneScreen } from "./components/DoneScreen";
 import { PublishDone } from "./components/PublishDone";
-import { TodayPage } from "./components/TodayPage";
 import { Avatar, NoticeJumpText, DevBadge, PhaseInfoSheet, Dots } from "./components/ui";
 import { NavIcon, NavIconInline } from "./components/NavIcons";
-import { SavedJobsView } from "./components/SavedJobsView";
-import { WorkerTrustCard, FarmerTrustCard } from "./components/TrustCards";
 import { logAppError } from "./app/diagnostics/errorLog";
-import { lazyChunk, prepareFreshReload } from "./app/chunkReload";
+import { prepareFreshReload } from "./app/chunkReload";
 import { AppErrorBoundary } from "./app/AppErrorBoundary";
-import { PRIVACY_SECTIONS, PrivacyDataTable, PrivacyPolicy } from "./app/legal/PrivacyPolicy";
-import { DataConstitution } from "./app/legal/DataConstitution";
-import { HelpCenter, InstallGuide } from "./app/help/HelpCenter";
+import { RouteLoading } from "./app/RouteLoading";
+import { NoticeImage } from "./components/NoticeImage";
+import {
+  ChatView, AdminChatPage, ApplyPending, NewApplicantsPage, LandingFlow,
+  AdminTab, ConsignmentRoom, AdminBoxRegistryPage, AdminWorkingRoom, AdminUpcomingRoom,
+  AdminEvaluationRoom, AdminSystemRoom, AdminReviewCommentsRoom, AdminReportsRoom, AdminFarmerPagesRoom,
+  AdminAnimationsRoom, FarmTimelessRoom, ProfileHub, TodayPage, SavedJobsView,
+  ChatList, LoginScreen, AccountHolderForm, ProfileModal, OnboardingModal,
+  JobSearchMapView, WorkerExperiencePage, HelpCenter, InstallGuide, InsurancePrepPage,
+  VisitEntrance, VisitorQRPage, CharterPage, PrivacyPage, TermsPage,
+  Terms, PrivacyPolicy, DataConstitution, warmNavigation,
+} from "./app/routes";
 import { FeedbackModal } from "./app/diagnostics/FeedbackModal";
 import { PageGuide, guideForHash } from "./components/PageGuide";
 import { StageBoxBody, APPROVED_STEPS, APPLIED_STEPS, WORKED_STEPS, F_WORKED_STEPS } from "./components/StageBoxBody";
@@ -61,38 +67,9 @@ function FlowLoading({ label = <>求人フローを開いています<Dots /></>
 // 応募完了・仮応募・働き手フロー完了の「トースト＋花火＋60秒で さがす へ」は廃止（2026-09-02たきと指示
 // 「全てAirbnbをパクれ」）＝白い全画面の完了画面（components/DoneScreen）に置き換えた。下の描画を参照
 
-const ChatView = lazyChunk(() => import("./components/ChatView").then(m => ({ default: m.ChatView })));
-const AdminChatPage = lazyChunk(() => import("./components/AdminChat").then(m => ({ default: m.AdminChatPage })));
-// 仮応募の成功ページ（第15弾・2026-07-30）。応募した人だけが通る画面ので遅延読み込み
-const ApplyPending = lazyChunk(() => import("./components/ApplyPending").then(m => ({ default: m.ApplyPending })));
-// 新着の応募ページ（#/new-applicants・2026-08-05）。応募が届いた雇い手だけが通る面ので遅延読み込み
-const NewApplicantsPage = lazyChunk(() => import("./components/NewApplicantsPage").then(m => ({ default: m.NewApplicantsPage })));
-import { ChatList } from "./components/ChatList";
-import { LoginScreen } from "./components/LoginScreen";
-import { AccountHolderForm } from "./components/AccountHolderForm";
+// 画面の遅延読み込み・先読みは app/routes.jsx に集約。
 import PrivacyReconsent from "./components/PrivacyReconsent";
-import { ProfileModal } from "./components/ProfileModal";
-import { OnboardingModal } from "./components/OnboardingModal";
-import { JobSearchMapView } from "./components/JobSearchMapView";
-const LandingFlow = lazyChunk(() => import("./features/jobs/create/LandingFlow").then(m => ({ default: m.LandingFlow })));
-const AdminTab = lazyChunk(() => import("./components/admin/AdminTab").then(m => ({ default: m.AdminTab })));
-const ConsignmentRoom = lazyChunk(() => import("./features/consignment/ConsignmentRoom").then(m => ({ default: m.ConsignmentRoom })));
-const AdminBoxRegistryPage = lazyChunk(() => import("./components/admin/AdminBoxRegistryPage").then(m => ({ default: m.AdminBoxRegistryPage })));
-const AdminWorkingRoom = lazyChunk(() => import("./components/admin/AdminWorkingRoom").then(m => ({ default: m.AdminWorkingRoom })));
-const AdminUpcomingRoom = lazyChunk(() => import("./components/admin/AdminUpcomingRoom").then(m => ({ default: m.AdminUpcomingRoom })));
-const AdminEvaluationRoom = lazyChunk(() => import("./components/admin/AdminEvaluationRoom").then(m => ({ default: m.AdminEvaluationRoom })));
-const AdminSystemRoom = lazyChunk(() => import("./components/admin/AdminSystemRoom").then(m => ({ default: m.AdminSystemRoom })));
-const AdminReviewCommentsRoom = lazyChunk(() => import("./components/admin/AdminReviewCommentsRoom").then(m => ({ default: m.AdminReviewCommentsRoom })));
-const AdminReportsRoom = lazyChunk(() => import("./components/admin/AdminReportsRoom").then(m => ({ default: m.AdminReportsRoom })));
-const AdminFarmerPagesRoom = lazyChunk(() => import("./components/admin/AdminFarmerPagesRoom").then(m => ({ default: m.AdminFarmerPagesRoom })));
-const AdminAnimationsRoom = lazyChunk(() => import("./components/admin/AdminAnimationsRoom").then(m => ({ default: m.AdminAnimationsRoom })));
-const FarmTimelessRoom = lazyChunk(() => import("./components/admin/FarmTimelessRoom").then(m => ({ default: m.FarmTimelessRoom })));
-// プロフィールタブ（2026-07-27たきと指示「リロードを必要最低限に」）：農家ハブ・応募状況・
-// プロフィール編集・カレンダーがぶら下がる大きな塊ので、開いた時に初めて読む＝起動のJSを軽くする
-const ProfileHub = lazyChunk(() => import("./components/ProfileHub").then(m => ({ default: m.ProfileHub })));
 import { CSS } from "./appStyles";
-import { InsurancePrepPage, VisitEntrance, VisitorQRPage } from "./components/VisitAndInsurance";
-import { WorkerExperiencePage } from "./components/WorkerExperiencePage";
 
 import { syncAppBadge, closeReadNotifications } from "./lib/push";
 import { peekApplyReturn } from "./lib/applyReturn";
@@ -102,7 +79,6 @@ import { saveLastRoute } from "./lib/lastRoute";
 import { prefetchChatBody } from "./lib/chatBodyCache";
 import { getCache, setCache, clearCache } from "./lib/viewCache";
 
-import Terms, { TERMS_ARTICLES, renderRichText } from "./Terms.jsx";
 
 // 起動時に要らない問い合わせを後ろへ送る待ち行列（2026-08-18 Speed-1C-1）。アプリに1本。
 // 1本ずつ流す（同じidle枠に2本入れない）。寿命はアプリと同じso cancel は呼ばない
@@ -357,6 +333,7 @@ export default function App(){
   const [loaded,setLoaded]=useState(() => !!snapGet("me"));
   const [badgeCnt,setBadgeCnt]=useState(0);
   const [me,setMe]=useState(() => snapGet("me"));
+  useEffect(() => { if (loaded) return warmNavigation(!!me?.id); }, [loaded, me?.id]);
   const [blockedAccount,setBlockedAccount]=useState(false); // 停止／追放されたアカウントの制限画面（2026-07-19）
   useEffect(() => { if (me?.id) snapSet("me", me); }, [me]);
   // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則（2026-07-14改）：
@@ -1677,7 +1654,7 @@ export default function App(){
         <div onClick={()=>setLoginBox(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10200, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
           <div ref={loginSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:0, right:0, top:"6vh", bottom:0, maxWidth:560, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div ref={loginScrollRef} style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"0 0 calc(16px + env(safe-area-inset-bottom, 0px))" }}>
-              <LoginScreen embedded onClose={() => setLoginBox(false)} onLogin={f=>{
+              <Suspense fallback={<RouteLoading />}><LoginScreen embedded onClose={() => setLoginBox(false)} onLogin={f=>{
                 setLoginBox(false);
                 setMe(f);
                 // ボックスは画面を奪っていないので、原則その場に留まる。
@@ -1689,7 +1666,7 @@ export default function App(){
                 const ret = peekApplyReturn();
                 if (ret) { window.location.hash = "/work/job/" + ret; setTab("search"); return; }
                 takeLoginReturn(); // その場に居るので戻り先は使わない＝古い記録を残さない
-              }}/>
+              }}/></Suspense>
             </div>
           </div>
         </div>
@@ -1720,7 +1697,7 @@ export default function App(){
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}><NoticeJumpText text={activeNotices[0].name} /></p>
             <div style={{ height:1, background:"#E5E5E5", margin:"14px 0" }} />
             {activeNotices[0].image_url
-              ? <img src={activeNotices[0].image_url} alt={activeNotices[0].name} style={{ display:"block", width:"100%", borderRadius:12 }} />
+              ? <NoticeImage src={activeNotices[0].image_url} alt={activeNotices[0].name} />
               : <p className="f-sans" style={{ fontSize:18, color:"#444", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word" }}>{activeNotices[0].body}</p>}
             {activeNotices[0].link_label && activeNotices[0].link_hash && (
               <p style={{ margin:"22px 0 0" }}>
@@ -1772,7 +1749,7 @@ export default function App(){
                   (item.auth ? !!me : true) &&
                   (item.guestOnly ? !me : true))
                 .map(item => (
-                  <button key={item.key}
+                  <button key={item.key} data-prefetch-route={item.hash}
                     onClick={() => { setMenuOpen(false); window.location.hash = item.hash; }}
                     className="f-sans"
                     style={{ display:"block", width:"100%", textAlign:"left", background:"none",
@@ -1880,7 +1857,7 @@ export default function App(){
             // ⚠（job_revision＝修正のお願い）の表示は「求人」タブごと消えた（2026-08-21・さがすに差し替え）。
             // 修正のお願いの気づきは今日ページの「📝求人の修正」箱とお知らせ・メールが引き続き担う
             return (
-            <button key={t.k}
+            <button key={t.k} data-prefetch-route={"/" + t.k}
               onClick={() => {
                 setMobileMenuOpen(false);
                 // 項目ページ（#/profile/{worker|employer}/profile/{項目}）を開いている時の「マイページ」＝
@@ -1948,7 +1925,7 @@ export default function App(){
         {TABS.map(({k,badge,l})=>{
           const icons={search:"search",work:"hire",profile:"profile",admin:"gear",labor:"hire"};
           return(
-            <button key={k} onClick={()=>setTab(k)} className={safeTab===k?"active":""}>
+            <button key={k} data-prefetch-route={"/" + k} onClick={()=>setTab(k)} className={safeTab===k?"active":""}>
               <span className="icon"><NavIcon name={icons[k]} size={20} /></span>
               {l}
               {badge>0&&<span style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:"50%",background:"#E24B4A",color:"#fff",fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{badge}</span>}
@@ -1961,6 +1938,7 @@ export default function App(){
       <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px"}}>
         <DevBadge label="App(Dashboard/Home)" />
         <AppErrorBoundary>
+        <Suspense fallback={<RouteLoading />}>
         {/* 管理者専用エラー帯（2026-08-07）：どのタブでも画面上部に出る。システムページ表示中は
             自分自身を指すだけなので出さない。一般ユーザーには描画も取得も走らない（isAdminゲート） */}
         {/* エラーの運営チャットへの報告は、DBのトリガー（trg_z_app_error_report・migration 20260831060413）が
@@ -1970,7 +1948,7 @@ export default function App(){
           <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"14px 18px", background:"#EAF7F0", border:"1px solid #00A86B", borderRadius:12, fontSize:13, color:"#1B5E3F", lineHeight:1.6 }}>
             <span>利用規約とプライバシーポリシーを全面改訂しました（7/21）</span>
             <div style={{ display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
-              <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>→ 読む</button>
+              <button data-prefetch-route="/terms" onClick={()=>{ window.location.hash="/terms"; }} className="f-sans" style={{ background:"none", border:"none", padding:0, fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>→ 読む</button>
               <button onClick={()=>{ setLegalV2BannerDismissed(true); try{ localStorage.setItem("cb_legalv2_banner_dismissed","1"); }catch{} }} aria-label="閉じる" style={{ background:"none", border:"none", fontSize:16, color:"#1B5E3F", cursor:"pointer", padding:0 }}>×</button>
             </div>
           </div>
@@ -2059,135 +2037,16 @@ export default function App(){
           }}
           onShowAccountForm={() => { setOpenAccountForm(true); window.location.hash = "/account"; }}/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="boxes"&&isAdmin(me)&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminBoxRegistryPage/></Suspense>}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="charter"&&(
-          <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
-            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>運営憲章</h1>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／改訂：2026年7月24日</p>
-
-            <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
-              {[
-                { id:"charter-ch1", l:"一、この場について" },
-                { id:"charter-ch2", l:"二、三つの原則" },
-                { id:"charter-ch3", l:"三、我々の仕事" },
-                { id:"charter-ch4", l:"四、双方に寄り添うこと" },
-                { id:"charter-ch5", l:"五、これからの仕組みについて" },
-                { id:"charter-def", l:"定義" },
-              ].map(t => (
-                <button key={t.id} onClick={()=>{ document.getElementById(t.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }} className="f-sans" style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>{t.l}</button>
-              ))}
-            </nav>
-
-            <div style={{ display:"grid", gap:28 }}>
-
-              <section id="charter-ch1" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>一、この場について</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>農業の雇用には、雇用して初めて分かることが二つある。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>雇い手にとっては働き手の技術と知識、働き手にとっては職場の環境と待遇である。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、その双方を事実として記録し、雇い手と働き手が雇用の前に互いを判断できる場を運営する。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>働き手は自らの望む条件を示すことができ、雇い手はそれに応えることができる。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>記録の積み重ねが働き手の資産となり、頼れる担い手が育っていく土壌となることを大切にする。</p>
-              </section>
-
-              <section id="charter-ch2" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>二、三つの原則</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>1. 我々は、当事者どうしの連絡を制限しない。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>2. 我々は、雇用の成立に対する成功報酬を、現在も将来も受け取らない。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>3. 我々は、採用の判断に関与しない。誰を選ぶかは、農家と働き手が決める。</p>
-              </section>
-
-              <section id="charter-ch3" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>三、我々の仕事</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、場を整え、約束の記録を守り、法令に反する掲載を防ぐ。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>実績は、この場での働きの記録からだけ作られる。我々はそれを改変せず、飾らない。</p>
-              </section>
-
-              <section id="charter-ch4" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>四、双方に寄り添うこと</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>我々は、農家と働き手のどちらか一方の味方ではなく、双方に寄り添う立場で運営する。</p>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>困りごとの窓口を常に開き、寄せられた声には必ず返事をする。</p>
-              </section>
-
-              <section id="charter-ch5" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>五、これからの仕組みについて</h2>
-                <p className="f-sans" style={{ fontSize:16, color:"#333", lineHeight:2, margin:0 }}>農作業の委託・受託など、新しい仕組みをこの場に加えるときは、その約束をこの憲章に書き足してから始める。黙って変えることはしない。</p>
-              </section>
-
-              <section id="charter-def" style={{ scrollMarginTop:88, background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", padding:"24px 26px" }}>
-                <h2 className="f-sans" style={{ fontSize:19, fontWeight:700, color:"#222", marginBottom:14 }}>定義</h2>
-                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※　働き手とは、農作業に携わるために本サービスを利用する者をいう。</p>
-                <p className="f-sans" style={{ fontSize:15, color:"#555", lineHeight:2, margin:0 }}>※　農家とは、農作業の求人を掲載する者をいう。</p>
-              </section>
-
-            </div>
-          </div>
-        )}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="charter"&&<CharterPage />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="install"&&<InstallGuide me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="experience"&&me&&<WorkerExperiencePage />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="qr"&&isAdmin(me)&&<VisitorQRPage />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="privacy"&&(
-          <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
-            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改訂：2026年7月21日／改訂：2026年8月19日</p>
-
-            <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
-              {PRIVACY_SECTIONS.map(s => (
-                <button key={s.id}
-                  onClick={()=>{ document.getElementById(s.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }}
-                  className="f-sans"
-                  style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>
-                  {s.title}
-                </button>
-              ))}
-            </nav>
-
-            {/* 各条の箱の minWidth:0 は、モーダル側（app/legal/PrivacyPolicy.jsx）と同じ理由＝表が箱を押し広げないように */}
-            <div style={{ display:"grid", gap:20 }}>
-              {PRIVACY_SECTIONS.map((s, i) => (
-                <div key={i} id={s.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88, minWidth:0 }}>
-                  <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
-                  {s.body.map((p, j) => (
-                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
-                  ))}
-                  {s.table && <div style={{ marginTop:12 }}><PrivacyDataTable table={s.table} /></div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="terms"&&(
-          <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
-            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>利用規約</h1>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
-            <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改訂：2026年7月21日／一部改訂：2026年8月19日</p>
-
-            <nav style={{ display:"grid", gap:10, marginBottom:36 }}>
-              {TERMS_ARTICLES.map(a => (
-                <button key={a.id}
-                  onClick={()=>{ document.getElementById(a.id)?.scrollIntoView({ behavior:"smooth", block:"start" }); }}
-                  className="f-sans"
-                  style={{ fontSize:17, fontWeight:600, color:"#00A86B", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 2px 8px rgba(0,0,0,0.05)", cursor:"pointer", padding:"14px 18px", textAlign:"left", width:"100%" }}>
-                  {a.title}
-                </button>
-              ))}
-            </nav>
-
-            <div style={{ display:"grid", gap:20 }}>
-              {TERMS_ARTICLES.map((a, i) => (
-                <div key={i} id={a.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88 }}>
-                  <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{a.title}</h3>
-                  {a.body.map((p, j) => (
-                    <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < a.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="privacy"&&<PrivacyPage />}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="terms"&&<TermsPage />}
+        </Suspense>
         </AppErrorBoundary>
       </main>
 
@@ -2196,26 +2055,26 @@ export default function App(){
         <div className="footer-columns">
           <div>
             <p className="f-sans footer-col-title">サポート</p>
-            <button onClick={()=>{ window.location.hash="/help"; }} className="f-sans footer-col-link">使い方ガイド</button>
-            <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">よくある質問</button>
-            <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">通報のしかた</button>
-            <button onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">異議申立</button>
+            <button data-prefetch-route="/help" onClick={()=>{ window.location.hash="/help"; }} className="f-sans footer-col-link">使い方ガイド</button>
+            <button data-prefetch-route="/help/faq" onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">よくある質問</button>
+            <button data-prefetch-route="/help/faq" onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">通報のしかた</button>
+            <button data-prefetch-route="/help/faq" onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">異議申立</button>
             <a href="mailto:t5fki6643qty@gmail.com" className="f-sans footer-col-link">お問い合わせ</a>
           </div>
           <div>
             <p className="f-sans footer-col-title">雇う・働く</p>
-            <button onClick={()=>{ window.location.hash="/search"; }} className="f-sans footer-col-link">求人を探す</button>
-            <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">掲載のしくみ</button>
-            <button onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額支払型とは</button>
-            <button onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans footer-col-link">保険の準備</button>
-            <button onClick={()=>{ window.location.hash="/help/worker"; }} className="f-sans footer-col-link">評価のしくみ</button>
+            <button data-prefetch-route="/search" onClick={()=>{ window.location.hash="/search"; }} className="f-sans footer-col-link">求人を探す</button>
+            <button data-prefetch-route="/help/farmer" onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">掲載のしくみ</button>
+            <button data-prefetch-route="/help/farmer" onClick={()=>{ window.location.hash="/help/farmer"; }} className="f-sans footer-col-link">満額支払型とは</button>
+            <button data-prefetch-route="/help/mails" onClick={()=>{ window.location.hash="/help/mails"; }} className="f-sans footer-col-link">保険の準備</button>
+            <button data-prefetch-route="/help/worker" onClick={()=>{ window.location.hash="/help/worker"; }} className="f-sans footer-col-link">評価のしくみ</button>
           </div>
           <div>
             <p className="f-sans footer-col-title">chitose-bank</p>
-            <button onClick={()=>{ window.location.hash="/charter"; window.scrollTo(0,0); }} className="f-sans footer-col-link">運営憲章</button>
-            <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">利用規約</button>
-            <button onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans footer-col-link">プライバシー</button>
-            <button onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">届出について</button>
+            <button data-prefetch-route="/charter" onClick={()=>{ window.location.hash="/charter"; window.scrollTo(0,0); }} className="f-sans footer-col-link">運営憲章</button>
+            <button data-prefetch-route="/terms" onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">利用規約</button>
+            <button data-prefetch-route="/privacy" onClick={()=>{ window.location.hash="/privacy"; }} className="f-sans footer-col-link">プライバシー</button>
+            <button data-prefetch-route="/terms" onClick={()=>{ window.location.hash="/terms"; }} className="f-sans footer-col-link">届出について</button>
           </div>
         </div>
         <div className="footer-bottom">
@@ -2308,21 +2167,21 @@ export default function App(){
             setShowDevJump(false); setWorkerFlowDone(true); }}
         /></Suspense></AppErrorBoundary>
       )}
-      {showTerms&&<Terms onClose={()=>setShowTerms(false)}/>}
-      {showConstitution&&<DataConstitution onClose={()=>setShowConstitution(false)}/>}
-      {showPrivacy&&<PrivacyPolicy onClose={()=>setShowPrivacy(false)}/>}
+      {showTerms&&<AppErrorBoundary><Suspense fallback={<FlowLoading label="文書を開いています" />}><Terms onClose={()=>setShowTerms(false)}/></Suspense></AppErrorBoundary>}
+      {showConstitution&&<AppErrorBoundary><Suspense fallback={<FlowLoading label="文書を開いています" />}><DataConstitution onClose={()=>setShowConstitution(false)}/></Suspense></AppErrorBoundary>}
+      {showPrivacy&&<AppErrorBoundary><Suspense fallback={<FlowLoading label="文書を開いています" />}><PrivacyPolicy onClose={()=>setShowPrivacy(false)}/></Suspense></AppErrorBoundary>}
       {me&&!me.isWorker&&!me.viaAccountHolder&&showOnboarding&&(
-        <OnboardingModal
+        <AppErrorBoundary><Suspense fallback={<FlowLoading label="プロフィールを開いています" />}><OnboardingModal
           key={obModalKey}
           me={me}
           setMe={setMe}
           onComplete={completeOnboarding}
           isEditing={showOnboarding&&!!(me.name?.trim()&&me.prefecture)}
           onClose={()=>setShowOnboarding(false)}
-        />
+        /></Suspense></AppErrorBoundary>
       )}
       {showProfile&&me&&(
-        <ProfileModal
+        <AppErrorBoundary><Suspense fallback={<FlowLoading label="プロフィールを開いています" />}><ProfileModal
           me={me}
           recs={recs}
           isContributor={isContributor}
@@ -2331,7 +2190,7 @@ export default function App(){
           onEditProfile={()=>{setShowProfile(false);setShowOnboarding(true);setObModalKey(k=>k+1);}}
           onLogout={handleLogout}
           onAvatarChange={url=>setAvatarUrl(url)}
-        />
+        /></Suspense></AppErrorBoundary>
       )}
     </div>
   );

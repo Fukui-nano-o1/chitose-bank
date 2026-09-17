@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { restoreLastRoute } from './lib/lastRoute'
+import { installRoutePreloading } from './app/routes'
 
 // Service Workerの登録はここでは行わない（2026-08-18 Speed-1A）。
 // vite-plugin-pwa が index.html に入れる registerSW.js が唯一の登録経路＝経路を1本に保つ。
@@ -27,11 +28,11 @@ try {
 //（一瞬さがすが出てから移る、を作らない）。URLに行き先の指定がある時は何もしない＝
 // 共有リンク・メールのリンク・緊急連絡のリンクを奪わない。中身は lib/lastRoute.js。
 restoreLastRoute()
+const stopPreloading = installRoutePreloading()
+if (import.meta.hot) import.meta.hot.dispose(stopPreloading)
 
-// 起動スケルトン（index.htmlの#cb-boot）の引き継ぎ（2026-08-03）：Reactが描く直前に外す。
-// createRootは初回renderでコンテナの中身を消すが、その挙動に頼らず明示的に外す（消し忘れ＝
-// 骨が本体の上に残り続ける事故を、実装の都合ではなくコードで断つ）
-document.getElementById('cb-boot')?.remove()
+// #cb-bootは最初のReact commitが置き換える。render()の前に消すと、
+// 非同期の初回描画まで空白が生まれるので、実際に本体が描けるまで残す。
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -84,22 +84,21 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
         // 2本は互いに独立ので、awaitする前に同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前は getSession→予定→いいね の直列3段で、しかも盤面を出すのに
         // いいね（❤️の飾り）の到着まで待っていた
-        const calP = supabase.rpc("get_my_calendar_jobs");
-        const savedP = supabase.from("saved_jobs").select("job_number").eq("worker_id", session.user.id);
+        // Supabaseのビルダーはthenされるまで通信しない。飾りの取得もここで始める。
+        Promise.resolve(supabase.from("saved_jobs").select("job_number").eq("worker_id", session.user.id))
+          .then(r => {
+            if (cancelled || r.error || !r.data) return;
+            const ids = r.data.map(x => x.job_number);
+            setLikedIds(new Set(ids)); setCache("cal:liked", ids);
+          }).catch(() => {});
 
         // 盤面は予定thatが返った時点で出す＝いいねは飾りso待たない
-        const calRes = await calP;
+        const calRes = await supabase.rpc("get_my_calendar_jobs");
         if (cancelled) return;
         // ★失敗時はキャッシュのままにする（res.errorを見ずに上書きすると、通信不調の数秒間だけ
         //   予定that消えて「予定はまだありません」に見える＝2026-08-07のフェイルオープンと同じ型）
         if (!calRes.error) { const rows = calRes.data || []; setEntries(rows); setCache("today:entries", rows); }
 
-        // いいねは届き次第あとから乗せる（thenableはPromise.resolveで包む・2026-07-26教訓）
-        Promise.resolve(savedP).then(r => {
-          if (cancelled || r.error || !r.data) return;
-          const ids = r.data.map(x => x.job_number);
-          setLikedIds(new Set(ids)); setCache("cal:liked", ids); // Setは保存できないso配列で持つ
-        }).catch(() => {});
       } catch { /* 失敗時は手元の表示のまま（フェイルオープン規則） */ }
     })();
     return () => { cancelled = true; };

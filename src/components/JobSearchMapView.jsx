@@ -1060,8 +1060,8 @@ export function JobSearchMapView({ onRegister, me }) {
               <button onClick={clearSearch} className="f-sans" style={{ padding:"10px 22px", fontSize:13, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:20, color:"#00A86B", cursor:"pointer" }}>条件をクリア</button>
             </div>
           )}
-          {filteredList.map(job => (
-            <JobCard key={job.id} job={job} variant="list" saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} views={viewCounts[job.id]} />
+          {filteredList.map((job, index) => (
+            <JobCard key={job.id} job={job} variant="list" priority={index === 0} saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} views={viewCounts[job.id]} />
           ))}
         </div>
       </div>

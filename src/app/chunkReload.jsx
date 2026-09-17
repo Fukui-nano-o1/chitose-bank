@@ -2,6 +2,7 @@
 // アプリの入口の裏方＝どのfeatureにも属さないので app/ に置く。
 import { lazy } from "react";
 import { Dots } from "../components/ui";
+import { createModuleLoader } from "../lib/moduleLoader";
 
 // ルート分割（2026-07-25）：大物は到達時に読み込む（初期バンドル削減）。named export→lazyのdefault変換
 // チャンク取りこぼしの自己修復（2026-07-26導入・2026-08-07改修）：
@@ -72,7 +73,8 @@ export function ChunkUpdating() {
   );
 }
 export function lazyChunk(factory) {
-  return lazy(() => factory().catch(async (err) => {
+  const load = createModuleLoader(factory);
+  const Component = lazy(() => load().catch(async (err) => {
     try {
       if (chunkReloadAllowed(Date.now())) {
         // reloadは裏で進め、画面には「更新中」を出す（awaitで止めるとSuspenseのfallbackが
@@ -83,4 +85,7 @@ export function lazyChunk(factory) {
     } catch {}
     throw err;
   }));
+  // 先読みの失敗だけでは操作中のページをリロードしない。表示時の失敗だけが自己修復の対象。
+  Component.preload = () => load().catch(() => null);
+  return Component;
 }

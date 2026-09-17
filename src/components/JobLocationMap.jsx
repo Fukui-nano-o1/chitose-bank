@@ -1,6 +1,5 @@
 // 集合場所の地図（Leaflet・分割で切り出し2026-07-24）：求人詳細・確認ページ・プレビュー共用。
 import { useEffect, useRef, useState } from "react";
-import "leaflet/dist/leaflet.css";
 import { geocodeAddressPrecise, geocodeCityArea } from "../lib/geocode";
 
 // 訪問者に見せる円の半径（m）。市区町村の全域が中に納まる大きさにする
@@ -57,11 +56,16 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
   }, [mapQuery, addressShown]);
 
   useEffect(() => {
-    // Leafletは動的import（2026-07-25）：初期バンドルから地図ライブラリを外し、地図を表示する画面で初めて読み込む
+    // 地図のJSとCSSを表示時にまとめて読む。CSSだけを起動・登録画面の必須依存にしない。
     let cancelled = false;
     (async () => {
+    if (!ref.current || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    if (visitor && !cityGeo && !cityGeoTried) return;
     let L;
-    try { L = (await import("leaflet")).default; } catch (e) { console.error("leaflet load:", e); return; }
+    try {
+      const [leaflet] = await Promise.all([import("leaflet"), import("leaflet/dist/leaflet.css")]);
+      L = leaflet.default;
+    } catch (e) { console.error("leaflet load:", e); return; }
     if (cancelled) return;
     try {
       if (!ref.current) return;

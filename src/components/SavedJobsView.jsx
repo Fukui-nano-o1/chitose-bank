@@ -34,7 +34,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   // ★空配列のキャッシュは「0件」として信じない（2026-08-17）：この日の修理前は取得の失敗が [] として
   //   永続キャッシュ（localStorage）に焼き付いたため、その残りを空状態として出さない＝取得で確かめてから
   //   出す（未確定の間は仮の箱）。中身があるキャッシュは従来どおり即描画する
-  const [rows, setRows] = useState(() => { const c = getCache("saved:rows"); return (Array.isArray(c) && c.length > 0) ? c : null; });
+  const [rows, setRows] = useState(() => { const c = getCache("saved:rows"); return Array.isArray(c) ? c : null; });
   const [myProfile, setMyProfile] = useState(() => getCache("saved:me") ?? null); // 自分のアイコン・ニックネーム
   const [boxJob, setBoxJob] = useState(null);       // 展開中のボックス（求人1件・応募者ページのシートと同じ作法）
   // ボックスに出す求人の全体像（2026-08-24たきと指示「詳細ボックスに差し替え」＝JobDetailBody の材料）。
@@ -203,16 +203,24 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   const [loadFailed, setLoadFailed] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   const retryLoad = () => { setLoadFailed(false); setReloadTick(t => t + 1); };
+  // 一覧を出すのにアバターの通信を待たない。片方が遅くても、届いた部分から表示する。
+  useEffect(() => {
+    if (!me?.id) return;
+    let cancelled = false;
+    Promise.resolve(supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle())
+      .then(result => {
+        if (cancelled || result.error) return;
+        setMyProfile(result.data || null); setCache("saved:me", result.data || null);
+      }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [me?.id, reloadTick]);
   useEffect(() => {
     let cancelled = false;
     const load = async (retryLeft) => {
-      let actRes, wpRes;
+      let actRes;
       try {
-        [actRes, wpRes] = await Promise.all([
-          supabase.rpc("my_job_actions"),
-          supabase.from("worker_profiles").select("nickname,avatar_url").eq("auth_id", me.id).maybeSingle(),
-        ]);
-      } catch (e) { actRes = { data: null, error: e }; wpRes = { data: null, error: e }; }
+        actRes = await supabase.rpc("my_job_actions");
+      } catch (e) { actRes = { data: null, error: e }; }
       if (cancelled) return;
       let list = actRes?.error ? null : actRes?.data;
       if (Array.isArray(list) && list.length === 0) { // ④0件の正体を確かめる
@@ -229,7 +237,6 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
       }
       setLoadFailed(false);
       setRows(list); setCache("saved:rows", list);
-      if (!wpRes?.error) { setMyProfile(wpRes?.data || null); setCache("saved:me", wpRes?.data || null); }
     };
     load(1);
     return () => { cancelled = true; };

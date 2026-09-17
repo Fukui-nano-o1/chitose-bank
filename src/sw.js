@@ -30,6 +30,21 @@ clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
+// ── 利用した画面のJS/CSS（内容ハッシュ付きURL＝バージョンの混在なし）
+// 全画面をインストール時に取らず、開いた画面だけを保持する。再訪は通信せず返す。
+// API・認証・個人データには適用しない。SPAの404代替HTMLも保存しない。
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && /^\/assets\/[^/]+-[\w-]+\.(js|css)$/.test(url.pathname),
+  new CacheFirst({
+    cacheName: 'route-assets-v1',
+    plugins: [
+      { cacheWillUpdate: async ({ response }) => response.status === 200 &&
+          /(?:javascript|ecmascript|css)/i.test(response.headers.get('content-type') || '') ? response : null },
+      new ExpirationPlugin({ maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 30 }),
+    ],
+  })
+)
+
 // ── ページ本体（ナビゲーション）＝NetworkFirst
 // 常に最新のindex.htmlを取りに行き、150msで見切って直近の成功分（pages-cache）に落ちる。
 // ★3秒→0.15秒（2026-08-26 Speed-3D）：実機で通常画面の起動に約3秒かかっており、この待ち時間と

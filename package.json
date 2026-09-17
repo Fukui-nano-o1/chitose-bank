@@ -8,7 +8,9 @@
     "build": "eslint . && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:performance": "node --test scripts/performance.test.mjs",
+    "measure:startup": "node scripts/measure-startup.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
