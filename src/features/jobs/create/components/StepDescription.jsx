@@ -7,9 +7,9 @@ import { photoThumb } from "../../../../lib/utils";
 
 export function StepDescription({ jobDescription, setJobDescription, jobPhotos, setJobPhotos, selectedPhotoIndex, setSelectedPhotoIndex, photoCaptionsOpen, setPhotoCaptionsOpen, captionTextareaRef }) {
   return (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>作業の説明</h2>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>どんな一日になるか、伝えましょう</h2>
             {/* 「空欄なら定型文が自動で入る」の説明はJT_MAP廃止（2026-08-09）で事実でなくなったため書かない */}
-            <p className="f-sans" style={lfStyles.subtitle}>どんな作業をするか、働き手に伝わるよう自由に書けます（任意）。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>作業の流れや、初めての人に伝えておきたいことを書けます（任意）。</p>
             {jobPhotos.length > 0 && (
               <button onClick={()=>setPhotoCaptionsOpen(true)} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:6, background:"none", border:"none", padding:0, margin:"-8px 0 16px", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>
                 写真の説明 →
@@ -17,6 +17,7 @@ export function StepDescription({ jobDescription, setJobDescription, jobPhotos, 
             )}
             <LFWizCard>
               <textarea
+                aria-label="作業の説明"
                 value={jobDescription}
                 onChange={e => setJobDescription(e.target.value)}
                 placeholder="例：ブロッコリーの収穫と箱詰めをお願いします。畑は平坦で、初めての方でも当日にコツをお教えします。10時と15時に休憩があります。"

@@ -31,6 +31,11 @@ import { StepPhotos } from "./components/StepPhotos";
 import { StepDescription } from "./components/StepDescription";
 import { StepDanger } from "./components/StepDanger";
 import { StepWishes } from "./components/StepWishes";
+import { ListingHeader, ListingIntro, ListingDetailsIntro, ListingFooter, LISTING_STAGES, listingStage } from "./components/ListingFrame";
+import { SavedWorkplaceCard, WorkplacePage } from "./components/WorkplacePage";
+import "./listingFlow.css";
+
+const isWorkplaceRoute = () => /^#\/?work\/(?:new\/3|edit\/\d+)\/workplace$/.test(window.location.hash);
 
 // geocodeTown（町域重心の取得） → features/jobs/create/jobCreateGeo.js へ移設（2026-08-17）
 
@@ -64,7 +69,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
   const _devJump = (() => { try { return JSON.parse(localStorage.getItem('devJump')||'null'); } catch { return null; } })();
 
-  const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)$/); return m ? parseInt(m[1],10) : null; })();
+  const _editJobNumber = (() => { const m = window.location.hash.replace(/^#\/?/,"").match(/^work\/edit\/(\d+)(?:\/workplace)?$/); return m ? parseInt(m[1],10) : null; })();
   // 編集中の求人が【公開中(open)】か（2026-09-11「応募者がいない求人は編集可能に」）。
   // 公開中の編集は一時非公開にせず、update_my_open_job（本人・open・進行中の応募なし の壁つき）で
   // 掲載したまま保存する。draft/pending の編集は従来どおり（保存→掲載）
@@ -73,7 +78,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
   // 初期値が0（入口）だと、jobsを読み終えるまで「はじめから」の画面が見えてしまう。
   // 実際のstepは読み込み後に draft_step で上書きされる（copy_jobも draft_step=11 で作る）
-  const [step, setStep] = useState((initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : (_editJobNumber ? 11 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
+  const [step, setStep] = useState(isWorkplaceRoute() ? 3 : (initialStep && initialStep >= 1 && initialStep <= 11) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : (_editJobNumber ? 11 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -106,16 +111,19 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   }, [farmerPref]);
   const [zipSearching,      setZipSearching]      = useState(false);
   const [zipError,          setZipError]          = useState("");
+  const zipLookupVersion = useRef(0);
   // 郵便番号から住所を検索（zipLookup＝2系統レース＋タイムアウト＋キャッシュ・2026-08-02「数十秒」対策）。
   // 都道府県・市区町村を自動入力。
   // ★引数で郵便番号を受け取れるようにしてある（2026-07-29）：入力欄のonChangeから呼ぶとき、
   //   その時点の farmerZip state はまだ更新前なので、打たれた値を直接渡す必要がある
   const searchZip = async (zipRaw) => {
+    const version = ++zipLookupVersion.current;
     const zip = String(zipRaw === undefined ? farmerZip : zipRaw).replace(/[^0-9]/g, "");
-    if (zip.length !== 7) { setZipError("郵便番号は7桁で入力してください"); return; }
+    if (zip.length !== 7) { setZipSearching(false); setZipError("郵便番号は7桁で入力してください"); return; }
     setZipSearching(true); setZipError("");
-    {
+    try {
       const r = await zipLookup(zip);
+      if (version !== zipLookupVersion.current) return;
       if (r.ok) {
         setFarmerPref(r.prefecture);
         setFarmerCity(r.city);
@@ -124,17 +132,20 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         setFarmerRegion(r.prefecture + r.city + (r.town || ""));
         setZipError("");
         // 町域が取れたら番地欄へ、取れなければ町域欄へフォーカス
-        setTimeout(() => { (r.town ? addrRef : townRef).current?.focus(); }, 0);
+        setTimeout(() => { if (version === zipLookupVersion.current) (r.town ? addrRef : townRef).current?.focus(); }, 0);
       } else {
         setZipError(r.reason === "notfound" ? "郵便番号が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください");
       }
+    } catch {
+      if (version === zipLookupVersion.current) setZipError("検索に失敗しました。通信環境をご確認ください");
+    } finally {
+      if (version === zipLookupVersion.current) setZipSearching(false);
     }
-    setZipSearching(false);
   };
   // ★farmerZip を監視して自動検索する useEffect は廃止した（2026-07-29・集合場所が復元できない不具合の根治）。
   //   farmerZip に書き込む経路は5つあり、うち4つは「正しい住所を丸ごと入れる」復元処理だった：
   //     ①下書き復元（useStateの初期値 d.farmerZip） ②求人の編集読み込み ③「前回の住所を使う」
-  //     ④集合場所ボックスの保存後（setFarmerTown(pbTown) 等で町域まで入れている）
+  //     ④作業場の登録ページの保存後（保存した町域までそのまま反映）
   //   監視effectはこの4つでも発火し、直後に zipcloud の address3 で町域を上書きしていた。
   //   例：町域を「宮島」に直して保存 → その場で「忌部」（郵便番号が指す町域）に戻る。
   //   自動検索は「利用者が郵便番号を打った時」だけに限定する＝入力欄のonChangeから呼ぶ（下記）。
@@ -455,9 +466,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // step遷移アニメ：退場(0.4s)→step切替→入場(0.4s)＝体感0.8秒（2026-07-16）。連打はbusyガードで無視
   const [stepAnim, setStepAnim] = useState("");
   const stepAnimBusy = useRef(false);
+  const stepAnimTimer = useRef(null);
+  useEffect(() => () => clearTimeout(stepAnimTimer.current), []);
   const animateStepChange = (applyChange, dir) => {
     if (stepAnimBusy.current) return;
     stepAnimBusy.current = true;
+    if (isFarmer) {
+      // 先に画面を切り替える。入力のたびに400ms待たせず、短いフェードだけを重ねる。
+      applyChange();
+      setStepAnim("listing-motion");
+      stepAnimTimer.current = setTimeout(() => { stepAnimBusy.current = false; }, 160);
+      return;
+    }
     setStepAnim(dir === "fwd" ? "step-out-left" : "step-out-right");
     setTimeout(() => {
       applyChange();
@@ -470,7 +490,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 全stepスワイプ移動（2026-07-16）：左スワイプ=次へ（バリデーション尊重）／右スワイプ=戻る。
   // 掲載(step11→)と完了(step12)からは進めない。step1の戻りはスワイプでも不可（戻るボタン削除と整合）
   const flowSwipe = useRef(null);
-  const onFlowTouchStart = (e) => { flowSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onFlowTouchStart = (e) => { if (isFarmer) return; flowSwipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
 
   // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
@@ -480,80 +500,80 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   }, [step]);
 
   useEffect(() => {
-    if (onStepChange && role === "farmer" && step >= 1 && step <= 11) onStepChange(step);
+    if (onStepChange && role === "farmer" && step >= 1 && step <= 11 && !isWorkplaceRoute()) onStepChange(step);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_editJobNumber ?? _draftInit?.job_number ?? null);
   const [confTab, setConfTab] = useState("content"); // 確認ページの「仕事の内容/質問」タブ（第10弾）
-  // 集合場所の復元元＝農家プロフィールの「作業場所」（2026-07-16・直近jobsからの復元は撤回）。未設定ならnull=ボタン非表示
+  // 集合場所の復元元＝農家プロフィールの「作業場所」。未登録なら専用ページへ進む。
   const [prevAddress, setPrevAddress] = useState(null);
+  const [placeStatus, setPlaceStatus] = useState("loading");
+  const [placeRetry, setPlaceRetry] = useState(0);
+  const [placeNotice, setPlaceNotice] = useState("");
+  const [placePageOpen, setPlacePageOpen] = useState(isWorkplaceRoute);
   useEffect(() => {
     if (!isFarmer || step !== 3 || prevAddress) return;
     let cancelled = false;
+    setPlaceStatus("loading");
     (async () => {
       try {
         const { data: { session } } = await getSession();
-        if (!session || cancelled) return;
-        const { data: ep } = await fetchEmployerPlaceAddress(session.user.id);
-        if (cancelled || !ep) return;
-        if ((ep.place_city || "").trim() || (ep.place_zip || "").trim() || (ep.place_address || "").trim()) {
+        if (cancelled) return;
+        if (!session) throw new Error("session unavailable");
+        const { data: ep, error } = await fetchEmployerPlaceAddress(session.user.id);
+        if (cancelled) return;
+        if (error) throw error;
+        if (ep && [ep.place_city, ep.place_zip, ep.place_address].some(value => (value || "").trim())) {
           setPrevAddress({ zip: ep.place_zip, prefecture: ep.place_prefecture, city: ep.place_city, town: ep.place_town, address: ep.place_address });
         }
-      } catch {}
+        setPlaceStatus("ready");
+      } catch { if (!cancelled) setPlaceStatus("error"); }
     })();
     return () => { cancelled = true; };
-  }, [step, isFarmer]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 農家プロの作業場所が未入力のとき：⎘タップでこの入力ボックスを展開し、保存で「農家プロ＋求人フロー」両方へ反映（2026-07-16）
-  const [placeBoxOpen, setPlaceBoxOpen] = useState(false);
+  }, [step, isFarmer, prevAddress, placeRetry]);
+  useEffect(() => {
+    const syncPage = () => {
+      const open = isWorkplaceRoute();
+      setPlacePageOpen(open);
+      if (open) setStep(3);
+    };
+    window.addEventListener("hashchange", syncPage);
+    return () => window.removeEventListener("hashchange", syncPage);
+  }, []);
+  const applyWorkplaceAddress = address => {
+    // 入力中に始まった郵便番号検索が、選んだ作業場の住所を上書きしない。
+    zipLookupVersion.current += 1;
+    setZipSearching(false);
+    setFarmerZip(address.zip || ""); setFarmerPref(address.prefecture || ""); setFarmerCity(address.city || "");
+    setFarmerTown(address.town || ""); setFarmerAddr(address.address || "");
+    setFarmerRegion((address.prefecture || "") + (address.city || "") + (address.town || ""));
+    setZipError("");
+  };
+  const openWorkplacePage = () => {
+    zipLookupVersion.current += 1;
+    setZipSearching(false);
+    setPlaceNotice("");
+    setPlacePageOpen(true);
+    const hash = window.location.hash.replace(/^#\/?/, "");
+    if (hash.startsWith("work/new")) window.location.hash = "/work/new/3/workplace";
+    else if (_editJobNumber) window.location.hash = `/work/edit/${_editJobNumber}/workplace`;
+  };
+  const closeWorkplacePage = () => {
+    setPlacePageOpen(false);
+    // 保存後の「戻る」で登録フォームが再表示されないよう、戻り先で置き換える。
+    if (isWorkplaceRoute()) window.history.replaceState(window.history.state, "", window.location.hash.replace(/\/workplace$/, ""));
+  };
   // 集合場所の説明の一本化（2026-08-08たきと指示「各説明が散乱して読まない。1箇所に・〇〇とは？形式で」）：
   // 欄ごとに散らばっていた注記（自動入力・町域まで公開・番地は会員のみ・プライバシー）を
   // 「集合場所の公開範囲とは？」のタップ展開1つに集約。UI一時state・保存しない
   const [placeInfoOpen, setPlaceInfoOpen] = useState(false);
-  const [pbZip, setPbZip] = useState("");
-  const [pbPref, setPbPref] = useState("");
-  const [pbCity, setPbCity] = useState("");
-  const [pbTown, setPbTown] = useState("");
-  const [pbAddr, setPbAddr] = useState("");
-  const [pbBusy, setPbBusy] = useState(false);
-  const [pbErr, setPbErr] = useState("");
-  const [pbSaving, setPbSaving] = useState(false);
-  const searchPbZip = async () => {
-    const zip = pbZip.replace(/[^0-9]/g, "");
-    if (zip.length !== 7) { setPbErr("郵便番号は7桁で入力してください"); return; }
-    setPbBusy(true); setPbErr("");
-    const r = await zipLookup(zip);
-    if (r.ok) { setPbPref(r.prefecture); setPbCity(r.city); setPbTown(r.town || ""); }
-    else { setPbErr(r.reason === "notfound" ? "郵便番号が見つかりませんでした" : "検索に失敗しました。通信環境をご確認ください"); }
-    setPbBusy(false);
-  };
-  const savePlaceBox = async () => {
-    if (pbSaving) return;
-    setPbSaving(true);
-    try {
-      const { data: { session } } = await getSession();
-      if (!session) { alert("ログインが必要です"); setPbSaving(false); return; }
-      const { error } = await upsertEmployerProfile({
-        auth_id: session.user.id,
-        place_zip: pbZip.trim(), place_prefecture: pbPref.trim(), place_city: pbCity.trim(),
-        place_town: pbTown.trim(), place_address: pbAddr.trim(),
-        updated_at: new Date().toISOString(),
-      });
-      if (error) { alert("保存に失敗しました：" + error.message); setPbSaving(false); return; }
-      // 求人フロー側の集合場所にも反映
-      setFarmerZip(pbZip.trim()); setFarmerPref(pbPref.trim()); setFarmerCity(pbCity.trim());
-      setFarmerTown(pbTown.trim()); setFarmerAddr(pbAddr.trim());
-      setFarmerRegion(pbPref.trim() + pbCity.trim() + pbTown.trim());
-      setZipError("");
-      setPrevAddress({ zip: pbZip.trim(), prefecture: pbPref.trim(), city: pbCity.trim(), town: pbTown.trim(), address: pbAddr.trim() });
-      setPlaceBoxOpen(false);
-    } catch (e) { alert("保存に失敗しました"); }
-    setPbSaving(false);
-  };
   // jobs行 → フローのstateへ復元（2026-08-03に関数化）。コピー直後の即時復元（prefill）と
   // 通常の読み込みで同じ対応表を使う＝どちらかだけ直して食い違う事故を防ぐ
   const applyJobRow = (data) => {
         setEditingOpen(!!_editJobNumber && data.status === "open");
         setRole("farmer");
+        setFarmerCropPill(CROP_OPTIONS.some(c => c.name === data.crop) ? data.crop : data.crop ? "__other__" : "");
+        setFarmerTaskPill(TASK_OPTIONS.some(t => t.name === data.task) ? data.task : data.task ? "__other__" : "");
         setFarmerCropText(data.crop ?? "");
         setFarmerTaskText(data.task ?? "");
         setFarmerZip(data.zip ?? "");
@@ -595,7 +615,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         setShowTask2(dangerHasSecond(dt));
         setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
         setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
-        setStep(data.draft_step != null ? data.draft_step : 11);
+        setStep(isWorkplaceRoute() ? 3 : data.draft_step != null ? data.draft_step : 11);
   };
 
   // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
@@ -970,8 +990,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     try {
       if (flowScrollRef.current) flowScrollRef.current.scrollTo(0, 0);
       window.scrollTo(0, 0);
+      if (isFarmer) {
+        const heading = flowScrollRef.current?.querySelector(".listing-page h1, .listing-page h2");
+        heading?.setAttribute("tabindex", "-1");
+        heading?.focus({ preventScroll: true });
+      }
     } catch {}
-  }, [step]);
+  }, [step, isFarmer, placePageOpen]);
 
   // 選択した瞬間に次へ進む（140ms で選択状態を視認させてから遷移）
   const selectAndNext = (setter, value) => {
@@ -997,7 +1022,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   // 時間外労働の入力が揃っているか（2026-08-03たきと指示「必須」）：有無は必ず選ぶ。
   // 「あり」なら目安の時間まで書く＝「有無（どれくらいの時間）」を明記させる
   const overtimeOk = !!overtimePolicy && (overtimePolicy !== "あり" || !!overtimeDetail.trim());
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number(jobCount) > 0, farmerPurpose !== "post" || (!!dailyWageInput && !dailyViolation && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && !dailyViolation && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -1006,7 +1031,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   const onFlowTouchEnd = (e) => {
     const s = flowSwipe.current;
     flowSwipe.current = null;
-    if (!s || publishModal || showExitModal || photoCaptionsOpen || placeBoxOpen) return;
+    if (!s || publishModal || showExitModal || photoCaptionsOpen || placePageOpen) return;
     if (step === 11) return; // 確認ページは横スワイプ遷移なし（2026-07-16たきと指定・写真カルーセル優先）
     const dx = e.changedTouches[0].clientX - s.x;
     const dy = e.changedTouches[0].clientY - s.y;
@@ -1037,7 +1062,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       ["町域",                   !!farmerTown.trim(),                 3],
       ["番地・建物名",             !!farmerAddr.trim(),                 3],
       ["作業日程（開始日）",       !!jobDateStart,                      4],
-      ["採用人数",                Number(jobCount) > 0,                4],
+      ["採用人数",                Number.isInteger(Number(jobCount)) && Number(jobCount) > 0,                4],
       // 勤務時間：終了が開始以前だと、DB側の job_scheduled_minutes が null を返して掲載が止まる。
       // かつ日給の最賃判定（validateMinWage）も workHours>0 のときしか働かないため、ここで先に止める
       ["勤務時間（開始〜終了）",    workHours > 0,                       5],
@@ -1077,12 +1102,26 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
   };
 
   // ── OUTER SHELL ─────────────────────────────────────────────
+  if (isFarmer && placePageOpen) return (
+    <div className={`job-listing-flow f-sans${embedded ? " listing-embedded" : ""}`} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
+      <WorkplacePage initialAddress={prevAddress || { zip: farmerZip, prefecture: farmerPref, city: farmerCity, town: farmerTown, address: farmerAddr }}
+        onBack={closeWorkplacePage} onSaved={address => {
+          applyWorkplaceAddress(address);
+          setPrevAddress(address);
+          setPlaceStatus("ready");
+          setPlaceNotice("作業場を保存し、集合場所に入力しました。");
+          closeWorkplacePage();
+        }} />
+    </div>
+  );
   return (
-    <div style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
+    <div className={isFarmer ? `job-listing-flow f-sans${embedded ? " listing-embedded" : ""}` : undefined} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
       <DevBadge label="LandingFlow" />
 
-      {/* 進捗バー */}
-      {step > 0 && (
+      {isFarmer && step <= 11 && <ListingHeader step={step} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading} onSave={() => handleTopSave({ exit: true })} onExit={() => setShowExitModal(true)} />}
+
+      {/* 働き手フローの進捗バー */}
+      {!isFarmer && step > 0 && (
         <div style={{ position: embedded ? "relative" : "absolute", top:0, left:0, right:0, zIndex:1 }}>
           <div style={{ height:4, background:"#EBEBEB" }}>
             <div style={{ height:4, background:"#00A86B", width:((draftBarFull || step >= 12) ? 100 : (step/TOTAL*100))+"%", transition:"width 0.4s ease" }} />
@@ -1091,7 +1130,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       )}
 
       {/* 終了ボタン（押すと保存して終了／保存せずに終了／キャンセルの3択モーダルを開く） */}
-      {!embedded && step !== 12 && step !== 11 && step !== 0 && step !== 6 && (
+      {!isFarmer && !embedded && step !== 12 && step !== 11 && step !== 0 && step !== 6 && (
         <button onClick={() => setShowExitModal(true)} disabled={draftSaving} className="f-sans" style={{
           position:"absolute", top:`calc(${step > 0 ? 24 : 16}px + env(safe-area-inset-top, 0px))`, right:20,
           background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"8px 18px",
@@ -1124,15 +1163,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
       )}
 
       {/* スクロール領域（全stepスワイプで次へ/戻る・2026-07-16） */}
-      <div ref={flowScrollRef} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={embedded ? {} : ((step === 0 || step === 6)
+      <div ref={flowScrollRef} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center", ...flowScrollLock }
         : { height:"100%", overflowY:"auto", ...flowScrollLock })}>
-        <div key={step} className={stepAnim || "fade-in"}
+        <div key={step} data-step={step} className={isFarmer ? `listing-page${[0,6,11].includes(step) ? " listing-page-wide" : ""} listing-motion` : (stepAnim || "fade-in")}
           onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
-          style={{ maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "calc(64px + env(safe-area-inset-top, 0px)) 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "calc(56px + env(safe-area-inset-top, 0px)) 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
+          style={isFarmer ? undefined : { maxWidth: (step === 11 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "calc(64px + env(safe-area-inset-top, 0px)) 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "calc(56px + env(safe-area-inset-top, 0px)) 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
+
+          {isFarmer && step > 0 && step !== 6 && step <= 11 && <p className="listing-stage-caption">ステップ{listingStage(step) + 1} / 3 · {LISTING_STAGES[listingStage(step)].title}</p>}
+          {isFarmer && step === 0 && <ListingIntro />}
 
           {/* ── HOME ── */}
-          {step === 0 && (
+          {!isFarmer && step === 0 && (
             <>
               <div className="step0-grid" data-guide="flow-intro">
               <div>
@@ -1158,8 +1200,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
           {/* ── FARMER FLOW ── */}
           {isFarmer && step === 1 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>作物を選んでください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>募集する作物を選びます。一覧になければ「その他」から入力できます。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>どの作物の仕事ですか？</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>あてはまる作物を1つ選んでください。</p>
             <LFCropGrid
               options={CROP_OPTIONS}
               value={farmerCropPill}
@@ -1174,8 +1216,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           </>)}
 
           {isFarmer && step === 2 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>作業内容を選んでください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>募集する作業と、期間の途中で作業が変わる可能性（変更の範囲）を選びます。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>どんな作業をお願いしますか？</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>お願いしたい作業を1つ選んでください。</p>
             <LFCropGrid
               options={TASK_OPTIONS}
               noIcon
@@ -1198,36 +1240,13 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           </>)}
 
           {isFarmer && step === 3 && (<>
-            {/* 農家プロの作業場所ボックス（未設定時に⎘から展開・2026-07-16）。保存＝農家プロ＋この画面の両方へ反映 */}
-            {placeBoxOpen && (
-              <div className="cb-lock-scroll" onClick={()=>setPlaceBoxOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:480, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                    <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="pin" size={14} />作業場所（農家プロフィール）</p>
-                  </div>
-                  <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:16 }}>
-                    <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>プロフィールに作業場所が未設定です。保存すると、農家プロフィールとこの求人の集合場所の両方に入ります。</p>
-                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>郵便番号</label>
-                    <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-                      <input value={pbZip} onChange={e=>{ setPbZip(e.target.value); setPbErr(""); }} placeholder="例：779-3401" className="field f-sans" style={{ flex:1, fontSize:14, marginBottom:0 }} />
-                      <button onClick={searchPbZip} disabled={pbBusy} className="f-sans" style={{ padding:"0 14px", borderRadius:8, border:"1px solid #DADADA", background:"#fff", color:"#222", fontSize:12, fontWeight:600, cursor: pbBusy ? "default" : "pointer", whiteSpace:"nowrap" }}>{pbBusy ? <>検索中<Dots /></> : "住所を検索"}</button>
-                    </div>
-                    {pbErr && <p className="f-sans" style={{ fontSize:12, color:"#E53935", marginBottom:8 }}>{pbErr}</p>}
-                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>都道府県</label>
-                    <input value={pbPref} onChange={e=>setPbPref(e.target.value)} placeholder="例：徳島県" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
-                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>市区町村</label>
-                    <input value={pbCity} onChange={e=>setPbCity(e.target.value)} placeholder="例：吉野川市" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
-                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>町域</label>
-                    <input value={pbTown} onChange={e=>setPbTown(e.target.value)} placeholder="例：山川町〇〇" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:8 }} />
-                    <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:4 }}>番地・建物名</label>
-                    <input value={pbAddr} onChange={e=>setPbAddr(e.target.value)} placeholder="例：1-2-3 〇〇ハイツ101" className="field f-sans" style={{ width:"100%", fontSize:14, marginBottom:16 }} />
-                    <button onClick={savePlaceBox} disabled={pbSaving || !pbCity.trim()} className="btn-primary f-sans" style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, opacity: (pbSaving || !pbCity.trim()) ? 0.5 : 1 }}>{pbSaving ? <>保存中<Dots /></> : "保存する"}</button>
-                  </div>
-                </div>
-              </div>
-            )}
             <h2 className="f-sans" style={lfStyles.stepTitle}>集合場所を入力してください</h2>
             <p className="f-sans" style={lfStyles.subtitle}>集合場所の住所を入力します。最寄り駅や場所の変更の範囲もここで選べます。</p>
+            <SavedWorkplaceCard address={prevAddress} status={placeStatus}
+              onUse={() => { applyWorkplaceAddress(prevAddress); setPlaceNotice("登録した作業場を集合場所に入力しました。"); }}
+              onRegister={openWorkplacePage} onRetry={() => setPlaceRetry(value => value + 1)} />
+            {placeNotice && <p className="listing-workplace-notice" role="status">{placeNotice}</p>}
+            <div className="listing-address-divider"><span>または、集合場所を入力</span></div>
             {/* 説明の一本化（2026-08-08たきと指示）：欄ごとに散らばっていた注記（自動入力・町域まで公開・
                 番地は会員のみ・プライバシー）をこの1箇所に集約。「初心者大歓迎とは？」と同じ〜とは？形式。
                 開示の実態はDBが正（jobs_public：町域・番地はanonマスク・2026-08-03） */}
@@ -1244,34 +1263,18 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
             <LFWizCard>
               <div>
-                {/* ⎘＝作業場所の復元マーク（2026-07-16・2026-08-09にカード枠内へ移動＝たきと指示）。
-                    プロフィール設定済み=タップで復元／未設定=タップで作業場所の入力ボックスを展開
-                    （保存で農家プロ＋この画面の両方へ反映）。位置は郵便番号ラベル行の右端＝
-                    「住所を検索」ボタンとは行が別なので重ならない */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                  <label className="f-sans" style={{ ...lfStyles.inputLabel, marginBottom:0 }}>郵便番号</label>
-                  <button onClick={() => {
-                    if (prevAddress) {
-                      setFarmerZip(prevAddress.zip || "");
-                      setFarmerPref(prevAddress.prefecture || "");
-                      setFarmerCity(prevAddress.city || "");
-                      setFarmerTown(prevAddress.town || "");
-                      setFarmerAddr(prevAddress.address || "");
-                      setFarmerRegion((prevAddress.prefecture || "") + (prevAddress.city || "") + (prevAddress.town || ""));
-                      setZipError("");
-                    } else {
-                      setPbZip(farmerZip); setPbPref(farmerPref); setPbCity(farmerCity); setPbTown(farmerTown); setPbAddr(farmerAddr);
-                      setPbErr("");
-                      setPlaceBoxOpen(true);
-                    }
-                  }} aria-label="作業場所を復元" className="f-sans" style={{ width:32, height:32, borderRadius:"50%", border:"none", background:"#00A86B", fontSize:14, fontWeight:700, color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", flexShrink:0 }}>⎘</button>
-                </div>
+                <label htmlFor="meeting-zip" className="f-sans" style={lfStyles.inputLabel}>郵便番号</label>
                 <div style={{ display:"flex", gap:8, alignItems:"stretch", marginBottom:8 }}>
                   <input
                     ref={zipRef}
+                    id="meeting-zip"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
                     value={farmerZip}
                     onChange={e => {
                       const v = e.target.value;
+                      zipLookupVersion.current += 1;
+                      setZipSearching(false);
                       setFarmerZip(v);
                       // 7桁打ち終わった時だけ自動検索（復元処理では走らない・上のコメント参照）
                       if (v.replace(/[^0-9]/g, "").length === 7) searchZip(v);
@@ -1279,7 +1282,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchZip(); } }}
                     placeholder="例：779-3401"
                     className="field f-sans"
-                    style={{ fontSize:16, flex:1, marginBottom:0 }}
+                    style={{ fontSize:16, flex:1, minWidth:0, marginBottom:0 }}
                   />
                   {/* onClick={searchZip} と書かないこと：Reactがイベントを第1引数で渡すため、
                       それが郵便番号として解釈されてしまう（searchZipは引数を取るようになった） */}
@@ -1367,13 +1370,17 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
                     {/* ── 農家 Step3: 詳細入力 ── */}
           {isFarmer && step === 4 && farmerPurpose === "post" && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>採用人数と作業日程を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>採用する人数と作業日程を入力します。期間の中の休日もここで設定できます。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>いつ、何人に来てほしいですか？</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>作業する日を選びます。連続する日程や、期間中の休日も設定できます。</p>
             <LFWizCard>
               {/* 5. 採用人数 */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>採用人数</label>
-                <input type="number" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="例：3" className="field f-mono" style={{ fontSize:16, maxWidth:100 }} />
+              <div className="listing-count-row">
+                <label htmlFor="listing-headcount">採用人数</label>
+                <div className="listing-counter">
+                  <button type="button" aria-label="採用人数を減らす" disabled={Number(jobCount) <= 1} onClick={() => setJobCount(String(Math.max(1, Number(jobCount) - 1)))}>−</button>
+                  <input id="listing-headcount" type="number" min="1" step="1" inputMode="numeric" value={jobCount} onChange={e => setJobCount(e.target.value)} placeholder="人数" />
+                  <button type="button" aria-label="採用人数を増やす" onClick={() => setJobCount(String((Math.max(0, Number(jobCount)) || 0) + 1))}>+</button>
+                </div>
               </div>
               {/* 3. 開催日（カレンダー） */}
               <div style={{ marginBottom:14 }}>
@@ -1453,8 +1460,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
 
           {/* ── 農家 step5: 採用人数（骨格・中身は段階Bで移植） ── */}
           {isFarmer && step === 5 && (<>
-            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務条件を入力してください</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>勤務時間・休憩・時間外労働と報酬を入力します。相場を参考にできます。</p>
+            <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間と日給を決めましょう</h2>
+            <p className="f-sans" style={lfStyles.subtitle}>働く時間と報酬を、応募する前にわかるように。</p>
             <LFWizCard>
               {/* 4. 勤務時間（input type=time・iPhoneタイマー型） */}
               {(() => {
@@ -1472,9 +1479,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                     <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
                     <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
                     <div style={rowStyle}>
-                      <input type="time" value={toTime(startHour, startMinute)} onChange={e => fromTime(e.target.value, setStartHour, setStartMinute)} style={timeStyle} />
+                      <input type="time" aria-label="勤務開始時間" value={toTime(startHour, startMinute)} onChange={e => fromTime(e.target.value, setStartHour, setStartMinute)} style={timeStyle} />
                       <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
-                      <input type="time" value={toTime(endHour, endMinute)} onChange={e => fromTime(e.target.value, setEndHour, setEndMinute)} style={timeStyle} />
+                      <input type="time" aria-label="勤務終了時間" value={toTime(endHour, endMinute)} onChange={e => fromTime(e.target.value, setEndHour, setEndMinute)} style={timeStyle} />
                     </div>
                     <p className="f-sans" style={{ fontSize:14, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
                   </div>
@@ -1507,7 +1514,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
               {/* 5-b. 休憩時間（グループ2予定） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
-                <select value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
+                <select aria-label="休憩時間" value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
                   <option value="">選択してください</option>
                   <option value="なし">なし</option>
                   {/* 5分刻み（2026-07-16）。値は従来と同じ「N分」形式＝既存データ（30分/60分等）とそのまま互換 */}
@@ -1524,7 +1531,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   既存下書きの復元と表示のため温存（UIのみ撤去） */}
               <div style={{ marginBottom:14 }}>
                 <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <input inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="例：9000" className="field f-mono" style={{ fontSize:18, maxWidth:160 }} />
+                <div className="listing-pay-input"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="9000" className="field f-mono" /><span>円 / 日</span></div>
+                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"0 0 16px", textAlign:"center" }}>各作業日の終了後に、現金で支払います。</p>
+                {workHours <= 0 && <p role="alert" style={{ fontSize:14, color:"#E24B4A" }}>終了時間は開始時間より後に設定してください。</p>}
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
                 {dailyViolation && (
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
@@ -1557,23 +1566,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
           </>)}
 
           {/* ── 農家 step6: グループ2 説明ページ（step0と同じ2カラム構造） ── */}
-          {isFarmer && step === 6 && (<>
-            <div className="step0-grid">
-              <div>
-                <div style={{ marginBottom:36 }}>
-                  <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"0 0 8px" }}>ステップ2</p>
-                  <h1 className="f-sans" style={{ fontSize:38, fontWeight:800, color:"#222", lineHeight:1.25, margin:"0 0 20px" }}>ここからは任意です</h1>
-                  <p className="f-sans" style={{ fontSize:16, color:"#222", lineHeight:1.7, margin:0 }}>ここから先は、入力しなくても求人を出せます。ですが、写真や作業の詳しい説明、勤務条件などを加えると、働き手が「ここで働きたい」と感じやすくなります。あなたの求人を、もっと魅力的にしましょう。</p>
-                </div>
-              </div>
-              {/* 📸見本カードは削除（2026-07-16）：step0の見本カードと同じく、実在の求人と誤認されうるため */}
-            </div>
-            <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
-              {!returnToConfirm && (
-                <button onClick={() => setStep(11)} className="f-sans" style={{ padding:"12px 28px", fontSize:14, fontWeight:700, background:"#fff", border:"1px solid #00A86B", borderRadius:12, color:"#00A86B", cursor:"pointer" }}>あとで書く — 確認画面へ進む →</button>
-              )}
-            </div>
-          </>)}
+          {isFarmer && step === 6 && <ListingDetailsIntro crop={farmerCrop} task={farmerTask} region={farmerPref + farmerCity} dates={jobDateLabel} wage={dailyWage} />}
 
           {/* ── 農家 step7: 写真 ── */}
           {isFarmer && step === 7 && <StepPhotos jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} />}
@@ -1754,9 +1747,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
             return (<>
               {/* タイトル */}
               <h2 className="f-sans" style={{ fontSize:"clamp(20px,3vw,30px)", fontWeight:850, color:"#222", marginBottom:6, lineHeight:1.3 }}>
-                掲載イメージを確認してください
+                掲載前に、内容を確認しましょう
               </h2>
-              <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手には、以下のように表示されます。</p>
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手に表示される内容です。修正したい項目は、ここから編集できます。</p>
 
               {/* 公開イメージ・セクション①：写真ギャラリー（求人詳細ページと同じく写真が先頭） */}
               {(() => {
@@ -2479,7 +2472,15 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
         </div>
       )}
 
-      {step > 0 && step < TOTAL && step !== 12 && !publishModal && (
+      {isFarmer && step <= 11 && <ListingFooter
+        step={step} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading} uploading={photoUploading}
+        returnToConfirm={returnToConfirm} editingOpen={editingOpen}
+        hidden={sheetOpen || showExitModal || photoCaptionsOpen || !!recruitBox}
+        onBack={step === 0 ? () => setShowExitModal(true) : returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack}
+        onNext={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goNext}
+        onSkipDetails={() => animateStepChange(() => setStep(11), "fwd")} onPublish={openPublish}
+      />}
+      {!isFarmer && step > 0 && step < TOTAL && step !== 12 && !publishModal && (
         embedded ? (
         <div style={{
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",

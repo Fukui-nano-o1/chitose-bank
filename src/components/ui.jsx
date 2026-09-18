@@ -431,7 +431,7 @@ export function LinkifiedText({ text, onNavigate }) {
 //   関数参照が変わり、React が別コンポーネントと判定して input のフォーカスが失われる
 export function LFWizCard({ children }) {
   return (
-    <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px", marginBottom:14, boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+    <div className="lf-wiz-card" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"20px", marginBottom:14, boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
       {children}
     </div>
   );
@@ -475,7 +475,7 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
         {options.map(c => {
           const sel = value === c.name;
           return (
-            <button key={c.name} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
+            <button key={c.name} type="button" aria-pressed={sel} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
               {/* 絵文字が無い作物は既製アイコン（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
               {/* 上限56pxで、カードが狭いときは列幅に合わせて縮む（縦横比は保つ） */}
               {!noIcon && <CropIcon crop={c.name} size={56} style={{ maxWidth:"100%", height:"auto" }} />}
@@ -483,7 +483,7 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
             </button>
           );
         })}
-        <button onClick={() => onSelect("__other__")} className="f-sans crop-card" style={cardStyle(isOther)}>
+        <button type="button" aria-pressed={isOther} onClick={() => onSelect("__other__")} className="f-sans crop-card" style={cardStyle(isOther)}>
           {!noIcon && <span style={{ display:"flex", color:"#717171" }}><NavIcon name="edit" size={52} /></span>}
           <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>その他</span>
         </button>

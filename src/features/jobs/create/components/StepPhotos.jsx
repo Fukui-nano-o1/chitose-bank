@@ -9,8 +9,8 @@ import { NavIcon } from "../../../../components/NavIcons";
 
 export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUploading }) {
   return (<>
-    <h2 className="f-sans" style={lfStyles.stepTitle}>写真</h2>
-    <p className="f-sans" style={lfStyles.subtitle}>写真は最大10枚。1枚目が求人の顔になります。畑や作業の様子が伝わると応募が増えます。</p>
+    <h2 className="f-sans" style={lfStyles.stepTitle}>仕事の様子を写真で伝えましょう</h2>
+    <p className="f-sans" style={lfStyles.subtitle}>畑や作業の写真を最大10枚。1枚目が求人カードに表示されます。</p>
     <LFWizCard>
           {/* アップロードボタン（multiple・残り枠まで直列処理） */}
           <div style={{ marginBottom: jobPhotos.length > 0 ? 16 : 0 }}>
@@ -42,8 +42,8 @@ export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUp
           {jobPhotos.length === 0 && (
             <label className="f-sans" style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"48px 24px", border:"2px dashed #D8D8D8", borderRadius:16, cursor: photoUploading ? "wait" : "pointer", background:"#FAFAFA", textAlign:"center" }}>
               <NavIcon name="camera" size={44} />
-              <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>写真をドロップ、またはタップして追加</span>
-              <span className="f-sans" style={{ fontSize:14, color:"#B0B0B0", maxWidth:280, lineHeight:1.6 }}>畑の全景・作業の様子・収穫物が伝わる写真ほど、応募が増えます。1枚目がカバー写真になります。</span>
+              <span className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222" }}>タップして写真を選ぶ</span>
+              <span className="f-sans" style={{ fontSize:14, color:"#717171", maxWidth:280, lineHeight:1.6 }}>畑の全景、作業風景、収穫する作物など。</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} disabled={photoUploading} onChange={async e => {
                 const files = Array.from(e.target.files || []);
                 if (files.length === 0) return;
