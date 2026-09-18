@@ -175,33 +175,38 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
   const [wTrust, setWTrust] = useState(() => getCache("hub:wTrust") ?? null);      // 裏面用の自己スタッツ（登録日・本人確認・リピート率）。my_worker_trust_statsは本人限定RPC＝農家には返らない（法務：評価集計の公開禁止）
   const [hasEmg, setHasEmg] = useState(() => getCache("hub:hasEmg") ?? false); // 緊急連絡先の登録有無（別テーブル・2026-08-19に任意へ）＝未設定数の数え方に要る
   useEffect(() => {
-    if (wTab !== "home") return; // 入口に戻るたびに再取得（編集後のバッジ・スニペット鮮度を担保）
+    if (pTab !== "worker" || wTab !== "home" || !me?.id) return;
     let cancelled = false;
+    // 独立した箱は届いた順に更新する。実績・件数の遅延で名刺まで待たせない。
+    const receive = (request, apply) => Promise.resolve(request).then(res => {
+      if (!cancelled && !res.error) apply(res);
+    }).catch(() => {});
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session || cancelled) return;
-        // 【第1波】互いに依存しない4本を同時に投げる（2026-07-27たきと指示「直列を並列に」）。
-        // 依存があるのは「きょうの仕事」件数だけ（応募の結果を見て求人の日程を引く）ので第2波に回す
-        const [{ data: wp }, { data: apps }, { data: ts }, emgRes, revRes] = await Promise.all([
-          supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
-          supabase.from("applications").select("id,status,attended,job_number").eq("worker_id", session.user.id),
-          supabase.rpc("my_worker_trust_stats").then(r => r, () => ({ data: null })),
-          // 緊急連絡先（別テーブル・self-only）＝名刺バッジの数え方に要る（任意項目として数える）
-          supabase.from("emergency_contacts").select("name,phone").eq("auth_id", session.user.id).maybeSingle().then(r => r, () => ({ data: null })),
-          // 評価済みかは自分が書いた評価の行で見る（打刻の終了確認は廃止・2026-08-18）
-          supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
-        ]);
-        if (cancelled) return;
-        if (wp) { setWMini(wp); setCache("hub:wMini", wp); snapSet("wMini", wp); }
-        if (!emgRes?.error) {
-          const has = !!((emgRes?.data?.name || "").trim() || (emgRes?.data?.phone || "").trim());
+        if (!session || cancelled || session.user.id !== me.id) return;
+        receive(supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(), ({ data: wp }) => {
+          if (wp) { setWMini(wp); setCache("hub:wMini", wp); snapSet("wMini", wp); }
+        });
+        receive(supabase.rpc("my_worker_trust_stats"), ({ data: ts }) => {
+          if (ts?.ok) { setWTrust(ts); setCache("hub:wTrust", ts); }
+        });
+        receive(supabase.from("emergency_contacts").select("name,phone").eq("auth_id", session.user.id).maybeSingle(), ({ data }) => {
+          const has = !!((data?.name || "").trim() || (data?.phone || "").trim());
           setHasEmg(has); setCache("hub:hasEmg", has);
-        }
+        });
+        // 件数だけは応募と評価の両方を待つ。失敗を「未評価」とみなしてバッジを戻さない。
+        const [appsRes, revRes] = await Promise.all([
+          supabase.from("applications").select("id,status,attended,job_number").eq("worker_id", session.user.id),
+          // 評価済みかは自分が書いた評価の行で見る（打刻の終了確認は廃止・2026-08-18）
+          supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id),
+        ]);
+        if (cancelled || appsRes.error || revRes.error) return;
+        const apps = appsRes.data;
         // 承認済みバッジは未対応（手続きが残っている応募）のみ計上。完了・評価済みまで数えると
         // バッジが常時点灯し、新しい要対応があっても気づけなくなるため（2026-07-16）
         if (apps) {
-          const reviewed = new Set(revRes?.error ? [] : (revRes.data || []).map(r => r.application_id));
+          const reviewed = new Set((revRes.data || []).map(r => r.application_id));
           const counts = {
             applying: apps.filter(a => a.status === "applied").length,
             approved: apps.filter(a =>
@@ -211,14 +216,10 @@ export function ProfileHub({ me, onNewJob, onResume, onAvatarChange, onLogout })
           };
           setWAppCounts(counts); setCache("hub:wCounts", counts);
         }
-        // 「わたしの実績」カードの要約（wHub＝当日の仕事・求人件数・評価件数）は
-        // カード削除（2026-08-21）とともに撤去＝jobs_publicの2本の問い合わせも不要になった
-        if (cancelled) return;
-        if (ts?.ok) { setWTrust(ts); setCache("hub:wTrust", ts); }
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [wTab]);
+  }, [pTab, wTab, me?.id]);
   // 未設定の項目数（編集ページのボックスに対応）＝名刺カードの「編集する」ボタンの通知バッジに使う。
   // カード枠の強調（cb-urgent-card/-still）は削除した（2026-08-21たきと指示）。
   // 数え方はlib/utilsのworkerUnsetCountが唯一のソース（今日ページの未入力ボックスと同じ定義・2026-08-03）

@@ -73,47 +73,56 @@ export function WorkerApplications({ filter, me }) {
   };
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
         if (!session) { setLoading(false); return; }
-        // 仮応募（第15弾・2026-07-30）：意思だけ預かった行と、あと何項目かの内訳を同時に取る
-        const [appsRes, pendRes, readyRes, revRes] = await Promise.all([
+        if (session.user.id !== me?.id) return;
+        // プロフィールの残り項目は補助表示。応募と求人が届いてもこの計算を待っていた。
+        Promise.resolve(fetchWorkerReady()).then(result => {
+          if (!cancelled && result) setReadyState(result);
+        }).catch(() => {});
+        // 評価は操作ボタンの判定に必要なので、応募・仮応募と一緒に待つ。
+        const [appsRes, pendRes, revRes] = await Promise.all([
           supabase.from("applications").select("*").eq("worker_id", session.user.id).order("created_at",{ascending:false}),
-          supabase.from("pending_applications").select("id,job_number,created_at").order("created_at",{ascending:false}).then(r => r, () => ({ data: [] })),
-          fetchWorkerReady().then(r => r, () => null),
+          supabase.from("pending_applications").select("id,job_number,created_at").order("created_at",{ascending:false}).then(r => r, () => ({ error: true })),
           // 評価済みの判定（打刻の署名時刻の代わり）。失敗時は手元の値を上書きしない（2026-08-07規則）
           supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
         ]);
-        setPendingApps(pendRes.data || []);
+        if (cancelled) return;
+        if (!pendRes.error) setPendingApps(pendRes.data || []);
         if (!revRes.error && revRes.data) {
           const ids = revRes.data.map(r => r.application_id).filter(Boolean);
           setReviewedIds(new Set(ids)); setCache("wapp:reviewed", ids);
         }
-        if (readyRes) setReadyState(readyRes);
         const { data, error } = appsRes;
         if (!error && data) {
           setAllApps(data);
-          // 求人の日程と農家の返答傾向は互いに独立なので同時に投げる（2026-07-27たきと指示「直列を並列に」）
+          // 求人と返答傾向は同時に取得するが、本文は求人が届けば表示する。
           const jobNumbers = [...new Set([...data.map(a => a.job_number), ...(pendRes.data || []).map(p => p.job_number)].filter(Boolean))];
           // 農家の返答傾向（第9弾・2026-07-22）：返事待ち(applied)の各求人の農家について、信頼カードの返答速度を転用。
           // employer_trust_info(avg_response_hours) を farmer_id ごとに引き、当日中/1日以内/2日以内のバケットで表示する
           const waitFarmerIds = [...new Set(data.filter(a => a.status === "applied").map(a => a.farmer_id).filter(Boolean))];
-          const [jobRes, respEntries] = await Promise.all([
+          if (waitFarmerIds.length > 0) {
+            Promise.all(waitFarmerIds.map(async fid => {
+              try {
+                const { data: t, error } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid });
+                return !error && t?.ok ? [fid, t.avg_response_hours] : null;
+              } catch { return null; }
+            })).then(entries => {
+              if (!cancelled) setRespByFarmer(prev => ({ ...prev, ...Object.fromEntries(entries.filter(Boolean)) }));
+            });
+          }
+          const jobRes = jobNumbers.length > 0
             // 全列で引く（2026-08-22たきと指示「さがすページと同じ求人カード一覧構造に」＝
             // JobCardの材料 mapJobPublicRow が全列を前提にするため）。キャッシュ(wapp:jobs)には
             // この生の行（JSON安全）だけを置き、Dateを含む整形後は描画のたびに作る（2026-08-03の実害の型）
-            jobNumbers.length > 0
-              ? fetchJobRowListForMe(jobNumbers).then(r => r, () => ({ data: [] }))
-              : Promise.resolve({ data: [] }),
-            waitFarmerIds.length > 0
-              ? Promise.all(waitFarmerIds.map(async fid => {
-                  try { const { data: t } = await supabase.rpc("employer_trust_info", { p_farmer_id: fid }); return [fid, (t && t.ok) ? t.avg_response_hours : null]; }
-                  catch { return [fid, null]; }
-                }))
-              : Promise.resolve([]),
-          ]);
-          if (jobNumbers.length > 0) {
+            ? await fetchJobRowListForMe(jobNumbers).catch(() => ({ error: true }))
+            : { data: [] };
+          if (cancelled) return;
+          if (!jobRes.error && jobNumbers.length > 0) {
             const map = {};
             (jobRes.data || []).forEach(j => { map[j.job_number] = j; });
             setJobDates(map); setCache("wapp:jobs", map);
@@ -123,18 +132,18 @@ export function WorkerApplications({ filter, me }) {
             if (jobNumbers.some(n => !map[n])) {
               try {
                 const actRes = await supabase.rpc("my_job_actions");
-                if (!actRes.error && Array.isArray(actRes.data)) { setActionRows(actRes.data); setCache("saved:rows", actRes.data); }
+                if (!cancelled && !actRes.error && Array.isArray(actRes.data)) { setActionRows(actRes.data); setCache("saved:rows", actRes.data); }
               } catch {}
             }
           }
-          if (respEntries.length > 0) setRespByFarmer(Object.fromEntries(respEntries));
         }
       } catch {}
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
+    return () => { cancelled = true; };
     // refreshTick＝応募の変化(Realtime)と画面の復帰の合図（2026-08-18 Speed-1B）。
     // 合図は「変わった」だけ＝中身はこの窓口から取り直す。loadingは立て直さないので骨は出ない
-  }, [refreshTick]);
+  }, [refreshTick, me?.id]);
 
   // 応募の取消（承認前のみ・本人）
   const [cancelingId, setCancelingId] = useState(null);
@@ -436,7 +445,7 @@ export function WorkerApplications({ filter, me }) {
     <div style={{ background:"#FFF8E7", border:"1px solid #F0E0B8", borderRadius:14, padding:"14px 16px", marginBottom:16 }}>
       <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#8A6D1D", margin:"0 0 4px" }}>⏳ 仮応募（プロフィール待ち・{pendingApps.length}）</p>
       <p className="f-sans" style={{ fontSize:12, color:"#8A6D1D", margin:"0 0 10px", lineHeight:1.7 }}>
-        {readyState && readyState.missing.length > 0
+        {!readyState ? "応募に必要なプロフィールをご確認ください" : readyState.missing.length > 0
           ? `あと${readyState.missing.length}項目で応募が届きます`
           : "必須項目はそろっています。プロフィールを保存すると応募が届きます"}
       </p>

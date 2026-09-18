@@ -13,12 +13,26 @@ export const readSeenNewIds = () => { try { const v = JSON.parse(localStorage.ge
 export const recordSeenNewIds = (ids) => { try { localStorage.setItem("cb_seenNewJobs", JSON.stringify([...readSeenNewIds(), ...ids].slice(-300))); } catch {} };
 
 // 公開求人の全件取得（jobs_publicはanon許可＝未ログインの訪問者でも読める）。失敗はnull
-export async function fetchPublicJobs() {
+async function loadPublicJobs() {
   try {
     const { data, error } = await supabase.from("jobs_public").select("*").order("job_number", { ascending: false });
     if (error || !data) return null;
     return data.map(mapJobPublicRow);
   } catch { return null; }
+}
+
+// 先読みと遷移が重なっても同じ取得中の応答を使う。完了結果はここには保持しない。
+// 更新通知は fresh で別の取得を開始する＝保存前に始まった応答を使い回さない。
+// ユーザーが切り替わった時も混ぜない。画面キャッシュは従来どおりviewCacheが担う。
+const pendingJobs = new Map();
+export function fetchPublicJobs({ scope = "anon", fresh = false } = {}) {
+  if (!fresh && pendingJobs.has(scope)) return pendingJobs.get(scope);
+  const request = loadPublicJobs();
+  pendingJobs.set(scope, request);
+  request.finally(() => {
+    if (pendingJobs.get(scope) === request) pendingJobs.delete(scope);
+  });
+  return request;
 }
 
 // 終了した求人（掲載終了・満員・期間終了）は一覧の末尾へ回す＝募集中が先（2026-08-05）。
@@ -58,7 +72,8 @@ export function orderSearchJobs(mapped, prev) {
 export async function prefetchSearchJobs() {
   if (getCache("search:jobs") !== undefined) return;
   const mapped = await fetchPublicJobs();
-  if (!mapped) return;
+  // 先読み中に検索本体が新しい一覧を置いた場合、その結果を古い先読みで戻さない。
+  if (!mapped || getCache("search:jobs") !== undefined) return;
   const { list, freshNew } = orderSearchJobs(mapped, null);
   setCache("search:jobs", list);
   if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id));

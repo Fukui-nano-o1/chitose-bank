@@ -240,11 +240,13 @@ export function JobSearchMapView({ onRegister, me }) {
   const [bootSettled, setBootSettled] = useState(false); // 一覧の初回取得が終わったか
   const jobsRefreshTick = useRefreshTick(REFRESH_JOBS);
   useEffect(() => {
+    let cancelled = false;
     // 訪問者モード（2026-07-24）：jobs_publicはanon許可ので未ログインでも公開面を読める。
     // 取得・並び規則（新着上位＋ランダム・既読記録）は lib/searchJobs に一本化（玄関の先読みと共有・2026-08-02）
     (async () => {
       try {
-        const mapped = await fetchPublicJobs();
+        const mapped = await fetchPublicJobs({ scope: me?.id || "anon", fresh: jobsRefreshTick > 0 });
+        if (cancelled) return;
         if (mapped) {
           let newIds = [];
           setDbJobs(prev => {
@@ -261,13 +263,14 @@ export function JobSearchMapView({ onRegister, me }) {
       // 起動バーストの削減（2026-08-18 Speed-1C-1）：一覧の初回取得が終わった時点を
       // 「検索画面が成立した」合図にし、初期表示に要らない問い合わせをここから後ろへ送る。
       // 成否は問わない（失敗しても後続を永久に止めない）。合図は初回だけ＝復帰の再取得では立てない
-      if (!bootSettledRef.current) {
+      if (!cancelled && !bootSettledRef.current) {
         bootSettledRef.current = true; setBootSettled(true);
         // Realtimeの購読開始もここまで待たせる（2026-08-18 Speed-1C 起動衝突テスト）。
         // payloadは載せない・一回きり＝Appはこれを受けて購読を開ける（受け手はApp.jsxのrealtimeBootReady）
         try { window.dispatchEvent(new Event("cb:criticalBootSettled")); } catch {}
       }
     })();
+    return () => { cancelled = true; };
     // meのオブジェクトでなくidを依存に（2026-08-02）：セッション復元のsetMeで識別子が毎回変わり、
     // 1起動につき全件取得が2回走っていた。
     // refreshTick＝画面の復帰の合図（2026-08-18 Speed-1B）。jobsにRealtimeは無いので合図はこれだけ。
