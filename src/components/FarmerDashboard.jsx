@@ -7,7 +7,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, isJobDraft, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { OwnJobTile, ownJobState, ownJobPhoto, OWN_JOB_GRID_CLASS } from "./OwnJobTile";
@@ -77,7 +77,7 @@ const FARMER_TRAIT_TAGS = {
   ],
 };
 
-export function FarmerDashboard({ onNewJob, onResume, me }) {
+export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, onDismissDraftSaved }) {
   const hashToJobTab = () => {
     const h = window.location.hash.replace(/^#\/?/,"");
     // 項目の編集は1項目=1ページ（#/profile/employer/profile/{項目}・2026-08-25）ので前方一致で見る
@@ -92,7 +92,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   };
   const [jobTab, setJobTab] = useState(() => {
     try { const j = hashToJobTab(); if (j) return j; } catch {}
-    return (sessionStorage.getItem("cb_afterDraftSave")==="1") ? "draft" : "home";
+    return "home";
   });
   // あなたの求人（Airbnbのホストの Listings の型・2026-09-02）＝作成中／公開中／終了は1つのページの絞り込み
   const isOwnJobsTab = jobTab === "draft" || jobTab === "active" || jobTab === "expired";
@@ -132,6 +132,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   const [workerProfiles, setWorkerProfiles] = useState(() => getCache("farm:wp") ?? {});
   const [workerTrust, setWorkerTrust] = useState(() => getCache("farm:trust") ?? {}); // { [worker_id]: {joined_at, verified_at} }
   const [draftsLoading, setDraftsLoading] = useState(() => getCache("farm:drafts") === undefined); // キャッシュがあれば最初から仮配置を出さない
+  const [jobsError, setJobsError] = useState("");
+  const [jobsRetry, setJobsRetry] = useState(0);
   const [appsLoading, setAppsLoading] = useState(() => getCache("farm:apps") === undefined);       // 応募は求人と別に読むので、待ちの判定も別（2026-07-29）
   // 画面の状態→キャッシュの写し（2026-07-27）。承認・削除・一時非公開などは手元のstateだけを
   // 書き換えるので、ここで一括して写す。呼び出し側（14箇所）にsetCacheを撒かない＝写し忘れが起きない。
@@ -197,16 +199,6 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           setRosterRows(rr); setCache("farm:roster", rr);
         }
       } catch {}
-      // 「保存して終了」の直後は作成中の面へ寄せる。ただしURLthat別の面を名指ししている時は従わない
-      // （2026-08-21：フローの出口that入口の画面へ戻るようになったため、カレンダーから入って保存すると
-      //   URLはカレンダーなのに作成中thatが開く、という食い違いthat起きる。URLを正とする）
-      try {
-        if (sessionStorage.getItem("cb_afterDraftSave")==="1") {
-          const j = hashToJobTab();
-          if (!j || j === "home") setJobTab("draft");
-        }
-        sessionStorage.removeItem("cb_afterDraftSave");
-      } catch {}
     })();
   }, []);
 
@@ -223,6 +215,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     // 一度きりガード（面を行き来しても取り直さない）は維持しつつ、再取得の合図が来た時だけ破る。
     // 初回は false !== 0 で通り、以後は同じ数字の間だけ止まる（2026-08-18 Speed-1B）
     if (jobsLoadedRef.current === jobsRefreshTick) return;
+    setJobsError("");
     let cancelled = false;
     const version = getConfirmedRefreshVersion(REFRESH_JOBS);
     const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_JOBS);
@@ -234,6 +227,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         const { data: bundle, error } = await fetchMyFarmJobs();
         if (!isCurrent()) return;
         const allJobs = bundle?.jobs;
+        if (error || !Array.isArray(allJobs)) throw new Error("jobs_unavailable");
         if (!error && allJobs) {
           jobsLoadedRef.current = jobsRefreshTick;
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays, work_time: j.work_time }]));
@@ -241,25 +235,26 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           // 自分の求人を日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
           // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い。
           // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。RPC側の固定列から落とさないこと。
-          // 判定は lib/utils に一本化（2026-07-27たきと指示）：終了＝日程が過ぎた（statusより優先）／
-          // 一時非公開＝掲載歴ありのdraft／下書き＝掲載歴なし・日程も未過去のdraft。ここで独自に書かない
+          // 終了・一時非公開の判定は lib/utils と共通。未掲載の下書きは再開用の一覧に集める。
           const isPast = isJobEnded;
           const isUnpublished = isJobUnpublished;
           // 作成中タブ＝作成中＋公開間近(pending)／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）。
           // pending は掲載＝即公開になった今もう1つだけ残る状態＝修正のお願い中の求人の再掲載（20260814093042）
-          setDbDrafts(allJobs.filter(j => (isJobDraft(j) || (j.status === "pending" && !isPast(j)))));
+          // 未掲載の下書きは日程が過ぎてもここから再開し、日程を直せる。求人自体の終了判定は変えない。
+          const unfinished = j => j.status === "draft" && !j.opened_at;
+          setDbDrafts(allJobs.filter(j => (unfinished(j) || (j.status === "pending" && !isPast(j)))));
           setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
-          setDbExpired(allJobs.filter(isPast));
+          setDbExpired(allJobs.filter(j => isPast(j) && !unfinished(j)));
           // 未回答の質問数（第10弾）：{ job_number: 件数 }。参照側の qUnansweredMap[j.job_number] は
           // 数値添字でもJSがキーを文字列化するので、jsonの文字列キーのままで一致する
           const m = bundle.q_unanswered || {};
           setQUnansweredMap(m); setCache("farm:qUnanswered", m);
         }
-      } catch {}
+      } catch { if (isCurrent()) setJobsError("求人を読み込めませんでした。もう一度お試しください。"); }
       if (isCurrent()) setDraftsLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [needsJobs, jobsRefreshTick]);
+  }, [needsJobs, jobsRefreshTick, jobsRetry]);
   const JOB_TABS = [
     { k:"profile", l:"雇い手プロフィール" },
     { k:"draft",   l:"作成中" },
@@ -490,6 +485,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (error) { alert("削除に失敗しました：" + error.message); return; }
       setDbDrafts(prev => prev.filter(d => d.job_number !== num));
       setDbActive(prev => prev.filter(d => d.job_number !== num));
+      if (num === savedDraftJobNumber) onDismissDraftSaved?.();
       emitConfirmedRefresh(REFRESH_JOBS);
       return;
     }
@@ -536,15 +532,15 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // 部品は components/OwnJobTile（見本帳と共用）。写真の左上に状態のピル（作成中／公開間近／掲載中／
   // 満員／一時非公開／終了＝求人の行から導く）、下に題名＋#No.、灰色の1行（場所・日程）。
   // 旧・JobCard（さがすの客側のカード）＋StatusRibbon の重ね（2026-08-23）は廃止＝ホスト側のカードは別物。
-  // ★タップの行き先は従来のまま：モード中＝実行／公開間近＝説明ボックス／それ以外＝プレビュー
+  // 下書きはカードから直接再開。公開中は従来のプレビュー、操作モード中は選んだ操作を実行。
   const OWN_JOB_FILTERS = [
     { k:"draft",   l:"作成中", h:"/profile/employer/drafts" },
     { k:"active",  l:"公開中", h:"/profile/employer/active" },
     { k:"expired", l:"終了",   h:"/profile/employer/expired" },
   ];
-  const ownJobsOf = (k) => k === "draft" ? dbDrafts : k === "active" ? dbActive : k === "expired" ? dbExpired : [];
+  const ownJobsOf = (k) => k === "draft" ? [...dbDrafts].sort((a, b) => Number(b.job_number === savedDraftJobNumber) - Number(a.job_number === savedDraftJobNumber)) : k === "active" ? dbActive : k === "expired" ? dbExpired : [];
   const OWN_JOB_EMPTY = { draft:"作成中の求人はありません", active:"公開中の求人はありません", expired:"終了した求人はありません" };
-  const OWN_JOB_EMPTY_SUB = { draft:"右上の＋から新しい求人を作れます。", active:"作成中の求人を再開して掲載すると、ここに並びます。", expired:"作業日程が過ぎた求人がここに入ります。" };
+  const OWN_JOB_EMPTY_SUB = { draft:"新しい求人を作って、募集を始めましょう。", active:"作成中の求人を再開して掲載すると、ここに並びます。", expired:"作業日程が過ぎた求人がここに入ります。" };
   const renderOwnJobTile = (d) => {
     const j = mapJobPublicRow(d);
     // 何も入力していない下書きが名無しにならないように
@@ -553,12 +549,18 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     const nearPublish = d.status === "pending"; // 掲載申請済み＝公開の準備中（「公開間近」）
     const qn = qUnansweredMap[d.job_number] || 0;
     const canOpenQ = d.status === "open" && !isJobEnded(d);
+    const resume = d.status === "draft";
+    const unpublishedDraft = resume && !d.opened_at;
     return (
-      <OwnJobTile key={d.job_number} title={title} sub={sub} jobNumber={d.job_number} state={ownJobState(d)}
+      <OwnJobTile key={d.job_number} title={title} sub={sub} jobNumber={d.job_number} state={unpublishedDraft ? { label:"下書き", dot:"#F5A623" } : ownJobState(d)}
+        actionLabel={armedAction ? ARMED_LABEL[armedAction] : resume ? "続きを入力" : undefined}
+        actionHint={resume ? isJobEnded(d) ? "日程を見直して、掲載を続けましょう。" : "保存したところから再開できます。" : undefined}
+        justSaved={d.job_number === savedDraftJobNumber}
         // 写真の無い求人は求人者（＝自分）のアイコン（2026-08-31）。my_farm_jobs は求人者の列を返さないので自分のプロフィールから
         photo={ownJobPhoto(d)} avatarUrl={empMini?.avatar_url || ""} avatarName={empMini?.nickname || me?.name || ""}
         onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
           : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
+          : resume ? onResume(d.job_number)
           : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })}
         badge={qn > 0 ? (
           // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。カードのタップとは別動作（stopPropagation）。
@@ -1166,13 +1168,23 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
            URL（/profile/employer/drafts・/active・/expired）と jobTab はそのまま＝チップが面を切り替える */}
       {isOwnJobsTab ? (
       <div ref={skelDraftRef}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"4px 0 14px" }}>
+        <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", justifyContent:"space-between", gap:12, margin:"4px 0 14px" }}>
           <h2 className="f-sans" style={{ fontSize:26, fontWeight:800, color:"#222", margin:0, letterSpacing:"-0.01em" }}>あなたの求人</h2>
           <button onClick={onNewJob} aria-label="新しく求人を出す" className="f-sans cb-btn-press"
-            style={{ width:40, height:40, borderRadius:"50%", background:"#222", color:"#fff", border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0, flexShrink:0 }}>
-            <NavIcon name="plus" size={20} />
+            style={{ minHeight:44, borderRadius:24, background:"#222", color:"#fff", border:"none", display:"flex", alignItems:"center", justifyContent:"center", gap:6, cursor:"pointer", padding:"10px 16px", fontSize:13, fontWeight:700, flexShrink:0 }}>
+            <NavIcon name="plus" size={16} />新しい求人を作成
           </button>
         </div>
+        {jobTab === "draft" && savedDraftJobNumber != null && (
+          <section className="cb-draft-saved f-sans" aria-label="下書きの保存完了">
+            <div className="cb-draft-saved-copy" role="status">
+              <span className="cb-draft-saved-mark"><NavIcon name="tick" size={20} /></span>
+              <div><p className="cb-draft-saved-title">下書きを保存しました</p><p className="cb-draft-saved-hint">求人 #{savedDraftJobNumber} は未公開です。<br />「掲載」から、いつでも再開できます。</p></div>
+            </div>
+            <button type="button" className="cb-draft-resume f-sans" onClick={()=>onResume(savedDraftJobNumber)}>続きを入力 <span aria-hidden="true">→</span></button>
+            <button type="button" className="cb-draft-dismiss" aria-label="保存の通知を閉じる" onClick={onDismissDraftSaved}><NavIcon name="close" size={16} /></button>
+          </section>
+        )}
         <div style={{ display:"flex", gap:8, overflowX:"auto", margin:"0 0 18px", paddingBottom:2 }}>
           {OWN_JOB_FILTERS.map(t => { const on = jobTab === t.k; const n = ownJobsOf(t.k).length; return (
             <button key={t.k} onClick={()=>{ if (!on) { setJobTab(t.k); window.location.hash = t.h; } }} className="f-sans" aria-pressed={on}
@@ -1181,10 +1193,12 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
             </button>
           ); })}
         </div>
+        {jobTab === "draft" && dbDrafts.length > 0 && <p className="f-sans" style={{ margin:"0 0 18px", fontSize:14, lineHeight:1.7, color:"#717171" }}>下書きを選ぶと、保存したところから再開できます。</p>}
+        {jobsError && <div className="f-sans" role="alert" style={{ padding:"16px 0", fontSize:14 }}><p>{jobsError}</p><button type="button" className="cb-draft-resume f-sans" onClick={()=>setJobsRetry(n=>n+1)}>もう一度読み込む</button></div>}
         {draftsLoading ? (
           /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
           <AutoSkeleton shapeKey="farmOwnJobs" />
-        ) : ownJobsOf(jobTab).length === 0 ? (
+        ) : ownJobsOf(jobTab).length === 0 ? (jobsError || (jobTab === "draft" && savedDraftJobNumber != null)) ? null : (
           <div style={{ textAlign:"center", padding:"56px 0 40px" }}>
             <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#717171" }}><NavIcon name={jobTab === "expired" ? "ended" : "sprout"} size={40} /></div>
             <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"0 0 6px" }}>{OWN_JOB_EMPTY[jobTab]}</p>
@@ -1794,16 +1808,8 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           </div>
         )}
         <div className="cb-job-action-fabs">
-          {/* 再開は作成中のみ（2026-08-07たきと指示「公開中タブのときは再開は非表示」）。
-              公開中の求人は再開＝編集の対象ではない（編集は一時非公開→作成中→再開の順）。
-              ★消える時も枠は空けたまま（同日たきと指示「詰めるな」）＝visibility:hiddenの同じ寸法の
-              ダミーを残す。display:noneにすると後続のピルが左へ動いてしまう。
-              出入りは削除⇄非公開と同じ cbPillSwap */}
-          {jobTab !== "active" ? (
-            <button key="resume" onClick={()=>armJobAction("resume")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
-              boxShadow: armedAction === "resume" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "resume") ? 1 : 0.45 }}>再開</button>
-          ) : (
-            /* 公開中＝「編集」（2026-09-11）：応募が届く前の求人を、掲載したまま編集フローで直す（再開と同じ緑・同じ枠） */
+          {/* 下書きの再開は各カードに表示。公開中の編集は従来の操作を残す。 */}
+          {jobTab === "active" && (
             <button key="edit" onClick={()=>armJobAction("edit")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
               boxShadow: armedAction === "edit" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "edit") ? 1 : 0.45 }}>編集</button>
           )}

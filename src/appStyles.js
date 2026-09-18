@@ -1423,6 +1423,17 @@ html.cb-drag-lock, body.cb-drag-lock { overflow: hidden !important; overscroll-b
    minmax(0 側は min(100%, …)) で、1行で省略する題名が列幅を押し広げない（2026-08-16の子minWidth:0と同じ理屈）。
    使い手＝FarmerDashboard（本番）と AdminFarmerPagesRoom（見本帳）＝クラス名は OwnJobTile の OWN_JOB_GRID_CLASS */
 .cb-own-jobs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr)); gap: 18px 12px; }
+.cb-draft-saved { position:relative; display:flex; align-items:center; flex-wrap:wrap; gap:20px; margin:20px 0 24px; padding:24px; border:1px solid #DDD; border-radius:16px; background:#FFF; }
+.cb-draft-saved-copy { display:flex; align-items:flex-start; gap:12px; flex:1 1 240px; padding-right:20px; }
+.cb-draft-saved-mark { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:32px; height:32px; border-radius:50%; background:#E9F7F0; color:#008A58; }
+.cb-draft-saved-title { margin:2px 0 6px; font-size:17px; font-weight:700; color:#222; }
+.cb-draft-saved-hint { margin:0; font-size:13px; line-height:1.7; color:#717171; }
+.cb-draft-resume { display:inline-flex; align-items:center; justify-content:center; gap:16px; min-height:44px; padding:12px 20px; border:1px solid #222; border-radius:8px; background:#222; color:#FFF; font-size:14px; font-weight:700; cursor:pointer; }
+.cb-draft-dismiss { position:absolute; top:2px; right:2px; display:flex; align-items:center; justify-content:center; width:44px; height:44px; padding:0; border:0; border-radius:50%; color:#717171; background:transparent; cursor:pointer; }
+@media (max-width: 480px) {
+  .cb-draft-saved { padding:20px; gap:16px; }
+  .cb-draft-saved > .cb-draft-resume { width:100%; }
+}
 @media (min-width: 760px) {
   .cb-own-jobs-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 28px 20px; }
 }

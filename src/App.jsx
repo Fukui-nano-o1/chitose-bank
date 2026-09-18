@@ -496,6 +496,7 @@ export default function App(){
   const [openAccountForm,setOpenAccountForm]=useState(() => isAccountHash());
   const [showLanding,setShowLanding]=useState(false);
   const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
+  const [savedJobDraft, setSavedJobDraft] = useState(null);
   // 求人フローの「戻る」（保存せずに終了）の行き先＝フローに入る直前の画面。onHashで控える（下記）
   const flowBackToRef = useRef("/profile/employer");
   const [consignRoom,setConsignRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/consignment"); } catch { return false; } }); // 委託準備室（#/admin/consignment・管理者専用・2026-07-19。/profile 等のサブページ含む）
@@ -1562,16 +1563,10 @@ export default function App(){
     ? { k:"emp-calendar", icon:<NavIcon name="calendar" />, label:"カレンダー", hash:"/profile/employer/calendar",
         match: h => h.startsWith("profile/employer/calendar") }
     : { k:"saved", icon:<NavIcon name="calendar" />, label:"カレンダー" };
-  // 掲載（2026-08-23たきと指示「農家モードのとき、チャットの右に掲載ボタンを新設」）＝
-  // 求人づくりへの最短の入口。判定は empCtx（いま農家モードか）＝カレンダーの hasEmp（面を持つか）とは別物：
-  // 「出す」のは農家モードで見ている時だけの用事so、capability でなくモードで出し分ける。
-  // ★下書きは消さない＝誤タップで書きかけthat消えないように。
-  //   hash を書くだけでフローthat開く（onHash that showJobPost を立てる）＝新しい経路を作らない。
-  // ★アイコンは postJob（紙＋鉛筆）＝マイページ農家面にあった「求人の掲載」カード（c6bc698で削除）と
-  //   同じもの。同じ行き先の入口がカードからナビへ移っただけso、絵柄も引き継ぐ（2026-08-23たきと指示
-  //   「求人の掲載カードのアイコンを持ってこい」）。新規に描いた publish（枠＋プラス）は不採用・削除済み
-  const postTab = { k:"post", icon:<NavIcon name="postJob" />, label:"掲載", hash:"/work/new",
-    match: h => h === "work/new" || h.startsWith("work/new/") || h.startsWith("work/edit/") };
+  // 「掲載」は下書き・公開中の求人を管理する入口。新規作成と保存した求人の再開をここに集約する。
+  // 農家モードのときだけ表示し、掲載フロー中も同じタブを選択状態にする。
+  const postTab = { k:"post", icon:<NavIcon name="postJob" />, label:"掲載", hash:"/profile/employer/drafts",
+    match: h => /^profile\/employer\/(drafts|active|expired)$/.test(h) || h === "work/new" || h.startsWith("work/new/") || h.startsWith("work/edit/") };
   const navTabs = !me
     ? visitorNav
     : [
@@ -1985,8 +1980,10 @@ export default function App(){
             約1秒、プロフィールの働き手面が露出し「働き手に切り替わった」ように見える＝オーバーレイ描画の鉄則 */}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&!showJobPost&&safeTab==="profile"&&(me
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
-              onNewJob={()=>{ try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
-              onResume={(n)=>{ setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
+              savedDraftJobNumber={savedJobDraft?.ownerId === me.id ? savedJobDraft.jobNumber : null}
+              onDismissDraftSaved={()=>setSavedJobDraft(null)}
+              onNewJob={()=>{ setSavedJobDraft(null); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
+              onResume={(n)=>{ setSavedJobDraft(null); setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {/* 新着の応募ページ（#/new-applicants・2026-08-05たきと指示）：応募を受けた雇い手専用。
@@ -2147,9 +2144,8 @@ export default function App(){
       {me&&showJobPost&&!needsPrivacyReconsent&&(
         <AppErrorBoundary><Suspense fallback={<FlowLoading />}><LandingFlow
           initialRole="farmer"
-          // 求人フローの出口は【すべて入る直前の画面へ強制遷移】（2026-08-19「戻る」→2026-08-21 全出口に拡張）。
-          // カレンダーの日付シートから コピー／内容を編集 で入った時も、終わればカレンダーに戻る。
-          // 行き先の控えは flowBackToRef（フロー以外のハッシュを通るたびに更新）＝1箇所で持つ
+          // 下書き保存は掲載一覧へ集約。公開・公開中の編集・キャンセルは入口へ戻る。
+          onDraftSaved={(jobNumber)=>{ setSavedJobDraft({ ownerId: me.id, jobNumber }); window.location.hash = "/profile/employer/drafts"; setShowJobPost(false); }}
           onPublished={(wasOpen, jobNumber, opts)=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; setPubDone({ open: !!wasOpen, edited: !!opts?.edited, jobNumber: jobNumber || null }); }}
           onComplete={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}

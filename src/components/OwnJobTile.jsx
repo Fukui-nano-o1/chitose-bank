@@ -25,9 +25,10 @@ export function ownJobState(d) {
 // title＝作物 作業（無ければ「無題の求人」）／sub＝場所・日程の1行／jobNumber＝#No.（必ず読める）
 // state＝ownJobState の返り値／photo＝サムネのURL（無ければ求人者のアイコン）
 // badge＝右上の小さなバッジ（未回答の質問「?N」など）。onOpen＝カードのタップ
-export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, avatarName, badge, onOpen, dataGuide }) {
+export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, avatarName, badge, onOpen, dataGuide, actionLabel, actionHint, justSaved }) {
   return (
     <div role="button" tabIndex={0} onClick={onOpen} data-guide={dataGuide}
+      aria-label={actionLabel ? `${title} #${jobNumber}：${actionLabel}` : undefined}
       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen && onOpen(); } }}
       className="cb-btn-press" style={{ cursor: "pointer", minWidth: 0 }}>
       <div style={{ position: "relative", aspectRatio: "20 / 19", borderRadius: 12, overflow: "hidden", background: "#F0F0F0" }}>
@@ -55,6 +56,9 @@ export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, ava
           {jobNumber != null && <span style={{ fontSize: 12, fontWeight: 600, color: "#717171", flexShrink: 0 }}>#{jobNumber}</span>}
         </div>
         {sub && <div className="f-sans" style={{ fontSize: 13, color: "#717171", lineHeight: 1.5, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>}
+        {justSaved && <p className="f-sans" style={{ margin:"8px 0 0", fontSize:12, fontWeight:700, color:"#008A58" }}>保存しました</p>}
+        {actionHint && <p className="f-sans" style={{ margin:"8px 0 0", fontSize:12, lineHeight:1.6, color:"#717171" }}>{actionHint}</p>}
+        {actionLabel && <span className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", minHeight:44, marginTop:8, fontSize:14, fontWeight:700, color:"#222", borderTop:"1px solid #EBEBEB" }}>{actionLabel}<span aria-hidden="true">→</span></span>}
       </div>
     </div>
   );
