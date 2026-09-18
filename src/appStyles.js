@@ -373,7 +373,9 @@ input:focus { outline: none; }
   .bottom-tab-bar button:hover { color: #008F5B; }
   .bottom-tab-bar button.active { color: #00A86B; font-weight: 600; }
   .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
-  header { padding: 0 16px !important; }
+  /* 求人掲載のヘッダーは listingFlow.css の余白（safe-areaを含む）を使う。
+     一律に上下0へ上書きすると、ロゴと保存ボタンがiPhoneの時計・ノッチに重なる。 */
+  header:not(.listing-header) { padding: 0 16px !important; }
   /* 上余白に safe-area を足す（2026-07-31・ステータスバーblack-translucent化に伴い、時計の下に文字が潜らないように） */
   main { padding: calc(10px + env(safe-area-inset-top, 0px)) 12px calc(90px + env(safe-area-inset-bottom, 0px)) !important; }
   .ledger-card { padding: 16px !important; }
