@@ -23,6 +23,14 @@ import { useEffect, useRef, useState } from "react";
 const EVENT = "cb:refresh";
 export const REFRESH_APPLICATIONS = "applications"; // 応募の状態（承認・採用・完了・取消…）
 export const REFRESH_JOBS = "jobs";                 // 求人の状態（掲載・非公開・終了…）
+const confirmedVersions = new Map();
+
+// 保存前に始まった取得を、通知の100ms集約中やReactの次の描画前にも判別する。
+// 数字だけを持ち、利用者・求人・応募の中身は共有しない。
+export function getConfirmedRefreshVersion(topics) {
+  const list = Array.isArray(topics) ? topics : [topics];
+  return list.reduce((version, topic) => version + (confirmedVersions.get(topic) || 0), 0);
+}
 
 // 合図を出す。topics は文字列でも配列でもよい。reason はデバッグ用の由来（"realtime" / "wake"）
 export function emitRefresh(topics, reason) {
@@ -32,6 +40,8 @@ export function emitRefresh(topics, reason) {
 
 // 書き込みの成功を受け取った呼び出し元だけが使う。Realtime・復帰・ポーリングは通常の合図。
 export function emitConfirmedRefresh(topics) {
+  const list = Array.isArray(topics) ? topics : [topics];
+  for (const topic of new Set(list)) confirmedVersions.set(topic, (confirmedVersions.get(topic) || 0) + 1);
   emitRefresh(topics, "confirmed");
 }
 

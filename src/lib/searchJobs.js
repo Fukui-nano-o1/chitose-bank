@@ -5,6 +5,7 @@
 import { supabase } from "./supabase";
 import { mapJobPublicRow } from "./utils";
 import { getCache, setCache } from "./viewCache";
+import { getConfirmedRefreshVersion, REFRESH_JOBS } from "./refreshBus";
 
 export const shuffleArr = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -23,14 +24,18 @@ async function loadPublicJobs() {
 
 // 先読みと遷移が重なっても同じ取得中の応答を使う。完了結果はここには保持しない。
 // 更新通知は fresh で別の取得を開始する＝保存前に始まった応答を使い回さない。
+// 保存後に別画面がマウントされた場合も、更新番号が違う取得は共有しない。
 // ユーザーが切り替わった時も混ぜない。画面キャッシュは従来どおりviewCacheが担う。
 const pendingJobs = new Map();
 export function fetchPublicJobs({ scope = "anon", fresh = false } = {}) {
-  if (!fresh && pendingJobs.has(scope)) return pendingJobs.get(scope);
+  const version = getConfirmedRefreshVersion(REFRESH_JOBS);
+  const pending = pendingJobs.get(scope);
+  if (!fresh && pending?.version === version) return pending.request;
   const request = loadPublicJobs();
-  pendingJobs.set(scope, request);
+  const entry = { version, request };
+  pendingJobs.set(scope, entry);
   request.finally(() => {
-    if (pendingJobs.get(scope) === request) pendingJobs.delete(scope);
+    if (pendingJobs.get(scope) === entry) pendingJobs.delete(scope);
   });
   return request;
 }
@@ -71,9 +76,10 @@ export function orderSearchJobs(mapped, prev) {
 // キャッシュが既にあれば何もしない。並び・既読記録はさがす本体と同じ規則
 export async function prefetchSearchJobs() {
   if (getCache("search:jobs") !== undefined) return;
+  const version = getConfirmedRefreshVersion(REFRESH_JOBS);
   const mapped = await fetchPublicJobs();
   // 先読み中に検索本体が新しい一覧を置いた場合、その結果を古い先読みで戻さない。
-  if (!mapped || getCache("search:jobs") !== undefined) return;
+  if (!mapped || version !== getConfirmedRefreshVersion(REFRESH_JOBS) || getCache("search:jobs") !== undefined) return;
   const { list, freshNew } = orderSearchJobs(mapped, null);
   setCache("search:jobs", list);
   if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id));

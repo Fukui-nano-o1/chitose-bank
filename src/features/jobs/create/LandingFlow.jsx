@@ -2,6 +2,7 @@
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
+import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
 import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview, PLACE_CHANGE_OPTIONS, TASK_CHANGE_OPTIONS } from "../../../lib/utils";
@@ -830,6 +831,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
     })() : await saveDraftToSupabase();
     setDraftSaving(false);
     if (res.ok) {
+      emitConfirmedRefresh(REFRESH_JOBS);
       if (!exit) { // その場保存：遷移も cb_afterDraftSave（着地先の指定）もしない。保存できたことだけ知らせる
         setSavedToast(true);
         if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
@@ -1672,6 +1674,7 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
                   setDraftJobNumber(null);
                   setPublishModal(false);
+                  emitConfirmedRefresh(REFRESH_JOBS);
                   if (typeof onPublished === "function") { onPublished(true, _jn, { edited: true }); }
                   else { setPublishedOpen(true); setStep(12); }
                   return;
@@ -1698,7 +1701,9 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                 // ＝「公開間近」表示・運営が手動で開ける従来経路が救済として生きる
                 let publishedNow = true;
                 if (!canOpen && _jn) {
-                  const pub = await publishMyJob(_jn);
+                  let pub;
+                  try { pub = await publishMyJob(_jn); }
+                  finally { emitConfirmedRefresh(REFRESH_JOBS); } // 保存は成功済み。公開処理が失敗した場合も最新状態を照合
                   if (pub.error || !pub.data?.ok) {
                     alert("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") +
                       "\n求人は保存されています。時間をおいて、もう一度「掲載する」をお試しください。");
@@ -1707,6 +1712,8 @@ export function LandingFlow({ onComplete, onSkip, onLogin, onPublished, onWorker
                   // 修正のお願い中の求人だけは運営の確認を経て公開（2026-08-14・pending:true）
                   // ＝祝祭は「公開の準備が整いしだい」側に分岐（onPublished(false)）
                   if (pub.data?.pending) publishedNow = false;
+                } else {
+                  emitConfirmedRefresh(REFRESH_JOBS);
                 }
                 // 掲載前の確認を記録に残す（2026-07-30たきと指示・行動記録の憲法）。
                 // 画面のstateだけだった同意を、押した文言と時刻ごと追記のみの台帳へ。

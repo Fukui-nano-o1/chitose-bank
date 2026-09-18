@@ -5,7 +5,7 @@ import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { DoneScreen } from "./DoneScreen";
 import { getCache, setCache } from "../lib/viewCache";
-import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
+import { useRefreshTick, emitConfirmedRefresh, getConfirmedRefreshVersion, REFRESH_APPLICATIONS } from "../lib/refreshBus";
 import { ymdLocal, calFmtDate, CHAT_ELIGIBLE_STATUSES, appPhaseKey, appPhaseLabelNow, isFinalWorkDone, appWorkDates, mapJobPublicRow, photoThumb } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { fetchWorkerReady } from "../lib/workerReady";
@@ -42,6 +42,7 @@ export function WorkerApplications({ filter, me }) {
     const { error } = await supabase.from("pending_applications").delete().eq("id", p.id);
     if (error) { alert("取り消しに失敗しました：" + error.message); return; }
     setPendingApps(prev => prev.filter(x => x.id !== p.id));
+    emitConfirmedRefresh(REFRESH_APPLICATIONS);
   };
   const [respByFarmer, setRespByFarmer] = useState({}); // { [farmer_id]: avg_response_hours }（第9弾・返答傾向）
   // 過去の応募の折りたたみ（pastOpen）は廃止＝常に展開（2026-08-22たきと指示「過去の応募は閉じないで」）
@@ -74,15 +75,17 @@ export function WorkerApplications({ filter, me }) {
 
   useEffect(() => {
     let cancelled = false;
+    const version = getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
+    const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled) return;
+        if (!isCurrent()) return;
         if (!session) { setLoading(false); return; }
         if (session.user.id !== me?.id) return;
         // プロフィールの残り項目は補助表示。応募と求人が届いてもこの計算を待っていた。
         Promise.resolve(fetchWorkerReady()).then(result => {
-          if (!cancelled && result) setReadyState(result);
+          if (isCurrent() && result) setReadyState(result);
         }).catch(() => {});
         // 評価は操作ボタンの判定に必要なので、応募・仮応募と一緒に待つ。
         const [appsRes, pendRes, revRes] = await Promise.all([
@@ -91,7 +94,7 @@ export function WorkerApplications({ filter, me }) {
           // 評価済みの判定（打刻の署名時刻の代わり）。失敗時は手元の値を上書きしない（2026-08-07規則）
           supabase.from("reviews").select("application_id").eq("reviewer_id", session.user.id).then(r => r, () => ({ error: true })),
         ]);
-        if (cancelled) return;
+        if (!isCurrent()) return;
         if (!pendRes.error) setPendingApps(pendRes.data || []);
         if (!revRes.error && revRes.data) {
           const ids = revRes.data.map(r => r.application_id).filter(Boolean);
@@ -112,7 +115,7 @@ export function WorkerApplications({ filter, me }) {
                 return !error && t?.ok ? [fid, t.avg_response_hours] : null;
               } catch { return null; }
             })).then(entries => {
-              if (!cancelled) setRespByFarmer(prev => ({ ...prev, ...Object.fromEntries(entries.filter(Boolean)) }));
+              if (isCurrent()) setRespByFarmer(prev => ({ ...prev, ...Object.fromEntries(entries.filter(Boolean)) }));
             });
           }
           const jobRes = jobNumbers.length > 0
@@ -121,7 +124,7 @@ export function WorkerApplications({ filter, me }) {
             // この生の行（JSON安全）だけを置き、Dateを含む整形後は描画のたびに作る（2026-08-03の実害の型）
             ? await fetchJobRowListForMe(jobNumbers).catch(() => ({ error: true }))
             : { data: [] };
-          if (cancelled) return;
+          if (!isCurrent()) return;
           if (!jobRes.error && jobNumbers.length > 0) {
             const map = {};
             (jobRes.data || []).forEach(j => { map[j.job_number] = j; });
@@ -132,13 +135,13 @@ export function WorkerApplications({ filter, me }) {
             if (jobNumbers.some(n => !map[n])) {
               try {
                 const actRes = await supabase.rpc("my_job_actions");
-                if (!cancelled && !actRes.error && Array.isArray(actRes.data)) { setActionRows(actRes.data); setCache("saved:rows", actRes.data); }
+                if (isCurrent() && !actRes.error && Array.isArray(actRes.data)) { setActionRows(actRes.data); setCache("saved:rows", actRes.data); }
               } catch {}
             }
           }
         }
       } catch {}
-      if (!cancelled) setLoading(false);
+      if (isCurrent()) setLoading(false);
     })();
     return () => { cancelled = true; };
     // refreshTick＝応募の変化(Realtime)と画面の復帰の合図（2026-08-18 Speed-1B）。
@@ -155,9 +158,15 @@ export function WorkerApplications({ filter, me }) {
       const { data, error } = await supabase.rpc('cancel_application', { p_application_id: a.id });
       // 2026-08-16：取り消しは削除でなく記録（status='canceled'）。already=既に取り消し済みも成功扱い。
       // ローカルもstatus更新＝カードは「過去の応募（取り消し）」へ移る（表示は記録から導出）
-      if (!error && data && data.ok) setAllApps(prev => prev.map(x => x.id === a.id ? { ...x, status: 'canceled', canceled_at: new Date().toISOString() } : x));
+      if (!error && data && data.ok) {
+        setAllApps(prev => prev.map(x => x.id === a.id ? { ...x, status: 'canceled', canceled_at: new Date().toISOString() } : x));
+        emitConfirmedRefresh(REFRESH_APPLICATIONS);
+      }
       // not_found＝行が既に無い（旧DELETE時代の残り）＝取り消し済みとして扱う
-      else if (!error && data && data.reason === 'not_found') setAllApps(prev => prev.filter(x => x.id !== a.id));
+      else if (!error && data && data.reason === 'not_found') {
+        setAllApps(prev => prev.filter(x => x.id !== a.id));
+        emitConfirmedRefresh(REFRESH_APPLICATIONS);
+      }
       else alert('取り消しに失敗しました：' + (data?.reason || error?.message || '不明'));
     } catch { alert('取り消しに失敗しました。'); }
     setCancelingId(null);
@@ -663,7 +672,7 @@ export function WorkerApplications({ filter, me }) {
       <WorkerReviewSheet app={reviewModalApp && { id: reviewModalApp.id, farmer_id: reviewModalApp.farmer_id }} meId={me.id}
         dayCount={reviewModalApp ? appWorkDates(reviewModalApp, jobDates[reviewModalApp.job_number]).size || null : null}
         onClose={()=>setReviewModalApp(null)}
-        onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setReviewDone(true); }} />
+        onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setReviewDone(true); emitConfirmedRefresh(REFRESH_APPLICATIONS); }} />
 
       {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
       {disputeModalApp && (

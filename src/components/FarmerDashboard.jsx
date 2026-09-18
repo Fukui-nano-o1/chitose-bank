@@ -27,7 +27,7 @@ import ContractEmergencyContact from "./ContractEmergencyContact";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { HireConfirm } from "./HireConfirm";
 import { getCache, setCache } from "../lib/viewCache";
-import { useRefreshTick, emitConfirmedRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
+import { useRefreshTick, emitConfirmedRefresh, getConfirmedRefreshVersion, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { DoneScreen } from "./DoneScreen";
@@ -217,20 +217,25 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
 
   // 【求人】作成中・公開中・期限切れ・応募者（求人名の表示に要る）を開いた時に一度だけ
   const jobsLoadedRef = useRef(false);
+  const needsJobs = ["draft","active","expired","applicants","calendar"].includes(jobTab);
   useEffect(() => {
-    if (!["draft","active","expired","applicants","calendar"].includes(jobTab)) return;
+    if (!needsJobs) return;
     // 一度きりガード（面を行き来しても取り直さない）は維持しつつ、再取得の合図が来た時だけ破る。
     // 初回は false !== 0 で通り、以後は同じ数字の間だけ止まる（2026-08-18 Speed-1B）
     if (jobsLoadedRef.current === jobsRefreshTick) return;
-    jobsLoadedRef.current = jobsRefreshTick;
+    let cancelled = false;
+    const version = getConfirmedRefreshVersion(REFRESH_JOBS);
+    const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_JOBS);
     (async () => {
       try {
         // 1往復に集約（2026-08-02たきと指示「求人ページも遅い」）：従来は getSession→自分のjobs取得→
         // 未回答質問集計の直列で、スケルトン解除が最後だった。my_farm_jobs（SECURITY INVOKER＝RLSそのまま）
         // が求人と未回答質問数をまとめて返す
         const { data: bundle, error } = await fetchMyFarmJobs();
+        if (!isCurrent()) return;
         const allJobs = bundle?.jobs;
         if (!error && allJobs) {
+          jobsLoadedRef.current = jobsRefreshTick;
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays, work_time: j.work_time }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
           // 自分の求人を日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
@@ -251,9 +256,10 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           setQUnansweredMap(m); setCache("farm:qUnanswered", m);
         }
       } catch {}
-      setDraftsLoading(false);
+      if (isCurrent()) setDraftsLoading(false);
     })();
-  }, [jobTab, jobsRefreshTick]);
+    return () => { cancelled = true; };
+  }, [needsJobs, jobsRefreshTick]);
   const JOB_TABS = [
     { k:"profile", l:"雇い手プロフィール" },
     { k:"draft",   l:"作成中" },
@@ -301,6 +307,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       const { data, error } = await markWorkNoShow(completeModalApp.id);
       if (error || !data?.ok) { fbError(); alert('記録に失敗しました：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
       setDbApplicants(prev => prev.map(x => x.id===completeModalApp.id ? { ...x, status:'completed', attended:false } : x));
+      emitConfirmedRefresh(REFRESH_APPLICATIONS);
       setCompleteModalApp(null);
     } catch { alert('記録に失敗しました。'); }
     setCompleteSubmitting(false);
@@ -332,6 +339,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       //   写し忘れると、ボタンが「評価する」のまま残って二度目を開けてしまう（DBのUNIQUEは
       //   二度目の保存を拒むが、入力し終えてからエラーになる＝入口で止める）
       setReviewedAppIds(prev => { const n = new Set(prev); n.add(completeModalApp.id); return n; });
+      emitConfirmedRefresh(REFRESH_APPLICATIONS);
       fbSuccess(); // 完了の控えは下の「評価登録完了」モーダルが担う（花火は廃止・2026-09-02）
       // 評価登録完了モーダル用の控えを組み立てる（求人タイトルはdbActive→jobsの順で解決）
       let jobLabel = "";
@@ -472,6 +480,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
       // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
       setDbActive(prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d));
+      emitConfirmedRefresh([REFRESH_JOBS, REFRESH_APPLICATIONS]);
       return;
     }
     if (kind === "delete") {
@@ -481,6 +490,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
       if (error) { alert("削除に失敗しました：" + error.message); return; }
       setDbDrafts(prev => prev.filter(d => d.job_number !== num));
       setDbActive(prev => prev.filter(d => d.job_number !== num));
+      emitConfirmedRefresh(REFRESH_JOBS);
       return;
     }
     if (kind === "copy") {
@@ -673,6 +683,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
   // カードの帯が古いまま（契約のまま）になるため
   useEffect(() => {
     if (jobTab !== "applicants" && jobTab !== "calendar") return; // 応募者一覧・カレンダーの両面が同じ応募データを使う
+    let cancelled = false;
+    const version = getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
+    const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
     (async () => {
       try {
         // 1往復に集約（2026-08-02たきと指示「応募者ページの復元も遅い」）：従来は getSession→
@@ -680,6 +693,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
         // 全部返るまでスケルトンのままだった。my_farm_applicants（SECURITY INVOKER＝各テーブルの
         // RLSがそのまま適用・見える範囲は従来の直叩きと同一）が全部まとめて返す
         const { data: bundle, error } = await fetchMyFarmApplicants();
+        if (!isCurrent()) return;
         if (error || !bundle) { setAppsLoading(false); return; }
         const appData = bundle.apps || [];
         // 未対応（＝こちらの番）の応募＝やること・バッジと同じ単一ソース my_todo_items 由来（2026-07-26たきと指示）。
@@ -733,8 +747,9 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           }
         } catch {}
       } catch {}
-      setAppsLoading(false);
+      if (isCurrent()) setAppsLoading(false);
     })();
+    return () => { cancelled = true; };
   }, [jobTab, appsRefreshTick]);
 
   // 応募者カード本体（ボトムシートで表示。承認/見送り・保険・開始確認・完了評価・チャットの操作込み）
@@ -794,6 +809,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
     setFollowupBusy(false);
     if (error || !data?.ok) { fbError(); alert('保存に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
     setDbApplicants(prev => prev.map(x => x.id === a.id ? { ...x, held_at: data.held_at, handled_at: data.handled_at } : x));
+    emitConfirmedRefresh(REFRESH_APPLICATIONS);
     setFollowupConfirm(null);
     fbSuccess();
   };
@@ -835,11 +851,13 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                         const { data, error } = await rejectApplication(a.id);
                         if (error || !data?.ok) { fbError(); alert('処理に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                         setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'rejected'} : x));
+                        emitConfirmedRefresh(REFRESH_APPLICATIONS);
                       }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:12, fontWeight:600, background:"#fff", color:"#999", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>見送る</button>
                       <button onClick={async ()=>{
                         const { data, error } = await approveApplication(a.id);
                         if (error || !data?.ok) { fbError(); alert('承認に失敗しました：' + (data?.reason || error?.message || '不明')); return; }
                         setDbApplicants(prev => prev.map(x => x.id===a.id ? {...x, status:'approved'} : x));
+                        emitConfirmedRefresh(REFRESH_APPLICATIONS);
                         fbSuccess(); setApproveDone({ id: a.id, name: workerProfiles[a.worker_id]?.nickname || "" });
                       }} className="f-sans" style={{ flex:2, padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>承認する</button>
                     </div>
@@ -1641,7 +1659,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           setDbApplicants(prev => prev.map(x => x.id === id ? { ...x, terms_confirmed_farmer_at: now }
             : closed.has(x.id) ? { ...x, status: "rejected" } : x));
           setHireApp(null);
-          emitConfirmedRefresh(REFRESH_APPLICATIONS); // 保存成功は5秒の待ちを挟まず関連画面へ反映
+          emitConfirmedRefresh([REFRESH_APPLICATIONS, REFRESH_JOBS]); // 満員による求人の状態変更も照合
         }} />
 
       {/* 完了・評価モーダル（Part1） */}
@@ -1679,6 +1697,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
                   setAgreeSaving(false);
                   if (error || !data?.ok) { alert("確定に失敗しました：" + (data?.message || data?.reason || error?.message || "不明")); return; }
                   setDbApplicants(prev => prev.map(x => x.id===agreeModal.id ? { ...x, agreed_dates: dates } : x));
+                  emitConfirmedRefresh(REFRESH_APPLICATIONS);
                   setAgreeModal(null); setAgreeSel([]);
                 }} className="btn-primary" style={{ flex:2, padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, opacity: (agreeSaving || agreeSel.length===0) ? 0.5 : 1, cursor: agreeSel.length===0 ? "not-allowed" : "pointer" }}>{agreeSaving ? <>確定中<Dots /></> : `この日で確定する${agreeSel.length>0 ? `（${agreeSel.length}日）` : ""}`}</button>
               </div>

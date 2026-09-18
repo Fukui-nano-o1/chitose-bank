@@ -11,7 +11,7 @@ import { Avatar, Carousel, DangerItem, JobPhotoFallback, LinkifiedText, NoticeJu
 import { getCache, setCache } from "../lib/viewCache";
 import { snapGet } from "../lib/snapshot";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds, fetchJobViewCounts, countJobView } from "../lib/searchJobs";
-import { useRefreshTick, REFRESH_JOBS } from "../lib/refreshBus";
+import { useRefreshTick, emitConfirmedRefresh, getConfirmedRefreshVersion, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { createIdleQueue } from "../lib/idleQueue";
 import { CalendarView } from "./CalendarView";
 import { JobCard } from "./JobCard";
@@ -125,6 +125,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!confirm("この求人を一時非公開にしますか？\n\n・働き手から見えなくなり「作成中」に移ります（編集できます）\n・あとから再掲載できます（そのまま公開されます）\n・作業が始まっていない応募（応募中・面接中・採用済み）は見送りになり、その旨のお知らせが届きます（作業が始まっている方・完了した方はそのままです）")) return;
     const { data, error } = await unpublishJob(selectedJob.id);
     if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
+    emitConfirmedRefresh([REFRESH_JOBS, REFRESH_APPLICATIONS]);
     setOwnMenuOpen(false);
     // open→draftでさがすから消えるので、行き先はお仕事タブ（公開中に一時非公開の帯で残る）
     window.location.hash = "/profile/employer";
@@ -239,14 +240,17 @@ export function JobSearchMapView({ onRegister, me }) {
   const bootSettledRef = useRef(false);
   const [bootSettled, setBootSettled] = useState(false); // 一覧の初回取得が終わったか
   const jobsRefreshTick = useRefreshTick(REFRESH_JOBS);
+  const appsRefreshTick = useRefreshTick(REFRESH_APPLICATIONS);
   useEffect(() => {
     let cancelled = false;
+    const version = getConfirmedRefreshVersion(REFRESH_JOBS);
+    const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_JOBS);
     // 訪問者モード（2026-07-24）：jobs_publicはanon許可ので未ログインでも公開面を読める。
     // 取得・並び規則（新着上位＋ランダム・既読記録）は lib/searchJobs に一本化（玄関の先読みと共有・2026-08-02）
     (async () => {
       try {
         const mapped = await fetchPublicJobs({ scope: me?.id || "anon", fresh: jobsRefreshTick > 0 });
-        if (cancelled) return;
+        if (!isCurrent()) return;
         if (mapped) {
           let newIds = [];
           setDbJobs(prev => {
@@ -263,7 +267,7 @@ export function JobSearchMapView({ onRegister, me }) {
       // 起動バーストの削減（2026-08-18 Speed-1C-1）：一覧の初回取得が終わった時点を
       // 「検索画面が成立した」合図にし、初期表示に要らない問い合わせをここから後ろへ送る。
       // 成否は問わない（失敗しても後続を永久に止めない）。合図は初回だけ＝復帰の再取得では立てない
-      if (!cancelled && !bootSettledRef.current) {
+      if (isCurrent() && !bootSettledRef.current) {
         bootSettledRef.current = true; setBootSettled(true);
         // Realtimeの購読開始もここまで待たせる（2026-08-18 Speed-1C 起動衝突テスト）。
         // payloadは載せない・一回きり＝Appはこれを受けて購読を開ける（受け手はApp.jsxのrealtimeBootReady）
@@ -665,6 +669,8 @@ export function JobSearchMapView({ onRegister, me }) {
   useEffect(() => {
     if (!me) { setMyAppsMap(null); setMyPendSet(new Set()); setMyAppsLoaded(false); return; }
     let cancelled = false;
+    const version = getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
+    const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
     (async () => {
       try {
         // 仮応募（第15弾）も一緒に見る。RLS「pending own」で自分の行しか返らない
@@ -673,7 +679,7 @@ export function JobSearchMapView({ onRegister, me }) {
           fetchMyApplications(me.id),
           Promise.resolve(fetchMyPendingApplications(me.id)).then(r => r, () => ({ data: null })),
         ]);
-        if (cancelled) return;
+        if (!isCurrent()) return;
         // ★エラー時は上書きしない（2026-08-07）：503・タイムアウトはthrowされず {data:null, error} で
         //   解決するため、旧実装はDB不調のたびに空のmapを焼き付け「応募が取り消されたように見える」
         //   （応募済みの求人で応募ボタンが復活する）事故になっていた。失敗時は手元の値のまま
@@ -687,10 +693,10 @@ export function JobSearchMapView({ onRegister, me }) {
           setMyPendSet(new Set(pend)); setCache("search:myPend", pend);
         }
       } catch { /* 取得できなければキャッシュのまま（下の確定判定でloadedにはする） */ }
-      if (!cancelled) setMyAppsLoaded(true);
+      if (isCurrent()) setMyAppsLoaded(true);
     })();
     return () => { cancelled = true; };
-  }, [me?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- meはidだけを見る（識別子の変化で再取得しない）
+  }, [me?.id, appsRefreshTick]); // eslint-disable-line react-hooks/exhaustive-deps -- meはidだけを見る（識別子の変化で再取得しない）
   // 開いている求人の応募状況は、上の一覧から同期的に取り出す（求人ごとの往復なし）。
   // 取消はこの後 patchMyApp で一覧ごと直すため、裏の再取得で巻き戻らない
   useEffect(() => {
@@ -727,6 +733,8 @@ export function JobSearchMapView({ onRegister, me }) {
   useEffect(() => {
     if (!selectedJob || !me) return;
     let cancelled = false;
+    const version = getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
+    const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_APPLICATIONS);
     (async () => {
       try {
         const [appRes, pendRes] = await Promise.all([
@@ -735,7 +743,7 @@ export function JobSearchMapView({ onRegister, me }) {
           fetchMyApplicationForJob(selectedJob.id, me.id),
           Promise.resolve(fetchMyPendingForJob(selectedJob.id, me.id)).then(r => r, () => ({ data: null, error: true })),
         ]);
-        if (cancelled) return;
+        if (!isCurrent()) return;
         // ★エラー時は上書きしない（2026-08-07・上の一括取得と同じ理由）：旧実装は appRes.data||null を
         //   無条件に書き、DBが503を返している数秒の間だけ「応募済み」が消えて取り消されたように見えていた
         if (!appRes.error) {
@@ -767,12 +775,13 @@ export function JobSearchMapView({ onRegister, me }) {
   const goPending = async () => {
     // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日が
     // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
-    const { data: pend } = await createPendingApplication(selectedJob.id, applyAvailRef.current);
+    const { data: pend, error } = await createPendingApplication(selectedJob.id, applyAvailRef.current);
     setApplying(false);
+    if (error) return false;
     // 新規の仮応募＝ページでなくアニメーション（②・2026-08-07）。App側thatこのフラグを消費して
     // 祝祭＋トースト＋応募状況への着地に切り替える。フラグ無しの /apply/pending は従来のチェックリスト
-    if (pend && pend.ok) { try { sessionStorage.setItem("cb_pendingNew", "1"); } catch {} window.location.hash = "/apply/pending"; return true; }
-    if (pend && pend.reason === "already_applied") { window.location.hash = "/apply/done"; return true; }
+    if (pend && pend.ok) { emitConfirmedRefresh(REFRESH_APPLICATIONS); try { sessionStorage.setItem("cb_pendingNew", "1"); } catch {} window.location.hash = "/apply/pending"; return true; }
+    if (pend && pend.reason === "already_applied") { emitConfirmedRefresh(REFRESH_APPLICATIONS); window.location.hash = "/apply/done"; return true; }
     if (pend && pend.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return true; }
     return false;
   };
@@ -785,6 +794,7 @@ export function JobSearchMapView({ onRegister, me }) {
       if (error) { alert("応募に失敗しました。時間をおいて再度お試しください。"); return; }
       if (data && data.reason === "dates_required") { alert("この求人は期間募集です。来られる日（または「期間中いつでもOK」）を選んでから応募してください。"); return; }
       if (data && data.ok) {
+        emitConfirmedRefresh(REFRESH_APPLICATIONS);
         try { if (data.already) sessionStorage.setItem("cb_applyAlready","1"); else sessionStorage.removeItem("cb_applyAlready"); } catch {}
         // 応募祝祭のビジュアル素材（アイコン＋求人カード）の受け渡しは廃止した（2026-08-19
         // たきと指示「アニメーションにアイコンや絵は使うな」）。祝祭は題字だけで出る＝
@@ -854,7 +864,7 @@ export function JobSearchMapView({ onRegister, me }) {
       setApplying(false);
       // ok（already=既に取り消し済み含む）／not_found＝行が既に無い（旧DELETE時代の残り）＝どちらも取り消し済み扱い。
       // 2026-08-16からは削除でなく status='canceled' の記録＝マップから外せば「未応募」に戻り再応募できる
-      if (!error && data && (data.ok || data.reason === "not_found")) { setMyApplication(null); patchMyApp(selectedJob.id, null); }
+      if (!error && data && (data.ok || data.reason === "not_found")) { setMyApplication(null); patchMyApp(selectedJob.id, null); emitConfirmedRefresh(REFRESH_APPLICATIONS); }
       else alert("取り消しに失敗しました：" + (data?.reason || error?.message || "不明"));
     } catch { setApplying(false); alert("取り消しに失敗しました。"); }
   };
