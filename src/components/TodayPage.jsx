@@ -6,15 +6,14 @@
 // リダイレクトが受けるのでmigration不要。
 import { useState, useEffect, useRef } from "react";
 import { getCache, setCache } from "../lib/viewCache";
-import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { ymdLocal, ROLE_ORANGE, ROLE_GREEN,
-  workerUnsetCount, employerUnsetCount, WORKER_UNSET_COLUMNS, EMPLOYER_UNSET_COLUMNS, entryWorkDays } from "../lib/utils";
+import { useRefreshTick, emitConfirmedRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
+import { ymdLocal, ROLE_ORANGE, ROLE_GREEN, entryWorkDays } from "../lib/utils";
 import { Avatar, Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
 import { BOX_FACE, BOX_ICON_SIZE } from "../features/today/boxFace";
 import ContractPartyName from "./ContractPartyName";
 import { getSession, fetchMyCalendarJobs, fetchMyTodoItems, fetchMyWorkerProfile, fetchMyEmployerProfile,
-  countMyJobs, fetchMyEmergencyContact, fetchMyApplicationTerms } from "../features/today/todayApi";
+  countMyJobs, fetchMyApplicationTerms } from "../features/today/todayApi";
 import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel, DayReportPanel, InsuranceStagePanel,
   HIRE_SHEET_PATH, markHireSheet } from "../features/today/components/StagePanels";
 
@@ -24,14 +23,22 @@ import { EmergencyStagePanel, HireStagePanel, ReviewStagePanel, DayReportPanel, 
 // interview・w_interview はDB側（my_todo_items）からも消えた（2026-08-17 面接の質問集の廃止）。
 // 古いキャッシュに残った分をここで落とす＝更新前の端末でも箱が復活しない
 const REMOVED_STAGES = new Set(["approve", "interview", "w_interview"]);
+const readTodoStage = () => { const mt = window.location.hash.replace(/^#\/?/, "").match(/^calendar\/todo\/([a-z_]+)$/); return mt ? mt[1] : null; };
 
 // #/calendar：ナビ4番「📆 今日」。きょうの契約済み仕事＋つぎの予定（向こう7日）。
 // カレンダーは各役割の面へ移植（農家＝応募者ページ／働き手＝ステータスページ・2026-07-27）。
 // 両役（働き手・農家）を持つ人だけ役割タブを出す。タブはこのページの表示だけを切替（全体モードは変えない）。
 export function TodayPage({ me, defaultRole }) {
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（stale-while-revalidate・2026-07-27たきと指示）
-  const refreshTick = useRefreshTick(REFRESH_APPLICATIONS);
-  const [loading, setLoading] = useState(() => getCache("today:entries") === undefined);
+  const [pageStage, setPageStage] = useState(readTodoStage);
+  const needsCalendar = pageStage === "t_emergency";
+  const refreshTick = useRefreshTick(needsCalendar ? [REFRESH_APPLICATIONS, REFRESH_JOBS] : REFRESH_APPLICATIONS);
+  const [retryTick, setRetryTick] = useState(0);
+  const [todoStatus, setTodoStatus] = useState(() => getCache("today:todos") === undefined ? "loading" : "ready");
+  const [calendarStatus, setCalendarStatus] = useState(() => getCache("today:entries") === undefined || getCache("today:hired") === undefined ? "loading" : "ready");
+  const readVersion = useRef(0);
+  const loadStatus = needsCalendar ? calendarStatus : todoStatus;
+  const loading = loadStatus === "loading";
   const [entries, setEntries] = useState(() => getCache("today:entries") ?? []);
   const [hasWorker, setHasWorker] = useState(() => getCache("today:roles")?.w ?? false);
   const [hasFarmer, setHasFarmer] = useState(() => getCache("today:roles")?.f ?? false);
@@ -40,60 +47,61 @@ export function TodayPage({ me, defaultRole }) {
   const [hiredIds, setHiredIds] = useState(() => new Set(getCache("today:hired") ?? [])); // 採用済み（両者の確認が揃った）自分の応募ID
   // 画面の状態→キャッシュの写し（2026-07-27）。やることは片付けると手元のstateだけから消えるため、
   // ここで一括して写す。読み込みが終わるまでは写さない（空を焼き付けない）
-  useEffect(() => { if (loading) return; setCache("today:todos", todos); }, [todos, loading]);
+  useEffect(() => { if (todoStatus === "ready") setCache("today:todos", todos); }, [todos, todoStatus]);
   // 実行中の目印（confirming）と祝祭（celebrate）は廃止（2026-09-01）：この画面から直接撃つ用件が
   // 無くなった（保険の報告は専用ページの部品が持つ）。行のボタンは遷移だけ
   useEffect(() => {
     let cancelled = false;
+    const version = ++readVersion.current;
+    const current = () => !cancelled && version === readVersion.current;
+    const setStatus = needsCalendar ? setCalendarStatus : setTodoStatus;
+    const hasSnapshot = needsCalendar
+      ? getCache("today:entries") !== undefined && getCache("today:hired") !== undefined
+      : getCache("today:todos") !== undefined;
+    setStatus(hasSnapshot ? "ready" : "loading");
     (async () => {
       try {
         const { data: { session } } = await getSession();
-        if (!session) { setLoading(false); return; }
-        // 互いに独立なので1回で同時に投げる（2026-07-27たきと指示「直列を並列に」）。
-        // 以前はカレンダー→やること→残りの3段階で待っていた
-        const [{ data }, { data: td }, { data: wp }, { count: jc }, { data: ep }, { data: emg }, { data: apps }] = await Promise.all([
-          fetchMyCalendarJobs(),
-          fetchMyTodoItems(),
-          // 役割の判定に加えて、プロフィールの未入力を数えるための列も一緒に取る（往復は増やさない・2026-08-03）。
-          // 列は lib/utils の *_UNSET_COLUMNS が唯一のソース＝数え方と列リストが枝分かれしない
-          fetchMyWorkerProfile(session.user.id, WORKER_UNSET_COLUMNS),
-          countMyJobs(session.user.id),
-          fetchMyEmployerProfile(session.user.id, EMPLOYER_UNSET_COLUMNS),
-          // 🆘緊急連絡先の有無（未入力の数え・self-only RLS・2026-08-07）。失敗時はnull＝未登録扱い
-          fetchMyEmergencyContact(session.user.id),
-          // 採用の判定に要る時刻。採用してもstatusは'approved'のままなので（contractedは表示用の値で
-          // DBには書かれない・CLAUDE.md）、両者の確認時刻で見るしかない。get_my_calendar_jobsは
-          // この2列を返さないため、自分の応募から直に引く（当事者RLSの内側・2026-07-27）
-          fetchMyApplicationTerms(session.user.id),
-        ]);
-        if (cancelled) return;
-        const rows = data || [];
-        setEntries(rows); setCache("today:entries", rows);
-        setTodos(td || []);
-        const w = !!wp || rows.some(e => e.my_role === "worker");
-        const f = (jc || 0) > 0 || !!ep || rows.some(e => e.my_role === "farmer");
-        setHasWorker(w); setHasFarmer(f);
-        setCache("today:roles", { w, f });
-        // プロフィールの未入力数（バッジ用）。状態を持たず毎回いまの行から数える＝
-        // 埋めれば0（バッジが消えて薄表示）、後で空にすればまた1以上に戻る
-        // 緊急連絡先（別テーブル）は働き手側の応募条件でもあるので両役割に渡す（2026-08-17）
-        // 未入力数はマイページのやること箱（TaskBoxes）が読む＝ここではキャッシュを温めるだけ
-        const unset = { w: workerUnsetCount(wp, { hasEmergency: !!emg }).total, f: employerUnsetCount(ep, { hasEmergency: !!emg }).total };
-        setCache("today:unset", unset);
-        const hired = (apps || [])
+        if (!current()) return;
+        if (!session) { setStatus(hasSnapshot ? "ready" : "error"); return; }
+        // 採用・評価・日報等の一覧は用件だけで描ける。予定・役割判定は緊急連絡でだけ必要。
+        if (!needsCalendar) {
+          const result = await fetchMyTodoItems();
+          if (!current()) return;
+          if (result.error || !Array.isArray(result.data)) { setStatus("error"); return; }
+          setTodos(result.data); setStatus("ready");
+          return;
+        }
+
+        const calendarRequest = Promise.resolve(fetchMyCalendarJobs());
+        // 緊急連絡の役割タブの補助情報は、予定一覧の表示を止めない。
+        Promise.all([calendarRequest, fetchMyWorkerProfile(session.user.id), countMyJobs(session.user.id), fetchMyEmployerProfile(session.user.id)])
+          .then(([cal, wp, jc, ep]) => {
+            if (!current() || cal.error || wp.error || jc.error || ep.error || !Array.isArray(cal.data)) return;
+            const w = !!wp.data || cal.data.some(e => e.my_role === "worker");
+            const f = (jc.count || 0) > 0 || !!ep.data || cal.data.some(e => e.my_role === "farmer");
+            setHasWorker(w); setHasFarmer(f); setCache("today:roles", { w, f });
+            setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
+          }).catch(() => {});
+        // 採用済みの緊急連絡を落とさないため、応募の確認時刻と予定の2つはそろえて出す。
+        const [cal, apps] = await Promise.all([calendarRequest, fetchMyApplicationTerms(session.user.id)]);
+        if (!current()) return;
+        if (cal.error || apps.error || !Array.isArray(cal.data) || !Array.isArray(apps.data)) { setStatus("error"); return; }
+        setEntries(cal.data); setCache("today:entries", cal.data);
+        if (cal.data.some(e => e.my_role === "worker")) setHasWorker(true);
+        if (cal.data.some(e => e.my_role === "farmer")) setHasFarmer(true);
+        const hired = apps.data
           .filter(a => a.terms_confirmed_worker_at && a.terms_confirmed_farmer_at
                     && !["rejected","expired","completed"].includes(a.status))
           .map(a => a.id);
         setHiredIds(new Set(hired)); setCache("today:hired", hired);
-        // 既定ロールが持っていない側なら、持っている側へ寄せる
-        setRole(r => (r === "worker" && !w && f) ? "farmer" : (r === "farmer" && !f && w) ? "worker" : r);
-      } catch {}
-      setLoading(false);
+        setStatus("ready");
+      } catch { if (current()) setStatus("error"); }
     })();
     return () => { cancelled = true; };
     // refreshTick＝応募の変化(Realtime)と画面の復帰の合図（2026-08-18 Speed-1B）。
     // 中身は合図に含まれない＝ここで同じ窓口から取り直す。loadingは立て直さないので骨は出ない
-  }, [refreshTick]);
+  }, [refreshTick, retryTick, needsCalendar, me?.id]);
 
   const todayYmd = ymdLocal(new Date());
   const mine = entries.filter(e => e.my_role === role && e.relation === "application");
@@ -127,8 +135,6 @@ export function TodayPage({ me, defaultRole }) {
   const dual = hasWorker && hasFarmer;
   // 用件ごとの専用ページ（2026-07-25たきと指示）：#/calendar/todo/{stage}。ボックスタップで遷移・←で今日へ戻る。
   // ★宣言位置：下のスワイプeffectが[pageStage]依存を持つため、effectより前に置く（no-use-before-define対策・2026-08-02）
-  const readTodoStage = () => { const mt = window.location.hash.replace(/^#\/?/, "").match(/^calendar\/todo\/([a-z_]+)$/); return mt ? mt[1] : null; };
-  const [pageStage, setPageStage] = useState(readTodoStage());
   useEffect(() => {
     const on = () => setPageStage(readTodoStage());
     window.addEventListener("hashchange", on);
@@ -223,7 +229,11 @@ export function TodayPage({ me, defaultRole }) {
   // TodayCardコンポーネントは削除（2026-07-25統合）：役割はstage="today"の行（チャット主ボタン・⚠️緊急連絡・求人チップ）へ
 
   // ── やること（採配台）：状態カード。①②⑧=遷移／③〜⑦=直接実行（保険・開始確認はインライン、日程決定・完了/評価は既存モーダルへ橋渡し） ──
-  const removeTodo = (id, st) => setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
+  const removeTodo = (id, st) => {
+    readVersion.current++; // 保存前の一覧取得で、片付いた用件を復活させない
+    setTodos(prev => prev.filter(t => !(t.application_id === id && t.stage === st)));
+    emitConfirmedRefresh([REFRESH_APPLICATIONS, REFRESH_JOBS]);
+  };
   const TODO_META = {
     // プロフィール入力（2026-08-03新設・2026-08-19に常設化＋改称）：やることの先頭に常に置く入口。
     // バッジ＝未入力の項目数（0なら出さない）。タップで未入力の欄が開き、保存で次の欄へ進む。
@@ -452,6 +462,11 @@ export function TodayPage({ me, defaultRole }) {
           style={swipeStage && slideDir ? { animation: `${slideDir > 0 ? "cbSlideInR" : "cbSlideInL"} .28s ease` } : undefined}>
         {loading ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
+        ) : loadStatus === "error" && pItems.length === 0 ? (
+          <div className="f-sans" style={{ textAlign:"center", padding:"32px 20px", color:"#717171" }}>
+            <p>読み込めませんでした。もう一度お試しください。</p>
+            <button onClick={()=>setRetryTick(t => t + 1)} className="f-sans" style={{ border:"1px solid #ddd", borderRadius:12, padding:"10px 18px", background:"#fff", cursor:"pointer" }}>再読み込み</button>
+          </div>
         ) : pItems.length === 0 ? (
           /* 空状態：説明文を明記する（2026-08-03たきと指示）。「いまありません」だけだと
              なぜ空なのか・いつここに何が来るのかが分からないため、用件の説明を本文として大きく出す */

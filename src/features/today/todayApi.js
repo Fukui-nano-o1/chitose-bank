@@ -17,11 +17,11 @@ export const getSession = () => supabase.auth.getSession();
 export const fetchMyCalendarJobs = () => supabase.rpc("get_my_calendar_jobs");
 export const fetchMyTodoItems = () => supabase.rpc("my_todo_items");
 
-// 役割の判定＋プロフィールの未入力を数える列（列は lib/utils の *_UNSET_COLUMNS が唯一のソース）
-export const fetchMyWorkerProfile = (uid, cols) =>
-  supabase.from("worker_profiles").select("auth_id," + cols).eq("auth_id", uid).maybeSingle();
-export const fetchMyEmployerProfile = (uid, cols) =>
-  supabase.from("employer_profiles").select("auth_id," + cols).eq("auth_id", uid).maybeSingle();
+// 役割の判定はauth_idのみ。プロフィール本文も必要な呼び出し元は列を指定する。
+export const fetchMyWorkerProfile = (uid, cols = "") =>
+  supabase.from("worker_profiles").select(["auth_id", cols].filter(Boolean).join(",")).eq("auth_id", uid).maybeSingle();
+export const fetchMyEmployerProfile = (uid, cols = "") =>
+  supabase.from("employer_profiles").select(["auth_id", cols].filter(Boolean).join(",")).eq("auth_id", uid).maybeSingle();
 export const countMyJobs = (uid) =>
   supabase.from("jobs").select("job_number", { count: "exact", head: true }).eq("farmer_id", uid);
 // 🆘緊急連絡先の有無（self-only RLS・2026-08-07）。失敗時はnull＝未登録扱い

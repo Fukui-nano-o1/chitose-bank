@@ -12,9 +12,10 @@
 //
 //   DBの変更 → Realtime / focus・visibilitychange → ここ（合図）→ 各画面が既存の窓口で再fetch
 //
-// ■合図の出どころ（2つだけ・どちらもApp.jsx）
+// ■合図の出どころ
 //   ① applications のRealtime購読（stage-watch・自分が当事者の行だけ届く）→ topic "applications"
 //   ② 画面の復帰（focus / visibilitychange）→ topic "applications" と "jobs" の両方
+//   ③ 本人の操作が保存成功した時 → emitConfirmedRefresh（結果は既存Apiから照合する）
 // ★jobs にRealtimeが無いのは意図的：jobsのRLSは本人と運営だけなので、publicationに足しても
 //   他人の求人の変更は誰にも届かない（さがすの役に立たない）。さがすは復帰の合図で取り直す。
 import { useEffect, useRef, useState } from "react";
@@ -29,10 +30,15 @@ export function emitRefresh(topics, reason) {
   window.dispatchEvent(new CustomEvent(EVENT, { detail: { topics: list, reason: reason || "" } }));
 }
 
+// 書き込みの成功を受け取った呼び出し元だけが使う。Realtime・復帰・ポーリングは通常の合図。
+export function emitConfirmedRefresh(topics) {
+  emitRefresh(topics, "confirmed");
+}
+
 // 合図を受け取る側。返り値の数字が増えたら「取り直せ」の意味＝既存のローダーの依存配列に足すだけで使える。
 // 画面が実際にマウントされている時しか動かない（＝閉じている画面のために通信しない）。
 //
-// 取り決め3つ：
+// 通常通知の取り決め（保存成功は初回を即時、連発分は100msでまとめる）：
 //  ・見えていない時（バックグラウンド）は取りに行かず、保留にして復帰した時にまとめて1回
 //  ・連発は「最初の1回はすぐ・残りは冷却後にまとめて1回」＝1回の連発で最大2回まで
 //    （先頭＝反応の速さ、後追い＝冷却中に来た変更を取りこぼさないため。承認→採用のような
@@ -43,23 +49,34 @@ export function useRefreshTick(topics, minIntervalMs = 5000) {
   const key = (Array.isArray(topics) ? topics : [topics]).join(",");
   const lastRef = useRef(Date.now());
   const pendingRef = useRef(false);
+  const confirmedRef = useRef(false);
+  const lastConfirmedRef = useRef(-Infinity);
   const timerRef = useRef(null);
 
   useEffect(() => {
     const wanted = key.split(",");
-    const run = () => { lastRef.current = Date.now(); pendingRef.current = false; setTick(t => t + 1); };
-    const request = () => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") { pendingRef.current = true; return; }
-      const wait = minIntervalMs - (Date.now() - lastRef.current);
-      if (wait <= 0) { run(); return; }
+    const run = () => {
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+      lastRef.current = Date.now();
+      if (confirmedRef.current) lastConfirmedRef.current = lastRef.current;
+      pendingRef.current = false; confirmedRef.current = false;
+      setTick(t => t + 1);
+    };
+    const request = (confirmed = false) => {
       pendingRef.current = true;
-      if (!timerRef.current) {
-        timerRef.current = setTimeout(() => { timerRef.current = null; if (pendingRef.current) request(); }, wait);
-      }
+      confirmedRef.current ||= confirmed;
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      // 保存成功は初回を即時に。連続する成功は100ms以内の後追いへまとめ、通常通知は5秒のまま。
+      const interval = confirmedRef.current ? Math.min(minIntervalMs, 100) : minIntervalMs;
+      const last = confirmedRef.current ? lastConfirmedRef.current : lastRef.current;
+      const wait = interval - (Date.now() - last);
+      if (wait <= 0) { run(); return; }
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => { timerRef.current = null; if (pendingRef.current) request(); }, wait);
     };
     const onRefresh = (e) => {
       const list = e?.detail?.topics;
-      if (Array.isArray(list) && list.some(t => wanted.includes(t))) request();
+      if (Array.isArray(list) && list.some(t => wanted.includes(t))) request(e.detail.reason === "confirmed");
     };
     const onVisible = () => { if (document.visibilityState === "visible" && pendingRef.current) request(); };
     window.addEventListener(EVENT, onRefresh);

@@ -27,7 +27,7 @@ import ContractEmergencyContact from "./ContractEmergencyContact";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { HireConfirm } from "./HireConfirm";
 import { getCache, setCache } from "../lib/viewCache";
-import { useRefreshTick, emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
+import { useRefreshTick, emitConfirmedRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
 import { DoneScreen } from "./DoneScreen";
@@ -1641,7 +1641,7 @@ export function FarmerDashboard({ onNewJob, onResume, me }) {
           setDbApplicants(prev => prev.map(x => x.id === id ? { ...x, terms_confirmed_farmer_at: now }
             : closed.has(x.id) ? { ...x, status: "rejected" } : x));
           setHireApp(null);
-          emitRefresh(REFRESH_APPLICATIONS, "hire");   // カレンダー・今日ページ等も取り直す
+          emitConfirmedRefresh(REFRESH_APPLICATIONS); // 保存成功は5秒の待ちを挟まず関連画面へ反映
         }} />
 
       {/* 完了・評価モーダル（Part1） */}

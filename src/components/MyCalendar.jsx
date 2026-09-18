@@ -10,7 +10,8 @@ import { copyJobToEdit } from "../lib/copyJobFlow";
 import { describeRpcOutage } from "../lib/rpcOutage";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
-import { useRefreshTick, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
+import { useRefreshTick, emitConfirmedRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
+import { applyConfirmedCalendarMove } from "../lib/calendarUpdates";
 import { fbSuccess, fbError, fbTap } from "../lib/feedback";
 import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
@@ -56,11 +57,15 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   const [daySheet, setDaySheet] = useState(null);   // { ymd, idxs } | null
   const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
   const [moving, setMoving] = useState(false);      // 多重送信ガード
-  const [reloadKey, setReloadKey] = useState(0);    // 移動成功後に予定を取り直す合図（loadingは立てない＝骨は出ない）
+  const [reloadKey, setReloadKey] = useState(0);    // 通信結果が不明な時の再照合（盤面は消さない）
   // 応募の状態が変わったら（応募・承認・採用・完了…）その場で取り直す（2026-08-28たきと指示
   // 「リアルタイムで反映だ」）。合図の出どころは App.jsx＝applications のRealtime購読と画面の復帰。
   // 求人の側（掲載・非公開・終了）も同じ合図で拾う。取り直しても loading は立てない＝盤面は消えない
   const refreshTick = useRefreshTick([REFRESH_APPLICATIONS, REFRESH_JOBS]);
+  const readVersion = useRef(0);
+  const mounted = useRef(false);
+  const movingRef = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   // ── 長押しで予定をつかむ（2026-08-25たきと指示「長押しで指追従。離した日を移動とコピー表示」）──
   // 自分が出した求人の予定がある日を長押し→その予定が指についてくる→離した日で「うごかす／コピー」を出す。
   // ★ページのスクロールを止めるため、つかんだ時にだけ document へ passive:false の touchmove を張る
@@ -77,24 +82,25 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
 
   useEffect(() => {
     let cancelled = false;
+    const version = ++readVersion.current;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        if (cancelled || version !== readVersion.current || !session) return;
         // 2本は互いに独立ので、awaitする前に同時に投げる（2026-07-27たきと指示「直列を並列に」）。
         // 以前は getSession→予定→いいね の直列3段で、しかも盤面を出すのに
         // いいね（❤️の飾り）の到着まで待っていた
         // Supabaseのビルダーはthenされるまで通信しない。飾りの取得もここで始める。
         Promise.resolve(supabase.from("saved_jobs").select("job_number").eq("worker_id", session.user.id))
           .then(r => {
-            if (cancelled || r.error || !r.data) return;
+            if (cancelled || version !== readVersion.current || r.error || !r.data) return;
             const ids = r.data.map(x => x.job_number);
             setLikedIds(new Set(ids)); setCache("cal:liked", ids);
           }).catch(() => {});
 
         // 盤面は予定thatが返った時点で出す＝いいねは飾りso待たない
         const calRes = await supabase.rpc("get_my_calendar_jobs");
-        if (cancelled) return;
+        if (cancelled || version !== readVersion.current) return;
         // ★失敗時はキャッシュのままにする（res.errorを見ずに上書きすると、通信不調の数秒間だけ
         //   予定that消えて「予定はまだありません」に見える＝2026-08-07のフェイルオープンと同じ型）
         if (!calRes.error) { const rows = calRes.data || []; setEntries(rows); setCache("today:entries", rows); }
@@ -220,12 +226,14 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // 移動の実体（確認→RPC→取り直し）。移動モードのタップと、長押しで離した日のシートの両方がこれを呼ぶ
   //   ＝同じ操作が入口ごとに違わない。返り値＝うごかせたか（reason が past_date の時だけ選び直せる）
   const doMove = async (jobNumber, title, ymd, opts) => {
-    if (moving) return { ok: false };
+    if (movingRef.current) return { ok: false };
     // 離した日のシートは、それ自体が確認の画面（日付とボタンの文字で何が起きるか出ている）ので二度は聞かない
     if (!opts?.skipConfirm && !window.confirm(`#${jobNumber}「${title}」を ${calFmtDate(ymd)} 開始にうごかします。期間と休日も同じ日数ずれます。よろしいですか？`)) return { ok: false, canceled: true };
+    movingRef.current = true;
     setMoving(true);
     try {
       const { data, error, status } = await supabase.rpc("move_job_dates", { p_job_number: jobNumber, p_new_start: ymd });
+      if (!mounted.current) return { ok: !!data?.ok && !error };
       if (error || !data?.ok) {
         fbError();
         const r = data?.reason;
@@ -242,10 +250,22 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           : "うごかせませんでした：" + (r || error?.message || "不明"));
         return { ok: false, reason: r };
       }
+      // 保存より前に始まった読み込みで、移動済みの日程を戻さない。
+      readVersion.current++;
+      setEntries(prev => applyConfirmedCalendarMove(prev, jobNumber, data));
+      const cached = getCache("today:entries");
+      if (Array.isArray(cached)) setCache("today:entries", applyConfirmedCalendarMove(cached, jobNumber, data));
       fbSuccess();
-      setReloadKey(k => k + 1); // 予定を取り直して盤面に反映（前回内容を出したまま裏で差し替え）
+      emitConfirmedRefresh(REFRESH_JOBS); // 自画面と開いている関連画面が、通常の5秒待ちを挟まず照合する
       return { ok: true };
-    } finally { setMoving(false); }
+    } catch {
+      if (mounted.current) {
+        fbError();
+        alert("日程が変わったか確認できません。カレンダーを読み直して確認してください。");
+        setReloadKey(k => k + 1);
+      }
+      return { ok: false, reason: "outage" };
+    } finally { movingRef.current = false; if (mounted.current) setMoving(false); }
   };
   const confirmMove = async (ymd) => {
     const mm = moveMode;
