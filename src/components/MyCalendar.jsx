@@ -111,12 +111,19 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // （名前チップだけが合意日を見ていた＝同じ画面の中で食い違っていた）。
   // 予定1件につき1回だけ日の集合を作る（月グリッドは3か月×42マスを走査するため、毎マス作り直さない）
   const workDays = useMemo(() => entries.map(e => entryWorkDays(e)), [entries]);
-  const entryIdxOnDay = (ymd) => {
-    const out = [];
-    for (let i = 0; i < entries.length; i++) if (workDays[i].has(ymd)) out.push(i);
-    return out;
-  };
-  const entriesOnDay = (dt) => entryIdxOnDay(ymdLocal(dt)).map(i => entries[i]);
+  // 日付→予定の添字を予定の変更時だけ作る。月の描画やドラッグのたびに
+  // 「表示日数×全予定」を走査せず、その日にある予定だけを取り出す。
+  const entryIndicesByDay = useMemo(() => {
+    const index = new Map();
+    workDays.forEach((days, i) => {
+      for (const day of days) {
+        if (!index.has(day)) index.set(day, []);
+        index.get(day).push(i);
+      }
+    });
+    return index;
+  }, [workDays]);
+  const entryIdxOnDay = (ymd) => entryIndicesByDay.get(ymd) || [];
   // ── 名前チップ「誰がいつ来るか」（2026-07-29たきと指示）──
   // 出すのは採用済みだけ＝両者の確認時刻が揃った応募（面接中はまだ来ると確定していないので出さない）。
   // 段階は appPhaseKey（帯の唯一のソース）で導く。statusは承認後も'approved'のままで、

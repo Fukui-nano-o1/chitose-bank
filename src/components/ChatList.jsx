@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache";
+import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
 import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
@@ -14,6 +15,18 @@ import { NavIcon } from "./NavIcons";
 // 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
 // モジュールレベル定義＝毎描画で作り直さない（effectの依存にも安全に使える）
 const CHAT_HIDABLE = ["rejected", "expired", "canceled"];
+
+// 読み込み中に届いた新着を、遅れて返った履歴や順序が前後した配信で巻き戻さない。
+const mergeMessageTimes = (previous, messages) => {
+  const next = { ...previous };
+  for (const m of messages) {
+    if (!m.application_id || !m.created_at) continue;
+    if (!next[m.application_id] || new Date(m.created_at) > new Date(next[m.application_id])) {
+      next[m.application_id] = m.created_at;
+    }
+  }
+  return next;
+};
 
 // 段階チップの「いま」の材料（2026-08-19たきと指示「いま休日。その日の作業thaが終わったら次の日程を表示」）：
 // 応募行（合意した日・来られる日）に求人の日程（jobs_public）を重ねて appPhaseLabelNow に渡す。
@@ -30,6 +43,8 @@ export function ChatList() {
   // 段階2＝相手名・求人名が届いたら（2往復目）上書き。以降は従来どおり
   const [rows, setRows] = useState(() => hydrateChatCache()?.rows || []);
   const [loading, setLoading] = useState(() => !chatCache.v); // キャッシュがあれば最初からスピナーを出さない
+  const refreshTick = useRefreshTick(REFRESH_APPLICATIONS);
+  const pendingAppUpdates = useRef(null);
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("chats");
   // 運営DM（2026-07-16）は共有部品 AdminChatRow が担う（一覧の最上部の行・タップで #/chat/admin のページへ）
@@ -41,19 +56,6 @@ export function ChatList() {
   const APP_ACTION_COLS = ["created_at","decided_at","status_changed_at","terms_confirmed_worker_at","terms_confirmed_farmer_at",
     "insurance_prepared_at","work_completed_at"];
   const [lastMsgMap, setLastMsgMap] = useState(() => chatCache.v?.lastMsgMap || {}); // { application_id: 最終メッセージのcreated_at }
-  const refreshLastMsg = async (ids) => {
-    try {
-      const list = ids && ids.length ? ids : Object.keys(lastMsgMap);
-      if (!list.length) return;
-      // 降順で取り、application_idごとの初出＝そのスレッドの最終メッセージ時刻
-      const { data } = await supabase.from("messages").select("application_id,created_at")
-        .in("application_id", list).order("created_at", { ascending: false }).limit(1000);
-      if (!data) return;
-      const m = {};
-      data.forEach(r => { if (!m[r.application_id]) m[r.application_id] = r.created_at; });
-      setLastMsgMap(m);
-    } catch { /* 取得できなければ応募日順のまま（並びが壊れるより安全） */ }
-  };
   // プッシュ通知の状態（2026-07-19）：チャット一覧の上に「通知をオンにする」を出す
   const [pushSt, setPushSt] = useState(null); // 'unsupported'|'need-standalone'|'default'|'denied'|'granted'
   const [pushBusy, setPushBusy] = useState(false);
@@ -77,43 +79,51 @@ export function ChatList() {
     }
   };
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.rpc("my_unread_message_counts");
-        if (data) setUnreadMap(data.by_application || {});
-      } catch {}
-      // ニックネーム未設定の相手のアイコン用に、メール頭文字2文字を取得（メール本体はサーバー側で伏せる・2026-07-22）
-      try {
-        const { data } = await supabase.rpc("my_chat_partner_initials");
-        if (data) setInitialsMap(data);
-      } catch {}
-    })();
-  }, []);
+    let cancelled = false;
+    // 未読数と独立して開始する。新しい相手も、応募の再取得に合わせて補う。
+    Promise.resolve(supabase.rpc("my_chat_partner_initials")).then(({ data, error }) => {
+      if (!cancelled && !error && data) setInitialsMap(data);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [refreshTick]);
   // リアルタイム（2026-07-19）：チャット一覧を開いている間、新着を購読して一覧の未読数を即時更新。
   // 配信はRLS準拠（自分の当事者チャットのみ）。運営DMの購読は AdminChat が担う（既読化はページ側 #/chat/admin）
   useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    let refreshAgain = false;
     const refreshUnreadMap = async () => {
+      if (cancelled) return;
+      // 新着・復帰・ポーリングの同時発火をまとめる。取得中に新着があれば最後に取り直す。
+      if (inFlight) { refreshAgain = true; return; }
+      inFlight = true;
       try {
-        const { data } = await supabase.rpc("my_unread_message_counts");
-        if (data) setUnreadMap(data.by_application || {});
-      } catch {}
+        const { data, error } = await supabase.rpc("my_unread_message_counts");
+        if (!cancelled && !error && data) setUnreadMap(data.by_application || {});
+      } catch {} finally {
+        inFlight = false;
+        if (refreshAgain && !cancelled) { refreshAgain = false; refreshUnreadMap(); }
+      }
     };
     // 新着メッセージのINSERTでは、その応募の最終メッセージ時刻も更新する＝返信順が即座に入れ替わる（2026-07-27）
     const onNewMsg = (payload) => {
       refreshUnreadMap();
       const m = payload?.new;
-      if (m?.application_id && m?.created_at) setLastMsgMap(prev => ({ ...prev, [m.application_id]: m.created_at }));
+      if (!cancelled && m?.application_id && m?.created_at) setLastMsgMap(prev => mergeMessageTimes(prev, [m]));
     };
     // 応募のアクション（承認・採用・保険報告・開始・完了・終了確認）で並びが動くよう、
     // applicationsのUPDATEも購読して手元の行を差し替える（2026-07-27・アクション順）
     const onAppUpdate = (payload) => {
       const a = payload?.new; if (!a?.id) return;
+      if (cancelled) return;
+      pendingAppUpdates.current?.set(a.id, a);
       setRows(prev => (prev || []).map(x => x.id === a.id ? { ...x, ...a } : x));
     };
     const ch = supabase.channel("chatlist-live")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, onNewMsg)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "applications" }, onAppUpdate)
       .subscribe();
+    refreshUnreadMap();
     // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示）：iOS PWAのバックグラウンドで
     // WebSocketが凍結・切断されるため、画面復帰で未読を即再取得＋表示中は10秒ごとの保険
     const onWake = () => { if (document.visibilityState === "visible") refreshUnreadMap(); };
@@ -121,76 +131,92 @@ export function ChatList() {
     window.addEventListener("focus", onWake);
     const iv = setInterval(() => { if (document.visibilityState === "visible") refreshUnreadMap(); }, 10000);
     return () => {
+      cancelled = true;
       supabase.removeChannel(ch);
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
       clearInterval(iv);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     let cancelled = false;
+    const liveUpdates = new Map();
+    pendingAppUpdates.current = liveUpdates;
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
+        if (cancelled || !session) return;
         const uid = session.user.id;
-        const [{ data: asWorker }, { data: asFarmer }] = await Promise.all([
+        const [workerRes, farmerRes] = await Promise.all([
           supabase.from("applications").select("*").eq("worker_id", uid).in("status", CHAT_LIST_STATUSES),
           supabase.from("applications").select("*").eq("farmer_id", uid).in("status", CHAT_LIST_STATUSES),
         ]);
+        // 片側だけ失敗した場合も、既存の一覧を空／半分の結果で置き換えない。
+        if (cancelled || workerRes.error || farmerRes.error) return;
         // worker_id===farmer_id（自分の求人に自分で応募したテストデータ等）で同一行が
         // 両方のクエリに一致するケースがあるため、id基準で重複排除する
         const byId = new Map();
-        [...(asWorker || []).map(a => ({ ...a, _role: "worker" })),
-         ...(asFarmer || []).map(a => ({ ...a, _role: "farmer" }))]
+        [...(workerRes.data || []).map(a => ({ ...a, _role: "worker" })),
+         ...(farmerRes.data || []).map(a => ({ ...a, _role: "farmer" }))]
           .forEach(a => { if (!byId.has(a.id)) byId.set(a.id, a); });
-        const all = [...byId.values()];
-        if (cancelled) return;
+        // 取得開始後のRealtime更新を優先する。付加情報の到着でも状態を巻き戻さない。
+        for (const [id, update] of liveUpdates) {
+          if (update.worker_id === uid || update.farmer_id === uid) {
+            byId.set(id, { ...byId.get(id), ...update, _role: update.worker_id === uid ? "worker" : "farmer" });
+          }
+        }
+        if (pendingAppUpdates.current === liveUpdates) pendingAppUpdates.current = null;
+        const all = [...byId.values()].filter(a => CHAT_LIST_STATUSES.includes(a.status));
         if (all.length === 0) { setRows([]); setLoading(false); return; }
-        // 段階1：応募行だけで行を出す（1往復目）。相手名・求人名は空＝表示は「求人 #N」＋段階チップに落ちる。
-        // ★前回の骨（段階0）を表示中なら上書きしない＝名前入りの表示を名前なしに退化させない
-        const bare = all.map(a => ({ ...a, partnerName: "", partnerAvatar: "", job: null }))
-          .sort((x, y) => new Date(y.created_at) - new Date(x.created_at))
-          .map(a => ({ ...a, _appIds: [a.id], _count: 1 }));
-        setRows(prev => prev.length ? prev : bare);
+        // 状態と新しい行は先に反映。既存行の相手名・求人は届くまで保ち、空欄に戻さない。
+        setRows(prev => {
+          const cached = new Map(prev.map(a => [a.id, a]));
+          return all.map(a => {
+            const old = cached.get(a.id);
+            const samePartner = old?._role === a._role && old?.worker_id === a.worker_id && old?.farmer_id === a.farmer_id;
+            return { ...a, partnerName: samePartner ? old.partnerName : "", partnerAvatar: samePartner ? old.partnerAvatar : "",
+              job: old?.job_number === a.job_number ? old.job : null, _appIds: [a.id], _count: 1 };
+          });
+        });
         setLoading(false);
 
         const farmerIds = [...new Set(all.filter(a => a._role === "worker").map(a => a.farmer_id).filter(Boolean))];
         const workerIds = [...new Set(all.filter(a => a._role === "farmer").map(a => a.worker_id).filter(Boolean))];
         const jobNumbers = [...new Set(all.map(a => a.job_number).filter(Boolean))];
 
-        const [epRes, wpRes, jobRes] = await Promise.all([
-          farmerIds.length ? supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds) : Promise.resolve({ data: [] }),
-          workerIds.length ? supabase.rpc("worker_cards_for_farmer", { p_worker_ids: workerIds }) : Promise.resolve({ data: [] }),
-          // 日程4列（work_time/date_start/date_end/holidays）は段階チップの「いま」表示用＝
-          // 作業日でない日は「作業中」でなく「次は M/D(曜)」を出す（appPhaseLabelNow）
-          jobNumbers.length ? fetchJobRowListForMe(jobNumbers, "job_number,crop,task,work_time,date_start,date_end,holidays") : Promise.resolve({ data: [] }),
-        ]);
-        if (cancelled) return;
-        const epMap = {}; (epRes.data || []).forEach(e => { epMap[e.auth_id] = e; });
-        const wpMap = {}; (wpRes.data || []).forEach(w => { wpMap[w.auth_id] = w; });
-        const jobMap = {}; (jobRes.data || []).forEach(j => { jobMap[j.job_number] = j; });
-
-        const merged = all
-          .map(a => {
-            const partner = a._role === "worker" ? epMap[a.farmer_id] : wpMap[a.worker_id];
-            return {
-              ...a,
-              partnerName: partner?.nickname || "",
-              partnerAvatar: partner?.avatar_url || "",
-              job: jobMap[a.job_number] || null,
-            };
-          })
-          .sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
-        // 求人（応募）ごとに1スレッド（2026-07-23）：相手で束ねず、求人ごとに分ける。
-        // terms_snapshot（契約内容）の混同を防ぐため。未読・遷移先とも応募単位。
-        setRows(merged.map(a => ({ ...a, _appIds: [a.id], _count: 1 })));
-        refreshLastMsg(merged.map(a => a.id)); // 返信順の材料（最終メッセージ時刻）
-      } catch {}
-      setLoading(false);
+        // 相手名・求人・返信順は互いに待たず、到着した部分だけ既存行へ重ねる。
+        const addPartners = (request, role, key) => Promise.resolve(request).then(({ data, error }) => {
+          if (cancelled || error || !data) return;
+          const partners = new Map(data.map(p => [p.auth_id, p]));
+          setRows(prev => prev.map(a => {
+            if (a._role !== role) return a;
+            const partner = partners.get(a[key]);
+            return { ...a, partnerName: partner?.nickname || "", partnerAvatar: partner?.avatar_url || "" };
+          }));
+        }).catch(() => {});
+        if (farmerIds.length) addPartners(supabase.from("employer_profiles_public").select("auth_id,nickname,avatar_url").in("auth_id", farmerIds), "worker", "farmer_id");
+        if (workerIds.length) addPartners(supabase.rpc("worker_cards_for_farmer", { p_worker_ids: workerIds }), "farmer", "worker_id");
+        if (jobNumbers.length) Promise.resolve(fetchJobRowListForMe(jobNumbers, "job_number,crop,task,work_time,date_start,date_end,holidays"))
+          .then(({ data, error }) => {
+            if (cancelled || error || !data) return;
+            const jobs = new Map(data.map(j => [j.job_number, j]));
+            setRows(prev => prev.map(a => ({ ...a, job: jobs.get(a.job_number) || null })));
+          }).catch(() => {});
+        Promise.resolve(supabase.from("messages").select("application_id,created_at")
+          .in("application_id", all.map(a => a.id)).order("created_at", { ascending: false }).limit(1000))
+          .then(({ data, error }) => {
+            if (!cancelled && !error && data) setLastMsgMap(prev => mergeMessageTimes(prev, data));
+          }).catch(() => {});
+      } catch {} finally {
+        if (!cancelled) setLoading(false);
+        if (pendingAppUpdates.current === liveUpdates) pendingAppUpdates.current = null;
+      }
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+      if (pendingAppUpdates.current === liveUpdates) pendingAppUpdates.current = null;
+    };
+  }, [refreshTick]);
 
   // 一覧スナップショットの保存（2026-07-22）：初回ロード完了後、rows/未読/イニシャルが変わるたびキャッシュへ。
   // チャットから戻った再マウントで即表示され、スピナー（リロード感）が出なくなる
