@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const HEALTH_TIMEOUT_MS = 3000
 let admin = null
+let pendingCheck = null
 
 function getAdminClient() {
   if (admin) return admin
@@ -27,6 +28,30 @@ async function withTimeout(promise, ms) {
   }
 }
 
+function checkDatabase() {
+  // 同じFunctionインスタンスへの同時監視は1本にまとめる。完了結果はキャッシュしない。
+  if (pendingCheck) return pendingCheck
+  const controller = new AbortController()
+  const check = (async () => {
+    try {
+      const client = getAdminClient()
+      await withTimeout(
+        client.from('farmers').select('id', { head: true }).limit(1)
+          .abortSignal(controller.signal)
+          .then(({ error }) => { if (error) throw error }),
+        HEALTH_TIMEOUT_MS
+      )
+    } finally {
+      // 応答だけ503にして、遅い問い合わせを裏で走らせ続けない。
+      controller.abort()
+    }
+  })()
+  pendingCheck = check
+  const clear = () => { if (pendingCheck === check) pendingCheck = null }
+  check.then(clear, clear)
+  return check
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
   res.setHeader('Pragma', 'no-cache')
@@ -38,12 +63,7 @@ export default async function handler(req, res) {
   const timestamp = new Date().toISOString()
 
   try {
-    const client = getAdminClient()
-    await withTimeout(
-      client.from('farmers').select('id', { head: true }).limit(1)
-        .then(({ error }) => { if (error) throw error }),
-      HEALTH_TIMEOUT_MS
-    )
+    await checkDatabase()
 
     if (req.method === 'HEAD') return res.status(200).end()
 
