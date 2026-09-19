@@ -121,17 +121,32 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const townRef  = useRef(null);
   const addrRef  = useRef(null);
   const [minWage, setMinWage] = useState(null);
+  const [minWageLoading, setMinWageLoading] = useState(true);
+  const [minWageRetry, setMinWageRetry] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    if (!farmerPref) { setMinWage(null); return; }
-    (async () => {
+    let inFlight = false;
+    setMinWage(null);
+    if (!farmerPref) { setMinWageLoading(false); return; }
+    const load = async () => {
+      if (inFlight || cancelled) return;
+      inFlight = true;
+      setMinWageLoading(true);
       try {
         const { data } = await fetchMinimumWage(farmerPref);
         if (!cancelled) setMinWage(typeof data === 'number' ? data : null);
       } catch { if (!cancelled) setMinWage(null); }
-    })();
-    return () => { cancelled = true; };
-  }, [farmerPref]);
+      finally { inFlight = false; if (!cancelled) setMinWageLoading(false); }
+    };
+    load();
+    window.addEventListener('online', load);
+    window.addEventListener('focus', load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', load);
+      window.removeEventListener('focus', load);
+    };
+  }, [farmerPref, minWageRetry]);
   const [zipSearching,      setZipSearching]      = useState(false);
   const [zipError,          setZipError]          = useState("");
   const zipLookupVersion = useRef(0);
@@ -1032,7 +1047,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 時間外労働の入力が揃っているか（2026-08-03たきと指示「必須」）：有無は必ず選ぶ。
   // 「あり」なら目安の時間まで書く＝「有無（どれくらいの時間）」を明記させる
   const overtimeOk = !!overtimePolicy && (overtimePolicy !== "あり" || !!overtimeDetail.trim());
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && !dailyViolation && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
+  // 賃金の確認待ちでも下書きの入力は続ける。掲載時の必須チェックとDB検査は維持する。
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (unknownWage || !dailyViolation) && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -1121,6 +1137,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     if (typeof onSkip === "function") onSkip();
     else window.location.hash = "/profile/employer/drafts";
   };
+
+  const wageLookupNotice = unknownWage && <div role="status" style={{ fontSize:14, lineHeight:1.8, padding:12, background:"#F1F8F4", borderRadius:8 }}>
+    <p style={{ margin:0 }}>{minWageLoading ? "最低賃金を確認しています。下書きの入力は続けられます。" : "最低賃金を確認できませんでした。下書きの入力・保存は続けられます。掲載前に再確認してください。"}</p>
+    <button type="button" className="listing-back" disabled={minWageLoading} onClick={() => setMinWageRetry(n => n + 1)}>最低賃金を再確認</button>
+  </div>;
 
   // ── OUTER SHELL ─────────────────────────────────────────────
   // 復元が済むまでは空の確認画面を出さない。読み込み失敗時も白紙で上書きさせず、再試行へ。
@@ -1569,14 +1590,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"0 0 16px", textAlign:"center" }}>各作業日の終了後に、現金で支払います。</p>
                 {workHours <= 0 && <p role="alert" style={{ fontSize:14, color:"#E24B4A" }}>終了時間は開始時間より後に設定してください。</p>}
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
-                {dailyViolation && (
+                {dailyViolation && !unknownWage && (
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
                 )}
-                {unknownWage && (hourlyWage > 0 || dailyWage > 0) && (
-                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>
-                    この地域の最低賃金データが未登録のため、金額を確認できません。運営にお問い合わせください
-                  </p>
-                )}
+                {wageLookupNotice}
               </div>
               {/* 支払いタイミング・支払方法の入力UIは封印中（解禁禁止・2026-08-02確認）。
                   支払条件は固定ポリシー（各作業日の作業終了後・現金手渡し）として掲載申請時に
@@ -1774,6 +1791,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 掲載前に、内容を確認しましょう
               </h2>
               <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手に表示される内容です。修正したい項目は、ここから編集できます。</p>
+              {wageLookupNotice}
 
               {/* 公開イメージ・セクション①：写真ギャラリー（求人詳細ページと同じく写真が先頭） */}
               {(() => {
@@ -2499,6 +2517,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       {isFarmer && step <= 11 && <ListingFooter
         step={step} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading} uploading={photoUploading}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
+        publishDisabled={!localOnly && unknownWage}
         hidden={sheetOpen || photoCaptionsOpen || !!recruitBox}
         onBack={step === 0 ? closeListing : returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack}
         onNext={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goNext}

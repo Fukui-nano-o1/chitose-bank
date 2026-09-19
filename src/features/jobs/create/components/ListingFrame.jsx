@@ -64,7 +64,7 @@ export function ListingDetailsIntro({ crop, task, region, dates, wage }) {
   );
 }
 
-export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, onBack, onNext, onSkipDetails, onPublish, hidden }) {
+export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, publishDisabled = false, onBack, onNext, onSkipDetails, onPublish, hidden }) {
   const stage = listingStage(step);
   const progress = [Math.min(step / 6, 1), Math.max(0, Math.min((step - 6) / 5, 1)), step >= 11 ? 0.5 : 0];
   return (
@@ -85,7 +85,7 @@ export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm,
           )}
           <button type="button" className={`listing-next${step === 11 ? " listing-publish" : ""}`}
             onClick={step === 11 ? onPublish : onNext}
-            disabled={busy || (step !== 11 && !canNext)} data-guide="flow-next">
+            disabled={busy || (step === 11 ? publishDisabled : !canNext)} data-guide="flow-next">
             {uploading ? "アップロード中…" : step === 0 ? "はじめる" : step === 11 ? (editingOpen ? "変更を保存" : "掲載する") : returnToConfirm ? "確認に戻る" : step === 10 ? "確認へ" : "次へ"}
           </button>
         </div>
