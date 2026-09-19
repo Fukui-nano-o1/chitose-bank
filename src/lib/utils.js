@@ -1081,6 +1081,10 @@ export function belongingIconName(label) {
 // ★選択肢を変えるときはDBの既定値（migration 20260821090000）とラベルの整合を確認すること
 export const PLACE_CHANGE_OPTIONS = ["変更なし", "この農園の圃場の範囲内"];
 export const TASK_CHANGE_OPTIONS = ["変更なし", "関連する農作業の範囲内"];
+// 契約の更新（固定ポリシー）。正はDBの掲載時トリガー job_publish_zscope（migration 20260821090000）＝
+// 掲載の瞬間にこの文がjobs.contract_renewalへ凍結される。ここは【掲載前の確認ページのプレビュー】が
+// 「掲載後に働き手が見る姿」を出すための写し。★DB側の文を変えたら必ずここも同じ文にする（2026-09-19）
+export const CONTRACT_RENEWAL_FIXED = "更新なし（作業期間の満了で契約は終了します。ふたたび働く場合は、新しい応募と募集主の承認による新しい契約になります）";
 
 // 労災・雇用保険の適用（2026-08-21・労基則5条1項の明示事項）。プロフィール入力
 //（EmployerProfileEdit・事業所の属性＝受動喫煙と同じ枠）→ 掲載時に jobs.labor_insurance_status へ凍結。

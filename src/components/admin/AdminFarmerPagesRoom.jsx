@@ -23,7 +23,38 @@ import { JobCard } from "../JobCard";
 import { OwnJobTile, ownJobState, OWN_JOB_GRID_CLASS } from "../OwnJobTile";
 import { PublishDone } from "../PublishDone";
 import { WorkerTrustCard } from "../TrustCards";
-import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE } from "../../lib/utils";
+import { CROP_OPTIONS, TASK_OPTIONS, APP_PHASE_LABEL, APP_PHASE_COLOR, ROLE_GREEN, ROLE_ORANGE, CURRENT_PAY_POLICY, CONTRACT_RENEWAL_FIXED } from "../../lib/utils";
+import { JobDetailBody } from "../JobDetailBody";
+
+// 「確認」画面の見本（2026-09-19）＝本番と同じ JobDetailBody に渡す架空の求人（mapJobPublicRow と同じ形）。
+// 求人番号は持たせない（通信しない）。募集主の材料も一緒に渡す。中身は全て架空
+const CONFIRM_SAMPLE_JOB = {
+  id: null, crop:"ブロッコリー", task:"収穫", dateLabel:"9/10（木） 〜 14（月）", dateStartRaw:"2026-09-10", dateEndRaw:"2026-09-14", isNew:false,
+  payType:"daily", pay:9000, town:"山川町", region:"徳島県吉野川市山川町", cityArea:"徳島県吉野川市",
+  workAddress:"忌部12-3", hasWorkAddress:true, maskedFields:[], experience:"", lat:null, lng:null, radius:null,
+  count:"3名", headcount:3, photos:[], recruiterName:"", recruiterAddress:"", recruiterContact:"",
+  nearestStation:"山川駅", workTime:"08:00〜16:00", breakTime:"60分", commuteTime:"10分",
+  jobBody:"ブロッコリーの収穫と箱詰めをお願いします。畑は平坦で、初めての方でも当日にコツをお教えします。", cautions:"日差しが強いので帽子を。",
+  overtimePolicy:"あり", overtimeDetail:"30分ほど", placeChangeScope:"変更なし", taskChangeScope:"関連する農作業の範囲内",
+  contractRenewal:CONTRACT_RENEWAL_FIXED, retirementTerms:"", laborInsuranceStatus:"労災保険のみ加入しています",
+  wanted:"", items:"長靴、帽子、タオル", payMethod:CURRENT_PAY_POLICY.payMethod, payTiming:CURRENT_PAY_POLICY.payTiming, wageClosingRule:CURRENT_PAY_POLICY.wageClosingRule,
+  dateStart:new Date(2026, 8, 10), dateEnd:new Date(2026, 8, 14), holidays:[], dangerPlaces:[], dangerTasks:[],
+  fullPayGuarantee:false, beginnerOk:true, instantApproveRepeat:false, experiencedPreferred:false,
+  perks:{ has_transport:true, transport_area:"吉野川市内", has_parking:true, parking_capacity:3, smoking_policy:"禁煙（喫煙場所なし）" },
+  insuranceSnapshot:{ items:["facility"], notes:"" }, profileSnapshotAt:"",
+  employerName:"千歳農園", employerAvatar:"", closed:false, hiredCount:0, filled:false, expired:false,
+};
+const CONFIRM_SAMPLE_EMPLOYER = { nickname:"千歳農園", avatar_url:"", owner_comment:"はじめての方も歓迎します。" };
+// 本番の確認ページが各区画の末尾に置く「編集」の行（LandingFlow の confDecorate の写し・文言だけ）
+const CONFIRM_EDIT_LINKS = {
+  "写真": ["写真を編集"],
+  "求人タイトル・募集タグ": ["作物", "作業", "集合場所", "日程・人数", "勤務時間・報酬", "募集の希望"],
+  "作業内容": ["作業内容を編集"],
+  "待遇": ["待遇を変更"],
+  "報酬・勤務条件・日程": ["日程を編集"],
+  "場所・地図": ["集合場所を編集"],
+  "持ち物・備考・危険箇所・保険": ["持ち物・備考", "時間外労働", "危険箇所"],
+};
 
 const INK = "#222", SUB = "#717171", LINE = "#EBEBEB", SOFT = "#F7F7F7";
 const GREEN = "#00A86B", RED = "#E24B4A", AMBER = "#F5A623";
@@ -375,21 +406,28 @@ const STEPS = [
         </LFWizCard>
       </LFPage>
     ) },
-  { ch:"求人をつくる", name:"確認", url:"#/work/new/11", act:"働き手に見える姿をそのまま確かめる。行ごとに直せる。写真は横スワイプで見る。",
+  { ch:"求人をつくる", name:"確認", url:"#/work/new/11", act:"求人詳細ページと同じ姿（写真→題名→募集主→作業内容→待遇→作業日程→評価→募集主について→作業の場所→知っておくこと）で、働き手に見える姿をそのまま確かめる（2026-09-19・旧レイアウトを廃止）。各区画の末尾の「編集」で該当ページへ。下に報酬バー。",
     body: () => (
-      <div style={{ padding:0 }}>
-        <div style={{ height:150, background:SOFT, display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8" }}><NavIcon name="image" size={48} /></div>
-        <div style={{ padding:16 }}>
-          <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, textAlign:"center", margin:"0 0 14px" }}>掲載イメージを確認してください</p>
-          <p className="f-sans" style={{ fontSize:17, fontWeight:600, color:INK, margin:0 }}>ブロッコリー 収穫</p>
-          <p className="f-sans" style={{ fontSize:12, color:SUB, margin:"4px 0 12px" }}>徳島県吉野川市山川町忌部 字前川12-3</p>
-          <Card style={{ padding:"2px 12px" }}>
-            <Row l="日程" r="9/10（木）〜9/14（月）" edit />
-            <Row l="勤務時間" r="8:00〜16:00（休憩60分）" edit />
-            <Row l="採用人数" r="3人" edit />
-            <Row l="報酬" r="日給 9,000円" edit />
-            <Row l="時間外" r="あり（30分ほど）" edit />
-          </Card>
+      <div style={{ padding:"0 16px 16px" }}>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:INK, margin:"0 0 12px" }}>掲載前に、内容を確認しましょう</p>
+        {/* 本物の JobDetailBody（求人詳細と同じ1本）に架空の求人を渡す。募集主の材料も渡すので通信しない（求人番号なし） */}
+        <JobDetailBody job={CONFIRM_SAMPLE_JOB} employer={CONFIRM_SAMPLE_EMPLOYER} trust={null} noTabs
+          decorate={(label, node) => (
+            <div key={label}>
+              {node}
+              {CONFIRM_EDIT_LINKS[label] && (
+                <div className="f-sans" style={{ display:"flex", justifyContent:"flex-end", gap:12, marginTop:10, fontSize:12, color:"#B0B0B0" }}>
+                  {CONFIRM_EDIT_LINKS[label].map(t => <span key={t} style={{ fontSize:13, fontWeight:700, color:ROLE_GREEN, textDecoration:"underline" }}>{t}</span>)}
+                </div>
+              )}
+            </div>
+          )} />
+        <div style={{ background:"#fff", borderTop:"1px solid " + LINE, padding:"10px 0", marginTop:16, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <div>
+            <span className="f-mono" style={{ display:"block", fontSize:18, fontWeight:800, color:INK }}>日給9,000円</span>
+            <span className="f-sans" style={{ display:"block", fontSize:12, color:SUB, marginTop:2 }}>支払：各作業日の作業終了後・現金手渡し</span>
+          </div>
+          <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:ROLE_GREEN, textDecoration:"underline" }}>編集</span>
         </div>
       </div>
     ) },

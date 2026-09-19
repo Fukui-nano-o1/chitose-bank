@@ -396,7 +396,9 @@ export function JobThingsToKnow({ job, onPhoto }) {
 export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
   const [reviews, setReviews] = useState(null);
   useEffect(() => {
-    if (!me || !job?.id) { setReviews(null); return; }
+    // 求人番号の無い下書き（掲載前の確認ページ）は引けない＝「読み込み中」に固めず空として描く（2026-09-19）
+    if (!job?.id) { setReviews({ ok: false }); return; }
+    if (!me) { setReviews(null); return; }
     let cancelled = false;
     (async () => {
       try {

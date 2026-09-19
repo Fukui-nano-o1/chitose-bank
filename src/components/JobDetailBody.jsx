@@ -28,8 +28,12 @@ import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
 import { JobPhotoGallery, JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities,
   JobScheduleSection, JobReviewsAndHost, JobLocationSection, JobThingsToKnow } from "../features/jobs/search/components/JobDetailPanel";
 
-export function JobDetailBody({ job, me, onBack, noTabs, decorate }) {
+// employer／trust（任意・2026-09-19）＝親が既に持っている募集主の材料を渡す口（求人作成フローの
+//   掲載前の確認＝まだ求人番号の無い下書きでは job_employer_profile を引けないため）。渡された時は引かない。
+// onOpenIntro（任意）＝募集主の行・募集主カードのタップで農園紹介を開く（確認ページ）。ボックスは渡さない（従来どおり開かない）
+export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: employerPreset, trust: trustPreset, onOpenIntro }) {
   const wrap = (label, node) => (decorate ? decorate(label, node) : node);
+  const presetGiven = employerPreset !== undefined;
   const [activeSlide, setActiveSlide] = useState(0);
   // 仕事の内容／質問のタブ（2026-08-08たきと指示）＝求人詳細ページと同じ部品（ContentQTabs＋ContentQSwipeArea）。
   // ★最初のタブでさらに右スワイプ＝onEdgeSwipe("prev")→onBack（面を戻る）＝
@@ -48,6 +52,7 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate }) {
   const [emp, setEmp] = useState(null);
   const [empTrust, setEmpTrust] = useState(null);
   useEffect(() => {
+    if (presetGiven) return; // 親が材料を渡した時は引かない（下書きのプレビュー）
     if (!job?.id) { setEmp(null); setEmpTrust(null); return; }
     let cancelled = false;
     (async () => {
@@ -60,7 +65,9 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate }) {
       setEmpTrust(trustRes.data || null);
     })();
     return () => { cancelled = true; };
-  }, [job?.id]);
+  }, [job?.id, presetGiven]);
+  const empShown = presetGiven ? employerPreset : emp;
+  const trustShown = trustPreset !== undefined ? trustPreset : empTrust;
   // 開いた時・求人が変わった時は本物の1枚目（＝クローンの次）に置く。フックは早期returnより前に置く
   useEffect(() => {
     if (!photosLooped) return;
@@ -112,18 +119,19 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate }) {
           </p>
         )}
         <JobKeyFacts job={job} />
-        <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"6px 0 0", userSelect:"text" }}>#{job.id}</p>
+        {/* 求人番号（求人番号の無い下書きのプレビューでは出さない・2026-09-19） */}
+        {job.id != null && <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"6px 0 0", userSelect:"text" }}>#{job.id}</p>}
       </div>)}
 
       {/* 募集主の行（Hosted by）→ ポイント（Highlights）→ 作業内容（Description）→ 待遇（Amenities）→ 作業日程 */}
-      <JobHostRow job={job} employer={emp} trust={empTrust} />
+      <JobHostRow job={job} employer={empShown} trust={trustShown} onOpenIntro={onOpenIntro} />
       <JobHighlights job={job} />
       {wrap("作業内容", <JobDescription job={job} />)}
       {wrap("待遇", <JobAmenities job={job} />)}
       {wrap("報酬・勤務条件・日程", <JobScheduleSection job={job} />)}
 
       {/* 評価 → 募集主について（Reviews → Meet your host。1部品＝評価の取得を1回にするため） */}
-      <JobReviewsAndHost job={job} employer={emp} trust={empTrust} me={me} />
+      <JobReviewsAndHost job={job} employer={empShown} trust={trustShown} me={me} onOpenIntro={onOpenIntro} />
 
       {/* 作業の場所（地図）＝Where you'll be */}
       {wrap("場所・地図", <JobLocationSection job={job} me={me} />)}
@@ -136,7 +144,7 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate }) {
     <div ref={rootRef} className="job-detail-boxed">
       {/* 写真＝ページと同じギャラリー部品（スマホ＝横スワイプ＋「n / N」・タップで写真の一覧／PC＝モザイク）。
           原寸で見せる（カード用サムネにしない・2026-08-02規則）。.job-hero で包まない＝面の中では留めない */}
-      {wrap("写真", <JobPhotoGallery job={job} employer={emp} photosLooped={photosLooped} activeSlide={activeSlide}
+      {wrap("写真", <JobPhotoGallery job={job} employer={empShown} photosLooped={photosLooped} activeSlide={activeSlide}
         scrollerRef={photoScrollerRef} onScroll={handlePhotoScroll} stretch={false} />)}
 
       {/* 仕事の内容／質問（2026-08-08たきと指示）＝求人詳細ページと同じタブ＋横スワイプ。

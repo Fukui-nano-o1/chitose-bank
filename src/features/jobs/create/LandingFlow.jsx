@@ -6,16 +6,16 @@ import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, s
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, EMPTY_MARK, stationLabel, farmHostQa, farmIntroTopics, perkBadges, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, OVERTIME_OPTIONS, overtimeLine, photoThumb, splitTextsForReview, PLACE_CHANGE_OPTIONS, TASK_CHANGE_OPTIONS } from "../../../lib/utils";
+import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, farmHostQa, farmIntroTopics, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, CONTRACT_RENEWAL_FIXED, OVERTIME_OPTIONS, overtimeLine, splitTextsForReview, PLACE_CHANGE_OPTIONS, TASK_CHANGE_OPTIONS } from "../../../lib/utils";
+// 確認ページ（step11）の本文＝求人詳細ページ・ボックス版・審査プレビューと同じ JobDetailBody（2026-09-19）。
+// 旧・確認ページが自前で描いていた写真カルーセル・主要情報カード・待遇表・危険箇所・地図・カレンダー・保険の
+// 部品（Carousel系/DangerItem/JobLocationMap/JobInsuranceSection ほか）の import はここから消えた
+import { JobDetailBody } from "../../../components/JobDetailBody";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { snapGet } from "../../../lib/snapshot";
-import { Avatar, DangerItem, JobFlagBadges, JobPhotoFallback, LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, LinkifiedText, QaChat, NoticeJumpText, Dots } from "../../../components/ui";
-import { BelongingChips } from "../../../components/BelongingTags";
+import { LFPillSelect, LFWizCard, LFCardBtn, LFCropGrid, LFSummaryRow, DevBadge, QaChat, Dots } from "../../../components/ui";
 import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { CalendarView } from "../../../components/CalendarView";
-import { JobLocationMap } from "../../../components/JobLocationMap";
-import { ContentQTabs, ContentQSwipeArea, JobQuestions } from "../../../components/JobQuestions";
-import { JobInsuranceSection } from "../../../components/InsurancePanel";
 import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
@@ -35,6 +35,18 @@ import { StepWishes } from "./components/StepWishes";
 import { ListingHeader, ListingIntro, ListingDetailsIntro, ListingFooter, LISTING_STAGES, listingStage } from "./components/ListingFrame";
 import { SavedWorkplaceCard, WorkplacePage } from "./components/WorkplacePage";
 import "./listingFlow.css";
+
+// 掲載前の確認（step11）：値がまだ無い区画の代わりに出す空の区画（2026-09-19）。JobDetailBody は値の無い区画を
+// 描かない（作業内容・作業日程）が、掲載前の確認では「未設定」と編集の入口を見せる必要がある。
+// 見た目は JobDetailPanel の AirSection と同じ区切り（細い線＋太い見出し）。★モジュールレベル定義を維持すること
+function ConfEmptySection({ title, children }) {
+  return (
+    <div style={{ borderTop:"1px solid #EBEBEB", marginTop:24, paddingTop:24 }}>
+      <h3 className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 14px" }}>{title}</h3>
+      <p className="f-sans" style={{ fontSize:15, color:"#B0B0B0", margin:0 }}>{children}</p>
+    </div>
+  );
+}
 
 const isWorkplaceRoute = () => /^#\/?work\/(?:new\/3|edit\/\d+)\/workplace$/.test(window.location.hash);
 
@@ -250,28 +262,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 2つ目に中身があれば最初から展開（2026-07-16）：閉じたままだと編集も削除もできない見えない項目になる
   const [showPlace2, setShowPlace2] = useState(() => dangerHasSecond(d.jobDangerPlaces));
   const [showTask2, setShowTask2] = useState(() => dangerHasSecond(d.jobDangerTasks));
-  const [confActiveSlide, setConfActiveSlide] = useState(0);
-  const confScrollRef = useRef(null);
-  // 確認ページ写真のループ（2026-07-16・詳細ページと同方式）：[最後,...実写真,最初]のクローンを並べ、端に静止したら実体位置へ瞬間ジャンプ
-  const confLooped = jobPhotos.length > 1;
-  const handleConfPhotoScroll = (e) => {
-    const el = e.currentTarget;
-    const w = el.clientWidth;
-    if (!w) return;
-    const idx = Math.round(el.scrollLeft / w);
-    if (!confLooped) { setConfActiveSlide(idx); return; }
-    const n = jobPhotos.length;
-    const settled = Math.abs(el.scrollLeft - idx * w) < 2;
-    if (settled && idx === 0) { el.scrollLeft = n * w; setConfActiveSlide(n - 1); return; }
-    if (settled && idx === n + 1) { el.scrollLeft = w; setConfActiveSlide(0); return; }
-    setConfActiveSlide(((idx - 1) % n + n) % n);
-  };
-  useEffect(() => {
-    if (step !== 11 || !confLooped) return;
-    const el = confScrollRef.current;
-    if (el) requestAnimationFrame(() => { el.scrollLeft = el.clientWidth; }); // 初期位置＝実写真1枚目（クローンの次）
-    setConfActiveSlide(0);
-  }, [step, confLooped]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 確認ページ（step11）の写真カルーセル（confScrollRef／confLooped／confActiveSlide）は2026-09-19に廃止＝
+  // 本文が JobDetailBody（求人詳細と同じギャラリー部品）になり、写真の送り・ループはそちらが持つ
   const captionTextareaRef = useRef(null);
   const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
 
@@ -544,7 +536,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_deviceInit?.jobNumber ?? _editJobNumber ?? _draftInit?.job_number ?? null);
-  const [confTab, setConfTab] = useState("content"); // 確認ページの「仕事の内容/質問」タブ（第10弾）
   // 集合場所の復元元＝農家プロフィールの「作業場所」。未登録なら専用ページへ進む。
   const [prevAddress, setPrevAddress] = useState(null);
   const [placeStatus, setPlaceStatus] = useState("loading");
@@ -1647,7 +1638,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {isFarmer && step === 11 && (() => {
-            const rewardLabel = dailyWage > 0 ? `¥${dailyWage.toLocaleString()} / 日` : "未設定"; // 時給は廃止（2026-07-16）
 
 
             // jobs INSERT用ペイロードはトップレベルに移設（saveDraftToSupabaseからも参照するため）
@@ -1785,205 +1775,152 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
 
             // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveを再利用）に移設（2026-07-13）
 
+            // ── 掲載前の確認＝最新の求人詳細と同じ1本（2026-09-19たきと指示「最終確認画面が旧求人のままだ。
+            //    最新の求人画面に切り替えて。誤解する」）。本文は JobDetailBody（求人詳細ページ・ボックス版・
+            //    審査プレビューと同じ Airbnb の並び）。入力中の値を mapJobPublicRow と同じ形（previewJob）に組んで渡す
+            //    ＝掲載後に働き手が見る姿をそのまま出す。掲載時にDBトリガーが凍結する値（待遇・保険・契約の更新・
+            //    労災雇用保険・支払条件）は同じ材料（プロフィールの現在値・固定ポリシー）から組む＝掲載前後で食い違わない。
+            //    ★列を足したら mapJobPublicRow（lib/utils）とここの両方に足すこと。
+            //    各区画の「編集」は decorate で差し込む（JobDetailBody の区画ラベルが鍵）＝旧ページの編集リンクの置き換え
+            const previewPerks = (confEmployer || jobPerks) ? { ...(confEmployer || {}), ...(jobPerks || {}) } : null;
+            const previewJob = {
+              id: draftJobNumber || null,
+              crop: farmerCrop || "作物", task: farmerTask || "作業",
+              dateLabel: jobDateStart ? jobDateLabel : "",
+              dateStartRaw: jobDateStart ? ymdLocal(jobDateStart) : "", dateEndRaw: jobDateEnd ? ymdLocal(jobDateEnd) : "",
+              isNew: false,
+              payType: "daily", pay: dailyWage,
+              town: farmerTown || "",
+              region: [farmerPref, farmerCity, farmerTown].map(s => (s || "").trim()).filter(Boolean).join(""),
+              cityArea: [farmerPref, farmerCity].map(s => (s || "").trim()).filter(Boolean).join(""),
+              workAddress: farmerAddr || "", hasWorkAddress: !!(farmerAddr || "").trim(), maskedFields: [],
+              experience: jobExp || "",
+              lat: confGeo?.lat ?? null, lng: confGeo?.lng ?? null, radius: confGeo?.radius ?? null,
+              count: jobCount ? `${jobCount}名` : "", headcount: Number(jobCount) || null,
+              photos: jobPhotos,
+              recruiterName: confEmployer?.recruiter_name || "", recruiterAddress: confEmployer?.recruiter_address || "", recruiterContact: confEmployer?.recruiter_contact || "",
+              nearestStation: nearestStation || "", workTime: workHours > 0 ? workTimeLabel : "",
+              breakTime: breakTime || "", commuteTime: commuteTime || "",
+              jobBody: jobDescription || "", cautions: jobCautions || "",
+              overtimePolicy: overtimePolicy || "", overtimeDetail: overtimePolicy === "あり" ? overtimeDetail : "",
+              // 変更の範囲＝未選択は掲載時に「変更なし」へ倒れる（DBトリガー）ので、プレビューも同じ姿にする
+              placeChangeScope: (placeChangeScope || "").trim() || "変更なし", taskChangeScope: (taskChangeScope || "").trim() || "変更なし",
+              contractRenewal: CONTRACT_RENEWAL_FIXED, retirementTerms: "",
+              laborInsuranceStatus: (confEmployer?.labor_insurance_status || "").trim(),
+              wanted: "", items: jobNotes || "",
+              payMethod: CURRENT_PAY_POLICY.payMethod, payTiming: CURRENT_PAY_POLICY.payTiming, wageClosingRule: CURRENT_PAY_POLICY.wageClosingRule,
+              dateStart: jobDateStart || null, dateEnd: jobDateEnd || null, holidays: jobHolidays,
+              dangerPlaces: (jobDangerPlaces || []).filter(p => p && (p.label || p.desc)),
+              dangerTasks: (jobDangerTasks || []).filter(t => t && (t.label || t.desc)),
+              fullPayGuarantee: false, beginnerOk, instantApproveRepeat, experiencedPreferred,
+              perks: previewPerks,
+              insuranceSnapshot: confEmployer ? { items: Array.isArray(confEmployer.insurance_items) ? confEmployer.insurance_items : [], notes: confEmployer.insurance_notes || "" } : null,
+              profileSnapshotAt: "",
+              employerName: confEmployer?.nickname || "", employerAvatar: confEmployer?.avatar_url || "",
+              closed: false, hiredCount: 0, filled: false, expired: false,
+            };
+            // 本人（ログイン中）は番地・評価を見られる。未ログインの下書き（localOnly）は訪問者と同じ見え方
+            const previewMe = ownerId ? { id: ownerId } : null;
+            const goStep = (n) => () => { setReturnToConfirm(true); setStep(n); };
+            const editBtn = (label, go) => (
+              <button key={label} type="button" onClick={go} className="f-sans"
+                style={{ background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>{label}</button>
+            );
+            // 区画の末尾に右寄せで置く編集の行。複数の入口がある区画は「編集：」を頭に添える。
+            // last＝本文の末尾の区画（知っておくこと）だけ右に64px空ける＝JobDetailBody の右下「トップ」浮遊ボックス
+            // （56px）が本文の末尾に自然に着地したとき、リンクの上に重ならないように
+            const editRow = (links, prefix, last) => (
+              <div className="f-sans" style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", flexWrap:"wrap", gap:"4px 12px", marginTop:10, fontSize:12, color:"#B0B0B0", paddingRight: last ? 64 : 0 }}>
+                {prefix && <span>{prefix}</span>}{links}
+              </div>
+            );
+            const confDecorate = (label, node) => {
+              switch (label) {
+                case "写真": return (
+                  <div key={label}>
+                    {node}
+                    {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え＋長押しドラッグ。先頭が求人カードのカバー */}
+                    {jobPhotos.length > 1 && <LFPhotoReorderStrip photos={jobPhotos} setPhotos={setJobPhotos} />}
+                    {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", margin:"8px 0 0" }}>写真は後から登録できます。いまは求人者のアイコンが表紙になります。</p>}
+                    {editRow([editBtn("写真を編集", goStep(7))])}
+                  </div>
+                );
+                case "求人タイトル・募集タグ": return (
+                  <div key={label}>
+                    {node}
+                    {editRow([editBtn("作物", goStep(1)), editBtn("作業", goStep(2)), editBtn("集合場所", goStep(3)), editBtn("日程・人数", goStep(4)), editBtn("勤務時間・報酬", goStep(5)), editBtn("募集の希望", goStep(10))], "編集：")}
+                    {/* 農園プロフィール未入力＝募集主の行が出ない。タップで入力ボックスを展開（2026-07-16の入口を維持） */}
+                    {!(confEmployer && confEmployer.nickname) && (
+                      <div onClick={()=>{ rememberFlowScroll(); setConfProfileOpen(true); }} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginTop:16, cursor:"pointer" }}>
+                        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
+                          <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#717171", marginBottom:8 }}><NavIcon name="farmer" size={24} /></div>
+                          <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
+                          <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>募集主の行・待遇・保険は、農園プロフィールから表示されます</p>
+                          <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"8px 0 0" }}>タップして農園プロフィールを入力 →</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+                case "作業内容": return (
+                  <div key={label}>
+                    {(jobDescription && jobDescription.trim()) ? node : <ConfEmptySection title="作業内容">未設定</ConfEmptySection>}
+                    {editRow([editBtn("作業内容を編集", goStep(8))])}
+                  </div>
+                );
+                case "待遇": return (
+                  <div key={label}>
+                    {node}
+                    {editRow([editBtn(jobPerks ? "待遇を変更（この求人のみ変更中）" : "待遇を変更", openPerksEdit)])}
+                  </div>
+                );
+                case "報酬・勤務条件・日程": return (
+                  <div key={label}>
+                    {jobDateStart ? node : <ConfEmptySection title="作業日程">未設定</ConfEmptySection>}
+                    {editRow([editBtn("日程を編集", goStep(4))])}
+                  </div>
+                );
+                case "場所・地図": return (
+                  <div key={label}>{node}{editRow([editBtn("集合場所を編集", goStep(3))])}</div>
+                );
+                case "持ち物・備考・危険箇所・保険": return (
+                  <div key={label}>
+                    {node}
+                    {editRow([editBtn("持ち物・備考", goStep(10)), editBtn("時間外労働", goStep(5)), editBtn("危険箇所", goStep(9))], "編集：", true)}
+                  </div>
+                );
+                default: return node;
+              }
+            };
+
             return (<>
               {/* タイトル */}
               <h2 className="f-sans" style={{ fontSize:"clamp(20px,3vw,30px)", fontWeight:850, color:"#222", marginBottom:6, lineHeight:1.3 }}>
                 掲載前に、内容を確認しましょう
               </h2>
-              <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手に表示される内容です。修正したい項目は、ここから編集できます。</p>
+              <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:20 }}>働き手に表示される内容です。直したい項目は、各区画の「編集」から直せます。</p>
               {wageLookupNotice}
 
-              {/* 公開イメージ・セクション①：写真ギャラリー（求人詳細ページと同じく写真が先頭） */}
-              {(() => {
-                /* 作物の絵文字・3色の背景は、写真が無いときの水増し表示に使っていたもの。
-                   求人者のアイコン1枚に置き換えたため削除（2026-07-30） */
-                return (
-                  <div style={{ marginBottom:28, maxWidth:1000, margin:"0 auto 5px" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", maxWidth:870, margin:"0 auto 8px" }}>
-                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".08em", margin:0 }}>写真</p>
-                      <button onClick={() => { setReturnToConfirm(true); setStep(7); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                    </div>
-                    <div style={{ position:"relative", maxWidth:870, margin:"0 auto" }}>
-                      {/* 白落ち対策（2026-07-16）：iOS Safariでtransformアニメ中の親内のスナップスクロール画像が
-                          白く描画されない事象への対処。translateZ(0)で各スライドを独立レイヤーに昇格（☰固定バグと同じ処方）。
-                          画像URLが読めない場合はカメラのプレースホルダーが出る（真っ白のまま原因不明、を防ぐ） */}
-                      {/* overflowY:hidden（2026-07-16）：スクローラー自身が縦にバウンスせず、縦ドラッグは親（ページ）のスクロールへ渡る */}
-                      <div ref={confScrollRef} onScroll={handleConfPhotoScroll} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:12, transform:"translateZ(0)", touchAction:"pan-x pan-y", overscrollBehaviorX:"contain" }}>
-                        {jobPhotos.length > 0
-                          ? (confLooped ? [jobPhotos[jobPhotos.length - 1], ...jobPhotos, jobPhotos[0]] : jobPhotos).map((p, i) => {
-                              // 軽いサムネを先に敷いてから原寸を重ねる（2026-08-03たきと指示「確認ページの写真の復元が遅い」）。
-                              // 原寸は平均400KB・最大10枚ので、リロード直後は白いままだった。サムネ(640px・約1/6)は
-                              // 一覧やカードで既に読み込み済みのことが多く、ほぼ即座に絵が出る→原寸が届いたら上に重なる
-                              // ＝画質は原寸のまま（詳細ページのカルーセルをthumbにしない方針を守る）
-                              const th = photoThumb(p);
-                              const hasTh = th && th !== p.url;
-                              return (
-                              <div key={i} style={{ position:"relative", flexShrink:0, width:"100%", height:392, borderRadius:12, background: hasTh ? `#F0F0F0 url(${th}) center/cover no-repeat` : "#F0F0F0", scrollSnapAlign:"start", transform:"translateZ(0)" }}>
-                                {!hasTh && <span aria-hidden="true" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="camera" size={48} /></span>}
-                                <img loading="lazy" src={p.url} alt={`写真${i+1}`} onError={(e)=>{ e.currentTarget.style.display = "none"; }} style={{ position:"relative", width:"100%", height:"100%", objectFit:"cover", borderRadius:12 }} />
-                                {p.caption && (
-                                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"28px 20px 16px", background:"linear-gradient(transparent, rgba(0,0,0,0.65))", color:"#fff", fontSize:16, fontWeight:600, borderRadius:"0 0 12px 12px", boxSizing:"border-box" }}>{p.caption}</div>
-                                )}
-                              </div>
-                              );
-                            })
-                          : (
-                              /* 写真が1枚も無いときは、絵文字を3枚並べず、求人者のアイコンを1枚だけ大きく出す
-                                 （2026-07-30たきと指示・求人詳細と同じ見え方） */
-                              <div style={{ flexShrink:0, width:"100%", scrollSnapAlign:"start" }}>
-                                <JobPhotoFallback url={confEmployer?.avatar_url} name={confEmployer?.nickname || "？"} />
-                              </div>
-                            )}
-                      </div>
-                      <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: -el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", left:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
-                      <button onClick={() => { const el = confScrollRef.current; if (el) el.scrollBy({ left: el.offsetWidth, behavior:"smooth" }); }} style={{ position:"absolute", top:"50%", right:12, transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.9)", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", cursor:"pointer", fontSize:18, color:"#222", display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
-                    </div>
-                    <div style={{ display:"flex", justifyContent:"center", gap:6, marginTop:8 }}>
-                      {/* 写真が無いときは1枚しか無いのでドットも出さない（3つ出ていた） */}
-                      {jobPhotos.map((_, i) => i).map(i => (
-                        <span key={i} style={{ fontSize:10, color: i === confActiveSlide ? "#00A86B" : "#D0D0D0" }}>{i === confActiveSlide ? "●" : "○"}</span>
-                      ))}
-                    </div>
-                    {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え＋長押しドラッグ（2026-08-03）。
-                        先頭が求人カードのカバー。実装はモジュールレベルの LFPhotoReorderStrip */}
-                    {jobPhotos.length > 1 && (
-                      <div style={{ maxWidth:870, margin:"12px auto 0" }}>
-                        <LFPhotoReorderStrip photos={jobPhotos} setPhotos={setJobPhotos} />
-                      </div>
-                    )}
-                    {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", marginTop:8 }}>※ 写真は後から登録できます。現在はイメージです。</p>}
+              <div style={{ maxWidth:870, margin:"0 auto" }}>
+                {/* 本文＝求人詳細ページ・ボックス版・審査プレビューと同じ JobDetailBody。募集主の材料（employer／trust）は
+                    本人のプロフィールを渡す＝求人番号の無い下書きでも募集主の行・募集主カード・保険が出る。
+                    仕事の内容／質問のタブも同じ（質問は draftJobNumber があるときだけ本物の求人Q&A） */}
+                <JobDetailBody job={previewJob} me={previewMe} employer={confEmployer} trust={confTrust}
+                  onOpenIntro={(confEmployer && confEmployer.nickname) ? () => setConfIntroOpen(true) : undefined}
+                  decorate={confDecorate} />
+                {/* 報酬バー＝求人詳細ページの下の応募バー（報酬＋支払条件）に当たる部分（審査プレビューと同じ置き方）。
+                    本文は報酬を持たないのでここに置く。sticky＝スクロールの下端に留まる。右端は本文の「トップ」浮遊ボックス
+                    （56px・zIndex5）が重なる場所なので空けておく（zIndexはそれより下） */}
+                <div style={{ position:"sticky", bottom:0, zIndex:4, background:"#fff", borderTop:"1px solid #EBEBEB", padding:"10px 68px 10px 0", marginTop:16, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                  <div style={{ minWidth:0 }}>
+                    <span className="f-mono" style={{ display:"block", fontSize:18, fontWeight:800, color: dailyWage > 0 ? "#222" : "#B0B0B0" }}>{dailyWage > 0 ? `日給${dailyWage.toLocaleString()}円` : "報酬 未設定"}</span>
+                    {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
+                    <span className="f-sans" style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.5, marginTop:2 }}>{payTermsLine(CURRENT_PAY_POLICY)}</span>
                   </div>
-                );
-              })()}
-
-              {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27）。
-                  保険タブは廃止（2026-08-19たきと指示）＝保険カードはカレンダーの下へ移植（求人詳細ページと同じ） */}
-              <ContentQSwipeArea value={confTab} onChange={setConfTab}>
-              <div style={{ maxWidth:870, margin:"0 auto" }}><ContentQTabs value={confTab} onChange={setConfTab} /></div>
-              {confTab === "questions" ? (
-                /* LandingFlow内に me は存在しない（未定義参照＝ReferenceErrorで画面真っ白の原因だった・2026-07-24修正）。
-                   meはisAdmin判定（運営の非表示スイッチ）専用ので未指定でよい。農家本人の回答UIはJobQuestions内のsession判定(isOwner)が担う */
-                <div style={{ maxWidth:870, margin:"0 auto" }}><JobQuestions jobNumber={draftJobNumber} /></div>
-              ) : (<>
-              {/* ヘッダー（求人詳細ページと同一構造：作物 作業｜地域）＋編集リンク */}
-              <div style={{ marginBottom:20 }}>
-                {/* 集合場所は番地まで明記（2026-08-03たきと指示）。確認ページ＝掲載前プレビューので
-                    自分の入力値（farmerAddr）をそのまま出す。訪問者向けのモザイクは求人詳細側が担う */}
-                <h2 className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", margin:0, lineHeight:1.3 }}>{farmerCrop || "作物"} {farmerTask || "作業"}{farmerRegion ? `｜${farmerRegion}${farmerAddr ? farmerAddr : ""}` : ""}</h2>
-                {/* 初心者大歓迎・リピート即決＋待遇はタイトル下にも表示（2026-07-16・詳細ページと同じバッジ） */}
-                {(beginnerOk || experiencedPreferred || instantApproveRepeat || perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).length > 0) && (
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
-                    <JobFlagBadges beginner={beginnerOk} expert={experiencedPreferred} repeat={instantApproveRepeat} />
-                    {perkBadges(jobPerks ? { ...(confEmployer || {}), ...jobPerks } : confEmployer).map(b => (
-                      <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{b.emoji ? b.emoji + " " : ""}{b.label}</span>
-                    ))}
-                  </div>
-                )}
-                <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", margin:0, marginTop:4, display:"flex", alignItems:"center", gap:10 }}>
-                  編集：
-                  <button onClick={() => { setReturnToConfirm(true); setStep(1); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作物</button>
-                  <button onClick={() => { setReturnToConfirm(true); setStep(2); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>作業</button>
-                  <button onClick={() => { setReturnToConfirm(true); setStep(3); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>集合場所</button>
-                </p>
+                  {editBtn("編集", goStep(5))}
+                </div>
               </div>
 
-              {/* ═══ 掲載プレビュー本体（右パネル削除により1カラム・中央寄せ） ═══ */}
-              <div style={{ maxWidth:870, margin:"0 auto" }}>
-
-                {/* ── 左: 掲載プレビュー（求人詳細ページの左カラムと同一構造） ── */}
-                <div>
-                  {/* 主要情報カード（詳細ページと同じ・各行に編集リンク・未入力は「未設定」表示） */}
-                  <div style={{ width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                    <div className="job-detail-info-grid">
-                      {[
-                        // 期間ものは「〜終了日」を下段に折り返す（2026-07-16・whiteSpace:pre-lineで改行）
-                        { label:"日程",     value: jobDateLabel !== "日程を選択してください" ? jobDateLabel.replace("〜", "\n〜") : "", editStep:4 },
-                        { label:"勤務時間", value: workTimeLabel, editStep:5 },
-                        { label:"休憩時間", value: breakTime, editStep:5 },
-                        { label:"採用人数", value: jobCount ? `${jobCount}人` : "", editStep:4 },
-                        { label:"移動時間", value: stationLabel(nearestStation, commuteTime), editStep:3 },
-                        // 報酬は金額だけ表示（2026-07-16）：支払いタイミング・支払方法を繋げると読みにくいため
-                        { label:"報酬",     value: rewardLabel !== "未設定" ? rewardLabel : "", editStep:5 },
-                      ].map(row => (
-                        <div key={row.label} style={{ display:"flex", flexDirection:"column", gap:4, alignItems:"center", textAlign:"center" }}>
-                          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"flex", alignItems:"center", gap:6 }}>
-                            {row.label}
-                            <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                          </span>
-                          <span className="f-sans" style={{ fontSize:15, color: row.value ? "#222" : "#B0B0B0", fontWeight: row.value ? 600 : 400, lineHeight:1.6, whiteSpace:"pre-line" }}>{row.value || "未設定"}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
-                    {/* 支払条件は頭から1文字ずつ跳ねさせて目に留める（2026-08-14たきと指示・詳細ページと同じ） */}
-                    <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}><NoticeJumpText text={payTermsLine(CURRENT_PAY_POLICY)} /></p>
-                  </div>
-
-                  {/* 農家プロフィールカード（詳細ページと同一構造：アバター・自己紹介・待遇。
-                      データは employer_profiles の本人行。未作成なら最小カードにフォールバック） */}
-                  {(confEmployer && confEmployer.nickname) ? (() => {
-                    const pk = jobPerks ? { ...confEmployer, ...jobPerks } : confEmployer; // この求人だけの待遇があれば上書き表示（2026-07-18）
-                    const perkRows = [
-                      { label:"送迎",     on: pk.has_transport,        value: pk.has_transport ? `あり${pk.transport_area ? "（" + pk.transport_area + "）" : ""}` : EMPTY_MARK },
-                      { label:"駐車場",   on: pk.has_parking,          value: pk.has_parking ? `あり${pk.parking_capacity ? "（" + pk.parking_capacity + "台）" : ""}` : EMPTY_MARK },
-                      { label:"通勤手当", on: pk.has_commute_allowance, value: pk.has_commute_allowance ? `あり${pk.commute_allowance_detail ? "（" + pk.commute_allowance_detail + "）" : ""}` : EMPTY_MARK },
-                      { label:"賞与",     on: pk.has_bonus,            value: pk.has_bonus ? `あり${pk.bonus_detail ? "（" + pk.bonus_detail + "）" : ""}` : EMPTY_MARK },
-                      { label:"昇給",     on: pk.has_raise,            value: pk.has_raise ? `あり${pk.raise_detail ? "（" + pk.raise_detail + "）" : ""}` : EMPTY_MARK },
-                      { label:"退職手当", on: pk.has_severance_pay,    value: pk.has_severance_pay ? `あり${pk.severance_detail ? "（" + pk.severance_detail + "）" : ""}` : EMPTY_MARK },
-                      { label:"作業用品の負担", on: pk.employer_pays_supplies, value: pk.employer_pays_supplies ? `募集主が負担${pk.supplies_cap ? "（" + pk.supplies_cap + "）" : ""}` : EMPTY_MARK },
-                      { label:"アクセサリー", on: pk.accessory_ok,          value: pk.accessory_ok ? "OK" : EMPTY_MARK },
-                      // 受動喫煙（2026-08-03たきと指示）：就業場所の受動喫煙対策は求人の明示事項。
-                      // 確認ページは掲載前のプレビューので、プロフィールの現在値（confEmployer）を出す。
-                      // 掲載すると掲載時トリガーがこの値をperksへ凍結し、以後は詳細ページにも同じ形で出る
-                      { label:"受動喫煙", on: !!pk.smoking_policy,
-                        value: pk.smoking_policy
-                          ? (pk.smoking_policy === "喫煙場所あり"
-                              ? `喫煙場所あり${pk.smoking_area ? "（" + pk.smoking_area + "）" : ""}`
-                              : pk.smoking_policy)
-                          : EMPTY_MARK },
-                    ];
-                    return (
-                      <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                        {/* アイコン左・2倍(88px)・名前に「さん」・登録してからの月日。紹介文はここでは出さない（2026-07-16・詳細ページと同じ） */}
-                        {/* アイコン・名前タップ→農園紹介をボックス展開（2026-07-16・詳細ページと同じ） */}
-                        <div onClick={()=>setConfIntroOpen(true)} role="button" style={{ display:"flex", alignItems:"center", gap:14, textAlign:"left", cursor:"pointer" }}>
-                          <Avatar url={confEmployer.avatar_url} name={confEmployer.nickname} size={70} />
-                          <div style={{ minWidth:0 }}>
-                            <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>{confEmployer.nickname}さん</p>
-                            {confTrust?.member_since && (
-                              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}>chitose-bank利用 {confTrust.member_since}から</p>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ borderTop:"1px solid #EBEBEB", margin:"14px 0 4px" }} />
-                        {/* 待遇タップ→この求人だけの待遇を編集するボックスを展開（2026-07-18） */}
-                        <div onClick={openPerksEdit} role="button" style={{ cursor:"pointer" }}>
-                        <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", marginBottom:4, letterSpacing:".06em", textAlign:"center" }}>待遇{jobPerks ? "（この求人のみ変更中）" : ""}</p>
-                        <div style={{ width:"fit-content", margin:"0 auto" }}>{/* 待遇ブロックはカード中央配置（2026-07-16・旧:境界線を中央に合わせるtranslateX(-78px)） */}
-                          {perkRows.map((row, i) => (
-                            <div key={row.label} style={{
-                              display:"flex", alignItems:"center", gap:12, padding:"8px 0",
-                              borderBottom: i < perkRows.length - 1 ? "1px solid #F7F7F7" : "none",
-                            }}>
-                              <span className="f-sans" style={{ fontSize:13, color:"#B0B0B0", width:72, flexShrink:0 }}>{row.label}</span>
-                              <span className="f-sans" style={{ fontSize:15, color: row.on ? "#222" : "#B0B0B0", fontWeight: row.on ? 600 : 400, lineHeight:1.6 }}>{row.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", textAlign:"center", margin:"8px 0 0" }}>タップして待遇を変更 →</p>
-                        </div>
-                      </div>
-                    );
-                  })() : (
-                    <div onClick={()=>{ rememberFlowScroll(); setConfProfileOpen(true); }} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5, cursor:"pointer" }}>{/* 未入力＝タップで農家プロの入力項目を展開（2026-07-16） */}
-                      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-                        <div style={{ width:44, height:44, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#717171", marginBottom:8 }}><NavIcon name="farmer" size={24} /></div>
-                        <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, marginBottom:2 }}>{farmerDisplayName || "農園名未設定"}</p>
-                        <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:0 }}>{farmerExp ? `就農 ${farmerExp}` : "就農歴未設定"}</p>
-                        <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#00A86B", margin:"8px 0 0" }}>タップして農園プロフィールを入力 →</p>
-                      </div>
-                    </div>
-                  )}
                   {/* 待遇の編集ボックス（2026-07-18）：送迎から順。下部に「保存」（プロフィールにも反映）と「この求人のみ」 */}
                   {perksEditOpen && perkDraft && (
                     // cb-lock-scroll＝html/bodyを固定する汎用クラス（embedded表示ではページ自体が
@@ -2069,115 +2006,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                       </div>
                     </div>
                   )}
-
-                  {/* 作業内容カード（詳細ページと同じ） */}
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:0 }}>作業内容</p>
-                      <button onClick={() => { setReturnToConfirm(true); setStep(8); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                    </div>
-                    {/* 未入力の定型文フォールバック（JT_MAP）は廃止（2026-08-09たきと報告「入力した覚えのない
-                        文字が出力される」）。定型文は画面に出るだけで保存されず、公開後の求人には出ない＝
-                        確認ページだけ嘘をついていた。憲法3条どおり実データ／未設定の二択にする */}
-                    <p className="f-sans" style={{ fontSize:15, color: (jobDescription && jobDescription.trim()) ? "#222" : "#B0B0B0", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", ...((jobDescription && jobDescription.trim()) ? {} : { textAlign:"center" }) }}>{(jobDescription && jobDescription.trim()) ? <LinkifiedText text={jobDescription} /> : "未設定"}</p>
-                  </div>
-
-                  {/* 経験・持ち物・備考カード：詳細ページと同じ3行縦積み設計（2026-07-16・タブ式から戻した）。
-                      必要経験・持ち物はバッジ・備考は文章・すべて中央配置。未入力は「未設定」。
-                      希望する働き手は削除済み（変数farmerWantedは保存・詳細表示で継続使用のため温存） */}
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                      <button onClick={() => { setReturnToConfirm(true); setStep(10); }} className="f-sans" style={{ background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                    </div>
-                    {[
-                      { label:"持ち物",     value: jobNotes, chips:true },
-                      { label:"備考・注意", value: jobCautions },
-                      // 時間外労働（2026-08-03たきと指示・表示は持ち物／備考の下のまま）。
-                      // 入力は勤務条件(step5)へ移したので、このブロックの「編集」(step10)ではなく
-                      // 行に専用の編集リンクを添える＝ここから直せない項目にならないようにする
-                      { label:"時間外労働", value: overtimeLine(overtimePolicy, overtimeDetail), editStep: 5 },
-                      // 変更の範囲（2026-08-21・労基則の明示事項）。入力は場所=step3／作業=step2
-                      { label:"場所の変更の範囲", value: placeChangeScope, editStep: 3 },
-                      { label:"作業の変更の範囲", value: taskChangeScope, editStep: 2 },
-                    ].map(row => {
-                      const has = row.value && String(row.value).trim();
-                      return (
-                        <div key={row.label} style={{ padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                          <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", display:"block", marginBottom:2, textAlign:"center" }}>
-                            {row.label}
-                            {row.editStep && (
-                              <button onClick={() => { setReturnToConfirm(true); setStep(row.editStep); }} className="f-sans" style={{ marginLeft:6, background:"none", border:"none", fontSize:11, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                            )}
-                          </span>
-                          {/* 持ち物＝アイコンつきタグチップ（2026-08-28・旧📌チップの置き換え。BelongingChips に一本化） */}
-                          {row.chips && has
-                            ? <BelongingChips text={String(row.value)} />
-                            : <span className="f-sans" style={{ fontSize:15, color: has ? "#222" : "#B0B0B0", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word", whiteSpace:"pre-wrap", display:"block", textAlign:"center" }}>{has ? row.value : "未設定"}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* 危険区域カード（詳細ページと同一構造：場所→作業・縦積み・全幅写真） */}
-                  {(jobDangerPlaces.some(p => p.label) || jobDangerTasks.some(t => t.label)) && (
-                  <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:5 }}>
-                    <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginBottom:20 }}>
-                      <span style={{ display:"flex", color:"#E8A33D" }}><NavIcon name="alert" size={18} /></span>
-                      <h3 className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>作業上の注意・危険箇所</h3>
-                      <button onClick={() => { setReturnToConfirm(true); setStep(9); }} className="f-sans" style={{ position:"absolute", right:0, background:"none", border:"none", fontSize:13, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0 }}>編集</button>
-                    </div>
-                    {jobDangerPlaces.some(p => p.label) && (
-                      <>
-                        <div style={{ display:"flex", flexDirection:"column", gap:16, marginBottom:28 }}>
-                          {jobDangerPlaces.filter(p => p.label).map((place, i) => (
-                            <DangerItem key={i} icon={place.icon} label={place.label} desc={place.desc} photos={place.photos} />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {jobDangerTasks.some(t => t.label) && (
-                      <>
-                        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                          {jobDangerTasks.filter(t => t.label).map((task, i) => (
-                            <DangerItem key={i} icon={task.icon} label={task.label} desc={task.desc} photos={task.photos} />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  )}
-                </div>
-
-                {/* 右パネル（報酬・期間・カレンダー・一時保存）は削除（2026-07-13）。
-                    報酬・日程は左の主要情報カードに編集リンク付きで表示済み。
-                    一時保存は下部ナビ「保存」・保存中オーバーレイはLandingFlowトップレベルへ移設 */}
-              </div>
-              {/* ═══ 地図（集合場所のおおよその範囲・円のみ。求人詳細ページのJobLocationMapと同一構造。
-                   旧Googleマップ風ダミーは廃止(2026-07-14)。座標は住所からgeocodeTownで取得(保存時と同じ手順) ═══ */}
-              <div style={{ maxWidth:870, margin:"0 auto 5px" }}>
-                {/* 番地まで明記する画面ので、Googleマップ導線にも番地を渡す（2026-08-03）。
-                    ピン自体は従来どおり町域重心＝addressShownで注記の文言を実態に合わせる。
-                    mapQueryは郵便番号とスペース区切りを廃止（2026-08-03）：人が手で入力する形
-                    （都道府県+市区町村+町域+番地・区切りなし）と同じ文字列にする。
-                    郵便番号を混ぜるとGoogleが郵便番号の区域中心に着地することがある */}
-                <JobLocationMap lat={confGeo?.lat} lng={confGeo?.lng} radius={confGeo?.radius} label={farmerRegion}
-                  mapQuery={[farmerPref, farmerCity, farmerTown, farmerAddr].map(s => (s || "").trim()).filter(Boolean).join("")}
-                  addressShown={!!farmerAddr} />
-              </div>
-
-              {/* 開催期間カレンダー（地図の下・2026-07-16・詳細ページと同じ） */}
-              {jobDateStart && (
-                <div className="calendar-below-map" style={{ maxWidth:870, margin:"0 auto 5px" }}>
-                  <CalendarView start={jobDateStart} end={jobDateEnd} readOnly={true} holidays={jobHolidays} />
-                </div>
-              )}
-
-              {/* 保険カード（カレンダーの下・2026-08-19たきと指示で保険タブから移植・詳細ページと同じ）。
-                  確認ページはプレビューので、掲載時に凍結される前のプロフィール現在値（confEmployer）を出す
-                  （2026-08-02の仕様どおり。凍結値を見るのは掲載後の求人詳細側） */}
-              <JobInsuranceSection employer={confEmployer} style={{ maxWidth:870, margin:"0 auto 5px" }} />
-              </>)}
-              </ContentQSwipeArea>
 
               {/* 農園紹介セクションはページから削除（2026-07-16）。内容は農家カードのアイコン・名前タップのボックスに集約 */}
 
@@ -2461,7 +2289,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       )}
 
       {/* 開催期間カレンダー📅の浮遊ボタン＋モーダルは削除（2026-07-24・誰も展開しないため）。
-          作業日程は主要情報カードの「日程」行の編集リンク（→step4）で選び直せる */}
+          作業日程は確認ページ「作業日程」区画の「日程を編集」（→step4）で選び直せる */}
 
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
