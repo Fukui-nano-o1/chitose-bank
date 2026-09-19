@@ -20,7 +20,7 @@ export function SavedWorkplaceCard({ address, status, onUse, onRegister, onRetry
   );
 }
 
-export function WorkplacePage({ initialAddress, onBack, onSaved }) {
+export function WorkplacePage({ initialAddress, onBack, onSaved, draftOnly = false }) {
   const zip = initialAddress.zip || "", prefecture = initialAddress.prefecture || "";
   const city = initialAddress.city || "", town = initialAddress.town || "", street = initialAddress.address || "";
   const [address, setAddress] = useState({ zip, prefecture, city, town, address: street });
@@ -82,6 +82,12 @@ export function WorkplacePage({ initialAddress, onBack, onSaved }) {
     setSaving(true);
     setError("");
     const saved = Object.fromEntries(Object.entries(address).map(([key, value]) => [key, value.trim()]));
+    if (draftOnly || navigator.onLine === false) {
+      onSaved(saved, { local: true });
+      savingRef.current = false;
+      setSaving(false);
+      return;
+    }
     try {
       const { data: { session } } = await getSession();
       if (!session) throw new Error("ログイン状態を確認できませんでした。再度ログインしてください。");

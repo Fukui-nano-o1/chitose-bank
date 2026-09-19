@@ -5,6 +5,10 @@
 //   「res.error を見て、失敗時は手元の値を上書きしない」規則（2026-08-07）を呼び出し側で守る。
 import { supabase } from "../../../lib/supabase";
 import { uploadJobPhoto } from "../../../lib/image";
+import { syncDeviceWork } from "../../../lib/offlineSync";
+import { PRIVACY_VERSION } from "../../../lib/utils";
+
+export const syncJobDeviceDrafts = owner => syncDeviceWork(supabase, owner, PRIVACY_VERSION);
 
 // ── 認証 ───────────────────────────────────────────────
 export const getSession = () => supabase.auth.getSession();
@@ -54,7 +58,7 @@ export const insertJob = (payload) =>
 
 // 掲載＝即公開（一般農家はpending保存→このRPCでopen。第三者公開の可否はDBトリガーが判定）
 export const publishMyJob = (jobNumber) =>
-  supabase.rpc("publish_my_job", { p_job_number: jobNumber });
+  supabase.rpc("publish_my_job", { p_job_number: jobNumber }).retry(false);
 
 // 公開中の求人を掲載したまま編集（2026-09-11）＝本人・open・進行中の応募なし の3つの壁をDB側が持つ1窓口。
 // 許可した列だけ更新し、掲載時の検査と凍結（最賃・時間外・受動喫煙・募集主情報・待遇・保険）を open→open でも走らせる

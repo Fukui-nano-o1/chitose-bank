@@ -2,16 +2,16 @@
 // ・現行版（lib/utils.js PRIVACY_VERSION）と account_holders.agreed_privacy_version が違う人に出す。
 // ・同意すると agreed_privacy_version を現行版に更新する＝DB側のゲート
 //   （contract_emergency_contact の not_consented・app_settings.privacy_version）が開く。
-// ・同意するまで閉じられない。閉じられるお知らせは、2026-07-21のバナーが期限切れのまま
-//   誰にも届かなかった前例があるため採らない。
+// ・同意操作を端末に記録したら閲覧・下書きへ進む。サーバーの同意確認は別に維持する。
 import { useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { privacyConsentErrorMessage, savePrivacyConsent } from "../lib/privacyConsent";
 import { logAppError } from "../app/diagnostics/errorLog";
 import { PRIVACY_VERSION } from "../lib/utils";
 import { Dots } from "./ui";
+import { queuePrivacyConsent } from "../lib/deviceDrafts";
 
-export default function PrivacyReconsent({ authId, onAgreed, onShowPrivacy }) {
+export default function PrivacyReconsent({ authId, onAgreed, onPending, onShowPrivacy }) {
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const [verifying, setVerifying] = useState(false);
@@ -30,6 +30,12 @@ export default function PrivacyReconsent({ authId, onAgreed, onShowPrivacy }) {
     inFlight.current = true;
     setBusy(true); setVerifying(false); setErr("");
     try {
+      if (onPending) {
+        let queued = false;
+        try { queuePrivacyConsent(authId, PRIVACY_VERSION); queued = true; } catch {}
+        if (queued) { onPending(); return; }
+        // 保存領域を使えないブラウザーでも、オンラインなら従来の確定保存を試せる。
+      }
       const result = await savePrivacyConsent(supabase, authId, PRIVACY_VERSION, {
         onVerifying: () => setVerifying(true),
       });

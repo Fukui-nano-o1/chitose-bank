@@ -33,12 +33,9 @@ test('confirms the version returned by the update; writes only the version and r
   assert.equal(result.ok, true);
   assert.equal(f.calls.length, 1);
   const request = f.calls[0];
-  assert.equal(request.method, 'PATCH');
-  assert.equal(request.url.pathname, '/rest/v1/account_holders');
-  assert.equal(request.url.searchParams.get('auth_id'), 'eq.' + authId);
-  assert.equal(request.url.searchParams.get('select'), 'agreed_privacy_version');
-  assert.equal(new Headers(request.headers).get('Prefer'), 'return=representation');
-  assert.deepEqual(JSON.parse(request.body), row);
+  assert.equal(request.method, 'POST');
+  assert.equal(request.url.pathname, '/rest/v1/rpc/save_my_privacy_consent');
+  assert.deepEqual(JSON.parse(request.body), { p_auth_id: authId, p_version: version });
 });
 
 for (const [label, data] of [['no matching row', null], ['an older version', { agreed_privacy_version: 'old' }]]) {
@@ -53,7 +50,7 @@ for (const [label, data] of [['no matching row', null], ['an older version', { a
 
 test('a lost write response is recovered by one owner-scoped read without resubmitting the write', async () => {
   const f = fixture(request => {
-    if (request.method === 'PATCH') throw new TypeError('fixture lost response');
+    if (request.method === 'POST') throw new TypeError('fixture lost response');
     return json([row]);
   });
   let verifying = 0;
@@ -61,7 +58,7 @@ test('a lost write response is recovered by one owner-scoped read without resubm
   assert.equal(result.ok, true);
   assert.equal(result.recovered, true);
   assert.equal(verifying, 1);
-  assert.deepEqual(f.calls.map(c => c.method), ['PATCH', 'GET']);
+  assert.deepEqual(f.calls.map(c => c.method), ['POST', 'GET']);
   assert.equal(f.calls[1].url.searchParams.get('auth_id'), 'eq.' + authId);
   assert.equal(f.calls[1].url.searchParams.get('select'), 'agreed_privacy_version');
   assert.equal(f.reports.at(-1).confirmed, true);
@@ -78,12 +75,12 @@ for (const [label, response] of [
 ]) {
   test(`a lost response followed by ${label} keeps the consent gate closed`, async () => {
     const f = fixture(request => {
-      if (request.method === 'PATCH') throw new TypeError('fixture response lost');
+      if (request.method === 'POST') throw new TypeError('fixture response lost');
       return response();
     });
     const result = await f.save();
     assert.equal(result.ok, false);
-    assert.deepEqual(f.calls.map(c => c.method), ['PATCH', 'GET']);
+    assert.deepEqual(f.calls.map(c => c.method), ['POST', 'GET']);
     assert.match(privacyConsentErrorMessage(result.error, result.status), /保存を確認できません/);
   });
 }
@@ -93,7 +90,7 @@ test('stops verification when its deadline expires and keeps the gate closed', a
   let beginRead, readSignal;
   const readStarted = new Promise(resolve => { beginRead = resolve; });
   const f = fixture(request => {
-    if (request.method === 'PATCH') throw new TypeError('fixture lost response');
+    if (request.method === 'POST') throw new TypeError('fixture lost response');
     readSignal = request.signal;
     return new Promise((resolve, reject) => {
       request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
@@ -105,7 +102,7 @@ test('stops verification when its deadline expires and keeps the gate closed', a
   t.mock.timers.tick(6000);
   assert.equal((await pending).ok, false);
   assert.equal(readSignal.aborted, true);
-  assert.deepEqual(f.calls.map(c => c.method), ['PATCH', 'GET']);
+  assert.deepEqual(f.calls.map(c => c.method), ['POST', 'GET']);
 });
 
 for (const [status, code, message] of [
@@ -136,7 +133,7 @@ test('missing authentication sends no update and does not complete consent', asy
 
 test('logging failures do not prevent recovery from a lost response', async () => {
   const f = fixture(request => {
-    if (request.method === 'PATCH') throw new TypeError('fixture lost response');
+    if (request.method === 'POST') throw new TypeError('fixture lost response');
     return json([row]);
   });
   assert.equal((await f.save({ report: () => { throw new Error('fixture logger'); } })).ok, true);

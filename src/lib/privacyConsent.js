@@ -20,12 +20,7 @@ export async function savePrivacyConsent(client, authId, version, {
   };
   let result;
   try {
-    result = await client.from("account_holders")
-      .update({ agreed_privacy_version: version })
-      .eq("auth_id", authId)
-      .select("agreed_privacy_version")
-      .maybeSingle()
-      .retry(false);
+    result = await client.rpc("save_my_privacy_consent", { p_auth_id: authId, p_version: version }).retry(false);
   } catch (error) {
     result = { error, status: 0 };
   }
@@ -56,6 +51,7 @@ export async function savePrivacyConsent(client, authId, version, {
 
 export function privacyConsentErrorMessage(error, status) {
   const code = String(error?.code || "");
+  if (code === "22023") return "プライバシーポリシーが更新されています。画面を再読み込みして最新の内容をご確認ください。下書きはこの端末に残っています。";
   if (status === 401 || code === "AUTH_REQUIRED" || ["PGRST301", "PGRST302", "PGRST303"].includes(code)) {
     return "ログインを確認できませんでした。画面を再読み込みして、もう一度お試しください。";
   }
