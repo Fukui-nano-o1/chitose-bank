@@ -22,6 +22,9 @@ import { NavIcon } from "./NavIcons";
 //   API上は未ログインでも me が残り、ログイン中の見た目（ピンつきの地図）を描いてしまうことがあった
 //   （2026-09-19の報告「ログアウトしているのにモザイクされていない」の正体）。
 //   セッションが無ければ props に関係なく訪問者として扱う＝フェイルクローズ。
+//   ★ただし「トークンの更新に失敗した」（電波が無い・サーバーが応答しない）は未ログインではない
+//   （2026-09-19 03:03 の報告「ログインしているのにモザイク」の正体＝端末の要求が1本もサーバーに届かない
+//   状態で開いた。App.jsx のセッション復元と同じ物差し＝session も error も無い時だけ本物のログアウト）。
 export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown, visitor, cityArea }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
@@ -183,16 +186,21 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
 }
 
 // 本物のセッションの有無を1回だけ確かめる（null＝未確認／true＝ある／false＝ない）。
-// getSession は端末のトークンを読むだけ（通信しない）＝ほぼ即座に返る。
-// 失敗（例外）は「ない」に倒す＝フェイルクローズ（地図は見せない側へ）。
+// getSession は端末のトークンを読む。トークンが期限切れなら【更新の通信】が走り、その通信が失敗すると
+// { session: null, error } を返す（auth-js 2.105 の __loadSession）＝これは未ログインではない。
+// 「ない」に倒すのは { session: null, error: null }（端末にトークンが無い＝本物のログアウト）だけ。
+// 例外（更新の通信が投げた）も「ログアウトではない」側＝App.jsx の復元と同じ物差し（2026-07-26）。
+// ★ここを「session が無ければ全部訪問者」にすると、電波の無い場所・サーバーが応答しない窓で
+//   ログイン中の人にモザイクが出る（2026-09-19 03:03 の実害）。真の未ログインは DB 側の anon マスクが
+//   別に守っている（jobs_public＝訪問者には座標2桁・駅と町域は NULL）ので、ここが緩んでも位置は漏れない。
 function useAuthAlive() {
   const [alive, setAlive] = useState(null);
   useEffect(() => {
     let cancelled = false;
     Promise.resolve()
       .then(() => supabase.auth.getSession())
-      .then((res) => { if (!cancelled) setAlive(!!res?.data?.session); })
-      .catch(() => { if (!cancelled) setAlive(false); });
+      .then((res) => { if (!cancelled) setAlive(!!res?.data?.session || !!res?.error); })
+      .catch(() => { if (!cancelled) setAlive(true); });
     return () => { cancelled = true; };
   }, []);
   return alive;

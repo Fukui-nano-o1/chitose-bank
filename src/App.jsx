@@ -342,7 +342,16 @@ export default function App(){
   // ヘッダー（PC・モバイル下部バー）共通のアバター表示規則（2026-07-14改）：
   // 働き手=worker_profiles／雇い手空間(#/profile/employer*)の表示中=employer_profiles でアイコンを分ける。
   // 取得はme.id変化と雇い手空間の出入り(empCtx)ごと。編集画面での変更はonAvatarChangeで即時反映（マージ更新）。
-  const [meAvatar,setMeAvatar]=useState({ url:"", name:"", empUrl:"", empName:"" });
+  // ★初期値は名刺カードと同じ手元の写し（snapshot wMini／empMini・2026-09-19）＝名刺には名前とアイコンが
+  //   出ているのに下部ナビだけ「？」、を作らない。取得が通ったら snapshot meAvatar にも書き、次の起動は即出る。
+  //   取得に失敗した時（電波なし・サーバー不応答）は上書きしない＝2026-08-07 フェイルオープン規則
+  const [meAvatar,setMeAvatar]=useState(() => {
+    const w = snapGet("wMini"); const ep = snapGet("empMini"); const s = snapGet("meAvatar") || {};
+    return {
+      url: s.url || w?.avatar_url || "", name: s.name || w?.nickname || "",
+      empUrl: s.empUrl || ep?.avatar_url || "", empName: s.empName || ep?.nickname || "",
+    };
+  });
   // 雇い手の面を持っているか（capability・2026-08-22たきと指示「切り替えはマイページだけに限定」）。
   // ★モード（empCtx）とは別物：これは「持っているか」so、働き手モードに切り替えても変わらない＝
   //   下部ナビの行き先が切り替えで変わらない（カレンダーで自分の求人カードが消える件の根治）。
@@ -403,12 +412,27 @@ export default function App(){
     (async () => {
       try {
         // 依存のない2本は並列で（2026-08-02・更新時間の短縮：直列2往復→1往復ぶんの待ちに）
-        const [{ data }, { data: ep }] = await Promise.all([
+        const [wRes, eRes] = await Promise.all([
           supabase.from("worker_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle(),
           supabase.from("employer_profiles").select("avatar_url,nickname").eq("auth_id", me.id).maybeSingle(),
         ]);
-        if (!cancelled) setMeAvatar({ url: data?.avatar_url || "", name: data?.nickname || me.name || "", empUrl: ep?.avatar_url || "", empName: ep?.nickname || me.name || "" });
-        if (!cancelled && ep) { setHasEmp(true); setCache("hub:hasEmp", true); }
+        if (cancelled) return;
+        // ★supabase-js は 5xx・通信断でも throw せず { data:null, error } で返す（2026-08-07規則）。
+        //   error のある側は手元の値を残す＝2026-09-19 03:03「名刺は正しいのに下部ナビが？」の根治
+        //   （届かなかった取得の null を「アイコン無し」と読んで上書きしていた）
+        const data = wRes?.error ? null : wRes?.data;
+        const ep = eRes?.error ? null : eRes?.data;
+        setMeAvatar(prev => {
+          const nx = {
+            url: wRes?.error ? prev.url : (data?.avatar_url || ""),
+            name: wRes?.error ? prev.name : (data?.nickname || me.name || ""),
+            empUrl: eRes?.error ? prev.empUrl : (ep?.avatar_url || ""),
+            empName: eRes?.error ? prev.empName : (ep?.nickname || me.name || ""),
+          };
+          if (!wRes?.error && !eRes?.error) snapSet("meAvatar", nx);
+          return nx;
+        });
+        if (ep) { setHasEmp(true); setCache("hub:hasEmp", true); }
       } catch {}
     })();
     return () => { cancelled = true; };
