@@ -99,7 +99,10 @@ export function createSupabaseFetch({
       const response = await fetchImpl(input, { ...options, signal: controller.signal });
       // RESTはSDKも本文全体を読んでから結果を返す。ここで受信まで待ち、ヘッダーだけ
       // 届く通信も上限と期限の内側に置く。Storage等のストリームは上の直通経路。
-      const body = response.body === null ? null : await response.arrayBuffer();
+      // body が空のストリームになるブラウザーでも、HEAD・204等には本文を渡せない。
+      // 空のArrayBufferで作り直すと、保存成功の応答までTypeErrorになってしまう。
+      const noBody = method === "HEAD" || [204, 205, 304].includes(response.status);
+      const body = noBody || response.body === null ? null : await response.arrayBuffer();
       if (controller.signal.aborted) throw abortError();
       const result = new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
       for (const key of ["url", "redirected", "type"]) Object.defineProperty(result, key, { value: response[key] });

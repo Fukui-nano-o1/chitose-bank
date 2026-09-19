@@ -40,6 +40,55 @@ async function drain(server, expected) {
   assert.fail('request queue did not drain');
 }
 
+// 実際のブラウザーでは、本文のない応答でも body が空のストリームになる場合がある。
+// new Response(null, { status: 204 }) だけではこの条件を再現できない。
+function emptyStreamResponse(status, headers = {}) {
+  const response = new Response('', { headers });
+  Object.defineProperty(response, 'status', { value: status });
+  return response;
+}
+
+test('HTTP no-body responses stay bodyless even when the browser exposes an empty stream', async () => {
+  for (const [method, status] of [['PATCH', 204], ['POST', 205], ['GET', 304], ['HEAD', 200]]) {
+    let calls = 0;
+    const send = createSupabaseFetch({ supabaseUrl: origin, fetchImpl: async () => {
+      calls++;
+      return emptyStreamResponse(status, { 'Content-Range': '*/2', 'X-Fixture': 'preserved' });
+    } });
+    const response = await send(rest + 'jobs', { method });
+    assert.equal(response.status, status);
+    assert.equal(response.body, null);
+    assert.equal(await response.text(), '');
+    assert.equal(response.headers.get('Content-Range'), '*/2');
+    assert.equal(response.headers.get('X-Fixture'), 'preserved');
+    assert.equal(calls, 1);
+  }
+});
+
+test('installed SDK accepts draft updates and publication checks with empty-stream 204 responses', async () => {
+  const requests = [];
+  const client = createClient(origin, 'fixture-key', {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: createSupabaseFetch({ supabaseUrl: origin, fetchImpl: async (input, options) => {
+      requests.push({ url: new URL(input), method: options.method, body: JSON.parse(options.body) });
+      return emptyStreamResponse(204);
+    } }) },
+  });
+  const draft = await client.from('jobs').update({ status: 'draft', crop: 'fixture crop' })
+    .eq('job_number', 99999).eq('farmer_id', 'fixture-owner');
+  assert.equal(draft.error, null);
+  assert.equal(draft.status, 204);
+  const check = await client.from('job_publish_checks').insert({ job_number: 99999, farmer_id: 'fixture-owner' });
+  assert.equal(check.error, null);
+  assert.equal(check.status, 204);
+  assert.equal(requests.length, 2, 'successful writes must not be resent');
+  assert.equal(requests[0].method, 'PATCH');
+  assert.equal(requests[0].url.searchParams.get('job_number'), 'eq.99999');
+  assert.equal(requests[0].url.searchParams.get('farmer_id'), 'eq.fixture-owner');
+  assert.equal(requests[0].body.status, 'draft');
+  assert.equal(requests[1].url.pathname, '/rest/v1/job_publish_checks');
+});
+
 test('a read burst has three active requests; all queued reads eventually receive their own response', async () => {
   const server = backend();
   const send = createSupabaseFetch({ supabaseUrl: origin, fetchImpl: server.fetchImpl });
