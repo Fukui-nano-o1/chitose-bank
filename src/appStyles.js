@@ -771,6 +771,19 @@ body:has(.cb-box-overlay) .cb-job-action-hint { display: none !important; }
 .job-photo-slide { border-radius: 0; }
 /* ボックス版の求人詳細（JobDetailBody・面の中に開く）は全面にしない＝写真の角は丸いまま（2026-09-02） */
 .job-detail-boxed .job-photo-slide { border-radius: 12px; }
+/* 訪問者（未ログイン）の作業の場所＝地図の枠だけ出して中は全部モザイク（2026-09-19たきと指示）。
+   絵は CSS の格子だけ＝地図タイル・座標・地名を一切含まない（何を外しても場所は出てこない）。
+   四角のずれた重なりで「モザイク越しの地図」に見せる。色は地図の下地に寄せた灰緑と薄茶 */
+.job-map-mosaic {
+  background-color: #E9ECE4;
+  background-image:
+    repeating-linear-gradient(0deg,  rgba(0,0,0,0.05) 0 12px, transparent 12px 24px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 12px, transparent 12px 24px),
+    repeating-linear-gradient(0deg,  rgba(0,168,107,0.10) 0 36px, transparent 36px 84px),
+    repeating-linear-gradient(90deg, rgba(196,176,120,0.28) 0 48px, transparent 48px 120px),
+    repeating-linear-gradient(90deg, rgba(120,160,220,0.16) 0 24px, transparent 24px 168px);
+  background-position: 0 0, 0 0, 0 18px, 30px 0, 90px 0;
+}
 /* 写真をタップした後の「全部の写真が縦に並ぶ」状態（.job-photo-expanded・2026-09-02たきと指示
    「写真タップで切り替わり、下スクロールで詳細の方に進めよう」）：
    ①写真を留めない（.job-hero の sticky を外す＝縦に長い写真の列が画面に貼り付いて紙に覆われるのを防ぐ）

@@ -1,12 +1,8 @@
 // 集合場所の地図（Leaflet・分割で切り出し2026-07-24）：求人詳細・確認ページ・プレビュー共用。
 import { useEffect, useRef, useState } from "react";
-import { geocodeAddressPrecise, geocodeCityArea } from "../lib/geocode";
-
-// 訪問者に見せる円の半径（m）。市区町村の全域が中に納まる大きさにする
-// （2026-08-17たきと指示「地図は町域を外した住所。全てが円に納まるように」）。
-// 10kmの根拠：徳島県吉野川市の東西が約17km＝中心から端まで約8.5km。県内の市町村はこれに収まる。
-// ★小さくすると「円の外」ができてしまい、円が場所を絞る道具になる。大きいぶんには絞られないので安全側。
-const VISITOR_CIRCLE_M = 10000;
+import { supabase } from "../lib/supabase";
+import { geocodeAddressPrecise } from "../lib/geocode";
+import { NavIcon } from "./NavIcons";
 
 // 場所は赤いピン1本で示す（2026-07-31たきと指示・範囲の円は廃止）。右上にGoogleマップへの導線。
 // ★座標は町域レベルの重心（geocodeTown）で、番地は含まれない＝ピンを立てても精度は上がらない。
@@ -16,32 +12,23 @@ const VISITOR_CIRCLE_M = 10000;
 // 注記の「承認した方にのみお伝えします」が実態と矛盾しないよう文言を切り替える。
 // ピン自体は従来どおり町域重心（番地の精度は持たない）＝位置は変えない。
 //
-// visitor（2026-08-05たきと指示）：訪問者（未ログイン）に見せる時は true。
-//   ピンは1点を指す絵ので「正確な位置が分かる」と読めてしまう。訪問者にはピンを描かず円だけを描く。
-//   ★2026-08-17たきと指示で中心と大きさを作り直した：
-//     中心＝町域を外した住所（cityArea＝都道府県＋市区町村）の代表点。
-//       それまでは jobs.lat/lng（＝町域の重心を1.1km格子へ丸めた点）を中心にしていたため、
-//       伏せているはずの町域を円の中心が指していた（同じ町域の求人は同じ点に集まる）。
-//     大きさ＝市区町村の全域が納まる半径（VISITOR_CIRCLE_M）。
-//   結果：同じ市区町村の求人はすべて同じ円になり、地図から読めるのは画面に文字で出ている
-//   市区町村名だけになる（地図が場所を絞る道具にならない）。
-// cityArea（訪問者のときだけ使う）：町域を外した住所の文字列
+// visitor（未ログイン）＝【枠だけ出して全部モザイク】（2026-09-19たきと指示）。
+//   2026-08-05〜08-17 は「市区町村が納まる円だけ」を描いていたが、地図の絵そのものを出すのをやめた。
+//   訪問者には Leaflet も国土地理院タイルも読まず、座標も外部のジオコーディングも使わない＝
+//   地図の枠の中に位置情報が1ビットも無い（devtoolsでモザイクを外しても何も出ない）。
+//   場所は画面の文字（市区町村名）だけが語る。
+// ★訪問者かどうかは props の visitor だけでなく【本物のセッション】でも見る（下の useAuthAlive）：
+//   アプリの me は端末のスナップショット（localStorage）から復元されるため、トークンが切れて
+//   API上は未ログインでも me が残り、ログイン中の見た目（ピンつきの地図）を描いてしまうことがあった
+//   （2026-09-19の報告「ログアウトしているのにモザイクされていない」の正体）。
+//   セッションが無ければ props に関係なく訪問者として扱う＝フェイルクローズ。
 export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown, visitor, cityArea }) {
   const ref = useRef(null);
   const mapRef = useRef(null);
-  // 訪問者の円の中心（市区町村の代表点）。取れるまでは地図を描かない＝町域の点が一瞬でも出ないようにする
-  const [cityGeo, setCityGeo] = useState(null);
-  const [cityGeoTried, setCityGeoTried] = useState(false);
-  useEffect(() => {
-    if (!visitor) { setCityGeo(null); setCityGeoTried(false); return; }
-    let cancelled = false;
-    setCityGeo(null); setCityGeoTried(false);
-    geocodeCityArea(cityArea).then((g) => {
-      if (cancelled) return;
-      setCityGeo(g); setCityGeoTried(true);
-    });
-    return () => { cancelled = true; };
-  }, [visitor, cityArea]);
+  // 本物のセッションの有無（null＝まだ確かめていない）。確かめるまでは地図を描かない＝
+  // 「一瞬だけピンが見える」を作らない（訪問者にはモザイクの枠が先に出る）
+  const authAlive = useAuthAlive();
+  const isVisitor = !!visitor || authAlive !== true;
   // Googleマップ導線を「必ずその場所」に着地させるための番地レベル座標（2026-08-03たきと指摘）。
   // 住所文字列を渡すとGoogle側の検索に委ねることになり、番地を持たない地域では町域の中心に着く。
   // 座標が取れた時だけそれを使い、取れなければ従来どおり住所文字列（＝劣化しない）。
@@ -49,18 +36,20 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
   const [preciseGeo, setPreciseGeo] = useState(null);
   useEffect(() => {
     setPreciseGeo(null);
-    if (!addressShown || !mapQuery || !mapQuery.trim()) return;
+    if (isVisitor || !addressShown || !mapQuery || !mapQuery.trim()) return;
     let cancelled = false;
     geocodeAddressPrecise(mapQuery).then((p) => { if (!cancelled && p) setPreciseGeo(p); });
     return () => { cancelled = true; };
-  }, [mapQuery, addressShown]);
+  }, [mapQuery, addressShown, isVisitor]);
 
   useEffect(() => {
-    // 地図のJSとCSSを表示時にまとめて読む。CSSだけを起動・登録画面の必須依存にしない。
+    // 訪問者はここに来ない（Leafletを読み込まない・タイルも要求しない）
+    if (isVisitor) return;
+    // 地図のJSとCSSを表示時にまとめて読む（動的import）。初期バンドルから地図ライブラリを外し、
+    // CSSだけを起動・登録画面の必須依存にしない
     let cancelled = false;
     (async () => {
     if (!ref.current || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    if (visitor && !cityGeo && !cityGeoTried) return;
     let L;
     try {
       const [leaflet] = await Promise.all([import("leaflet"), import("leaflet/dist/leaflet.css")]);
@@ -70,11 +59,6 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
     try {
       if (!ref.current) return;
       if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      // 訪問者：中心は市区町村の代表点。取れるまで描かない（町域の点を一瞬でも中心に置かない）。
-      // 取れなかった時（通信失敗等）は中心を町域の点のままにするが、円は市区町村が納まる大きさso
-      // 中心が数km外れても読み取れる情報は「この市区町村のどこか」のまま変わらない
-      const center = visitor ? (cityGeo || { lat, lng }) : { lat, lng };
-      if (visitor && !cityGeo && !cityGeoTried) return;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
 
       const r = Number.isFinite(radius) && radius > 0 ? radius : 800;
@@ -92,7 +76,7 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
         attributionControl: true,
       });
       mapRef.current = map;
-      map.setView([center.lat, center.lng], 14, { animate: false });
+      map.setView([lat, lng], 14, { animate: false });
 
       // 標準地図に変更（2026-07-31たきと指示「具体的に見えるように」）：淡色地図は地名・道が薄く、
       // どの辺りか読み取りにくかった。標準版は道路・施設名・地名がはっきり出る（同じ国土地理院タイル）
@@ -104,43 +88,56 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
         maxZoom: 18,
       }).addTo(map);
 
-      if (visitor) {
-        // 訪問者：ピンを描かず、市区町村が納まる円だけを描く（2026-08-05／2026-08-17たきと指示）。
-        // 1点を指す絵を出さない＝「正確な位置が分かる画面」に見せない
-        L.circle([center.lat, center.lng], {
-          radius: VISITOR_CIRCLE_M,
-          color: "#E24B4A", weight: 2, opacity: 0.85,
-          fillColor: "#E24B4A", fillOpacity: 0.12,
-          interactive: false,
-        }).addTo(map);
-      } else {
-        // 範囲の円は描かない（2026-07-31たきと指示「ピンだけ表示」）。
-        // rは表示の広さ（fitBounds）にだけ使う＝周辺が見える倍率は従来どおり
-        // 場所のピン（divIcon＝画像を読まないので、アイコンのURL切れで消える事故が起きない）。
-        // 立てる位置は町域の重心で、番地は含まない。タップは無効（地図アプリではなく位置を示す図）
-        const pin = L.divIcon({
-          className: "",
-          html: '<div style="width:30px;height:42px;transform:translate(-15px,-42px)">'
-              + '<svg width="30" height="42" viewBox="0 0 26 36" xmlns="http://www.w3.org/2000/svg">'
-              + '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z" fill="#E24B4A"/>'
-              + '<circle cx="13" cy="13" r="5" fill="#fff"/></svg></div>',
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-        });
-        L.marker([lat, lng], { icon: pin, interactive: false, keyboard: false }).addTo(map);
-      }
+      // 範囲の円は描かない（2026-07-31たきと指示「ピンだけ表示」）。
+      // rは表示の広さ（fitBounds）にだけ使う＝周辺が見える倍率は従来どおり
+      // 場所のピン（divIcon＝画像を読まないので、アイコンのURL切れで消える事故が起きない）。
+      // 立てる位置は町域の重心で、番地は含まない。タップは無効（地図アプリではなく位置を示す図）
+      const pin = L.divIcon({
+        className: "",
+        html: '<div style="width:30px;height:42px;transform:translate(-15px,-42px)">'
+            + '<svg width="30" height="42" viewBox="0 0 26 36" xmlns="http://www.w3.org/2000/svg">'
+            + '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z" fill="#E24B4A"/>'
+            + '<circle cx="13" cy="13" r="5" fill="#fff"/></svg></div>',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+      });
+      L.marker([lat, lng], { icon: pin, interactive: false, keyboard: false }).addTo(map);
 
       // animate:false＝ズームアニメ中に地図が破棄されると _leaflet_pos クラッシュ（2026-07-16真っ暗事故）が起きるため必須
-      // 訪問者は円全体が画面に入る広さ（直径＝2×半径）に合わせる
-      const fitM = visitor ? VISITOR_CIRCLE_M * 2 : r * 2;
-      map.fitBounds(L.latLng(center.lat, center.lng).toBounds(fitM), { padding: [12, 12], animate: false });
+      map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [12, 12], animate: false });
     } catch (e) {
       console.error("JobLocationMap:", e);
     }
     })();
 
     return () => { cancelled = true; try { mapRef.current?.remove(); } catch {} mapRef.current = null; };
-  }, [lat, lng, radius, visitor, cityGeo, cityGeoTried]);
+  }, [lat, lng, radius, isVisitor]);
+
+  // 訪問者＝枠だけ。中はモザイク（地図の絵・タイル・座標を一切持たない）。
+  // 座標が無い求人でも同じ枠＝「準備中」とも区別がつかない（訪問者に求人ごとの差を見せない）
+  if (isVisitor) {
+    return (
+      <div>
+        <div className="job-map-mosaic" data-testid="job-map-mosaic" aria-label="地図は会員登録・ログインすると表示されます"
+          style={{ position:"relative", width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB" }}>
+          {/* 確かめている間（authAlive===null）は文字を出さない＝ログイン中の人に一瞬「ログインすると」と見せない */}
+          {authAlive !== null && (
+            <div className="f-sans" style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, padding:16, textAlign:"center", pointerEvents:"none" }}>
+              <span style={{ width:44, height:44, borderRadius:"50%", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.12)", color:"#222" }}>
+                <NavIcon name="lock" size={22} />
+              </span>
+              <span style={{ fontSize:13, fontWeight:700, color:"#222", background:"rgba(255,255,255,0.92)", borderRadius:20, padding:"7px 14px" }}>
+                地図は会員登録・ログインすると表示されます
+              </span>
+            </div>
+          )}
+        </div>
+        <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
+          場所は{cityArea || label || "市区町村"}まで。集合場所の地図と正確な位置は、会員登録・ログインすると表示されます
+        </p>
+      </div>
+    );
+  }
 
   if (lat == null || lng == null) {
     return (
@@ -156,13 +153,6 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
           無いと掲載前確認モーダル等(z-index:200)を地図が突き抜けて覆う（2026-07-14修正） */}
       <div style={{ position:"relative" }}>
         <div ref={ref} style={{ width:"100%", height:"clamp(240px, 42vw, 420px)", borderRadius:12, overflow:"hidden", border:"1px solid #EBEBEB", position:"relative", zIndex:0 }} />
-        {/* 訪問者は市区町村の代表点が取れるまで地図を描かない（町域の点を一瞬でも中心に置かないため）。
-            その間だけ白紙に見えないよう一言出す。端末に保存するsoこの待ちは初回だけ */}
-        {visitor && !cityGeoTried && (
-          <div className="f-sans" style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:"#B0B0B0", pointerEvents:"none" }}>
-            地図を読み込んでいます
-          </div>
-        )}
         {/* 地図上の注記ボックス（本名・詳細住所は公開しません。）は削除（2026-07-31たきと指示）。
             開示の説明は地図の下の1行に残る */}
         {/* Googleマップで開く（2026-07-31たきと指示・右上に配置）：箱をタップで別タブへ。
@@ -173,9 +163,7 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
         {/* 行き先の優先順（2026-08-03）：①番地レベルで取れた座標＝必ずその点に着く
             ②住所文字列＝Google側の検索に委ねる（番地未対応の地域では町域中心に着く）
             ③座標（町域重心）＝住所が無い旧呼び出し */}
-        {/* 訪問者にはGoogleマップ導線を出さない（2026-08-05たきと指示）。
-            円で範囲だけを示す画面に、外部地図で1点に着地できる出口を残さない */}
-        {!visitor && <a href={preciseGeo
+        <a href={preciseGeo
               ? `https://www.google.com/maps/search/?api=1&query=${preciseGeo.lat},${preciseGeo.lng}`
               : (mapQuery && mapQuery.trim())
               ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.trim())}`
@@ -183,17 +171,29 @@ export function JobLocationMap({ lat, lng, radius, label, mapQuery, addressShown
           target="_blank" rel="noopener noreferrer"
           className="f-sans" style={{ position:"absolute", right:12, top:12, zIndex:3, display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"7px 13px", fontSize:12, fontWeight:700, color:"#222", textDecoration:"none", boxShadow:"0 2px 8px rgba(0,0,0,0.16)", whiteSpace:"nowrap" }}>
           Googleマップ <span style={{ color:"#00A86B" }}>→</span>
-        </a>}
+        </a>
       </div>
       <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:6, lineHeight:1.6 }}>
-        {visitor
-          ? <>円は{cityArea || label || "この市区町村"}の範囲です。集合場所はこの円のどこかで、
-             円は場所を絞り込むものではありません。正確な集合場所は、会員登録・ログインすると表示されます</>
-          : addressShown
+        {addressShown
           ? <>ピンは{label ? label + "の" : ""}おおよその位置です（番地の位置とは少しずれることがあります）</>
-          : <>ピンは{label ? label + "の" : ""}おおよその位置です（番地は含みません）。
-             正確な集合場所は、会員登録・ログインすると表示されます</>}
+          : <>ピンは{label ? label + "の" : ""}おおよその位置です（番地は含みません）</>}
       </p>
     </div>
   );
+}
+
+// 本物のセッションの有無を1回だけ確かめる（null＝未確認／true＝ある／false＝ない）。
+// getSession は端末のトークンを読むだけ（通信しない）＝ほぼ即座に返る。
+// 失敗（例外）は「ない」に倒す＝フェイルクローズ（地図は見せない側へ）。
+function useAuthAlive() {
+  const [alive, setAlive] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => supabase.auth.getSession())
+      .then((res) => { if (!cancelled) setAlive(!!res?.data?.session); })
+      .catch(() => { if (!cancelled) setAlive(false); });
+    return () => { cancelled = true; };
+  }, []);
+  return alive;
 }

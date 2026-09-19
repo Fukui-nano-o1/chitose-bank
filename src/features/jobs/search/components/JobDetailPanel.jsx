@@ -287,9 +287,11 @@ export function JobLocationSection({ job, me }) {
   return (
     <AirSection id="sec-place" title="作業の場所">
       {/* 地図（集合場所のおおよその位置・ピンのみ）。会員には番地込みの住所をGoogleマップ導線に渡す
-          （2026-08-03・タイトルの住所表示と同じ開示粒度）。訪問者は従来どおり町域まで。
-          訪問者（未ログイン）はピンを描かず半径1kmの円のみ（2026-08-05たきと指示）＝
-          1点を指す絵で「正確な位置」に見せない。届く座標自体もanonマスクで丸められている */}
+          （2026-08-03・タイトルの住所表示と同じ開示粒度）。
+          訪問者（未ログイン）は枠だけ＋全部モザイク（2026-09-19たきと指示）＝地図の絵を出さない。
+          ★visitor={!me} は「アプリの記憶」なので、JobLocationMap 側が本物のセッションでも確かめる
+          （me が端末のスナップショットから残っていても、セッションが無ければモザイク）。
+          届く座標自体もanonマスクで丸められている（DB側の壁・二重） */}
       <JobLocationMap
         lat={job.lat}
         lng={job.lng}
@@ -300,8 +302,10 @@ export function JobLocationSection({ job, me }) {
         visitor={!me}
         cityArea={job.cityArea}
       />
+      {/* 場所の1行＝region（都道府県＋市区町村＋町域）。cityArea は region に含まれているので添えない
+          （添えると訪問者には「徳島県吉野川市 徳島県吉野川市」と二重に出ていた・2026-09-19） */}
       {job.region && (
-        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"12px 0 0" }}>{job.region}{job.cityArea ? ` ${job.cityArea}` : ""}</p>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"12px 0 0" }}>{job.region}</p>
       )}
     </AirSection>
   );
