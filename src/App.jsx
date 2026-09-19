@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { supabase } from "./lib/supabase";
+import { useDeviceSync } from "./hooks/useDeviceSync";
+import { activeDeviceDraft, readPendingConsent } from "./lib/deviceDrafts";
+import { PendingConsentWorkspace } from "./components/PendingConsentWorkspace";
 import { fetchJobRowForMe } from "./lib/jobForMe";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, isUpcomingSoon, msgSnippet, PRIVACY_VERSION } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
@@ -462,7 +465,10 @@ export default function App(){
     return () => { window.removeEventListener("hashchange", onHashLog); flushPending(); };
   }, [me?.id]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
-  const [needsPrivacyReconsent,setNeedsPrivacyReconsent]=useState(false); // プラポリの版が古ければ再同意画面（2026-08-19）
+  const [needsPrivacyReconsent,setNeedsPrivacyReconsent]=useState(() => !!readPendingConsent(me?.id, PRIVACY_VERSION));
+  const consentConfirmedFor = useRef(null);
+  const consentConfirmed = useCallback(() => { consentConfirmedFor.current = me?.id; setNeedsPrivacyReconsent(false); }, [me?.id]);
+  const deviceSync = useDeviceSync(me?.id, PRIVACY_VERSION, consentConfirmed); // プラポリの版が古ければ再同意画面（2026-08-19）
   // 訪問者の「登録が必要です」案内をボックス化（2026-07-27たきと指示）。どの画面からでも openLoginBox() で開く
   const [loginBox, setLoginBox] = useState(false);
   // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
@@ -495,7 +501,7 @@ export default function App(){
   // （求人フローの showJobPost と同じ作法）。未ログインなら下のeffectが #/login へ送る
   const [openAccountForm,setOpenAccountForm]=useState(() => isAccountHash());
   const [showLanding,setShowLanding]=useState(false);
-  const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/"); });
+  const [showJobPost,setShowJobPost]=useState(()=>{ const h=window.location.hash.replace(/^#\/?/,""); return h==="work/new"||h.startsWith("work/new/")||h.startsWith("work/edit/")||h.startsWith("work/local/"); });
   const [savedJobDraft, setSavedJobDraft] = useState(null);
   // 求人フローの「戻る」（保存せずに終了）の行き先＝フローに入る直前の画面。onHashで控える（下記）
   const flowBackToRef = useRef("/profile/employer");
@@ -616,9 +622,9 @@ export default function App(){
       // 求人フローを閉じた時の戻り先（2026-08-19たきと指示「前回の画面に保存せずに強制遷移」）。
       // フロー以外のハッシュを通るたびに控える＝フローに入る直前に見ていた画面。
       // 直リンク・リロードでフローから始まった場合は控えがないので既定（雇い手プロフィール）に倒す
-      if (rawHash && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) flowBackToRef.current = "/" + rawHash;
-      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/")) { setShowJobPost(true); setTab("profile"); return; }
-      if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/")) { setShowJobPost(prev => prev ? false : prev); }
+      if (rawHash && !rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/") && !rawHash.startsWith("work/local/")) flowBackToRef.current = "/" + rawHash;
+      if (rawHash === "work/new" || rawHash.startsWith("work/new/") || rawHash.startsWith("work/edit/") || rawHash.startsWith("work/local/")) { setShowJobPost(true); setTab("profile"); return; }
+      if (!rawHash.startsWith("work/new") && !rawHash.startsWith("work/edit/") && !rawHash.startsWith("work/local/")) { setShowJobPost(prev => prev ? false : prev); }
       setShowApplyDone(rawHash === "apply/done");
       // 仮応募の新規到着（②・2026-08-07）：チェックリストページを出さず、祝祭＋トースト＋応募状況へ。
       // フラグ無しの到着（再訪）は従来どおりページを出す（ハイブリッド）
@@ -745,6 +751,7 @@ export default function App(){
   useEffect(()=>{
     if(!me?.id){ setNeedsAccountHolder(false); setNeedsPrivacyReconsent(false); return; }
     let cancelled=false;
+    if (readPendingConsent(me.id, PRIVACY_VERSION)) setNeedsPrivacyReconsent(true);
     // 通信エラー＝「未登録」と断定しない（2026-07-27修正：+testで登録済みアカウントに新規登録①が
     // 出た誤爆。ログイン直後はトークン切替等でクエリが一時失敗しうる）。エラー時はゲートを
     // 動かさず3秒後に1回だけ再確認。判定が確定した時（error無し）だけsetする＝getSession誤認と同じ型
@@ -755,7 +762,7 @@ export default function App(){
       setNeedsAccountHolder(!data);
       // プラポリ再同意ゲート（2026-08-19）：登録済みの人だけが対象。未登録は新規登録①が現行版を書くので出さない。
       // 同じ版に揃うまで、DB側の contract_emergency_contact も緊急連絡先を相手方へ返さない
-      setNeedsPrivacyReconsent(!!data && data.agreed_privacy_version !== PRIVACY_VERSION);
+      setNeedsPrivacyReconsent(!!data && data.agreed_privacy_version !== PRIVACY_VERSION && consentConfirmedFor.current !== me.id);
     };
     check(1);
     return ()=>{ cancelled=true; };
@@ -1959,7 +1966,9 @@ export default function App(){
             window.location.hash="/login";
           }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : needsPrivacyReconsent ? (
-          <PrivacyReconsent authId={me?.id} onAgreed={()=>setNeedsPrivacyReconsent(false)} onShowPrivacy={()=>setShowPrivacy(true)} />
+          deviceSync.pending ? <PendingConsentWorkspace owner={me?.id} error={deviceSync.error} onRetry={deviceSync.retry}
+            onNewJob={() => { activeDeviceDraft(me.id, null); setShowJobPost(true); window.location.hash = "/work/new"; }} />
+          : <PrivacyReconsent authId={me?.id} onAgreed={consentConfirmed} onPending={deviceSync.retry} onShowPrivacy={()=>setShowPrivacy(true)} />
         ) : chatAppId && chatAppId.startsWith("admin") ? (
           /* 運営チャット（#/chat/admin＝自分のスレッド／#/chat/admin/{uid}＝運営がその利用者のスレッドを
              開いて返信・2026-09-04）＝当事者チャットと同じ器に相乗り（AdminChat.jsx冒頭の注記）。
@@ -1982,7 +1991,7 @@ export default function App(){
           ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
               savedDraftJobNumber={savedJobDraft?.ownerId === me.id ? savedJobDraft.jobNumber : null}
               onDismissDraftSaved={()=>setSavedJobDraft(null)}
-              onNewJob={()=>{ setSavedJobDraft(null); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
+              onNewJob={()=>{ activeDeviceDraft(me.id, null); setSavedJobDraft(null); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setSavedJobDraft(null); setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
               onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} /></Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
@@ -2141,8 +2150,11 @@ export default function App(){
             setShowLanding(false); setTab("login"); setWorkerFlowDone(true); }}
         /></Suspense></AppErrorBoundary>
       )}
-      {me&&showJobPost&&!needsPrivacyReconsent&&(
+      {me&&showJobPost&&(!needsPrivacyReconsent || deviceSync.pending)&&(
         <AppErrorBoundary><Suspense fallback={<FlowLoading />}><LandingFlow
+          key={me.id + (window.location.hash.match(/work\/(?:local\/[^/]+|edit\/\d+)/)?.[0] || "new")}
+          ownerId={me.id}
+          localOnly={needsPrivacyReconsent}
           initialRole="farmer"
           // 下書き保存は掲載一覧へ集約。公開・公開中の編集・キャンセルは入口へ戻る。
           onDraftSaved={(jobNumber)=>{ setSavedJobDraft({ ownerId: me.id, jobNumber }); window.location.hash = "/profile/employer/drafts"; setShowJobPost(false); }}

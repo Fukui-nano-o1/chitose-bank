@@ -2,26 +2,51 @@
 // ・現行版（lib/utils.js PRIVACY_VERSION）と account_holders.agreed_privacy_version が違う人に出す。
 // ・同意すると agreed_privacy_version を現行版に更新する＝DB側のゲート
 //   （contract_emergency_contact の not_consented・app_settings.privacy_version）が開く。
-// ・同意するまで閉じられない。閉じられるお知らせは、2026-07-21のバナーが期限切れのまま
-//   誰にも届かなかった前例があるため採らない。
-import { useState } from "react";
+// ・同意操作を端末に記録したら閲覧・下書きへ進む。サーバーの同意確認は別に維持する。
+import { useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { privacyConsentErrorMessage, savePrivacyConsent } from "../lib/privacyConsent";
+import { logAppError } from "../app/diagnostics/errorLog";
 import { PRIVACY_VERSION } from "../lib/utils";
 import { Dots } from "./ui";
+import { queuePrivacyConsent } from "../lib/deviceDrafts";
 
-export default function PrivacyReconsent({ authId, onAgreed, onShowPrivacy }) {
+export default function PrivacyReconsent({ authId, onAgreed, onPending, onShowPrivacy }) {
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const [verifying, setVerifying] = useState(false);
   const [err, setErr] = useState("");
 
+  const showSaveError = (error, status) => {
+    const message = privacyConsentErrorMessage(error, status);
+    setErr(message);
+    // 既存の障害記録へ1回だけ送る。DBの生のエラー本文や同意者の情報は渡さない。
+    void logAppError({ component: "PrivacyReconsent", action: "agree", operation: "privacy_consent",
+      error: { code: error?.code || String(status ?? 0), message } });
+  };
+
   const agree = async () => {
-    if (busy) return;
-    setBusy(true); setErr("");
-    const { error } = await supabase.from("account_holders")
-      .update({ agreed_privacy_version: PRIVACY_VERSION })
-      .eq("auth_id", authId);
-    setBusy(false);
-    if (error) { setErr("保存できませんでした。通信の状態をご確認のうえ、もう一度お試しください。"); return; }
-    onAgreed();
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true); setVerifying(false); setErr("");
+    try {
+      if (onPending) {
+        let queued = false;
+        try { queuePrivacyConsent(authId, PRIVACY_VERSION); queued = true; } catch {}
+        if (queued) { onPending(); return; }
+        // 保存領域を使えないブラウザーでも、オンラインなら従来の確定保存を試せる。
+      }
+      const result = await savePrivacyConsent(supabase, authId, PRIVACY_VERSION, {
+        onVerifying: () => setVerifying(true),
+      });
+      if (result.ok) onAgreed();
+      else showSaveError(result.error, result.status);
+    } catch (error) {
+      showSaveError(error, 0);
+    } finally {
+      inFlight.current = false;
+      setBusy(false); setVerifying(false);
+    }
   };
 
   return (
@@ -47,13 +72,13 @@ export default function PrivacyReconsent({ authId, onAgreed, onShowPrivacy }) {
         borderRadius:12, fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", fontFamily:"inherit",
       }}>プライバシーポリシーの全文を読む</button>
 
-      {err && <p style={{ fontSize:13, color:"#E24B4A", lineHeight:1.7, margin:"0 0 12px" }}>{err}</p>}
+      {err && <p role="alert" style={{ fontSize:13, color:"#E24B4A", lineHeight:1.7, margin:"0 0 12px" }}>{err}</p>}
 
       <button onClick={agree} disabled={busy} style={{
         width:"100%", padding:"15px", background:"#00A86B", border:"none", borderRadius:12,
         fontSize:15, fontWeight:700, color:"#fff", cursor: busy ? "default" : "pointer",
         opacity: busy ? 0.6 : 1, fontFamily:"inherit",
-      }}>{busy ? <>保存しています<Dots /></> : "同意して続ける"}</button>
+      }}>{busy ? <>{verifying ? "保存結果を確認しています" : "保存しています"}<Dots /></> : "同意して続ける"}</button>
 
       <p style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.7, margin:"12px 0 0" }}>
         ご同意いただいた版数と日時を記録します。

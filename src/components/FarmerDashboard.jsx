@@ -1,3 +1,4 @@
+import { DeviceDrafts } from "./DeviceDrafts";
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
 import { useState, useEffect, useRef } from "react";
 import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
@@ -1175,6 +1176,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
             <NavIcon name="plus" size={16} />新しい求人を作成
           </button>
         </div>
+        {jobTab === "draft" && <DeviceDrafts owner={me?.id} />}
         {jobTab === "draft" && savedDraftJobNumber != null && (
           <section className="cb-draft-saved f-sans" aria-label="下書きの保存完了">
             <div className="cb-draft-saved-copy" role="status">
