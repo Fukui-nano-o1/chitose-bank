@@ -45,7 +45,7 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     // 公開中の更新は本番と同じ既存関数を通す（応募者の壁も検証する）。
     const openMigration = await readFile(new URL('../supabase/migrations/20260911010000_update_my_open_job.sql', import.meta.url), 'utf8');
     await db.exec(openMigration.slice(openMigration.indexOf('create or replace function public.update_my_open_job')));
-    await db.exec(await readFile(new URL('../supabase/migrations/20260919020000_resumable_job_drafts.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20260919114602_resumable_job_drafts.sql', import.meta.url), 'utf8'));
     const login = async uid => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]); await db.exec('set role authenticated'); };
     const call = async (name, expected, patch, id = jobId) => (await db.query(`select public.${name}($1,$2,$3,$4) as result`,[owner,id,expected,patch])).rows[0].result;
     const consent = async v => (await db.query('select public.save_my_privacy_consent($1,$2) as result',[owner,v])).rows[0].result;
