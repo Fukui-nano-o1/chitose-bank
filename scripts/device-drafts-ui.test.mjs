@@ -12,6 +12,13 @@ const {JSDOM,VirtualConsole} = require(process.env.CB_TEST_NODE_MODULES ? `${pro
 const root = fileURLToPath(new URL('../',import.meta.url));
 const owner = '00000000-0000-4000-8000-000000000001';
 const pause = ms => new Promise(resolve=>setTimeout(resolve,ms));
+async function until(predicate, label, timeout = 5000) {
+  const deadline = Date.now() + timeout;
+  while (!predicate()) {
+    assert.ok(Date.now() < deadline, `timed out: ${label}`);
+    await pause(10);
+  }
+}
 
 test('actual consent and listing components continue offline, restore new/edit/copy input, and sync on reconnect', async () => {
   const output = await mkdtemp(path.join(tmpdir(),'cb-offline-ui-'));
@@ -37,7 +44,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       w.fetch=()=>Promise.reject(new Error('Unexpected network'));
       w.alert=message=>errors.push(message);w.confirm=()=>true;
       for(const [k,v] of Object.entries(storage)) w.localStorage.setItem(k,v);
-      w.eval(script); await pause(100);
+      w.eval(script); await until(() => w.document.querySelector('textarea[aria-label="作業の説明"], input[aria-label="日給"]') || [...w.document.querySelectorAll('button')].some(b => ['同意して続ける','掲載する'].includes(b.textContent.trim())), 'initial screen');
       return w;
     }
     const button = (w,label) => {const found=[...w.document.querySelectorAll('button')].find(b=>b.textContent.trim()===label);assert.ok(found,label);return found;};
@@ -45,13 +52,14 @@ test('actual consent and listing components continue offline, restore new/edit/c
     const change = async (w,value) => {
       const area=w.document.querySelector('textarea[aria-label="作業の説明"]');assert.ok(area,'description input');
       Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype,'value').set.call(area,value);
-      area.dispatchEvent(new w.Event('input',{bubbles:true})); await pause(30);
+      area.dispatchEvent(new w.Event('input',{bubbles:true}));
+      await until(() => w.qaDrafts.listDeviceDrafts(owner).some(d => d.form?.jobDescription === value), 'input persisted before the old 800 ms delay', 600);
     };
     let w=await mount();
     await change(w,'通信が切れても残す入力');
     let d=w.qaDrafts.listDeviceDrafts(owner)[0];
     assert.equal(d.form.jobDescription,'通信が切れても残す入力');
-    button(w,'保存して終了').click();await pause(30);
+    button(w,'保存して終了').click();await until(() => /保存して終了しました/.test(w.document.body.textContent), 'local save exit');
     assert.match(w.document.body.textContent,/保存して終了しました/);
     assert.match(w.document.body.textContent,/この端末に保存済み・同期待ち/);
     assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].state,'pending');
@@ -60,12 +68,13 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.document.querySelector('textarea').value,'通信が切れても残す入力');
     await change(w,'再開後の新しい入力');
     assert.equal(w.qaDrafts.readDeviceDraft(owner,d.id).form.jobDescription,'再開後の新しい入力');
-    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));await pause(700);
+    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));
+    await until(() => w.qaDrafts.readDeviceDraft(owner,d.id)?.jobNumber === 42, 'queued draft acknowledged');
     d=w.qaDrafts.readDeviceDraft(owner,d.id);
     assert.equal(d.form.jobDescription,'再開後の新しい入力');
     assert.equal(d.jobNumber,42);
     assert.equal(d.state,'local'); // 新しい入力は勝手に送らず、古い保存の完了で消さない。
-    button(w,'保存して終了').click();await pause(700);
+    button(w,'保存して終了').click();await until(() => w.qaJob?.notes === '再開後の新しい入力', 'newer save acknowledged');
     assert.equal(w.qaJob.notes,'再開後の新しい入力');
     // 編集/コピーのサーバー行から始めた入力も、同じアカウントの端末下書きへ復元する。
     const job={...w.qaJob,draft_step:8,notes:'DBから開いたコピー'};
@@ -76,20 +85,35 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.document.querySelector('textarea').value,'編集コピー中の未送信入力');
     // 同意は通信応答を待たず作業できる画面へ。復旧して初めて確認済みに進む。
     w=await mount({url:'https://ui.test/?case=consent',offline:true});
-    button(w,'同意して続ける').click();await pause(30);
+    button(w,'同意して続ける').click();await until(() => /同意をこの端末に記録しました/.test(w.document.body.textContent), 'pending consent workspace');
     assert.match(w.document.body.textContent,/同意をこの端末に記録しました/);
     assert.ok(button(w,'求人の下書きを作る'));
-    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));await pause(700);
+    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));await until(() => /同意確認済み/.test(w.document.body.textContent), 'consent confirmed');
     assert.match(w.document.body.textContent,/同意確認済み/);
+    // 最低賃金の取得に失敗しても次の入力へ進める。掲載前には再確認が必要。
+    w=await mount({url:'https://ui.test/?case=new#/work/new/5',offline:true});
+    await until(() => /最低賃金を確認できませんでした/.test(w.document.body.textContent), 'wage lookup failure');
+    assert.equal(button(w,'次へ').disabled,false);
+    button(w,'次へ').click();
+    await until(() => w.document.querySelector('[data-step="6"]'), 'continue drafting without wage lookup');
+    w=await mount({url:'https://ui.test/#/work/new/11',storage:snapshot(w),offline:true});
+    await until(() => /最低賃金を確認できませんでした/.test(w.document.body.textContent), 'offline draft review');
+    assert.equal(button(w,'掲載する').disabled,true);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));
     // 掲載前の下書き同期が従来の掲載導線を壊さず、サーバー確認後にだけ完了する。
-    w=await mount({url:'https://ui.test/?case=new#/work/new/11',offline:false});
-    button(w,'掲載する').click();await pause(30);
+    await until(() => !button(w,'掲載する').disabled, 'publish ready');
+    button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
     const check=w.document.querySelector('input[type="checkbox"]');assert.ok(check,'publication confirmation');
-    check.click();await pause(30);button(w,'同意して掲載する').click();await pause(500);
+    check.click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
+    button(w,'同意して掲載する').click();await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
     assert.match(w.document.body.textContent,/掲載完了/);
     assert.equal(w.qaJob.status,'open');
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
     assert.deepEqual(errors,[]);
+  } catch (error) {
+    console.error(`Browser errors: ${JSON.stringify(errors)}\nScreen: ${dom?.window.document.body.textContent}\nRequests: ${JSON.stringify(dom?.window.qaCalls?.map(r=>r.path))}`);
+    throw error;
   } finally {dom?.window.close();await rm(output,{recursive:true,force:true});}
 });
