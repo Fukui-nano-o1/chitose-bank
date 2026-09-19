@@ -89,6 +89,55 @@ test('installed SDK accepts draft updates and publication checks with empty-stre
   assert.equal(requests[1].url.pathname, '/rest/v1/job_publish_checks');
 });
 
+// 同じ通信窓口を使う求人以外の保存と、本文を返さない他の操作も公開前に確認する。
+for (const { name, status, method, path, run } of [
+  { name: 'privacy agreement update', status: 204, method: 'PATCH', path: 'account_holders',
+    run: client => client.from('account_holders').update({ agreed_privacy_version: 'fixture-version' }).eq('auth_id', 'fixture-owner') },
+  { name: 'employer profile upsert', status: 201, method: 'POST', path: 'employer_profiles',
+    run: client => client.from('employer_profiles').upsert({ auth_id: 'fixture-owner', nickname: 'fixture' }, { onConflict: 'auth_id' }) },
+  { name: 'draft deletion', status: 204, method: 'DELETE', path: 'jobs',
+    run: client => client.from('jobs').delete().eq('job_number', 99999).eq('farmer_id', 'fixture-owner') },
+  { name: 'void RPC', status: 204, method: 'POST', path: 'rpc/fixture_void_action',
+    run: client => client.rpc('fixture_void_action', { p_id: 99999 }) },
+]) {
+  test(`SDK completes ${name} with an empty-stream response and no duplicate write`, async () => {
+    const calls = [];
+    const client = createClient(origin, 'fixture-key', {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: createSupabaseFetch({ supabaseUrl: origin, fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        return emptyStreamResponse(status);
+      } }) },
+    });
+    const result = await run(client);
+    assert.equal(result.error, null);
+    assert.equal(result.status, status);
+    assert.equal(result.data, null);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].options.method, method);
+    assert.equal(new URL(calls[0].url).pathname, '/rest/v1/' + path);
+  });
+}
+
+test('SDK HEAD counts retain zero and nonzero totals when the browser exposes an empty stream', async () => {
+  for (const count of [0, 2]) {
+    let calls = 0;
+    const client = createClient(origin, 'fixture-key', {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: createSupabaseFetch({ supabaseUrl: origin, fetchImpl: async (_url, options) => {
+        calls++;
+        assert.equal(options.method, 'HEAD');
+        return emptyStreamResponse(200, { 'Content-Range': `*/${count}` });
+      } }) },
+    });
+    const result = await client.from('applications').select('id', { count: 'exact', head: true }).eq('job_number', 99999);
+    assert.equal(result.error, null);
+    assert.equal(result.count, count);
+    assert.equal(result.data, null);
+    assert.equal(calls, 1);
+  }
+});
+
 test('a read burst has three active requests; all queued reads eventually receive their own response', async () => {
   const server = backend();
   const send = createSupabaseFetch({ supabaseUrl: origin, fetchImpl: server.fetchImpl });
