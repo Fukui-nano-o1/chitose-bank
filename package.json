@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test:critical": "node --test scripts/request-transport.test.mjs scripts/calendar-move.test.mjs scripts/calendar-updates.test.mjs",
+    "test:critical": "node --test scripts/request-transport.test.mjs scripts/calendar-move.test.mjs scripts/calendar-updates.test.mjs scripts/privacy-consent.test.mjs",
     "test:performance": "node --test scripts/performance.test.mjs",
     "measure:startup": "node scripts/measure-startup.mjs"
   },
