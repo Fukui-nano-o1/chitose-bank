@@ -1116,11 +1116,17 @@ export function LandingFlow({ onComplete, onDraftSaved, onSkip, onLogin, onPubli
     setPublishModal(true);
   };
 
+  // 掲載の入口は確認を挟まず閉じる。入力中はヘッダーの「保存して終了」で保存する。
+  const closeListing = () => {
+    if (typeof onSkip === "function") onSkip();
+    else window.location.hash = "/profile/employer/drafts";
+  };
+
   // ── OUTER SHELL ─────────────────────────────────────────────
   // 復元が済むまでは空の確認画面を出さない。読み込み失敗時も白紙で上書きさせず、再試行へ。
   if (isFarmer && (editJobLoading || editJobError)) return (
     <div className={`job-listing-flow f-sans${embedded ? " listing-embedded" : ""}`} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
-      <ListingHeader step={0} onExit={()=>{ if (onSkip) onSkip(); else window.location.hash="/profile/employer/drafts"; }} />
+      <ListingHeader step={0} onExit={closeListing} />
       <main className="listing-page" style={{ padding:"40px 24px" }}>
         {editJobLoading ? <p role="status">保存した求人を読み込んでいます<Dots /></p> : <div role="alert">
           <p style={{ lineHeight:1.8, marginBottom:20 }}>{editJobError}</p>
@@ -1145,7 +1151,7 @@ export function LandingFlow({ onComplete, onDraftSaved, onSkip, onLogin, onPubli
     <div className={isFarmer ? `job-listing-flow f-sans${embedded ? " listing-embedded" : ""}` : undefined} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
       <DevBadge label="LandingFlow" />
 
-      {isFarmer && step <= 11 && <ListingHeader step={step} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading} onSave={() => handleTopSave({ exit: true })} onExit={() => setShowExitModal(true)} />}
+      {isFarmer && step <= 11 && <ListingHeader step={step} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading} onSave={() => handleTopSave({ exit: true })} onExit={closeListing} />}
 
       {/* 働き手フローの進捗バー */}
       {!isFarmer && step > 0 && (
@@ -1166,8 +1172,8 @@ export function LandingFlow({ onComplete, onDraftSaved, onSkip, onLogin, onPubli
         }}>{draftSaving ? <>保存中<Dots /></> : "終了"}</button>
       )}
 
-      {/* 終了3択モーダル */}
-      {showExitModal && (
+      {/* 働き手フローの終了確認 */}
+      {!isFarmer && showExitModal && (
         // 注記と「キャンセル」は削除（2026-08-19たきと指示）。閉じる手段は背景タップ＝
         // キャンセルボタンを消しても閉じ込めないように、被せ側に onClick を持たせる
         <div onClick={() => setShowExitModal(false)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
@@ -2502,8 +2508,8 @@ export function LandingFlow({ onComplete, onDraftSaved, onSkip, onLogin, onPubli
       {isFarmer && step <= 11 && <ListingFooter
         step={step} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading} uploading={photoUploading}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
-        hidden={sheetOpen || showExitModal || photoCaptionsOpen || !!recruitBox}
-        onBack={step === 0 ? () => setShowExitModal(true) : returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack}
+        hidden={sheetOpen || photoCaptionsOpen || !!recruitBox}
+        onBack={step === 0 ? closeListing : returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goBack}
         onNext={returnToConfirm ? () => { setStep(11); setReturnToConfirm(false); } : goNext}
         onSkipDetails={() => animateStepChange(() => setStep(11), "fwd")} onPublish={openPublish}
       />}
