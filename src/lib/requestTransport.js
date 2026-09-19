@@ -89,11 +89,13 @@ export function createSupabaseFetch({
     const cancel = () => controller.abort();
     if (callerSignal?.aborted) cancel();
     else callerSignal?.addEventListener("abort", cancel, { once: true });
-    const timer = setTimeout(cancel, timeoutMs);
+    let expired = false, sent = false;
+    const timer = setTimeout(() => { expired = true; cancel(); }, timeoutMs);
     let release;
     try {
       release = await acquire(read, controller.signal);
       if (controller.signal.aborted) throw abortError();
+      sent = true;
       const response = await fetchImpl(input, { ...options, signal: controller.signal });
       // RESTはSDKも本文全体を読んでから結果を返す。ここで受信まで待ち、ヘッダーだけ
       // 届く通信も上限と期限の内側に置く。Storage等のストリームは上の直通経路。
@@ -103,7 +105,9 @@ export function createSupabaseFetch({
       for (const key of ["url", "redirected", "type"]) Object.defineProperty(result, key, { value: response[key] });
       return result;
     } catch (error) {
-      if (controller.signal.aborted) throw abortError();
+      if (controller.signal.aborted) throw abortError(expired
+        ? `Request deadline exceeded ${sent ? "after sending" : "before sending"} (${timeoutMs}ms)`
+        : "Request was aborted");
       throw error;
     } finally {
       clearTimeout(timer);

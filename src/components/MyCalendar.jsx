@@ -7,11 +7,12 @@
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { describeRpcOutage } from "../lib/rpcOutage";
+import { rpcOutageKind } from "../lib/rpcOutage";
 import { ymdLocal, CALENDAR_WD, ROLE_ORANGE, ROLE_GREEN, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, entryWorkDays, calFmtDate, dateRangeLabel } from "../lib/utils";
 import { getCache, setCache } from "../lib/viewCache";
 import { useRefreshTick, emitConfirmedRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { applyConfirmedCalendarMove } from "../lib/calendarUpdates";
+import { moveCalendarJob } from "../lib/calendarMove";
 import { fbSuccess, fbError, fbTap } from "../lib/feedback";
 import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
@@ -57,6 +58,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   const [daySheet, setDaySheet] = useState(null);   // { ymd, idxs } | null
   const [moveMode, setMoveMode] = useState(null);   // { jobNumber, title } | null＝日程の移動先を選んでいる最中
   const [moving, setMoving] = useState(false);      // 多重送信ガード
+  const [verifyingMove, setVerifyingMove] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);    // 通信結果が不明な時の再照合（盤面は消さない）
   // 応募の状態が変わったら（応募・承認・採用・完了…）その場で取り直す（2026-08-28たきと指示
   // 「リアルタイムで反映だ」）。合図の出どころは App.jsx＝applications のRealtime購読と画面の復帰。
@@ -231,19 +233,29 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
     if (!opts?.skipConfirm && !window.confirm(`#${jobNumber}「${title}」を ${calFmtDate(ymd)} 開始にうごかします。期間と休日も同じ日数ずれます。よろしいですか？`)) return { ok: false, canceled: true };
     movingRef.current = true;
     setMoving(true);
+    // 移動前に始まった読み込みは、確認中の盤面を古い日程へ戻さない。
+    readVersion.current++;
     try {
-      const { data, error, status } = await supabase.rpc("move_job_dates", { p_job_number: jobNumber, p_new_start: ymd });
+      const { data, error, status, calendarEntries } = await moveCalendarJob(supabase, jobNumber, ymd, {
+        onVerifying: () => { if (mounted.current) setVerifyingMove(true); },
+      });
       if (!mounted.current) return { ok: !!data?.ok && !error };
+      if (calendarEntries) {
+        readVersion.current++;
+        setEntries(calendarEntries);
+        setCache("today:entries", calendarEntries);
+      }
       if (error || !data?.ok) {
         fbError();
         const r = data?.reason;
-        // サーバーが応答しなかった型は正確な文言で（2026-09-08）。応答が届かなかった時は
-        // 「変わっていない」と言い切らず、盤面を取り直して確かめてもらう
-        const outage = describeRpcOutage(error, status, {
-          notDone: "日程は変わっていません",
-          unknown: "日程が変わったかどうかは確認できていません。カレンダーを確かめてから",
-        });
-        if (outage) { alert(outage); if (status === 0) setReloadKey(k => k + 1); return { ok: false, reason: "outage" }; }
+        // 自動照合でも確定できなかった場合だけ案内し、未保存とは断定しない。
+        if (rpcOutageKind(error, status)) {
+          alert(calendarEntries
+            ? "移動の完了を確認できませんでした。最新の日程を表示しました。移動先の日付を確かめてから、もう一度お試しください。"
+            : "移動の完了を確認できませんでした。通信が戻ってから、カレンダーの日程を確かめてください。");
+          setReloadKey(k => k + 1);
+          return { ok: false, reason: "outage" };
+        }
         alert(r === "has_applications" ? "応募が届いているため、日程はうごかせません。日程を変える場合はコピーで新しい求人として出してください。"
           : r === "past_date" ? "今日より前の日にはうごかせません。"
           : r === "bad_status" ? "終了した求人の日程はうごかせません。"
@@ -265,7 +277,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
         setReloadKey(k => k + 1);
       }
       return { ok: false, reason: "outage" };
-    } finally { movingRef.current = false; if (mounted.current) setMoving(false); }
+    } finally { movingRef.current = false; if (mounted.current) { setMoving(false); setVerifyingMove(false); } }
   };
   const confirmMove = async (ymd) => {
     const mm = moveMode;
@@ -374,7 +386,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   // 応募（相手のいる約束）は動かせないので、つかむ対象は常に自分の求人だけ＝重なった日でも迷わない
   const onDayPressStart = (ev, ymd) => {
     clearPress();
-    if (moveMode || dragRef.current) return;
+    if (movingRef.current || moveMode || dragRef.current) return;
     const t = ev.touches && ev.touches.length === 1 ? ev.touches[0] : null;
     if (!t) return;
     // つかめるのは【自分が出した求人】＝own の行と、応募が届いた自分の求人（relation='application'
@@ -437,6 +449,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
   }); // ★依存を書かない＝毎回張り直す（中で今の予定・今の月を見るため。張り替えは軽い）
 
   const onDayTap = (dt) => {
+    if (movingRef.current) return;
     // つかんで離した直後のクリックは日タップにしない（離した日のシートがすぐ消えてしまうため）
     if (Date.now() - justDraggedRef.current < 500) return;
     const ymd = ymdLocal(dt);
@@ -491,7 +504,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           「外」that無いので閉じるボタンを置いてよい（2026-08-19の✕全廃の対象外と同じ扱い） */}
       {moveMode && (
         <div className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#0E8A6B", color:"#fff", borderRadius:12, padding:"10px 14px", marginBottom:10 }}>
-          <span style={{ fontSize:13, fontWeight:700, minWidth:0 }}>{moving ? <>うごかしています<Dots /></> : <>#{moveMode.jobNumber} の新しい開始日をタップしてください</>}</span>
+          <span role={moving ? "status" : undefined} style={{ fontSize:13, fontWeight:700, minWidth:0 }}>{moving ? <>{verifyingMove ? "保存した日程を確認しています" : "うごかしています"}<Dots /></> : <>#{moveMode.jobNumber} の新しい開始日をタップしてください</>}</span>
           <button onClick={()=>setMoveMode(null)} disabled={moving} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", color:"#fff", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>やめる</button>
         </div>
       )}
@@ -632,7 +645,7 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
           規格＝cb-box-overlay + cb-lock-scroll 併用・✕なし・外タップで閉じる（2026-08-15/19）。
           「うごかす」は掲載中の求人だけ＝終了した求人は動かさない（日付シートと同じ規則・壁はDB側が担保） */}
       {dropSheet && (
-        <div onClick={()=>setDropSheet(null)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>
+        <div onClick={()=>{ if (!movingRef.current) setDropSheet(null); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:8000 }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
             <p className="f-sans" style={{ fontSize:20, fontWeight:800, color:"#222", lineHeight:1.4, margin:0 }}>{calFmtDate(dropSheet.toYmd)} へ</p>
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"6px 0 0" }}>
@@ -647,12 +660,12 @@ export function MyCalendar({ backToToday, canPostJob, onDayJobs, dayJobsAll, noD
               ) : dropSheet.live ? (
                 <button onClick={async ()=>{ const st = dropSheet; const r = await doMove(st.jobNumber, st.title, st.toYmd, { skipConfirm: true }); if (r.ok) setDropSheet(null); }} disabled={moving} className="f-sans"
                   style={{ background:"#0E8A6B", color:"#fff", border:"none", borderRadius:12, padding:"14px 16px", fontSize:14, fontWeight:700, cursor:"pointer", opacity: moving ? 0.6 : 1 }}>
-                  {moving ? <>うごかしています<Dots /></> : "この日にうごかす"}
+                  {moving ? <>{verifyingMove ? "保存した日程を確認しています" : "うごかしています"}<Dots /></> : "この日にうごかす"}
                 </button>
               ) : (
                 <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:0 }}>掲載が終わった求人ので、日程はうごかせません（コピーはできます）。</p>
               )}
-              <button onClick={()=>copyToDay(dropSheet)} className="f-sans"
+              <button onClick={()=>copyToDay(dropSheet)} disabled={moving} className="f-sans"
                 style={{ background:"#F7F7F7", color:"#222", border:"1px solid #EBEBEB", borderRadius:12, padding:"14px 16px", fontSize:14, fontWeight:700, cursor:"pointer" }}>
                 この日にコピー
               </button>
