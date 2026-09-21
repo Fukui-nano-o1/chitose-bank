@@ -11068,3 +11068,17 @@ snapSet("meAvatar") に書く＝次の起動は即出る。ログアウト時は
 【教訓】「セッションが無い」を1つの意味で扱わない。getSession の null は【error の有無】で2つに分かれる。
 同じ情報（自分のアイコン）を2経路で描くと、片方だけ壊れる＝出どころは1つ（snapshot）に寄せる。
 ━━━ ここまで ━━━
+
+━━━ 2026-09-21 ER図を作成（docs/er-diagram.md・Mermaid 8図）━━━
+【たきと指示】「AirbnbのER図を作成。最新のコードから確認すること。」＝Airbnb型マッチング（このアプリ）のデータ構造図。
+【出どころ＝コード】supabase/migrations 437本を機械抽出（create/alter/references）＋src の .from()/.select()/.insert()、
+RPC本文の列参照、jobs_public ビュー定義から復元。全体像（核11）＋領域別7図（アカウント／プロフィール／求人／応募〜評価／
+通報／運営・システム／委託・農タイムレス）＋ストレージ表・論理FK一覧・削除済み一覧。
+★基底7テーブル（jobs/applications/messages/worker_profiles/farmers/notifications/pending_applications 等）は migrations に
+create table が無い（ダッシュボード直作成の世代）ので、列は RPC・ビュー・フロントから復元＝型と NOT NULL は推定。
+★本番DBとの照合は未実施＝作成中4回とも接続タイムアウト（nanoの冷間）。次回 information_schema.columns で突き合わせて直す。
+★実線＝DBのFK制約、点線＝FK無しの論理関係（applications.job_number→jobs 等）を図で区別した。FK制約の追加は
+退会処理（auth.users を残して匿名化）と CASCADE の兼ね合いがあるので別判断。
+【検証】8図とも同梱Chromiumで mermaid.render を通して構文OK（PK_FK→PK, FK の書き方を1回直した）。
+【運用】列・表を足したら同じpushで docs/er-diagram.md も直す。
+━━━ ここまで ━━━
