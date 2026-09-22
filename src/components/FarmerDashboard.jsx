@@ -1,6 +1,6 @@
 import { DeviceDrafts } from "./DeviceDrafts";
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
   fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
   unpublishJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
@@ -8,7 +8,7 @@ import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMy
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, isJobUnpublished, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, appPhaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, photoThumb, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { OwnJobTile, ownJobState, ownJobPhoto, OWN_JOB_GRID_CLASS } from "./OwnJobTile";
@@ -28,6 +28,8 @@ import ContractEmergencyContact from "./ContractEmergencyContact";
 import LaborConditionsNotice from "./LaborConditionsNotice";
 import { HireConfirm } from "./HireConfirm";
 import { getCache, setCache } from "../lib/viewCache";
+import { classifyFarmerJobs } from "../lib/farmerJobLists";
+import { useJobExpiryClock } from "../hooks/useJobExpiryClock";
 import { useRefreshTick, emitConfirmedRefresh, getConfirmedRefreshVersion, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
 import { snapGet, snapSet } from "../lib/snapshot";
 import { fbSuccess, fbError } from "../lib/feedback";
@@ -119,15 +121,19 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   // 作成中⇄公開中のページャー（2026-07-16の2枚並び・指追従）は廃止（2026-09-02）：あなたの求人は
   // Airbnbの Listings の型＝1ページの格子＋絞り込みのチップ（作成中／公開中／終了）になった
   // 前回この面が出した内容をまず描く→裏で最新に差し替える（stale-while-revalidate・2026-07-27たきと指示）。
-  // 待ち時間の体感を消すのが目的で、正しさは毎回の再取得で担保する。キャッシュはページ寿命だけ（lib/viewCache）
-  const [dbDrafts, setDbDrafts] = useState(() => getCache("farm:drafts") ?? []);
-  const [dbActive, setDbActive] = useState(() => getCache("farm:active") ?? []);
+  // 分類済みキャッシュも現在時刻で仕分け直す。終了時刻の到来は再取得に依存させない。
+  const [draftRows, setDbDrafts] = useState(() => getCache("farm:drafts") ?? []);
+  const [activeRows, setDbActive] = useState(() => getCache("farm:active") ?? []);
   // 働く日を決める（2026-07-24 追記3）：期間求人・承認後、農家が働く日を確定する。agreeModal=対象の応募／agreeSel=選択中
   const [agreeModal, setAgreeModal] = useState(null);
   const [agreeSel, setAgreeSel] = useState([]);
   const [agreeSaving, setAgreeSaving] = useState(false);
   const [qUnansweredMap, setQUnansweredMap] = useState(() => getCache("farm:qUnanswered") ?? {}); // { job_number: 未回答質問数 }（第10弾・求人カードのバッジ）
-  const [dbExpired, setDbExpired] = useState(() => getCache("farm:expired") ?? []); // 作業日程が過ぎた自分の求人（statusは持たず日付から導出・2026-07-16）
+  const [expiredRows, setDbExpired] = useState(() => getCache("farm:expired") ?? []);
+  const ownJobRows = useMemo(() => [...draftRows, ...activeRows, ...expiredRows], [draftRows, activeRows, expiredRows]);
+  const jobsNow = useJobExpiryClock(ownJobRows);
+  const { drafts: dbDrafts, active: dbActive, expired: dbExpired } = useMemo(
+    () => classifyFarmerJobs(ownJobRows, jobsNow), [ownJobRows, jobsNow]);
   const [dbApplicants, setDbApplicants] = useState(() => getCache("farm:apps") ?? []);
   const [jobInfoMap, setJobInfoMap] = useState(() => getCache("farm:jobInfo") ?? {}); // job_number→{crop,task}（応募者を求人毎に分ける見出し用・2026-07-19）
   const [workerProfiles, setWorkerProfiles] = useState(() => getCache("farm:wp") ?? {});
@@ -233,19 +239,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
           jobsLoadedRef.current = jobsRefreshTick;
           const jim = Object.fromEntries(allJobs.map(j => [j.job_number, { crop: j.crop, task: j.task, date_start: j.date_start, date_end: j.date_end, photos: j.photos, holidays: j.holidays, work_time: j.work_time }]));
           setJobInfoMap(jim); setCache("farm:jobInfo", jim);
-          // 自分の求人を日付で仕分ける：終了日(無ければ開始日)が昨日以前＝期限切れ。
-          // 「期限切れ」というstatusはDBに存在しない（導出のみ）。当日の求人はまだ現役扱い。
-          // opened_at＝一時非公開（掲載歴あり）判定に必須（2026-07-16）。RPC側の固定列から落とさないこと。
-          // 終了・一時非公開の判定は lib/utils と共通。未掲載の下書きは再開用の一覧に集める。
-          const isPast = isJobEnded;
-          const isUnpublished = isJobUnpublished;
-          // 作成中タブ＝作成中＋公開間近(pending)／公開中タブ＝公開中＋一時非公開（2026-07-16たきと指定）。
-          // pending は掲載＝即公開になった今もう1つだけ残る状態＝修正のお願い中の求人の再掲載（20260814093042）
-          // 未掲載の下書きは日程が過ぎてもここから再開し、日程を直せる。求人自体の終了判定は変えない。
-          const unfinished = j => j.status === "draft" && !j.opened_at;
-          setDbDrafts(allJobs.filter(j => (unfinished(j) || (j.status === "pending" && !isPast(j)))));
-          setDbActive(allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j)));
-          setDbExpired(allJobs.filter(j => isPast(j) && !unfinished(j)));
+          // 初回取得とキャッシュ復元に同じ判定を使う。未掲載の下書きは日程を直して再開できる。
+          const lists = classifyFarmerJobs(allJobs);
+          setDbDrafts(lists.drafts);
+          setDbActive(lists.active);
+          setDbExpired(lists.expired);
           // 未回答の質問数（第10弾）：{ job_number: 件数 }。参照側の qUnansweredMap[j.job_number] は
           // 数値添字でもJSがキーを文字列化するので、jsonの文字列キーのままで一致する
           const m = bundle.q_unanswered || {};
@@ -475,7 +473,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
       const { data, error } = await unpublishJob(num);
       if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
       // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
-      setDbActive(prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d));
+      const markUnpublished = prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d);
+      setDbDrafts(markUnpublished);
+      setDbActive(markUnpublished);
+      setDbExpired(markUnpublished);
       emitConfirmedRefresh([REFRESH_JOBS, REFRESH_APPLICATIONS]);
       return;
     }
@@ -486,6 +487,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
       if (error) { alert("削除に失敗しました：" + error.message); return; }
       setDbDrafts(prev => prev.filter(d => d.job_number !== num));
       setDbActive(prev => prev.filter(d => d.job_number !== num));
+      setDbExpired(prev => prev.filter(d => d.job_number !== num));
       if (num === savedDraftJobNumber) onDismissDraftSaved?.();
       emitConfirmedRefresh(REFRESH_JOBS);
       return;

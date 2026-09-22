@@ -12,7 +12,7 @@ import { isJobEnded, isJobUnpublished, photoThumb } from "../lib/utils";
 // 状態のピル（Airbnbの Listed / Unlisted / In progress の型）＝求人の行から導く（表示用の別状態を持たない）
 //   作成中（一度も掲載していない下書き）／公開間近（掲載申請済み）／掲載中／満員／一時非公開／終了
 export function ownJobState(d) {
-  if (isJobEnded(d)) return { label: "終了", dot: "#9E9E9E" };
+  if (d.status === "closed" || isJobEnded(d)) return { label: "終了", dot: "#9E9E9E" };
   if (d.status === "pending") return { label: "公開間近", dot: "#0E8A6B" };
   if (d.status === "open") {
     const filled = d.headcount != null && d.hired_count != null && Number(d.hired_count) >= Number(d.headcount);

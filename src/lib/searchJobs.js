@@ -4,6 +4,7 @@
 // 新着（掲載3日以内・この端末で初見）を上位に、他はランダム。既読はcb_seenNewJobsに記録。
 import { supabase } from "./supabase";
 import { mapJobPublicRow } from "./utils";
+import { visibleSearchJobs } from "./jobSearchVisibility";
 import { getCache, setCache } from "./viewCache";
 import { getConfirmedRefreshVersion, REFRESH_JOBS } from "./refreshBus";
 
@@ -40,13 +41,14 @@ export function fetchPublicJobs({ scope = "anon", fresh = false } = {}) {
   return request;
 }
 
-// 終了した求人（掲載終了・満員・期間終了）は一覧の末尾へ回す＝募集中が先（2026-08-05）。
-// 「過去の求人は消さない」方針で、さがすには残すが、募集中の邪魔はしない
+// 期間内の満員求人は末尾へ。期限切れ・掲載終了は検索から除外する（2026-09-22）。
+// 過去の求人は応募履歴・実績・共有リンクから引き続き参照できる。
 export const isEndedJob = (j) => !!(j.closed || j.filled || j.expired);
 
-// 並びの規則の唯一のソース：新着（この端末で初見）→ 募集中 → 終了。
+// 並びの規則の唯一のソース：新着（この端末で初見）→ 募集中 → 期間内の満員。
 // prev（前回表示中の並び）があれば、その並びを保ったまま中身だけ最新に差し替える（2026-08-02）
 export function orderSearchJobs(mapped, prev) {
+  mapped = visibleSearchJobs(mapped);
   const seenSet = new Set(readSeenNewIds());
   const active = mapped.filter(j => !isEndedJob(j));
   const ended = mapped.filter(isEndedJob);

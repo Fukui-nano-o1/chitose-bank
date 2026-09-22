@@ -35,21 +35,48 @@ export const startsWithinDays = (item, days = 7) => {
 
 // ── 求人の状態の定義（唯一のソース・2026-07-27たきと指示「終了は終了、下書きは下書き」）──
 // 曖昧なまま各所でstatus文字列だけを見ていると、終了した求人が下書き扱いで出る等の食い違いが起きる。
-// 判定はここに集約し、各画面はこの関数を使う。引数は jobs 行（date_start/date_end/work_time/status/opened_at）
+// 判定はここに集約し、各画面はこの関数を使う。jobs 行と mapJobPublicRow の表示用データの両方を受け取る。
 //
 // 終了（ended）＝作業日程が過ぎた。statusに関係なく最優先（下書きでも審査中でも、日程が過ぎたら終了）
-export const isJobEnded = (j) => {
-  if (!j) return false;
-  const end = j.date_end || j.date_start;
-  if (!end) return false;
-  const today = ymdLocal(new Date());
-  if (end < today) return true;
-  // 最終日が今日なら、勤務終了時刻を過ぎているかで判定（例：17:00〜19:00 は19時以降が終了）
-  if (end === today && j.work_time) {
-    const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/);
-    if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; }
+const JOB_JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const JOB_DAY_MS = 24 * 60 * 60 * 1000;
+
+// 日付列はそのまま使い、古いキャッシュの Date / ISO文字列だけ日本の日付へ戻す。
+// 不正な日付を Date の自動繰り上がり（2/30 → 3/2）で別の日にしない。
+const jobDateYmd = (value) => {
+  let ymd = typeof value === "string" ? value.trim() : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
+    const ms = value instanceof Date ? value.getTime()
+      : /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i.test(ymd) ? Date.parse(ymd) : NaN;
+    if (!Number.isFinite(ms)) return null;
+    const japanDate = new Date(ms + JOB_JST_OFFSET_MS);
+    if (!Number.isFinite(japanDate.getTime())) return null;
+    ymd = japanDate.toISOString().slice(0, 10);
   }
-  return false;
+  const [year, month, day] = ymd.split("-").map(Number);
+  const ms = Date.UTC(year, month - 1, day);
+  return new Date(ms).toISOString().slice(0, 10) === ymd ? ymd : null;
+};
+
+// 終了する瞬間（ミリ秒）。日本の求人日程なので端末のタイムゾーンに依存しない。
+// 終了時刻が未入力・不正なら最終日の翌日0時。日程自体が不明なら null（終了と推測しない）。
+// 同じ値を使って画面側も時刻到来時に再判定できる＝通信やDBの定期処理を待たない。
+export const jobEndTimeMs = (j) => {
+  if (!j) return null;
+  const end = jobDateYmd(j.date_end || j.dateEndRaw || j.dateEnd || j.date_start || j.dateStartRaw || j.dateStart);
+  if (!end) return null;
+  const midnight = Date.parse(`${end}T00:00:00+09:00`);
+  const time = String(j.work_time || j.workTime || "").match(/^\s*(\d{1,2}):(\d{2})\s*[〜～~–-]\s*(\d{1,2}):(\d{2})\s*$/);
+  if (time && Number(time[1]) < 24 && Number(time[2]) < 60 && Number(time[3]) < 24 && Number(time[4]) < 60) {
+    return midnight + (Number(time[3]) * 60 + Number(time[4])) * 60 * 1000;
+  }
+  return midnight + JOB_DAY_MS;
+};
+
+export const isJobEnded = (j, now = new Date()) => {
+  const end = jobEndTimeMs(j);
+  const nowMs = now instanceof Date ? now.getTime() : typeof now === "number" ? now : Date.parse(now);
+  return end !== null && Number.isFinite(nowMs) && nowMs >= end;
 };
 // 一時非公開＝掲載歴（opened_at）があるのに今はdraft。下書きではない（公開中タブに帯付きで残す側）
 export const isJobUnpublished = (j) => !!(j && j.status === "draft" && j.opened_at);
@@ -499,24 +526,12 @@ export function mapJobPublicRow(j) {
     employerName: j.employer_nickname || "",
     employerAvatar: j.employer_avatar_url || "",
     experiencedPreferred: !!j.experienced_preferred,
-    // 掲載が終わった求人（2026-08-05）：jobs_public が status='closed' も返すようになった。
-    // 「過去の求人は消さない」方針の表示側＝さがすには終了帯つきで並べる（応募はできない）
+    // 掲載が終わった求人。履歴・詳細の表示用で、さがすに残すかどうかの判定とは分ける。
     closed: j.status === "closed",
-    // 終了帯の判定（2026-07-21）：採用人数を満たした／作業日程が過ぎた。探すからは除外しない
+    // 終了帯の判定。期間終了は共通の日本時間の判定を使う（キャッシュの復元・表示時にも再判定する）。
     hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
     filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount),
-    expired: (() => {
-      const end = j.date_end || j.date_start;
-      if (!end) return false;
-      const today = ymdLocal(new Date());
-      if (end < today) return true;
-      // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了）
-      if (end === today && j.work_time) {
-        const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/);
-        if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; }
-      }
-      return false;
-    })(),
+    expired: isJobEnded(j),
   };
 }
 

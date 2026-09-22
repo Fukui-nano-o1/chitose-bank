@@ -1,9 +1,11 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
 import { fetchWorkerReady } from "../lib/workerReady";
 import { openLoginBox } from "../lib/previewBus";
-import { isAdmin, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { isAdmin, isJobEnded, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../lib/utils";
+import { useJobExpiryClock } from "../hooks/useJobExpiryClock";
+import { refreshJobExpiry, visibleSearchJobs } from "../lib/jobSearchVisibility";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { pushRoute } from "../lib/pushRoute";
 import { copyJobToEdit } from "../lib/copyJobFlow";
@@ -58,7 +60,7 @@ const readJobHash = () => {
 const readCachedJobs = () => {
   const c = getCache("search:jobs");
   return Array.isArray(c)
-    ? c.map(j => ({
+    ? c.map(j => refreshJobExpiry({
         ...j,
         dateStart: j.dateStart ? new Date(j.dateStart) : null,
         dateEnd: j.dateEnd ? new Date(j.dateEnd) : null,
@@ -69,10 +71,13 @@ const readCachedJobs = () => {
 
 export function JobSearchMapView({ onRegister, me }) {
   // ★最初の描画から求人詳細を出す（キャッシュに居れば往復ゼロ・2026-08-25）
-  const [selectedJob, setSelectedJob] = useState(() => {
+  const [storedSelectedJob, setSelectedJob] = useState(() => {
     const h = readJobHash(); if (!h) return null;
     return (readCachedJobs() || []).find(j => j.id === h.jn) || null;
   });
+  const [dbJobs, setDbJobs] = useState(readCachedJobs);
+  const expiryNow = useJobExpiryClock(dbJobs, storedSelectedJob);
+  const selectedJob = useMemo(() => refreshJobExpiry(storedSelectedJob, expiryNow), [storedSelectedJob, expiryNow]);
   const [detailTab, setDetailTab] = useState(() => readJobHash()?.tab || "content"); // 求人詳細の「仕事の内容/質問」タブ（第10弾）
   // 求人詳細を開こうとしているが手元にまだ姿が無い（掲載終了・一時非公開・キャッシュ無し）＝取得中。
   // この間はさがす一覧を描かない＝「一瞬さがすに飛んで戻る」を作らない。取得が終わったら（見つからなくても）解除
@@ -175,7 +180,6 @@ export function JobSearchMapView({ onRegister, me }) {
   //   （実例：masked_fields は2026-08-17に追加。それ以前のキャッシュから求人詳細を開くと
   //    maskedFields.includes(...) で真っ白になった）。新しい項目を mapJobPublicRow に足したら、
   //   ここにも「無ければ既定値」を1行足すこと
-  const [dbJobs, setDbJobs] = useState(readCachedJobs);
   // 仮配置の骨を測るref（このページが実際に描いた形が、次回の読み込み中の形になる）
   const skelRef = useSkeletonProbe("search");
   const [dangerLightbox, setDangerLightbox] = useState(null);
@@ -255,7 +259,7 @@ export function JobSearchMapView({ onRegister, me }) {
           let newIds = [];
           setDbJobs(prev => {
             // 並びの規則は lib/searchJobs の orderSearchJobs が唯一のソース（玄関の先読みと共通）。
-            // 前回内容を表示中は並びを保ち、募集中を先・終了を末尾に置く（2026-08-05）
+            // 並びを保ち、掲載終了・期限切れは除外する。満員で日程内なら末尾。
             const { list, freshNew } = orderSearchJobs(mapped, prev);
             newIds = freshNew.map(j => j.id);
             setCache("search:jobs", list);
@@ -280,7 +284,7 @@ export function JobSearchMapView({ onRegister, me }) {
     // refreshTick＝画面の復帰の合図（2026-08-18 Speed-1B）。jobsにRealtimeは無いので合図はこれだけ。
     // 並びは orderSearchJobs が前回の並びを保つので、取り直してもカードが飛び跳ねない
   }, [me?.id, jobsRefreshTick]);
-  const jobList = dbJobs || [];
+  const jobList = useMemo(() => visibleSearchJobs(dbJobs, expiryNow), [dbJobs, expiryNow]);
 
   // ── 「まもなく公開」カード（2026-08-12たきと指示）──────────────────────────
   // 掲載申請済み（pending）の求人を、タップできないカードとしてさがすの末尾に並べる。
@@ -520,7 +524,7 @@ export function JobSearchMapView({ onRegister, me }) {
     const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
     if (!m) return;
     const jn = parseInt(m[1],10);
-    const found = jobList.find(j => j.id === jn);
+    const found = (dbJobs || []).find(j => j.id === jn);
     if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); setDeepLinkJn(null); clearApplyReturn(); return; }
     if (dbJobs && dbJobs.length > 0) clearApplyReturn();
     // 一覧の到着を待たず、該当求人だけ先に1行引いて詳細を出す（2026-08-02・求人ページの体感）。
@@ -545,7 +549,7 @@ export function JobSearchMapView({ onRegister, me }) {
       const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
       if (!m) { setSelectedJob(null); setDeepLinkJn(null); setBackTo(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
-      const found = jobList.find(j => j.id === jn);
+      const found = (dbJobs || []).find(j => j.id === jn);
       if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); setDeepLinkJn(null); return; }
       setDeepLinkJn(jn); // 取得の間もさがす一覧を出さない
       // 一覧に無い求人（掲載が終わった・一時非公開）でも、当事者なら開ける（2026-08-24）。
@@ -566,7 +570,7 @@ export function JobSearchMapView({ onRegister, me }) {
       window.removeEventListener("hashchange", onHash);
       window.removeEventListener("popstate", onHash);
     };
-  }, [jobList]);
+  }, [dbJobs]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
@@ -773,6 +777,7 @@ export function JobSearchMapView({ onRegister, me }) {
   // ★ここからは doApply を呼ばない（doApply→goPending→doApply の往復を作らないため）。
   //   預かれなかった時は false を返し、呼び出し側が次の手を決める。
   const goPending = async () => {
+    if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) { setApplying(false); return true; }
     // 来られる日（期間求人のみ）を仮応募でも渡す（2026-08-06）。渡さないと昇格時に来られる日が
     // 欠落し、正規apply_to_jobならdates_requiredで弾かれる期間応募が成立してしまう
     const { data: pend, error } = await createPendingApplication(selectedJob.id, applyAvailRef.current);
@@ -787,6 +792,7 @@ export function JobSearchMapView({ onRegister, me }) {
   };
 
   const doApply = async () => {
+    if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) { setApplying(false); return; }
     setApplying(true);
     try {
       const { data, error } = await applyToJob(selectedJob.id, applyAvailRef.current);
@@ -823,6 +829,10 @@ export function JobSearchMapView({ onRegister, me }) {
 
   const handleApply = async () => {
     if (applying || !selectedJob) return;
+    // 確認画面を開いたまま締切を迎えた場合も、クリック時の時刻で止める。
+    if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) {
+      return;
+    }
     setApplying(true);
     try {
       const { data: { session } } = await getSession();
@@ -1347,7 +1357,7 @@ export function JobSearchMapView({ onRegister, me }) {
       {/* 応募確認ボックス（2026-07-18）：応募ボタンタップで展開。承認制の説明＋下部に「戻る」「応募する」。
           意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・上限30px/下限フッター+40px・本文18）。
           cb-lock-scroll＝展開中は背後ページのスクロールを固定（2026-08-15たきと指示）＋レーンの横スワイプにタッチを奪われない（仮応募案内ボックスと同じ作法） */}
-      <ApplyConfirmBox selectedJob={selectedJob} applyConfirmOpen={applyConfirmOpen} setApplyConfirmOpen={setApplyConfirmOpen} applyConfirmStep={applyConfirmStep} setApplyConfirmStep={setApplyConfirmStep} applyChoice={applyChoice} setApplyChoice={setApplyChoice} applyDates={applyDates} setApplyDates={setApplyDates} setApplyImgZoom={setApplyImgZoom} applyAvailRef={applyAvailRef} isPeriodJob={isPeriodJob} periodDays={periodDays} applying={applying} handleApply={handleApply} />
+      <ApplyConfirmBox selectedJob={selectedJob} applyConfirmOpen={applyConfirmOpen && !recruitClosed} setApplyConfirmOpen={setApplyConfirmOpen} applyConfirmStep={applyConfirmStep} setApplyConfirmStep={setApplyConfirmStep} applyChoice={applyChoice} setApplyChoice={setApplyChoice} applyDates={applyDates} setApplyDates={setApplyDates} setApplyImgZoom={setApplyImgZoom} applyAvailRef={applyAvailRef} isPeriodJob={isPeriodJob} periodDays={periodDays} applying={applying} handleApply={handleApply} />
 
       {/* 承認の流れ図の大画面表示（2026-08-16たきと指示「承認の画像はタップで大画面に」）。
           ★画面に収める表示（maxWidth/maxHeight）だと文字が小さく、読むにはピンチ拡大が要る。
@@ -1498,11 +1508,9 @@ export function JobSearchMapView({ onRegister, me }) {
                       </p>
                     ) : (() => {
                       // 求人を「終了（掲載日程が過ぎた）／公開中」で仕分けし、すべて/公開中/終了タブで絞る（2026-07-23）
-                      const today = ymdLocal(new Date());
-                      const withEnded = pastJobs.map(r => {
-                        const endYmd = r.date_end || r.date_start;
-                        return { r, ended: !!endYmd && endYmd < today };
-                      });
+                      const withEnded = pastJobs.map(r => ({
+                        r, ended: r.status === "closed" || isJobEnded(r, expiryNow),
+                      }));
                       const openList = withEnded.filter(x => !x.ended);
                       const endedList = withEnded.filter(x => x.ended);
                       const tabs = [
