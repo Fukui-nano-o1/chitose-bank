@@ -11068,3 +11068,37 @@ snapSet("meAvatar") に書く＝次の起動は即出る。ログアウト時は
 【教訓】「セッションが無い」を1つの意味で扱わない。getSession の null は【error の有無】で2つに分かれる。
 同じ情報（自分のアイコン）を2経路で描くと、片方だけ壊れる＝出どころは1つ（snapshot）に寄せる。
 ━━━ ここまで ━━━
+
+━━━ 2026-09-22 本番DB停止（9/20 00:44 JST〜継続中）の原因調査＝実装なし・記録のみ ━━━
+【契機】GitHub「Keep Supabase Project Alive: All jobs have failed」（9/20・21・22の3日連続）。
+【何が起きているか】Supabase の Postgres が 2026-09-19 15:44 UTC（9/20 00:44 JST）を最後に一切のログを出さず、
+外からの接続も通らない（MCPの select 1 が connection timeout・Cloudflare 522・Realtime「connection not available」・
+Supavisor「connection to database not available」）。管理API（get_project）は ACTIVE_HEALTHY と言い続けている
+＝管制塔は正常判定、実体は無応答。Postgres だけでなく pgbouncer・PostgREST・Storage の【同じ箱の上のサービス全部】が
+同時に沈黙＝1プロセスの故障ではなく、インスタンス（VM）そのものが固まっている型。
+【時系列（UTC・本番ログの実物）】
+・毎日 15:11〜15:13（00:11〜00:13 JST）に「checkpoint starting: immediate force wait」＝Supabase の日次物理バックアップの
+  開始（9/16・17・18・19 とも同時刻に1回ずつ。当方の db-backup.yml は schedule 無効・backup.yml は日曜 00:00 UTC ので無関係）
+・9/19 は日中から慢性的に飢餓：checkpoint（書くのは4バッファ=32KB）が 6〜11秒（平常0.4秒）＝ディスクIO が絞られている。
+  10:15〜／11:14〜 に statement timeout・Connection reset の波（直前に 450req/15分 のブラウザ操作＝軽い負荷でも落ちる）。
+  Realtime の pg_publication_tables が 22秒・postgres_exporter の SELECT version() が 20.7秒（CPU/IO飢餓のしるし）
+・9/19 15:13:13 日次バックアップの強制checkpoint → 15:14:49 最初の Connection reset → 15:19 pgbouncer が
+  127.0.0.1:5432 へ15秒で繋げない → 15:44:22 最後のログ。以後60時間以上、自然回復なし
+【無罪と確認したもの】health.js（3秒timeoutは従来から・9/18の変更は同時実行の束ねだけ）／keep-alive.yml／
+copy_job・move_job_dates 等のRPC／cron（全て0.5秒未満で完了）／当方の GitHub バックアップ（9/20 02:13 の週次は
+既に死んだDBに当たって失敗＝被害者）／OOM kill（signal 9 なし）／ディスク満杯（該当ログなし・DBは29MB）／
+暴走クエリ（長いのは Supabase 自身の exporter と Realtime だけ）。
+【慢性の証拠】PostgREST「Thread killed by timeout manager」は 9/17（1時間に101件）・9/18・9/19 と毎日。
+09-08・09-15 の記録（冷えた nano の初回起動衝突）と同じ根＝nano の容量不足が、日次バックアップのIOで臨界を越えた。
+【この環境から確認できなかったもの】Supabase ダッシュボードの CPU/メモリ/Disk IO budget のグラフ（PC作業）／
+Vercel のランタイムログ（403）／サイトの実際の見え方。
+【たきと裁定】「もう課金しよう。でもダウンしている原因の究明が先だ」→ 究明の結論は上記。
+【次の手順（順序固定・すべてPC作業）】
+1. Supabase ダッシュボード → Reports → Database で 9/19 の CPU・Memory・Disk IO（budget）を確認・スクショ保存（証拠）
+2. Project Settings → Infrastructure → Restart project（Fast database reboot）。復旧しなければ Supabase サポートへ
+   （材料：project ref・「9/19 15:44 UTC 以降 Postgres/pgbouncer/PostgREST が無応答、管理APIは ACTIVE_HEALTHY のまま」）
+3. 復旧後、Compute を Micro 以上へ（同じ画面）。nano では 9/8・9/15・9/19 と3回目＝根拠は十分
+4. GitHub Actions「Keep Supabase Project Alive」を手動実行して 200 を確認。keep-alive.yml は変更不要
+5. 復旧後の点検：supabase/checks/audit.sql／cron の実行履歴（cron.job_run_details）に9/20以降の失敗が並ぶはず＝
+   cron_watchdog のメール洪水に驚かない／pending の通知・メールが一気に流れる可能性（send_* 関数）を先に確認
+━━━ ここまで ━━━
