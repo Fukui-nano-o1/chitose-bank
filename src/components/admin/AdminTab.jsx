@@ -8,6 +8,7 @@ import { Avatar, LinkifiedText, Dots } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 import { getCache, setCache } from "../../lib/viewCache";
 import { saveElementAsPdf } from "../../lib/pdfExport";
+import { needsReportAction } from "./reportModel";
 
 // あいうえお順の比較（アカウント面・2026-08-07）。毎描画で作らないためモジュールレベルに置く
 const JA_COLLATOR = new Intl.Collator("ja");
@@ -234,6 +235,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const [msgReports, setMsgReports] = useState(() => getCache("admin:console")?.msgReports || []); // チャットのコメント報告（message_reports・2026-07-19）
   const [profReports, setProfReports] = useState(() => getCache("admin:console")?.profReports || []); // 働き手プレビューからの報告（profile_reports・2026-08-06）
   const [fbReports, setFbReports] = useState(() => getCache("admin:console")?.fbReports || []); // 画面の報告（feedback・2026-08-15）。表示は統合報告ページ＝ここではバッジの数のみ
+  const [payReports, setPayReports] = useState(() => getCache("admin:console")?.payReports || []);
   const [adminQuestions, setAdminQuestions] = useState(() => getCache("admin:console")?.adminQuestions || []); // 求人Q&A（job_questions・第10弾・非表示スイッチ）
   const [qHidingId, setQHidingId] = useState(null);
   const hideQuestion = async (id, hidden) => {
@@ -282,7 +284,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   const load = useCallback(async () => {
     // 前回内容を表示中ならスピナーで隠さない（裏で差し替え）。初回だけ読み込み中を出す
     if (!getCache("admin:console")) setLoading(true);
-    const [jr, av, la, mr, jq, wd, pr, fb] = await Promise.all([
+    const [jr, av, la, mr, jq, wd, pr, fb, py] = await Promise.all([
       supabase.from("job_reports").select("*").order("created_at",{ascending:false}),
       supabase.from("attendance_events").select("*").eq("kind","dispute_no_show").order("created_at",{ascending:false}),
       supabase.rpc("admin_list_accounts"),
@@ -290,7 +292,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       supabase.from("job_questions").select("*").order("created_at",{ascending:false}),
       supabase.from("withdrawal_requests").select("*").is("processed_at", null).order("requested_at",{ascending:true}),
       supabase.from("profile_reports").select("*").order("created_at",{ascending:false}),
-      supabase.from("feedback").select("id,status").order("created_at",{ascending:false}),
+      supabase.from("feedback").select("id,status,body").order("created_at",{ascending:false}),
+      supabase.from("pay_incidents").select("id,status,admin_note").order("created_at",{ascending:false}),
     ]);
     // 成功した分だけを反映し、同じものをviewCacheへ写す（次に開いた時・引き下げ更新後は即描画）
     const next = {};
@@ -302,6 +305,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!wd.error) next.withdrawals = wd.data || [];
     if (!pr.error) next.profReports = pr.data || [];
     if (!fb.error) next.fbReports = fb.data || [];
+    if (!py.error) next.payReports = py.data || [];
     if (next.reports) setReports(next.reports);
     if (next.disputes) setDisputes(next.disputes);
     if (next.accounts) setAccounts(next.accounts);
@@ -310,6 +314,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (next.withdrawals) setWithdrawals(next.withdrawals);
     if (next.profReports) setProfReports(next.profReports);
     if (next.fbReports) setFbReports(next.fbReports);
+    if (next.payReports) setPayReports(next.payReports);
     setCache("admin:console", { ...(getCache("admin:console") || {}), ...next });
     setLoading(false);
   }, []);
@@ -351,11 +356,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
 
   // 審査タブに全ての審査待ちを集約（2026-07-14）：求人＋アカウント承認＋自由記述＋通報＋異議
-  const openReports = reports.filter(r => r.status !== "resolved");
-  const openMsgReports = msgReports.filter(r => r.status !== "resolved");
-  const openProfReports = profReports.filter(r => r.status !== "resolved");
-  const openFbReports = fbReports.filter(r => r.status !== "resolved"); // 画面の報告（2026-08-15・バッジ用）
-  const reviewTotal = openReports.length + openMsgReports.length + openProfReports.length + openFbReports.length + disputes.length;
+  const reportCount = [reports, msgReports, profReports, fbReports, payReports].flat().filter(needsReportAction).length;
+  const reviewTotal = reportCount + disputes.length;
   const TOP_TABS = [
     { k:"jobs",    l:"審査",       n: reviewTotal },
     { k:"account", l:"アカウント", n: null },
@@ -671,7 +673,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       {sub==="jobs" && !reviewSec && !loading && (
         <div className="fade-in" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
           {[
-            { k:"reports",  l:"通報",           n:openReports.length + openMsgReports.length + openProfReports.length + openFbReports.length },
+            { k:"reports",  l:"通報・サポート", n:reportCount },
             { k:"disputes", l:"欠勤異議",       n:disputes.length },
             { k:"questions",l:"質問",           n:0 },
             { k:"withdrawals", l:"退会申請",    n:withdrawals.length },

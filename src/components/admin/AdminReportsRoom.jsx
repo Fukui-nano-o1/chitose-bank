@@ -1,314 +1,287 @@
-// 報告の集計を一本化した統合ページ（#/admin/reports・管理者専用・2026-08-15たきと指示
-// 「入力の一本化はやめて、集計する方を一本化しよう」）。
-// 4つの報告台帳（job_reports=求人／message_reports=コメント／profile_reports=人／feedback=画面）＋
-// 未払いの申告（pay_incidents）を1つに束ね、タブ（すべて/未払い/求人/コメント/人/画面）で切り替える。
-// 横スワイプは指連動＝ネイティブ横スクロール＋scroll-snap（AdminSystemRoomと同じ機構）。
-// ★構成はAirbnb型（2026-08-31たきと指示「構成をAirbnbにしろ」）＝振る舞いだけを写した：
-//   ・頭＝「← 報告（N）」タップで管理へ戻る・説明は右端の？に集約（契約記録と同じ頭）
-//   ・一覧＝要点1行＋抜粋の短い行（Airbnbの受信箱の行）。ボックス展開はしない
-//   ・行タップ＝白い全画面テイクオーバー（fixed inset:0 の白・左上←で一覧に戻る・
-//     事実の全文は中身・実行ボタンは下部の固定バー＝FinalReviewSheet／契約詳細と同じ器）
-// 「対応済みにする」の書き込みは従来と同一（status:'resolved'への更新のみ＝新しい書き込みは作らない）。
-// 表示は未対応のみ（解決済みはDBに残る＝システムページ2026-08-08と同じ方針）。
-import { useState, useEffect, useCallback, useRef } from "react";
+// 通報の受信箱。管理者ゲートはApp、閲覧・更新権限は既存のRLSが担う。
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { Dots } from "../ui";
 import { openWorkerPreview } from "../../lib/previewBus";
 import { getCache, setCache } from "../../lib/viewCache";
+import { DAY_FACT_LABELS, dateRangeLabel, payTermsLine } from "../../lib/utils";
+import {
+  REPORT_KINDS, REPORT_CACHE, REPORT_STEPS, isDemoReport, isClosedReport,
+  needsReportAction, reportKey, reportPath, reportKindLabel, reportStatus,
+  reportSummary, reportNextAction, mergeReportResults, reportRoute, reportDate,
+} from "./reportModel";
+import "./AdminReportsRoom.css";
 
-const KINDS = [
-  { k: "all",     l: "すべて" },
-  { k: "pay",     l: "未払い" },
-  { k: "job",     l: "求人" },
-  { k: "comment", l: "コメント" },
-  { k: "person",  l: "人" },
-  { k: "screen",  l: "画面" },
-];
-const KIND_TABLE = { pay: "pay_incidents", job: "job_reports", comment: "message_reports", person: "profile_reports", screen: "feedback" };
-// 未払いの申告の状態（2026-08-20たきと裁定「未払い確定ではなく未払い申告」）。
-// reported＝申告あり／checking＝運営が事実確認中／resolved＝解決／unresolved＝未解決で閉じた。
-// resolved/unresolved は一覧から消える（記録はDBに残る＝この画面の従来方針）
-const PAY_STATUS_LABEL = { reported: "申告あり（未確認）", checking: "事実確認中" };
-// 画面の報告（feedback）のカテゴリ→日本語。入力側（FeedbackModal）のFEEDBACK_CATEGORIESと対応
-const FB_LABEL = { confusing: "分かりにくい", broken: "動かない", typo: "誤字・表示", suggestion: "提案", other: "その他" };
+function Status({ row }) {
+  const status = reportStatus(row);
+  return <span className={`reports-status reports-status-${status.tone}`}>{status.label}</span>;
+}
 
-const chipStyle = { fontSize: 11, fontWeight: 700, color: "#555", background: "#F2F2F2", borderRadius: 20, padding: "3px 10px", flexShrink: 0 };
-const linkBtn = { padding: "10px 16px", fontSize: 13, fontWeight: 600, background: "#fff", color: "#555", border: "1px solid #DDD", borderRadius: 10, cursor: "pointer" };
-// テイクオーバー下部バーのボタン（実行＝緑・脇役＝白枠）
-const barPrimary = { flex: 1, padding: "13px 0", fontSize: 14, fontWeight: 700, background: "#00A86B", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer" };
-const barSecondary = { flex: 1, padding: "13px 0", fontSize: 14, fontWeight: 700, background: "#fff", color: "#555", border: "1.5px solid #DDD", borderRadius: 12, cursor: "pointer" };
-// 事実の本文（引用ブロック）
-const quoteStyle = { fontSize: 14, color: "#222", lineHeight: 1.8, margin: "0 0 10px", whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: "break-word", background: "#F7F7F7", borderRadius: 10, padding: "12px 14px" };
+function ReportDialog({ title, onClose, children, footer, covered = false }) {
+  const ref = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    const previous = document.activeElement;
+    ref.current?.querySelector("button")?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
+  const onKeyDown = event => {
+    if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+    if (event.key !== "Tab") return;
+    const focusable = [...ref.current.querySelectorAll('button:not(:disabled), a[href], input, select, summary, [tabindex="0"]')];
+    const first = focusable[0]; const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  };
+  return createPortal(
+    <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-hidden={covered || undefined} inert={covered}
+      onKeyDown={onKeyDown} className="reports-modal cb-lock-scroll f-sans">
+      <header className="reports-modal-header">
+        <button type="button" className="reports-back" onClick={onClose} aria-label="前の画面に戻る">←</button>
+        <h2 id={titleId}>{title}</h2>
+      </header>
+      <div className="reports-modal-scroll"><div className="reports-detail-inner">{children}</div></div>
+      {footer && <footer className="reports-footer"><div>{footer}</div></footer>}
+    </div>, document.body,
+  );
+}
 
-// 一覧の行の要点（1行）と抜粋（Airbnbの受信箱の行＝タイトル＋プレビュー）
-function summaryOf(r) {
-  if (r.kind === "pay")     return { head: `未払いの申告　求人 #${r.job_number}`, snip: PAY_STATUS_LABEL[r.status] || r.status };
-  if (r.kind === "job")     return { head: `求人 #${r.job_number}　${r.issue_type || ""}`, snip: [r.target_field, r.detail].filter(Boolean).join("　") };
-  if (r.kind === "comment") return { head: r.reason || "コメントの報告", snip: r.body_snapshot || "" };
-  if (r.kind === "person")  return { head: r.issue_type || "人の報告", snip: r.detail || "" };
-  return { head: FB_LABEL[r.category] || r.category || "画面の報告", snip: r.body || "" };
+function ReportSteps({ kind }) {
+  return <ol className="reports-steps">{REPORT_STEPS[kind].map(step => <li key={step.title}>
+    <h3>{step.title}</h3><p>{step.body}</p>
+  </li>)}</ol>;
+}
+
+function ContactLink({ id, children }) {
+  return id ? <a className="reports-link" href={`#/chat/admin/${id}`}>{children}<span aria-hidden="true">↗</span></a> : null;
+}
+
+function PayEvidence({ row }) {
+  const [record, setRecord] = useState(null);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setError(false);
+    supabase.from("pay_incidents").select("id,snapshot").eq("id", row.id).single()
+      .then(result => {
+        if (!active) return;
+        if (result.error || !result.data?.snapshot) setError(true);
+        else setRecord(result.data.snapshot);
+      }).catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [row.id, attempt]);
+  const terms = record?.application?.terms_snapshot;
+  const job = record?.job || {};
+  const days = Array.isArray(record?.day_records) ? record.day_records : [];
+  const money = terms?.pay_type === "日給" ? terms.daily_wage : terms?.pay_type === "時給" ? terms.hourly_wage : null;
+  return <section className="reports-section" aria-labelledby="reports-evidence-heading">
+    <h2 id="reports-evidence-heading">申告時の記録</h2>
+    <p className="reports-muted">申告時点で保存された内容です。その後の支払いは、双方に確認してください。</p>
+    {error ? <div className="reports-error" role="alert">記録を取得できません。<button type="button" onClick={() => setAttempt(value => value + 1)}>記録を再読み込み</button></div>
+      : !record ? <p role="status">記録を読み込み中<Dots /></p> : <>
+        <dl className="reports-facts">
+          <div><dt>仕事</dt><dd>{[job.crop, job.task].filter(Boolean).join(" ") || "記録なし"}</dd></div>
+          <div><dt>雇い手</dt><dd>{terms?.party_names?.farmer || terms?.recruiter_name || "氏名の記録なし"}</dd></div>
+          <div><dt>働き手</dt><dd>{terms?.party_names?.worker || "氏名の記録なし"}</dd></div>
+          <div><dt>契約の報酬</dt><dd>{money != null && money !== "" && Number.isFinite(Number(money)) ? `${terms.pay_type} ${Number(money).toLocaleString("ja-JP")}円` : "記録なし"}</dd></div>
+          <div><dt>契約の日程</dt><dd>{record.application?.agreed_dates?.length ? record.application.agreed_dates.join("、") : terms?.date_start ? dateRangeLabel(terms.date_start, terms.date_end) : terms?.date_label || "記録なし"}</dd></div>
+          <div><dt>支払時期・方法</dt><dd>{terms ? payTermsLine({ payTiming: terms.pay_timing, payMethod: terms.pay_method }) || "記録なし" : "契約の記録なし"}</dd></div>
+          <div><dt>最終回答</dt><dd>{record.final_review?.pay_status === "unpaid" ? "働き手が「未払い」と回答" : "未払いの回答を確認できません"}</dd></div>
+        </dl>
+        {!terms && <p className="reports-muted">この申告には契約条件の記録がありません。求人の内容と当事者への確認をもとに調べてください。</p>}
+        <details className="reports-disclosure"><summary>日次の記録（{days.length}件）</summary>
+          {days.length === 0 ? <p>申告時点で日次の記録はありません。</p> : <ul className="reports-events">{days.map((day, index) => <li key={day.id || index}>
+            <strong>{DAY_FACT_LABELS.find(item => item.k === day.kind)?.l || "その他の記録"}</strong>
+            <p>{day.work_date || reportDate(day.created_at)} · {day.actor_id && day.actor_id === row.worker_id ? "働き手" : day.actor_id && day.actor_id === row.farmer_id ? "雇い手" : "記録者不明"}</p>
+            {(day.detail || day.reason) && <p>{[day.detail, day.reason].filter(Boolean).join(" · ")}</p>}
+          </li>)}</ul>}
+        </details>
+      </>}
+  </section>;
+}
+
+function ReportDetail({ row, busy, fresh, updateError, onUpdate, onGuide }) {
+  const [closing, setClosing] = useState(false);
+  const [outcome, setOutcome] = useState("");
+  const summary = reportSummary(row);
+  const demo = isDemoReport(row);
+  const closed = isClosedReport(row);
+  const disabled = busy || !fresh;
+  return <>
+    <div className="reports-detail-heading">
+      <div className="reports-row-meta"><span>{reportKindLabel(row.kind)}</span><Status row={row} /></div>
+      <h1>{summary.title}</h1>
+      <p className="reports-target">{summary.target}</p>
+      <p className="reports-muted">受付：{reportDate(row.created_at, true)}</p>
+    </div>
+    {demo ? <p className="reports-notice">「【デモ】」と記載された表示サンプルです。実案件の要対応件数には含めず、この画面から状態を変更することもできません。</p>
+      : closed ? <p className="reports-notice">この案件は「{reportStatus(row).label}」として対応履歴に残っています。{row.decided_at ? `終了：${reportDate(row.decided_at, true)}` : ""}</p>
+      : <div className="reports-next"><span>次にすること</span><h2>{reportNextAction(row)}</h2><p>{row.kind === "pay" ? "未払いの申告です。支払いの有無を確認してから、結果を記録してください。" : "下の通報内容と対象を確認し、必要な対応を進めてください。"}</p></div>}
+    <section className="reports-section"><h2>{row.kind === "comment" ? "通報時のコメント" : row.kind === "pay" ? "運営メモ" : "通報・報告の内容"}</h2>
+      <blockquote>{row.kind === "pay" ? row.admin_note || "メモの記録はありません。" : summary.body}</blockquote>
+      {row.kind === "comment" && row.detail && <p className="reports-body">補足：{row.detail}</p>}
+      {row.kind === "screen" && <p className="reports-muted">報告時の画面幅：{row.viewport ? `${row.viewport}px` : "記録なし"}</p>}
+      {!demo && <div className="reports-links">
+        {(row.kind === "job" || row.kind === "pay") && row.job_number != null && <a className="reports-link" href={`#/admin/review/${row.job_number}`}>対象の求人を確認<span aria-hidden="true">↗</span></a>}
+        {row.kind === "person" && row.target_worker_id && <button type="button" className="reports-link" onClick={() => openWorkerPreview(row.target_worker_id, row.source === "work_record" ? 1 : 0)}>対象のプロフィールを確認<span aria-hidden="true">↗</span></button>}
+      </div>}
+    </section>
+    {row.kind === "pay" && !demo && <PayEvidence key={row.id} row={row} />}
+    {!demo && <section className="reports-section"><h2>事実確認の連絡先</h2>
+      <p className="reports-muted">運営チャットが開きます。内容を入力して送信するまでは、相手への連絡は行われません。</p>
+      <div className="reports-links">
+        <ContactLink id={row.reporter_id}>{row.kind === "pay" ? "申告した働き手に確認" : "通報・報告した人に確認"}</ContactLink>
+        {row.kind === "pay" && <ContactLink id={row.farmer_id}>雇い手に確認</ContactLink>}
+        {row.kind === "comment" && <ContactLink id={row.sender_id_snapshot}>発言した人に確認</ContactLink>}
+        {row.kind === "person" && <ContactLink id={row.target_worker_id}>対象の働き手に確認</ContactLink>}
+      </div>
+      {!row.reporter_id && <p className="reports-muted">通報・報告した人の記録はありません。</p>}
+    </section>}
+    <section className="reports-section"><div className="reports-section-heading"><h2>この案件の対応手順</h2><button type="button" className="reports-text-button" onClick={onGuide}>手順書</button></div><ReportSteps kind={row.kind} /></section>
+    <details className="reports-disclosure"><summary>案件情報</summary><dl className="reports-facts">
+      <div><dt>案件ID</dt><dd>{row.id}</dd></div>
+      {row.application_id && <div><dt>応募ID</dt><dd>{row.application_id}</dd></div>}
+      {row.reporter_id && <div><dt>報告者ID</dt><dd>{row.reporter_id}</dd></div>}
+    </dl></details>
+    {!closed && !demo && <section className="reports-section reports-complete" aria-labelledby="reports-complete-heading">
+      <h2 id="reports-complete-heading">対応の状態を更新</h2>
+      {!fresh && <p className="reports-error" role="status">最新の状態を取得できるまで、更新はできません。一覧の「再読み込み」をお試しください。</p>}
+      {updateError && <p className="reports-error" role="alert">{updateError}</p>}
+      {row.kind === "pay" && row.status === "reported" && <button type="button" className="reports-primary" disabled={disabled} onClick={() => onUpdate(row, "checking")}>{busy ? "更新中…" : "事実確認を始める"}</button>}
+      {closing ? <div className="reports-confirm">
+        <h3>確認と必要な対応は終わりましたか？</h3>
+        {row.kind === "pay" ? <fieldset disabled={disabled}><legend>確認結果を選んでください</legend>
+          <label><input type="radio" name="report-outcome" value="resolved" checked={outcome === "resolved"} onChange={() => setOutcome("resolved")} /><span><strong>解決済み</strong><small>支払いの問題が解消したことを確認した</small></span></label>
+          <label><input type="radio" name="report-outcome" value="unresolved" checked={outcome === "unresolved"} onChange={() => setOutcome("unresolved")} /><span><strong>未解決で終了</strong><small>解消を確認できないまま、対応を終える</small></span></label>
+        </fieldset> : <p>「対応済み」として対応履歴に移します。この操作は、求人・コメントの削除やアカウント停止、相手への通知を行いません。</p>}
+        <div className="reports-confirm-actions"><button type="button" className="reports-secondary" disabled={busy} onClick={() => setClosing(false)}>確認を続ける</button>
+          <button type="button" className="reports-primary" disabled={disabled || (row.kind === "pay" && !outcome)} onClick={() => onUpdate(row, row.kind === "pay" ? outcome : "resolved")}>{busy ? "保存中…" : "結果を保存する"}</button></div>
+      </div> : <button type="button" className={row.kind === "pay" && row.status === "reported" ? "reports-secondary" : "reports-primary"} disabled={disabled} onClick={() => setClosing(true)}>{row.kind === "pay" ? "確認結果を記録する" : "対応を完了する"}</button>}
+      <p className="reports-muted">まだ確認が必要な場合は、状態を変えずに一覧へ戻れます。</p>
+    </section>}
+  </>;
 }
 
 export function AdminReportsRoom() {
-  // items＝5台帳の未対応を1本に束ねた配列（kind付き・最新順）。viewCacheで前回内容を即描画→裏で最新化
-  const [items, setItems] = useState(() => getCache("admin:reports") || null);
-  const [busy, setBusy] = useState(null);
-  const [detail, setDetail] = useState(null); // 開いている1件（白い全画面テイクオーバー）
-  const [helpOpen, setHelpOpen] = useState(false); // ？ボタンの説明シート
-
-  // ── 横スワイプ機構（AdminSystemRoomと同じ）：ネイティブ横スクロール＝指に追従。snapで必ず1面に着地。タブタップでも移動
-  const scrollRef = useRef(null);
-  const [pageIdx, setPageIdx] = useState(0);
-  const onScroll = () => {
-    const el = scrollRef.current;
-    if (!el || el.clientWidth === 0) return;
-    setPageIdx(Math.max(0, Math.min(KINDS.length - 1, Math.round(el.scrollLeft / el.clientWidth))));
-  };
-  const goTo = (idx) => { const el = scrollRef.current; if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" }); };
-  // ページの器（全幅・snap）。隣面との隙間はpaddingで作る（幅計算を1面=clientWidthに保つ）。
-  // alignSelf:flex-start＝短い面が長い面の高さに引き伸ばされない
-  // ★minWidth:0 必須（2026-08-31たきと報告「カード幅と画面幅は自然に調節されるようにして」）：
-  //   面はflexの子＝min-width:auto のままだと、行の抜粋（nowrapの1行）の最小幅が面を押し広げ、
-  //   カードが画面から右へあふれる（2026-08-16「flex/gridの子には minWidth:0」の型）。
-  //   狭い端末でだけ出る＝検証ハーネスには本番と同じ<main>の左右24pxを必ず入れること
-  const paneStyle = { flex: "0 0 100%", minWidth: 0, boxSizing: "border-box", scrollSnapAlign: "start", padding: "0 2px", alignSelf: "flex-start" };
+  const [items, setItems] = useState(() => getCache(REPORT_CACHE) || null);
+  const [loading, setLoading] = useState(true);
+  const [failedKinds, setFailedKinds] = useState([]);
+  const [freshKinds, setFreshKinds] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const sequence = useRef(0);
+  const [updateError, setUpdateError] = useState("");
+  const [message, setMessage] = useState("");
+  const [view, setView] = useState("open");
+  const [kind, setKind] = useState("all");
+  const [route, setRoute] = useState(() => reportRoute(window.location.hash));
+  const [helpOpen, setHelpOpen] = useState(false);
+  useEffect(() => {
+    const follow = () => { setRoute(reportRoute(window.location.hash)); setUpdateError(""); };
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  }, []);
 
   const load = useCallback(async () => {
-    const [jr, mr, pr, fb, py] = await Promise.all([
-      supabase.from("job_reports").select("*").order("created_at", { ascending: false }),
-      supabase.from("message_reports").select("*").order("created_at", { ascending: false }),
-      supabase.from("profile_reports").select("*").order("created_at", { ascending: false }),
-      supabase.from("feedback").select("*").order("created_at", { ascending: false }),
-      // 未払いの申告（2026-08-20）。snapshotは重いので一覧では取らない（状態と要点だけ）
-      supabase.from("pay_incidents").select("id,application_id,job_number,status,created_at,admin_note").order("created_at", { ascending: false }),
-    ]);
-    // 失敗した台帳は手元の値を上書きしない（フェイルオープン規則・2026-08-07）
-    if (jr.error && mr.error && pr.error && fb.error && py.error) { setItems(prev => prev || []); return; }
-    const merged = [
-      ...(jr.error ? [] : (jr.data || []).map(r => ({ ...r, kind: "job" }))),
-      ...(mr.error ? [] : (mr.data || []).map(r => ({ ...r, kind: "comment" }))),
-      ...(pr.error ? [] : (pr.data || []).map(r => ({ ...r, kind: "person" }))),
-      ...(fb.error ? [] : (fb.data || []).map(r => ({ ...r, kind: "screen" }))),
-      ...(py.error ? [] : (py.data || []).map(r => ({ ...r, kind: "pay" }))),
-    ].filter(r => r.status !== "resolved" && r.status !== "unresolved")
-     .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)); // 最新順（全タブ共通）
-    setItems(merged);
-    setCache("admin:reports", merged);
+    if (busyRef.current) return;
+    const request = ++sequence.current;
+    setLoading(true); setFreshKinds([]);
+    const results = await Promise.allSettled(REPORT_KINDS.map(source => supabase.from(source.table)
+      .select(source.key === "pay" ? "id,application_id,job_number,status,created_at,admin_note,decided_at,reporter_id,farmer_id,worker_id" : "*")
+      .order("created_at", { ascending: false })));
+    if (request !== sequence.current) return;
+    const failures = REPORT_KINDS.filter((_, index) => results[index].status !== "fulfilled" || results[index].value.error).map(source => source.key);
+    setFailedKinds(failures);
+    setFreshKinds(REPORT_KINDS.filter(source => !failures.includes(source.key)).map(source => source.key));
+    setItems(previous => {
+      const next = mergeReportResults(previous, results);
+      setCache(REPORT_CACHE, next);
+      return next;
+    });
+    setLoading(false);
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); return () => { sequence.current += 1; }; }, [load]);
 
-  const resolve = async (r) => {
-    if (busy) return;
-    setBusy(r.id);
-    const { error } = await supabase.from(KIND_TABLE[r.kind]).update({ status: "resolved" }).eq("id", r.id);
-    setBusy(null);
-    if (error) { alert("更新に失敗しました：" + error.message); return; }
-    setItems(prev => {
-      const next = (prev || []).filter(x => !(x.kind === r.kind && x.id === r.id));
-      setCache("admin:reports", next);
-      return next;
-    });
-    setDetail(null); // 一覧から消える＝テイクオーバーも閉じて一覧へ戻す
-  };
-  // 未払いの申告の状態遷移（reported→checking→resolved/unresolved）。checkingは一覧に残る＝
-  // 「確認を始めた」の記録。resolved/unresolvedで一覧から消える（decided_atを刻む）
-  const setPayStatus = async (r, status) => {
-    if (busy) return;
-    setBusy(r.id);
-    const patch = { status, ...(status === "resolved" || status === "unresolved" ? { decided_at: new Date().toISOString() } : {}) };
-    const { error } = await supabase.from("pay_incidents").update(patch).eq("id", r.id);
-    setBusy(null);
-    if (error) { alert("更新に失敗しました：" + error.message); return; }
-    setItems(prev => {
-      const next = (status === "checking")
-        ? (prev || []).map(x => (x.kind === "pay" && x.id === r.id) ? { ...x, status } : x)
-        : (prev || []).filter(x => !(x.kind === "pay" && x.id === r.id));
-      setCache("admin:reports", next);
-      return next;
-    });
-    // 開いている詳細も追従（checking＝状態表示を更新して開いたまま／解決・未解決＝一覧へ戻す）
-    setDetail(prev => (prev && status === "checking") ? { ...prev, status } : null);
+  const update = async (row, status) => {
+    if (busyRef.current || !freshKinds.includes(row.kind) || !needsReportAction(row)) return;
+    if (row.kind === "pay" ? !["checking", "resolved", "unresolved"].includes(status) : status !== "resolved") return;
+    busyRef.current = true; setBusy(true); setUpdateError("");
+    const request = sequence.current;
+    const patch = { status, ...(row.kind === "pay" && status !== "checking" ? { decided_at: new Date().toISOString() } : {}) };
+    try {
+      // 現在の状態に一致した1件だけ更新し、戻り値で保存を確認。権限切れ・競合を成功に見せない。
+      const { data, error } = await supabase.from(REPORT_KINDS.find(source => source.key === row.kind).table)
+        .update(patch).eq("id", row.id).eq("status", row.status).select("id,status").single();
+      if (error || data?.id !== row.id || data.status !== status) throw new Error("update_failed");
+      if (request !== sequence.current) return;
+      setItems(previous => {
+        const next = (previous || []).map(item => reportKey(item) === reportKey(row) ? { ...item, ...patch } : item);
+        setCache(REPORT_CACHE, next); return next;
+      });
+      setMessage(status === "checking" ? "事実確認中に更新しました。" : "対応履歴に保存しました。");
+      if (status !== "checking") {
+        setView("closed");
+        if (reportRoute(window.location.hash) === reportKey(row)) window.location.hash = "/admin/reports";
+      }
+    } catch {
+      if (request !== sequence.current) return;
+      setUpdateError("更新を確認できませんでした。通信状況を確認して、一覧を再読み込みしてください。案件の状態は変更して表示していません。");
+      setFreshKinds(previous => previous.filter(value => value !== row.kind));
+    } finally { busyRef.current = false; if (request === sequence.current) setBusy(false); }
   };
 
-  const countOf = (k) => (items || []).filter(r => k === "all" || r.kind === k).length;
-  const kindLabel = (k) => (KINDS.find(x => x.k === k) || {}).l || k;
-
-  // ── 一覧の行（Airbnbの受信箱の行）：チップ＋要点＋日付＋›。中身の全文と実行はテイクオーバーが担う
-  const renderRow = (r) => {
-    const { head, snip } = summaryOf(r);
-    return (
-      <button key={r.kind + r.id} type="button" onClick={() => setDetail(r)} className="f-sans"
-        style={{ display: "block", width: "100%", textAlign: "left", background: "#fff", border: "1px solid #EBEBEB", borderRadius: 12, padding: "14px 16px", cursor: "pointer" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="f-sans" style={chipStyle}>{kindLabel(r.kind)}</span>
-          <span className="f-sans" style={{ fontSize: 14, fontWeight: 700, color: r.kind === "screen" ? "#222" : "#E24B4A", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{head}</span>
-          <span className="f-sans" style={{ fontSize: 11, color: "#B0B0B0", flexShrink: 0 }}>{r.created_at ? new Date(r.created_at).toLocaleDateString("ja-JP") : ""}</span>
-          <span aria-hidden="true" style={{ fontSize: 16, color: "#C8C8C8", flexShrink: 0, lineHeight: 1 }}>›</span>
-        </div>
-        {snip && <p className="f-sans" style={{ fontSize: 12, color: "#717171", margin: "6px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{snip}</p>}
-      </button>
-    );
+  const all = items || [];
+  const active = all.filter(needsReportAction);
+  const closed = all.filter(row => !isDemoReport(row) && isClosedReport(row));
+  const samples = all.filter(isDemoReport);
+  const pool = view === "closed" ? closed : active;
+  const visible = pool.filter(row => kind === "all" || row.kind === kind);
+  const detail = all.find(row => reportKey(row) === route);
+  const closeDetail = () => { window.location.hash = "/admin/reports"; };
+  const renderRow = row => {
+    const summary = reportSummary(row);
+    return <a key={reportKey(row)} href={`#${reportPath(row)}`} className="reports-row">
+      <div className="reports-row-meta"><span>{reportKindLabel(row.kind)}</span><Status row={row} /><time>{reportDate(row.created_at)}</time></div>
+      <h2>{summary.title}</h2><p className="reports-target">{summary.target}</p><p className="reports-excerpt">{summary.body}</p>
+      <div className="reports-row-next"><span>{isDemoReport(row) ? "サンプルの内容を見る" : reportNextAction(row)}</span><span aria-hidden="true">→</span></div>
+    </a>;
   };
-
-  // ── 詳細テイクオーバーの中身（台帳ごとの事実の全文＝旧カードと同じ項目・字は読みやすく一回り大きく）
-  const renderDetailBody = (r) => (
-    <>
-      <p className="f-sans" style={{ fontSize: 12, color: "#B0B0B0", margin: "0 0 2px" }}>{r.created_at ? new Date(r.created_at).toLocaleString("ja-JP") : ""}</p>
-      <p className="f-sans" style={{ fontSize: 18, fontWeight: 800, color: r.kind === "screen" ? "#222" : "#E24B4A", margin: "0 0 14px", lineHeight: 1.5 }}>{summaryOf(r).head}</p>
-      {r.kind === "pay" && (
-        <>
-          {/* 申告であって確定ではない（2026-08-20たきと裁定）＝言葉を間違えない。
-              求人・契約・日次記録・最終回答は pay_incidents.snapshot に凍結済み（一覧では取らない） */}
-          <p className="f-sans" style={{ fontSize: 13, color: "#444", lineHeight: 1.9, margin: "0 0 10px" }}>
-            状態：<b style={{ color: r.status === "checking" ? "#1E88E5" : "#E24B4A" }}>{PAY_STATUS_LABEL[r.status] || r.status}</b><br />
-            これは申告であって、未払いの確定ではありません。契約と日次の記録は申告時点の姿で凍結保存されています。
-            必要に応じて双方へ事実確認をしてください（賃金は労基法24条の中心的義務）。
-          </p>
-          <p className="f-sans" style={{ fontSize: 12, color: "#B0B0B0", margin: "0 0 12px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…</p>
-        </>
-      )}
-      {r.kind === "job" && (
-        <p className="f-sans" style={{ fontSize: 13, color: "#444", lineHeight: 1.9, margin: "0 0 12px" }}>対象：{r.target_field}{r.detail ? `　${r.detail}` : ""}</p>
-      )}
-      {r.kind === "comment" && (
-        <>
-          <p className="f-sans" style={quoteStyle}>{r.body_snapshot}</p>
-          {r.detail && <p className="f-sans" style={{ fontSize: 13, color: "#444", lineHeight: 1.8, margin: "0 0 10px" }}>補足：{r.detail}</p>}
-          <p className="f-sans" style={{ fontSize: 12, color: "#B0B0B0", margin: "0 0 12px" }}>応募ID：{String(r.application_id || "").slice(0, 8)}…　発言者：{String(r.sender_id_snapshot || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
-        </>
-      )}
-      {r.kind === "person" && (
-        <>
-          <p className="f-sans" style={{ fontSize: 13, color: "#444", lineHeight: 1.9, margin: "0 0 10px" }}>面：{r.source === "work_record" ? "はたらいた記録" : "プロフィール"}　対象：{r.target_field}</p>
-          {r.detail && <p className="f-sans" style={quoteStyle}>{r.detail}</p>}
-          <p className="f-sans" style={{ fontSize: 12, color: "#B0B0B0", margin: "0 0 12px" }}>相手：{String(r.target_worker_id || "").slice(0, 8)}…　報告者：{String(r.reporter_id || "").slice(0, 8)}…</p>
-        </>
-      )}
-      {r.kind === "screen" && (
-        <>
-          {r.body && <p className="f-sans" style={quoteStyle}>{r.body}</p>}
-          <p className="f-sans" style={{ fontSize: 12, color: "#B0B0B0", margin: "0 0 12px" }}>ページ：{r.page_hash || "-"}　画面幅：{r.viewport || "-"}px</p>
-        </>
-      )}
-      {/* 対象へ跳ぶ導線は中身に置く（実行の主役だけを下のバーに置く＝Airbnbの並び） */}
-      {(r.kind === "job" || (r.kind === "pay" && r.job_number != null) || r.kind === "person") && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-          {(r.kind === "job" || (r.kind === "pay" && r.job_number != null)) && (
-            <button onClick={() => { window.location.hash = "/admin/review/" + r.job_number; }} className="f-sans" style={linkBtn}>求人を見る</button>
-          )}
-          {r.kind === "person" && (
-            <button onClick={() => openWorkerPreview(r.target_worker_id)} className="f-sans" style={linkBtn}>働き手を見る</button>
-          )}
-        </div>
-      )}
-    </>
-  );
-
-  return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 14px 80px" }}>
-
-      {/* 頭＝Airbnb型（契約記録と同じ）：「← 報告（N）」タップで管理へ・説明は右端の？に集約 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, margin: "0 0 12px" }}>
-        <button onClick={() => { window.location.hash = "/admin"; }} aria-label="管理に戻る" className="f-sans"
-          style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", padding: "6px 4px", textAlign: "left" }}>
-          <span style={{ fontSize: 20, lineHeight: 1, color: "#222" }} aria-hidden="true">←</span>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>報告{items !== null && countOf("all") > 0 ? `（${countOf("all")}）` : ""}</span>
-        </button>
-        <button onClick={() => setHelpOpen(true)} aria-label="このページの説明" className="f-sans"
-          style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid #DDD", background: "#fff", color: "#555", fontSize: 15, fontWeight: 700, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>？</button>
+  return <>
+    <div className="reports-room f-sans" inert={!!route || helpOpen}>
+      <header className="reports-header"><a href="#/admin" className="reports-back" aria-label="管理に戻る">←</a><h1>通報・サポート</h1><button type="button" className="reports-guide-button" onClick={() => setHelpOpen(true)}>対応手順</button></header>
+      <p className="reports-lead">届いた内容を確認し、必要な対応を進めましょう。</p>
+      <div className="reports-overview"><strong>{items === null ? "読み込み中" : failedKinds.length === REPORT_KINDS.length ? "件数を確認できません" : `要対応 ${active.length}件${failedKinds.length ? "（取得分・前回分）" : ""}`}</strong><p>内容を読む <span aria-hidden="true">→</span> 事実を確認 <span aria-hidden="true">→</span> 結果を記録</p></div>
+      {message && <p className="reports-success" role="status">{message}</p>}
+      {failedKinds.length > 0 && <div className="reports-error" role="alert"><strong>{failedKinds.map(reportKindLabel).join("・")}を取得できませんでした。</strong><p>取得できた内容と前回の内容を表示しています。件数は最新でない可能性があります。</p></div>}
+      <div className="reports-tabs" aria-label="対応状況">
+        <button type="button" aria-pressed={view === "open"} onClick={() => setView("open")}>要対応 <span>{active.length}</span></button>
+        <button type="button" aria-pressed={view === "closed"} onClick={() => setView("closed")}>対応履歴 <span>{closed.length}</span></button>
       </div>
-
-      {/* タブ（タップでも移動・スワイプ中は現在面から点灯を導出）＝システムページと同じ視覚文法。
-          ★横スクロール可（2026-08-31たきと報告「文字の重複」）：flex:1で6等分すると
-          「未払い（2）」等の件数つきラベルが枠からあふれて隣と重なる＝タブは中身なりの幅
-          （flexShrink:0）にして、入り切らないぶんは指で送る */}
-      <div className="admin-nav" style={{ display: "flex", borderBottom: "1px solid #EBEBEB", marginBottom: 16, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-        {KINDS.map((g, i) => (
-          <button key={g.k} type="button" onClick={() => goTo(i)} className="f-sans"
-            style={{ flexShrink: 0, padding: "10px 14px", background: "none", border: "none", whiteSpace: "nowrap",
-              borderBottom: pageIdx === i ? "2px solid #222" : "2px solid transparent", marginBottom: -1,
-              fontSize: 13, fontWeight: 700, color: pageIdx === i ? "#222" : "#999", cursor: "pointer" }}>
-            {g.l}{items !== null && countOf(g.k) > 0 ? `（${countOf(g.k)}）` : ""}
-          </button>
-        ))}
+      <div className="reports-filters"><label>種類<select value={kind} onChange={event => setKind(event.target.value)}><option value="all">すべて（{pool.length}）</option>{REPORT_KINDS.map(source => <option key={source.key} value={source.key}>{source.label}（{pool.filter(row => row.kind === source.key).length}）</option>)}</select></label>
+        <button type="button" className="reports-text-button" disabled={loading || busy} onClick={load}>{loading ? "読み込み中…" : "再読み込み"}</button>
       </div>
-
-      {items === null ? (
-        <p className="f-sans" style={{ textAlign: "center", color: "#999", fontSize: 13, padding: "40px 0" }}>読み込み中<Dots /></p>
-      ) : (
-        <div ref={scrollRef} onScroll={onScroll}
-          style={{ display: "flex", alignItems: "flex-start", overflowX: "auto", WebkitOverflowScrolling: "touch",
-            scrollSnapType: "x mandatory", overscrollBehaviorX: "contain", touchAction: "pan-x pan-y" }}>
-          {KINDS.map(g => {
-            const list = items.filter(r => g.k === "all" || r.kind === g.k);
-            return (
-              <div key={g.k} style={paneStyle}>
-                {list.length === 0 ? (
-                  <p className="f-sans" style={{ textAlign: "center", color: "#999", fontSize: 13, padding: "40px 0" }}>
-                    {g.k === "all" ? "未対応の報告はありません" : `「${g.l}」の未対応の報告はありません`}
-                  </p>
-                ) : (
-                  /* 列は minmax(0,1fr)：既定のauto列だと、行の抜粋（nowrapの1行）のmin-contentまで列が膨らみ、
-                     カードが画面から右へあふれる（2026-08-16の規約＝grid/flexの中の幅は0まで縮められる形にする） */
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 10 }}>{list.map(renderRow)}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ？ボタンの説明シート（頭から集約した文言・全画面被せは cb-box-overlay cb-lock-scroll 併用の標準形） */}
-      {helpOpen && createPortal(
-        <div onClick={() => setHelpOpen(false)} className="cb-box-overlay cb-lock-scroll" style={{ zIndex: 9600 }}>
-          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background: "#fff", borderRadius: 16, padding: "22px 20px", maxWidth: 420, width: "100%", position: "relative" }}>
-            <p className="f-sans" style={{ fontSize: 16, fontWeight: 800, color: "#222", margin: "0 0 10px" }}>報告ページとは</p>
-            <p className="f-sans" style={{ fontSize: 13, color: "#444", lineHeight: 1.9, margin: "0 0 8px" }}>
-              利用者からの報告（未払いの申告・求人・チャットのコメント・人・画面）を1か所に集約しています。
-              行をタップすると中身と対応のボタンが開きます。
-            </p>
-            <p className="f-sans" style={{ fontSize: 13, color: "#444", lineHeight: 1.9, margin: 0 }}>
-              対応済み・解決済みにしたものは一覧から消えますが、記録はデータベースに残ります。
-            </p>
-            <button onClick={() => setHelpOpen(false)} className="f-sans" style={{ width: "100%", marginTop: 16, padding: "13px", fontSize: 14, fontWeight: 700, background: "#222", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer" }}>閉じる</button>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* 行タップ＝白い全画面テイクオーバー（契約スナップショット詳細と同じ器）：
-          左上←で一覧へ・事実の全文は縦スクロール・実行ボタンは下部の固定バー */}
-      {detail && createPortal(
-        <div className="cb-lock-scroll" style={{ position: "fixed", inset: 0, zIndex: 9600, background: "#fff", display: "flex", flexDirection: "column" }}>
-          <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "calc(10px + env(safe-area-inset-top, 0px)) 16px 8px" }}>
-            <button onClick={() => setDetail(null)} aria-label="報告の一覧に戻る" className="f-sans"
-              style={{ width: 36, height: 36, borderRadius: "50%", border: "1px solid #EBEBEB", background: "#fff", color: "#222", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, padding: 0, flexShrink: 0 }}>←</button>
-            <p className="f-sans" style={{ fontSize: 15, fontWeight: 800, color: "#222", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{kindLabel(detail.kind)}の報告</p>
-          </div>
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", padding: "6px 20px 24px" }}>
-            <div style={{ maxWidth: 560, margin: "0 auto" }}>{renderDetailBody(detail)}</div>
-          </div>
-          <div style={{ flexShrink: 0, borderTop: "1px solid #EBEBEB", padding: "12px 20px calc(14px + env(safe-area-inset-bottom, 0px))", background: "#fff" }}>
-            <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
-              {detail.kind === "pay" ? (
-                <>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {detail.status === "reported" && (
-                      <button onClick={() => setPayStatus(detail, "checking")} disabled={busy === detail.id} className="f-sans" style={{ ...barSecondary, color: "#1E88E5", borderColor: "#1E88E5", opacity: busy === detail.id ? 0.6 : 1 }}>事実確認を始めた</button>
-                    )}
-                    <button onClick={() => { if (confirm("未解決のまま閉じます（記録は残ります）。よろしいですか？")) setPayStatus(detail, "unresolved"); }} disabled={busy === detail.id} className="f-sans" style={{ ...barSecondary, opacity: busy === detail.id ? 0.6 : 1 }}>未解決で閉じる</button>
-                  </div>
-                  <button onClick={() => setPayStatus(detail, "resolved")} disabled={busy === detail.id} className="f-sans" style={{ ...barPrimary, opacity: busy === detail.id ? 0.6 : 1 }}>解決にする</button>
-                </>
-              ) : (
-                <button onClick={() => resolve(detail)} disabled={busy === detail.id} className="f-sans" style={{ ...barPrimary, opacity: busy === detail.id ? 0.6 : 1 }}>対応済みにする</button>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <p className="reports-list-caption">{view === "closed" ? "対応を終えた案件" : "確認・対応が必要な案件"} · 受付が新しい順</p>
+      {items === null ? <p role="status" className="reports-empty">通報を読み込み中<Dots /></p>
+        : visible.length ? <div className="reports-list">{visible.map(renderRow)}</div>
+          : <div className="reports-empty"><h2>{failedKinds.length ? "表示できる案件がありません" : view === "closed" ? "対応履歴はありません" : kind === "all" ? "要対応の案件はありません" : "この種類の要対応はありません"}</h2><p>{failedKinds.length ? "通信状況を確認して、再読み込みしてください。" : view === "closed" ? "対応を終えた案件はここで確認できます。" : "新しい通報・報告が届くと、ここに表示されます。"}</p></div>}
+      {samples.length > 0 && <details className="reports-samples"><summary>表示サンプル（{samples.length}件）</summary><p>「【デモ】」の記載がある報告です。要対応件数には含めていません。</p><div className="reports-list">{samples.map(renderRow)}</div></details>}
     </div>
-  );
+    {route && <ReportDialog title="案件の確認" onClose={closeDetail} covered={helpOpen} footer={<button type="button" className="reports-secondary" onClick={closeDetail}>一覧に戻る</button>}>
+      {detail ? <ReportDetail key={route} row={detail} fresh={freshKinds.includes(detail.kind)} busy={busy} updateError={updateError} onUpdate={update} onGuide={() => setHelpOpen(true)} />
+        : loading ? <p role="status">案件を読み込み中<Dots /></p> : <div className="reports-empty"><h1>この案件を表示できません</h1><p>通信状況や閲覧権限をご確認ください。</p><button type="button" className="reports-secondary" onClick={load}>再読み込み</button></div>}
+    </ReportDialog>}
+    {helpOpen && <ReportDialog title="通報対応の手順書" onClose={() => setHelpOpen(false)} footer={<button type="button" className="reports-primary" onClick={() => setHelpOpen(false)}>確認した画面に戻る</button>}>
+      <p className="reports-lead">迷ったら、この順番で進めてください。</p>
+      <ol className="reports-steps">
+        <li><h3>「要対応」から案件を開く</h3><p>種類・対象・受付日を確認します。「未対応」はこれから確認する案件、「事実確認中」は未払いについて確認を進めている案件です。</p></li>
+        <li><h3>内容と記録を確認する</h3><p>案件内の「次にすること」と種類別の手順に沿って進めます。通報は利用者からの申告です。必要に応じて双方に事実を確認します。</p></li>
+        <li><h3>対応を終えてから結果を保存する</h3><p>「対応を完了する」または「確認結果を記録する」を選び、内容を確認して保存します。確認を続ける場合は、完了せず一覧へ戻ります。</p></li>
+      </ol>
+      <section className="reports-section"><h2>種類別の対応手順</h2>{REPORT_KINDS.map(source => <details key={source.key} className="reports-disclosure"><summary>{source.label}</summary><ReportSteps kind={source.key} /></details>)}</section>
+      <section className="reports-section"><h2>完了した案件はどこへ？</h2><p>「対応履歴」に移ります。内容と結果は後から確認できます。未払いの「未解決で終了」は「解決済み」と区別して表示します。</p></section>
+      <section className="reports-section"><h2>表示サンプル・通信エラー</h2><p>「【デモ】」の記載がある報告は、一覧の下にまとめています。通信エラーが表示された場合は、件数が最新か確認できません。「再読み込み」を押してください。</p></section>
+    </ReportDialog>}
+  </>;
 }
