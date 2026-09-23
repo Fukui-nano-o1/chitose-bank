@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 import { Dots } from "../ui";
 import { openWorkerPreview } from "../../lib/previewBus";
 import { getCache, setCache } from "../../lib/viewCache";
+import { useVisualViewportFit } from "../../lib/visualViewportFit";
 import { DAY_FACT_LABELS, dateRangeLabel, payTermsLine } from "../../lib/utils";
 import {
   REPORT_KINDS, REPORT_CACHE, REPORT_STEPS, isDemoReport, isClosedReport,
@@ -21,10 +22,11 @@ function Status({ row }) {
 function ReportDialog({ title, onClose, children, footer, covered = false }) {
   const ref = useRef(null);
   const titleId = useId();
+  useVisualViewportFit(ref, true);
   useEffect(() => {
     const previous = document.activeElement;
-    ref.current?.querySelector("button")?.focus();
-    return () => { if (previous?.isConnected) previous.focus(); };
+    ref.current?.querySelector("button")?.focus({ preventScroll: true });
+    return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }); };
   }, []);
   const onKeyDown = event => {
     if (event.key === "Escape") { event.stopPropagation(); onClose(); }

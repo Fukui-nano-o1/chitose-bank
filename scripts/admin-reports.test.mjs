@@ -52,8 +52,10 @@ test('report inbox, per-case instructions, evidence, contacts, outcomes and reco
   try {
     await build({ configFile: false, root, logLevel: 'error', define: { 'process.env.NODE_ENV': '"production"' }, plugins: [{ name: 'reports-fixture', enforce: 'pre', resolveId(module) {
       if (/(?:^|\/)supabase(?:\.js)?$/.test(module)) return path.join(root, 'scripts/fixtures/reports/client.js');
-    } }, react()], build: { outDir: output, lib: { entry: path.join(root, 'scripts/fixtures/reports/entry.jsx'), name: 'ReportsQA', formats: ['iife'], fileName: 'fixture' }, minify: false } });
+      if (process.env.CB_REPORTS_GLOBAL_CSS_SOURCE && /(?:^|\/)appStyles(?:\.js)?$/.test(module)) return process.env.CB_REPORTS_GLOBAL_CSS_SOURCE;
+    } }, react()], build: { outDir: output, lib: { entry: path.join(root, 'scripts/fixtures/reports/entry.jsx'), name: 'ReportsQA', formats: ['iife'], fileName: 'fixture', cssFileName: 'fixture' }, minify: false } });
     const script = await readFile(path.join(output, 'fixture.iife.js'), 'utf8');
+    const css = await readFile(path.join(output, 'fixture.css'), 'utf8');
     function mount(tables = fixtures(), { hash = '#/admin/reports', cached = [], failed = [] } = {}) {
       dom?.window.close();
       const console = new VirtualConsole();
@@ -68,6 +70,17 @@ test('report inbox, per-case instructions, evidence, contacts, outcomes and reco
       w.fetch = () => { errors.push('Unexpected network'); return Promise.reject(new Error('Unexpected network')); };
       w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
       w.scrollTo = () => {};
+      // Model the visual viewport separately from the layout viewport (iOS zoom/pan).
+      w.visualViewport = Object.assign(new w.EventTarget(), { scale: 1, width: 390, height: 844, offsetLeft: 0, offsetTop: 0 });
+      const nativeFocus = w.HTMLElement.prototype.focus;
+      w.qaFocusCalls = [];
+      w.HTMLElement.prototype.focus = function (options) {
+        w.qaFocusCalls.push({ element: this, preventScroll: options?.preventScroll });
+        nativeFocus.call(this, options);
+      };
+      const componentStyles = w.document.createElement('style');
+      componentStyles.textContent = css;
+      w.document.head.append(componentStyles);
       w.eval(script); return w;
     }
     async function ready(w) {
@@ -127,11 +140,45 @@ test('report inbox, per-case instructions, evidence, contacts, outcomes and reco
     assert.equal(preview.workerId, sender); assert.equal(preview.page, 1);
     await back(w);
     w.document.querySelector('.reports-samples').open = true;
+    const sampleLink = w.document.querySelector(`a[href="#/admin/reports/screen/${id(5)}"]`);
+    sampleLink.focus({ preventScroll: true });
+    Object.assign(w.visualViewport, { scale: 1.3, width: 300, height: 600, offsetLeft: 28, offsetTop: 60 });
     await open(w, 'screen', 5);
     assert.match(dialog(w).textContent, /表示サンプル/);
     assert.equal(dialog(w).querySelector('.reports-complete'), null);
     assert.equal(dialog(w).querySelector('a[href^="#/chat/"]'), null);
-    await back(w);
+    await until(() => dialog(w).style.height === '600px', 'sample panel fits the visible, zoomed viewport');
+    assert.equal(dialog(w).style.width, '300px');
+    assert.equal(dialog(w).style.transform, 'translate(28px, 60px)');
+    const header = dialog(w).querySelector('.reports-modal-header');
+    // Inspect the actual production stylesheets, including mobile media rules.
+    // Any matching !important padding rule would erase the safe area again.
+    const rules = [];
+    function visit(cssRules) { for (const rule of cssRules) { if (rule.selectorText) rules.push(rule); if (rule.cssRules) visit(rule.cssRules); } }
+    for (const sheet of w.document.styleSheets) visit(sheet.cssRules);
+    assert.ok(rules.some(rule => rule.selectorText.includes('header:where')), 'shared mobile CSS is present in the harness');
+    const overrides = rules.filter(rule => rule.style.getPropertyPriority('padding') === 'important' && header.matches(rule.selectorText));
+    assert.deepEqual(overrides.map(rule => rule.selectorText), [], 'global mobile header padding must not override the report safe area');
+    const headerRule = rules.find(rule => rule.selectorText === '.reports-modal-header');
+    assert.match(headerRule.style.getPropertyValue('padding'), /safe-area-inset-top/);
+    assert.match(headerRule.style.getPropertyValue('padding'), /safe-area-inset-left/);
+    assert.ok(w.qaFocusCalls.some(call => call.element === header.querySelector('button') && call.preventScroll === true), 'opening does not pan the page toward focus');
+    button(w, '手順書', dialog(w)).click();
+    await until(() => w.document.querySelectorAll('[role="dialog"]').length === 2, 'sample handbook opens');
+    assert.equal(dialog(w).style.height, '600px', 'handbook uses the same viewport fit');
+    Object.assign(w.visualViewport, { width: 290, height: 380, offsetLeft: 18, offsetTop: 24 });
+    w.visualViewport.dispatchEvent(new w.Event('resize'));
+    await until(() => [...w.document.querySelectorAll('[role="dialog"]')].every(element => element.style.height === '380px'), 'both panels follow viewport resize');
+    button(w, '確認した画面に戻る', dialog(w)).click();
+    await until(() => w.document.querySelectorAll('[role="dialog"]').length === 1, 'handbook returns to sample');
+    Object.assign(w.visualViewport, { scale: 1, width: 390, height: 844, offsetLeft: 0, offsetTop: 0 });
+    w.visualViewport.dispatchEvent(new w.Event('scroll'));
+    await until(() => dialog(w).style.height === '', 'normal viewport uses the dynamic CSS height');
+    header.querySelector('button').click();
+    await until(() => !dialog(w), 'top back button returns from sample');
+    assert.equal(w.document.querySelector('.reports-samples').open, true, 'sample list stays expanded on return');
+    assert.equal(w.document.activeElement, sampleLink, 'focus returns to the sample without scrolling');
+    assert.equal(w.qaFocusCalls.at(-1).preventScroll, true);
 
     await open(w, 'pay', 6);
     await until(() => dialog(w).textContent.includes('確認用農家'), 'selected payment snapshot');
