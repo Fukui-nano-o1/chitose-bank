@@ -46,6 +46,8 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     const openMigration = await readFile(new URL('../supabase/migrations/20260911010000_update_my_open_job.sql', import.meta.url), 'utf8');
     await db.exec(openMigration.slice(openMigration.indexOf('create or replace function public.update_my_open_job')));
     await db.exec(await readFile(new URL('../supabase/migrations/20260919114602_resumable_job_drafts.sql', import.meta.url), 'utf8'));
+    // 2026-09-23 conflict に現在の行を添える（本番と同じ順で上書き適用）
+    await db.exec(await readFile(new URL('../supabase/migrations/20260923070439_sync_conflict_returns_row.sql', import.meta.url), 'utf8'));
     const login = async uid => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]); await db.exec('set role authenticated'); };
     const call = async (name, expected, patch, id = jobId) => (await db.query(`select public.${name}($1,$2,$3,$4) as result`,[owner,id,expected,patch])).rows[0].result;
     const consent = async v => (await db.query('select public.save_my_privacy_consent($1,$2) as result',[owner,v])).rows[0].result;
@@ -60,7 +62,15 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     assert.equal((await db.query('select count(*)::int as n from public.jobs')).rows[0].n,1);
     const updated = await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'second'});
     assert.equal(updated.ok,true);
-    assert.equal((await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'stale overwrite'})).reason,'conflict');
+    const stale = await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'stale overwrite'});
+    assert.equal(stale.reason,'conflict');
+    assert.equal(stale.row.notes,'second'); // 衝突には本人の現在の行を添える＝端末が比較元を取り直せる
+    assert.equal(stale.row.farmer_id,owner);
+    const third = await call('sync_my_job_draft',jobDraftBase(updated.row),{notes:'third'});
+    assert.equal(third.ok,true); // 取り直した比較元なら通る
+    assert.equal((await call('sync_my_job_draft',jobDraftBase(third.row),{notes:'second'})).ok,true); // 同じ内容へ戻す（以降の検証の前提）
+    const missing = await call('sync_my_job_draft',jobDraftBase(updated.row),{notes:'deleted elsewhere'},'00000000-0000-4000-8000-000000000098');
+    assert.equal(missing.reason,'conflict'); assert.equal(missing.row,null); // 行が無い衝突は row:null＝新規に戻せる
     assert.equal((await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'second'})).ok,true);
     assert.equal((await call('sync_my_job_draft',jobDraftBase(updated.row),{status:'open'})).reason,'bad_field');
     await login(other);
@@ -74,7 +84,10 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     const openRow = {...updated.row,status:'open'};
     const changed = await call('sync_my_open_job',jobDraftBase(openRow),{notes:'open edit'});
     assert.equal(changed.ok,true);
-    assert.equal((await call('sync_my_open_job',jobDraftBase(openRow),{notes:'stale open'})).reason,'conflict');
+    const staleOpen = await call('sync_my_open_job',jobDraftBase(openRow),{notes:'stale open'});
+    assert.equal(staleOpen.reason,'conflict'); assert.equal(staleOpen.row.status,'open'); assert.equal(staleOpen.row.notes,'open edit');
+    const notOpen = await call('sync_my_job_draft',jobDraftBase(changed.row),{notes:'draft path on open job'});
+    assert.equal(notOpen.reason,'conflict'); assert.equal(notOpen.row.status,'open'); // 掲載済みの行＝端末はそのまま掲載完了へ進める
     await db.exec(`reset role; insert into public.applications values(${changed.row.job_number},'applied')`);
     await login(owner);
     assert.equal((await call('sync_my_open_job',jobDraftBase(changed.row),{notes:'cannot edit with applicant'})).reason,'has_applications');

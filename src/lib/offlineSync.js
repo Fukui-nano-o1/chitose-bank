@@ -74,7 +74,11 @@ async function run(client, owner, version) {
     } else if (result.data?.reason === "not_logged_in") {
       return finish({ authRequired: true });
     } else {
-      settleDeviceDraft(owner, record.id, pending.token, { ok: false, reason: result.data?.reason || "not_confirmed" });
+      // conflict にDBが現在の行（本人の行だけ・無ければ null）を添えて返す（20260923070439）＝
+      // 端末側が比較元を取り直し、次の明示の操作で送り直せる。row の無い古い応答は従来どおり
+      const failure = { ok: false, reason: result.data?.reason || "not_confirmed" };
+      if (failure.reason === "conflict" && result.data && Object.hasOwn(result.data, "row")) failure.row = result.data.row;
+      settleDeviceDraft(owner, record.id, pending.token, failure);
     }
   }
   return finish({ retry: listDeviceDrafts(owner).some(d => d.pending && d.state === "pending") });

@@ -19,8 +19,8 @@ export function DeviceDrafts({ owner }) {
     {visible.map(d => <article key={d.id} style={{ border:"1px solid #ddd", borderRadius:12, padding:16, margin:"12px 0" }}>
       <strong>{[d.payload.crop, d.payload.task].filter(Boolean).join("・") || "作成中の求人"}{d.jobNumber ? ` #${d.jobNumber}` : ""}</strong>
       <p role="status" style={{ fontSize:13, lineHeight:1.8 }}>
-        {d.state === "conflict" ? "別の更新があるため、自動反映を止めました。入力はこの端末に残っています。コピーして新しい求人を作れます。"
-          : d.state === "blocked" ? "サーバーに反映できませんでした。入力はこの端末に残っています。内容を確認して、必要ならコピーして新しく作成してください。"
+        {d.state === "conflict" ? "別の場所でこの求人が更新されたため、自動では送りませんでした。入力はこの端末に残っています。「続きを入力」から保存すると、いまの内容で保存し直します。コピーして新しい求人にすることもできます。"
+          : d.state === "blocked" ? "サーバーに保存できませんでした。入力はこの端末に残っています。「続きを入力」からもう一度保存できます。必要ならコピーして新しく作成してください。"
           : d.state === "pending" ? `この端末に保存済み・同期待ち。${d.pending?.open ? "公開中の求人にはまだ反映されていません。" : "まだ掲載されていません。"}通信が戻るか、次にこの画面を開いたときに送信します。`
           : "この端末に保存済み。続きを入力できます。"}
       </p>

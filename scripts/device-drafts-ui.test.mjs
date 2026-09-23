@@ -31,7 +31,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       },
     },react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/offline/entry.jsx'),name:'OfflineQA',formats:['iife'],fileName:'fixture'},minify:false}});
     const script = await readFile(path.join(output,'fixture.iife.js'),'utf8');
-    async function mount({url='https://ui.test/?case=new#/work/new/8',storage={},offline=true,job=null}={}) {
+    async function mount({url='https://ui.test/?case=new#/work/new/8',storage={},session={},offline=true,job=null}={}) {
       dom?.window.close();
       const console = new VirtualConsole();
       console.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message)) errors.push(e.message);});
@@ -44,6 +44,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       w.fetch=()=>Promise.reject(new Error('Unexpected network'));
       w.alert=message=>errors.push(message);w.confirm=()=>true;
       for(const [k,v] of Object.entries(storage)) w.localStorage.setItem(k,v);
+      for(const [k,v] of Object.entries(session)) w.sessionStorage.setItem(k,v);
       w.eval(script); await until(() => w.document.querySelector('textarea[aria-label="作業の説明"], input[aria-label="日給"]') || [...w.document.querySelectorAll('button')].some(b => ['同意して続ける','掲載する'].includes(b.textContent.trim())), 'initial screen');
       return w;
     }
@@ -111,6 +112,33 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaJob.status,'open');
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
+    // ── 2026-09-23 根治の回帰：カレンダーの「この日にコピー」→ 掲載。離した日は画面にだけ入り、
+    //    端末の比較元(base)はDBの行のまま＝同期が conflict で詰まらない（DRAFT_REQUIRES_REVIEW が出ない）
+    const publish = async () => {
+      await until(() => !button(w,'掲載する').disabled, 'publish ready');
+      button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
+      w.document.querySelector('input[type="checkbox"]').click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
+      button(w,'同意して掲載する').click();await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
+    };
+    const copied={...w.qaJob,status:'draft',draft_step:11,date_start:null,date_end:null,date_label:null,holidays:[]};
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:copied,
+      session:{cb_editJobPrefill:JSON.stringify(copied),cb_editJobPresetDates:JSON.stringify({job_number:42,date_start:'2026-12-01',date_end:null,holidays:[]})}});
+    await until(() => /12\/1/.test(w.document.body.textContent), 'preset date shown from the calendar copy');
+    await publish();
+    assert.equal(w.qaJob.status,'open');
+    assert.equal(w.qaJob.date_start,'2026-12-01'); // 離した日は保存で入る
+    assert.equal(w.qaSyncExpected.date_start,null); // 比較元はDBの行のまま（ここが旧バグ）
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
+    // ── 衝突が一度返っても、比較元を取り直して いまの内容 で送り直し、掲載が完了する（利用者に生の符号を見せない）
+    w=await mount({url:'https://ui.test/?case=new#/work/new/11',offline:false});
+    w.qaConflictOnce=true;
+    await publish();
+    assert.equal(w.qaJob.status,'open');
+    assert.equal(w.qaJob.notes,'最初の入力'); // 画面の内容が勝つ（別タブの保存 で上書きされない）
+    assert.equal(w.qaSyncExpected.notes,'別のタブの保存'); // 取り直した比較元で送っている
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,2);
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
+    assert.ok(!/DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
     assert.deepEqual(errors,[]);
   } catch (error) {
     console.error(`Browser errors: ${JSON.stringify(errors)}\nScreen: ${dom?.window.document.body.textContent}\nRequests: ${JSON.stringify(dom?.window.qaCalls?.map(r=>r.path))}`);

@@ -2,7 +2,7 @@
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { useState, useEffect, useRef } from "react";
-import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
+import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
@@ -672,7 +672,21 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       if (raw) {
         sessionStorage.removeItem("cb_editJobPrefill");
         const row = JSON.parse(raw);
-        if (row && row.job_number === _editJobNumber && (!ownerId || row.farmer_id === ownerId)) { applyJobRow(row); prefillApplied = true; }
+        if (row && row.job_number === _editJobNumber && (!ownerId || row.farmer_id === ownerId)) {
+          applyJobRow(row); prefillApplied = true;
+          // カレンダーの「この日にコピー」の日＝【画面の入力にだけ】入れる（2026-09-23）。
+          // 行(row)に重ねると端末が覚える比較元(base)がDBの行と食い違い、掲載時の同期が conflict で詰まる。
+          // DBの下書きは日程なしのまま＝この日は「掲載する」「保存」で入る
+          try {
+            const p = JSON.parse(sessionStorage.getItem("cb_editJobPresetDates") || "null");
+            sessionStorage.removeItem("cb_editJobPresetDates");
+            if (p && p.job_number === _editJobNumber) {
+              setJobDateStart(p.date_start ? new Date(p.date_start) : null);
+              setJobDateEnd(p.date_end ? new Date(p.date_end) : null);
+              if (Array.isArray(p.holidays)) setJobHolidays(p.holidays);
+            }
+          } catch {}
+        }
       }
     } catch {}
     (async () => {
@@ -873,8 +887,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         else window.location.hash = "/profile/employer/drafts";
       } else setDraftMsg("この端末に保存済み・同期待ち。通信が戻ると自動で送信します。");
     } catch {
+      // queueDeviceDraft が投げるのは端末に書けない時だけ（conflict/blocked は例外にしない・2026-09-23）
       setDraftSaving(false);
-      setDraftMsg("入力はこの端末に残っています。別の更新や保存条件を確認するため、作成中の一覧から下書きをご確認ください。");
+      setDraftMsg("この端末に保存できません。画面を閉じずに、ブラウザーの空き容量をご確認ください。");
     }
   };
 
@@ -1654,9 +1669,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 return;
               }
               setJobSaving(true);
+              let sessionUser = null; // catch 節でも参照する（try の中の const は catch から見えない）
               try {
                 const { data: { session } } = await getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
+                sessionUser = session.user;
                 // 募集者情報が揃っていなければ、その場でボックスを開いて入力してもらう（法令の明示事項）。
                 // 未入力の欄は新規登録①の内容を初期値に入れる
                 {
@@ -1689,18 +1706,46 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 const payload = buildJobPayload(session.user.id, "draft", await geocodeTown(farmerPref, farmerCity, farmerTown));
                 const local = saveDraft(payload);
                 if (!local) return;
-                queueDeviceDraft(ownerId, local.id);
                 // 応答不明の古い保存があれば先に照合し、その後に今の内容を送る。
-                for (let attempt = 0; attempt < 3; attempt++) {
-                  const beforeToken = readDeviceDraft(ownerId, local.id)?.pending?.token;
-                  await syncJobDeviceDrafts(ownerId);
-                  const latest = readDeviceDraft(ownerId, local.id);
-                  if (!latest?.pending || latest.state !== "pending" || latest.pending.token === beforeToken) break;
+                const syncNow = async () => {
+                  for (let attempt = 0; attempt < 3; attempt++) {
+                    const beforeToken = readDeviceDraft(ownerId, local.id)?.pending?.token;
+                    await syncJobDeviceDrafts(ownerId);
+                    const latest = readDeviceDraft(ownerId, local.id);
+                    if (!latest?.pending || latest.state !== "pending" || latest.pending.token === beforeToken) break;
+                  }
+                  return readDeviceDraft(ownerId, local.id);
+                };
+                queueDeviceDraft(ownerId, local.id);
+                let saved = await syncNow();
+                // 衝突（conflict）＝DBの行が端末の比較元と違う（コピー直後の受け渡しの食い違い・別タブの保存など）。
+                // 掲載は利用者の明示の操作なので、比較元をDBの行に取り直して【いま画面にある内容】を1回だけ送り直す。
+                // 二度と「別の更新がある」で詰まらせない（2026-09-23・DRAFT_REQUIRES_REVIEW の根治）
+                if (saved?.state === "conflict") {
+                  if (!saved.rebased && saved.jobNumber) {
+                    // DBが行を添えて返さなかった（古い応答）時だけ、自分で取り直す
+                    const { data: row, error: rowErr } = await fetchJobByNumber(saved.jobNumber);
+                    if (!rowErr) rebaseDeviceDraft(ownerId, local.id, row && row.farmer_id === ownerId ? row : null);
+                  }
+                  const st = readDeviceDraft(ownerId, local.id)?.base?.status;
+                  if (st && st !== "draft" && st !== "pending" && st !== "open") {
+                    // DBの求人がもう下書きではない（掲載を終えた等）＝この求人には保存できない
+                    setPublishModal(false);
+                    setDraftMsg("この求人は掲載を終えています。内容を変えるには、コピーして新しい求人として出してください。入力はこの端末に残っています。");
+                    return;
+                  }
+                  queueDeviceDraft(ownerId, local.id);
+                  saved = await syncNow();
                 }
-                const saved = readDeviceDraft(ownerId, local.id);
                 if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
                   setPublishModal(false);
-                  setDraftMsg("入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます。");
+                  const reason = saved?.reason || "";
+                  setDraftMsg(
+                    saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
+                    : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
+                    : saved?.state === "blocked" ? "保存できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。" + (isAdmin(session.user) ? `（管理者向け：${reason}）` : "")
+                    : saved?.state === "conflict" ? "別の場所でこの求人が更新されています。入力はこの端末に残っています。もう一度「掲載する」を押すと、いま画面にある内容で保存し直します。"
+                    : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます。");
                   return;
                 }
                 deviceDraftRef.current = saved;
@@ -1767,7 +1812,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
                 else { setPublishedOpen(publishedNow); setStep(12); }
               } catch (e) {
-                alert("【管理者デバッグ】catch: " + (e?.message || e));
+                // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
+                setPublishModal(false);
+                setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
+                  + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
               } finally {
                 setJobSaving(false);
               }

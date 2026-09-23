@@ -56,8 +56,13 @@ export async function copyJobToEdit(jobNumber, opts = {}) {
     }
     try {
       if (data.job) {
-        const job = opts.presetDates ? { ...data.job, ...opts.presetDates } : data.job;
-        sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(job));
+        // ★受け渡す行は copy_job が返したDBの行【そのもの】（2026-09-23）。ここに離した日を重ねると、
+        //   編集フローが「DBにある行」として覚える比較元(base)がDBと食い違い、掲載時の同期が
+        //   conflict になって詰まっていた（DRAFT_REQUIRES_REVIEW）。日は別の鍵で渡し、
+        //   編集フローが画面の入力（フォーム）にだけ入れる＝DBの下書きは日程なしのまま・保存で入る
+        sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job));
+        if (opts.presetDates) sessionStorage.setItem("cb_editJobPresetDates", JSON.stringify({ job_number: data.job_number, ...opts.presetDates }));
+        else sessionStorage.removeItem("cb_editJobPresetDates");
       }
     } catch {}
     if (data.dates_cleared && !opts.quietDates) {

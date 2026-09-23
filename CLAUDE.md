@@ -11102,3 +11102,34 @@ Vercel のランタイムログ（403）／サイトの実際の見え方。
 5. 復旧後の点検：supabase/checks/audit.sql／cron の実行履歴（cron.job_run_details）に9/20以降の失敗が並ぶはず＝
    cron_watchdog のメール洪水に驚かない／pending の通知・メールが一気に流れる可能性（send_* 関数）を先に確認
 ━━━ ここまで ━━━
+
+━━━ 2026-09-23 「掲載する」が DRAFT_REQUIRES_REVIEW で詰まる件の根治（たきと一任）━━━
+【症状】カレンダーの「この日にコピー」→「掲載する」で、1回目は「通信の復旧…後に掲載できます」（誤診）、
+2回目は管理者だけに「【管理者デバッグ】catch: DRAFT_REQUIRES_REVIEW」（一般には無反応）。#1310 で再現。
+【原因（本番ログとコードで裏取り）】2026-09-19 の端末保存→同期の仕組み（38720b8）の2つの穴：
+① copyJobFlow が copy_job の返した行に【離した日を重ねて】渡し、編集フローがそれを「DBにある行」（比較元 base）として
+  覚えた。DBの下書きは日程なし＝掲載時の sync_my_job_draft が p_expected≠現在の行 で conflict。
+② conflict になった端末の記録は解除されず（saveDeviceDraft は blocked しか戻さない）、次の queueDeviceDraft が
+  例外を投げる設計＝正規の操作を繰り返すほど詰まる。
+【修理＝3段の壁（フロント＋DB＋テスト）】
+・コピーの受け渡し：行はDBのまま（cb_editJobPrefill）・離した日は別の鍵（cb_editJobPresetDates）で画面の入力にだけ入れる
+・DB（migration 20260923070439_sync_conflict_returns_row・本番適用済み・repo同名）：sync_my_job_draft／sync_my_open_job の
+  conflict に【本人の現在の行】（無ければ null）を添える。★下書きでない自分の行（open/closed）は RLS「owner update draft」の
+  対象外で for update に見えない（旧版は not found→同じUUIDの再INSERTで主キー違反になり得た）ので、先に素の select で状態を見る
+・端末保存（lib/deviceDrafts）：settle の conflict で比較元を取り直す（rebased）／失敗した送信内容(pending/next)は捨てる
+  （自動再送しない）／queueDeviceDraft は conflict/blocked でも例外にしない（利用者の明示の操作＝いまの内容で送り直す）／
+  新しい入力があれば conflict も local に戻す／rebaseDeviceDraft（DBが行を添えない古い応答の保険）
+・掲載の流れ（LandingFlow）：conflict なら比較元を取り直して1回だけ送り直す（画面の内容が勝つ）。open なら
+  publish_my_job が already:true で完了へ。closed 等は「掲載を終えています。コピーして…」。
+  止まる時の文言を状態ごとに正確に（同意が必要／応募がある／保存できなかった／通信待ち）。catch は生の英文を出さず
+  日本語（管理者にだけ末尾に詳細）。「保存」の catch も端末容量の文言に。DeviceDrafts の案内文も「続きを入力→保存で直る」に
+【検証】scripts/device-drafts*.test（単体・PGlite実DB・jsdom画面）に回帰を追加＝コピー日付つきの掲載で比較元が
+DBの行のまま（旧コードなら落ちる）／衝突が一度返っても比較元を取り直して掲載完了・生の符号が画面に出ない／
+DBは conflict に行を添える・行なし=null・open の行も返す。build（80テスト・lint 0 error・警告19＝同数）。
+本番でも本人JWTで実弾（ロールバック）：#1310 の古い比較元→conflict＋行／存在しないid→row:null。
+【たきとの #1310】端末の記録は conflict のまま残っているが、新しいコードでは「掲載する」1回で比較元を取り直して
+そのまま掲載できる（rebased が無い古い記録は fetchJobByNumber で取り直す道を通る）。
+【教訓】「DBにある行」として覚える値に、画面の都合の値を混ぜない（比較元は常にサーバーの返り値そのもの）。
+失敗の状態を利用者の操作で解除できない設計（例外で止める）は、正規の操作を繰り返すほど詰まる＝失敗は必ず出口を持つ。
+【push先】CLAUDE.md の main 直運用に従い main へ push
+━━━ ここまで ━━━

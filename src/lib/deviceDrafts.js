@@ -43,14 +43,19 @@ export function saveDeviceDraft(record, form, payload) {
   if (current && JSON.stringify(current.form) === JSON.stringify(form) && JSON.stringify(current.payload) === JSON.stringify(payload)) return current;
   const next = { ...(current || record), form: copy(form), payload: copy(payload),
     revision: crypto.randomUUID(), savedAt: Date.now() };
-  if (next.state === "blocked") { next.state = "local"; next.pending = null; delete next.next; delete next.reason; }
+  // 失敗（blocked/conflict）は終端ではない＝新しい入力があれば「未送信の入力」に戻す。
+  // conflict は settle の時点で比較元(base)をDBの行に取り直してあるので、次の明示の操作（掲載する／保存）で
+  // いまの内容を送り直せる（2026-09-23・DRAFT_REQUIRES_REVIEW で詰まる型の根治）
+  if (next.state === "blocked" || next.state === "conflict") { next.state = "local"; next.pending = null; delete next.next; delete next.reason; delete next.rebased; }
   if (!next.pending && next.state === "synced") next.state = "local";
   return write(key(next.owner, next.id), next);
 }
+// 送信を予約する。conflict/blocked の記録でも例外にしない（利用者の明示の操作＝いまの内容で送り直す）。
+// ★失敗した古い送信内容（pending/next）は捨てる＝同じ比較元でもう一度ぶつけて同じ失敗を繰り返さない
 export function queueDeviceDraft(owner, id) {
   const record = readDeviceDraft(owner, id);
   if (!record?.payload) throw new Error("DEVICE_SAVE_FAILED");
-  if (["conflict", "blocked"].includes(record.state)) throw new Error("DRAFT_REQUIRES_REVIEW");
+  if (["conflict", "blocked"].includes(record.state)) { record.pending = null; delete record.next; delete record.reason; delete record.rebased; }
   if (record.pending?.token === record.revision || record.next?.token === record.revision) return record;
   // 応答不明の送信内容を置き換えない。先の結果確認後、次に保存した内容を送る。
   const request = { token: record.revision, payload: copy(record.payload), base: record.base,
@@ -58,6 +63,18 @@ export function queueDeviceDraft(owner, id) {
   if (record.pending) record.next = request;
   else record.pending = request;
   record.state = "pending";
+  return write(key(owner, id), record);
+}
+// 比較元(base)をDBの行に取り直す（行が無ければ「新規」に戻す＝同じUUIDで作り直せる）。
+// 送信中（pending）の記録には触らない＝応答が来た時の照合を壊さない
+export function rebaseDeviceDraft(owner, id, row) {
+  const record = readDeviceDraft(owner, id);
+  if (!record || record.state === "pending") return record;
+  record.base = row || null;
+  record.jobId = row?.id || record.jobId;
+  record.jobNumber = row?.job_number || null;
+  record.pending = null; delete record.next; delete record.reason; delete record.rebased;
+  record.state = "local";
   return write(key(owner, id), record);
 }
 export function settleDeviceDraft(owner, id, token, result) {
@@ -70,10 +87,21 @@ export function settleDeviceDraft(owner, id, token, result) {
     record.pending = record.next ? { ...record.next, base: result.row } : null;
     delete record.next;
     record.state = record.pending ? "pending" : record.revision === token ? "synced" : "local";
-    delete record.reason;
+    delete record.reason; delete record.rebased;
   } else {
+    // 失敗した送信内容は捨てる（自動では再送しない）。入力(form/payload)はこの端末に残る。
     record.state = result.reason === "conflict" ? "conflict" : "blocked";
     record.reason = result.reason || "save_failed";
+    record.pending = null; delete record.next;
+    // conflict でDBが現在の行を添えて返した時は比較元を取り直す（行が無い＝削除済みなら新規に戻す）。
+    // これで次の明示の操作（掲載する／保存）が、いまの内容で保存し直せる
+    if (result.reason === "conflict" && Object.hasOwn(result, "row")) {
+      const row = result.row && result.row.farmer_id === owner ? result.row : null;
+      record.base = row;
+      record.jobId = row?.id || record.jobId;
+      record.jobNumber = row?.job_number || null;
+      record.rebased = true;
+    }
   }
   return write(key(owner, id), record);
 }
