@@ -1,5 +1,6 @@
 import { lazyChunk } from "./chunkReload";
 import { createIdleQueue } from "../lib/idleQueue";
+import { readScheduleRoute } from "../features/today/schedule";
 
 export const ChatView = lazyChunk(() => import("../components/ChatView").then(m => ({ default: m.ChatView })));
 export const AdminChatPage = lazyChunk(() => import("../components/AdminChat").then(m => ({ default: m.AdminChatPage })));
@@ -19,6 +20,7 @@ export const AdminFarmerPagesRoom = lazyChunk(() => import("../components/admin/
 export const AdminAnimationsRoom = lazyChunk(() => import("../components/admin/AdminAnimationsRoom").then(m => ({ default: m.AdminAnimationsRoom })));
 export const FarmTimelessRoom = lazyChunk(() => import("../components/admin/FarmTimelessRoom").then(m => ({ default: m.FarmTimelessRoom })));
 export const ProfileHub = lazyChunk(() => import("../components/ProfileHub").then(m => ({ default: m.ProfileHub })));
+export const ScheduleDetail = lazyChunk(() => import("../features/today/components/ScheduleDetail").then(m => ({ default: m.ScheduleDetail })));
 export const TodayPage = lazyChunk(() => import("../components/TodayPage").then(m => ({ default: m.TodayPage })));
 export const SavedJobsView = lazyChunk(() => import("../components/SavedJobsView").then(m => ({ default: m.SavedJobsView })));
 export const ChatList = lazyChunk(() => import("../components/ChatList").then(m => ({ default: m.ChatList })));
@@ -58,6 +60,7 @@ const adminPages = {
 
 // 行き先の決定・アクセス制御はAppが正。ここはコードだけの先読みで、通信や権限判定をしない。
 export function pageForRoute(hash) {
+  if (readScheduleRoute(hash)) return ScheduleDetail;
   const [page, sub] = String(hash || "search").replace(/^#?\/?/, "").split("/");
   if (page === "chat") return sub === "admin" ? AdminChatPage : ChatView;
   if (page === "work") return sub === "new" || sub === "edit" ? LandingFlow : JobSearchMapView;

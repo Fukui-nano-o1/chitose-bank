@@ -4,6 +4,7 @@ import { useDeviceSync } from "./hooks/useDeviceSync";
 import { activeDeviceDraft, readPendingConsent } from "./lib/deviceDrafts";
 import { PendingConsentWorkspace } from "./components/PendingConsentWorkspace";
 import { fetchJobRowForMe } from "./lib/jobForMe";
+import { readScheduleRoute } from "./features/today/schedule";
 import { isAdmin, ROLE_ORANGE, ROLE_GREEN, C, THIS_YEAR, isUpcomingSoon, msgSnippet, PRIVACY_VERSION } from "./lib/utils";
 import { fbTap, unlockAudio } from "./lib/feedback";
 import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBus";
@@ -25,7 +26,7 @@ import {
   ChatView, AdminChatPage, ApplyPending, NewApplicantsPage, LandingFlow,
   AdminTab, ConsignmentRoom, AdminBoxRegistryPage, AdminWorkingRoom, AdminUpcomingRoom,
   AdminEvaluationRoom, AdminSystemRoom, AdminReviewCommentsRoom, AdminReportsRoom, AdminFarmerPagesRoom,
-  AdminAnimationsRoom, FarmTimelessRoom, ProfileHub, TodayPage, SavedJobsView,
+  AdminAnimationsRoom, FarmTimelessRoom, ProfileHub, ScheduleDetail, TodayPage, SavedJobsView,
   ChatList, LoginScreen, AccountHolderForm, ProfileModal, OnboardingModal,
   JobSearchMapView, WorkerExperiencePage, HelpCenter, InstallGuide, InsurancePrepPage,
   VisitEntrance, VisitorQRPage, CharterPage, PrivacyPage, TermsPage,
@@ -282,7 +283,7 @@ export default function App(){
     const _inFlow = _curHash === "account" || _curHash === "work/new" || _curHash.startsWith("work/new/") || _curHash.startsWith("work/edit/") || _curHash.startsWith("work/job/") || _curHash.startsWith("chat/") || _curHash.startsWith("emergency/") || _curHash.startsWith("apply/");
     // workタブ内サブタブ(drafts/active/applicants/expired)は、向かうタブもworkの時だけ保持
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
-    const _subTabOfProfile = (tab === "profile") && (_curHash === "profile/worker" || _curHash.startsWith("profile/worker/profile") || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash.startsWith("profile/employer/profile") || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
+    const _subTabOfProfile = (tab === "profile") && (readScheduleRoute(_curHash) || _curHash === "profile/worker" || _curHash.startsWith("profile/worker/profile") || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash.startsWith("profile/employer/profile") || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     // 審査ページの深いリンク(#/admin/review/{セクション} と #/admin/review/{job_number})を、tab同期で#/adminに巻き戻さないよう保持
     const _subTabOfAdmin = (tab === "admin") && (_curHash.startsWith("admin/review/") || _curHash === "admin/consignment" || _curHash.startsWith("admin/consignment/") || _curHash === "admin/working" || _curHash.startsWith("admin/working/") || _curHash === "admin/upcoming" || _curHash.startsWith("admin/upcoming/") || _curHash === "admin/evaluation" || _curHash.startsWith("admin/evaluation/") || _curHash === "admin/system" || _curHash.startsWith("admin/system/") || _curHash === "admin/review-comments" || _curHash.startsWith("admin/review-comments/") || _curHash === "admin/reports" || _curHash.startsWith("admin/reports/") || _curHash === "admin/farmer-pages" || _curHash.startsWith("admin/farmer-pages/") || _curHash === "admin/animations" || _curHash.startsWith("admin/animations/") || _curHash === "admin/timeless" || _curHash.startsWith("admin/timeless/"));
     // ヘルプの章アンカー(#/help/{chapter})を、tab同期で#/helpに巻き戻さないよう保持
@@ -363,13 +364,14 @@ export default function App(){
   // 他のstateが変わらない＝再描画が起きないため、点灯が前のページのまま固まる。
   // hashchangeでこの値を更新すれば、URLが変わるたびに必ず描き直される
   const [curHash, setCurHash] = useState(() => { try { return window.location.hash.replace(/^#\/?/, ""); } catch { return ""; } });
+  const scheduleRoute = readScheduleRoute(curHash);
   useEffect(() => {
     const on = () => setCurHash(window.location.hash.replace(/^#\/?/, ""));
     window.addEventListener("hashchange", on);
     on();
     return () => window.removeEventListener("hashchange", on);
   }, []);
-  const [empCtx, setEmpCtx] = useState(() => { try { const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
+  const [empCtx, setEmpCtx] = useState(() => { try { const schedule = readScheduleRoute(window.location.hash); if (schedule) return schedule.role === "farmer"; const s = localStorage.getItem("cb_empCtx"); return s !== null ? s === "1" : isEmpCtxHash(); } catch { return false; } });
   // 応募者バッジは navBadges.applicants_pending（未対応の応募＝跳ねるアイコンと同数）に一本化（2026-07-26）。
   // 旧・独自の status='applied' 件数カウントは廃止＝バッジとアイコンで数が食い違う原因だった。
   // ★表示するバッジは無くなった（旧「応募者」ナビタブ→2026-08-23マイページの入口カード→
@@ -641,7 +643,7 @@ export default function App(){
       // ★モードが変わるのはマイページの入口・編集だけ（2026-08-22たきと指示「切り替えはマイページだけに限定」）。
       //   雇い手の他のサブページ（カレンダー・応募者・求人一覧）はモードを動かさない＝
       //   下部ナビのカレンダーを押しただけで農家モードに化ける、が起きない
-      if (rawHash === "profile/employer" || rawHash.startsWith("profile/employer/profile")) { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
+      if (rawHash === "profile/employer" || rawHash.startsWith("profile/employer/profile") || readScheduleRoute(rawHash)?.role === "farmer") { setEmpCtx(true); try { localStorage.setItem("cb_empCtx","1"); } catch {} }
       else if (rawHash === "profile" || rawHash.startsWith("profile/worker")) { setEmpCtx(false); try { localStorage.setItem("cb_empCtx","0"); } catch {} }
       // 求人フローを閉じた時の戻り先（2026-08-19たきと指示「前回の画面に保存せずに強制遷移」）。
       // フロー以外のハッシュを通るたびに控える＝フローに入る直前に見ていた画面。
@@ -1606,7 +1608,7 @@ export default function App(){
         { k:"chats",   icon:<NavIcon name="chats" />,   label:"チャット" },
         ...(empCtx ? [postTab] : []),
         { k:"profile", icon:<NavIcon name="profile" />, label:"マイページ",
-          match: h => h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
+          match: h => !!readScheduleRoute(h) || h === "profile" || h === "profile/employer" || h.startsWith("profile/employer/profile") || h.startsWith("profile/worker") },
       ];
 
   return(
@@ -1891,6 +1893,8 @@ export default function App(){
                 // ★下の「同じタブをもう一度タップ＝読み直し」より先に見る＝読み直すと書きかけが飛ぶため
                 if (t.k === "profile") {
                   const _h = window.location.hash.replace(/^#\/?/, "");
+                  const schedule = readScheduleRoute(_h);
+                  if (schedule) { window.location.hash = schedule.role === "farmer" ? "/profile/employer" : "/profile/worker"; return; }
                   const _m = _h.match(/^(profile\/(?:worker|employer)\/profile)\/.+/);
                   if (_m) { window.location.hash = "/" + _m[1]; return; }
                 }
@@ -2012,12 +2016,12 @@ export default function App(){
         {/* 求人フロー中（showJobPost）は背後を描かない（2026-08-08）：描くとフロー本体が届くまでの
             約1秒、プロフィールの働き手面が露出し「働き手に切り替わった」ように見える＝オーバーレイ描画の鉄則 */}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&!showJobPost&&safeTab==="profile"&&(me
-          ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ProfileHub me={me}
+          ? <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}>{scheduleRoute ? <ScheduleDetail key={`${me.id}:${curHash}`} me={me} {...scheduleRoute} /> : <ProfileHub me={me}
               savedDraftJobNumber={savedJobDraft?.ownerId === me.id ? savedJobDraft.jobNumber : null}
               onDismissDraftSaved={()=>setSavedJobDraft(null)}
               onNewJob={()=>{ activeDeviceDraft(me.id, null); setSavedJobDraft(null); try{localStorage.removeItem("landingFlowDraft_v1");}catch{} setShowJobPost(true); window.location.hash="/work/new"; }}
               onResume={(n)=>{ setSavedJobDraft(null); setShowJobPost(true); window.location.hash="/work/edit/"+n; }}
-              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} /></Suspense>
+              onAvatarChange={(a)=>setMeAvatar(prev=>({ ...prev, ...a }))} onLogout={handleLogout} />}</Suspense>
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>プロフィールを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {/* 新着の応募ページ（#/new-applicants・2026-08-05たきと指示）：応募を受けた雇い手専用。
             未対応の応募があればサイトを開いた時にここへ着地する（起動時の着地判定・topLandingChecked）。読み取り専用＝
