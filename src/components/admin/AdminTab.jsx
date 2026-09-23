@@ -20,6 +20,7 @@ const OTHER_CARDS = [
   { k:"flow",    l:"求人フロー" },
   { k:"system",  l:"システム" },
   { k:"survey",  l:"きっかけ" },
+  { k:"analytics", l:"利用状況" },
   { k:"working", l:"仕事中" },
   { k:"upcoming", l:"まもなく開始" },
   { k:"evaluation", l:"評価" },
@@ -475,7 +476,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                 if (next.length === OTHER_CARDS.length) { saveOtherOrder(next); } else { setReorderPicks(next); }
                 return;
               }
-              if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "farmerpages") { window.location.hash = "/admin/farmer-pages"; } else if (c.k === "animations") { window.location.hash = "/admin/animations"; } else if (c.k === "signup") { onShowAccountForm(); } else { setOtherBox(c.k); } }}
+              if (c.k === "analytics") { window.location.hash = "/admin/analytics"; } else if (c.k === "working") { window.location.hash = "/admin/working"; } else if (c.k === "upcoming") { window.location.hash = "/admin/upcoming"; } else if (c.k === "evaluation") { window.location.hash = "/admin/evaluation"; } else if (c.k === "system") { window.location.hash = "/admin/system"; } else if (c.k === "farmerpages") { window.location.hash = "/admin/farmer-pages"; } else if (c.k === "animations") { window.location.hash = "/admin/animations"; } else if (c.k === "signup") { onShowAccountForm(); } else { setOtherBox(c.k); } }}
               className="f-sans" style={{ position:"relative", background:"#fff", border: pickIdx >= 0 ? "2px solid #222" : "1px solid #EBEBEB", borderRadius:20, padding:"22px 8px 18px", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               {pickIdx >= 0 && (
                 <span className="f-sans" style={{ position:"absolute", top:8, left:8, minWidth:22, height:22, borderRadius:11, background:"#222", color:"#fff", fontSize:12, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px" }}>{pickIdx + 1}</span>

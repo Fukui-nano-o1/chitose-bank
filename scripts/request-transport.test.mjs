@@ -40,6 +40,21 @@ async function drain(server, expected) {
   assert.fail('request queue did not drain');
 }
 
+test('optional analytics cannot occupy the reserved application/save slot under a read burst', async () => {
+  const server = backend();
+  const fetch = createSupabaseFetch({ supabaseUrl:origin, fetchImpl:server.fetchImpl });
+  const reads = [1,2,3].map(n => fetch(rest + 'jobs?part=' + n));
+  await flush();
+  const telemetry = fetch(rest + 'product_events', { method:'POST', body:'[]' });
+  await flush();
+  assert.equal(server.calls.length,3,'analytics waits when background/read slots are full');
+  const application = fetch(rest + 'rpc/apply_to_job', { method:'POST', body:'{}' });
+  await flush();
+  assert.equal(server.calls.length,4);
+  assert.match(server.calls[3].url,/apply_to_job$/);
+  await drain(server,5); await Promise.all([...reads,telemetry,application]);
+});
+
 // 実際のブラウザーでは、本文のない応答でも body が空のストリームになる場合がある。
 // new Response(null, { status: 204 }) だけではこの条件を再現できない。
 function emptyStreamResponse(status, headers = {}) {

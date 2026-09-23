@@ -7,6 +7,7 @@
 //   「res.error を見て、失敗時は手元の値を上書きしない」規則（2026-08-07）を呼び出し側で守る。
 // ★一覧そのものの取得（jobs_public 全件）は lib/searchJobs.js の fetchPublicJobs が担う。
 //   玄関（#/visit）の先読みと共有するため lib に置いたままにしてある＝ここには持ってこない。
+import { measureApplicationRequest } from "../../../lib/productAnalytics";
 import { supabase } from "../../../lib/supabase";
 import { fetchJobRowForMe } from "../../../lib/jobForMe";
 
@@ -62,9 +63,9 @@ export const fetchMyPendingForJob = (jobNumber, workerId) =>
 
 // ── 応募・取り消し ─────────────────────────────────────
 export const applyToJob = (jobNumber, availableDates) =>
-  supabase.rpc("apply_to_job", { p_job_number: jobNumber, p_available_dates: availableDates });
+  measureApplicationRequest(() => supabase.rpc("apply_to_job", { p_job_number: jobNumber, p_available_dates: availableDates }));
 export const createPendingApplication = (jobNumber, availableDates) =>
-  supabase.rpc("create_pending_application", { p_job: jobNumber, p_available_dates: availableDates });
+  measureApplicationRequest(() => supabase.rpc("create_pending_application", { p_job: jobNumber, p_available_dates: availableDates }));
 export const cancelApplication = (applicationId) =>
   supabase.rpc("cancel_application", { p_application_id: applicationId });
 

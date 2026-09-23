@@ -1,0 +1,14 @@
+.admin-analytics { max-width: 720px; margin: auto; padding: 20px 16px 100px; color: #222; font-family: 'Noto Sans JP', sans-serif; }
+.admin-analytics .analytics-heading { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.admin-analytics h1 { font-size: 24px; margin: 12px 0; }
+.admin-analytics h2 { font-size: 18px; margin: 0 0 16px; }
+.admin-analytics p, .admin-analytics li { font-size: 14px; line-height: 1.8; }
+.admin-analytics a { color: #222; padding: 12px 0; }
+.admin-analytics select, .admin-analytics button { min-height: 44px; padding: 8px 16px; border: 1px solid #aaa; border-radius: 10px; background: #fff; color: #222; font: inherit; }
+.admin-analytics section, .admin-analytics details { border: 1px solid #ddd; border-radius: 20px; padding: 20px; margin: 20px 0; }
+.admin-analytics dl { margin: 0; }
+.admin-analytics dl > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #eee; }
+.admin-analytics dt { min-width: 0; overflow-wrap: anywhere; }
+.admin-analytics dd { margin: 0; flex-shrink: 0; font-weight: 700; }
+.admin-analytics .analytics-total { font-size: 18px; margin: 24px 0 8px; }
+.admin-analytics summary { cursor: pointer; font-weight: 700; padding: 8px 0; }

@@ -2,7 +2,7 @@
 // 読み込みは3本・全体は4本。保存用に1枠を空け、認証・Storageはこの行列に入れない。
 // 読み取りRPCもPOSTなので明示する。未知のRPCは操作側として扱い、再送・統合はしない。
 const READ_RPCS = new Set([
-  "admin_list_accounts", "admin_list_contracts", "admin_preview_job", "admin_review_comments",
+  "admin_list_accounts", "admin_list_contracts", "admin_preview_job", "admin_review_comments", "admin_product_analytics",
   "admin_worker_list", "admin_working_jobs", "am_i_account_allowed", "consignment_summary",
   "contract_emergency_contact", "contract_party_name", "employer_public_job_counts",
   "employer_public_jobs", "employer_public_jobs_by_farmer", "employer_trust_info",
@@ -80,7 +80,11 @@ export function createSupabaseFetch({
 
     const method = (options.method || input?.method || "GET").toUpperCase();
     const rpc = url.pathname.slice(restPath.length);
-    const read = ["GET", "HEAD", "OPTIONS"].includes(method)
+    // Optional telemetry uses the read/background budget, never the reserved action slot.
+    // Dropping a measurement is preferable to delaying an application or a save.
+    const telemetry = method === "POST" && rpc === "product_events";
+    const deadlineMs = telemetry ? Math.min(timeoutMs, 2000) : timeoutMs;
+    const read = telemetry || ["GET", "HEAD", "OPTIONS"].includes(method)
       || (method === "POST" && rpc.startsWith("rpc/") && READ_RPCS.has(rpc.slice(4)));
     const controller = new AbortController();
     const callerSignal = options.signal || input?.signal;
@@ -90,7 +94,7 @@ export function createSupabaseFetch({
     if (callerSignal?.aborted) cancel();
     else callerSignal?.addEventListener("abort", cancel, { once: true });
     let expired = false, sent = false;
-    const timer = setTimeout(() => { expired = true; cancel(); }, timeoutMs);
+    const timer = setTimeout(() => { expired = true; cancel(); }, deadlineMs);
     let release;
     try {
       release = await acquire(read, controller.signal);
@@ -109,7 +113,7 @@ export function createSupabaseFetch({
       return result;
     } catch (error) {
       if (controller.signal.aborted) throw abortError(expired
-        ? `Request deadline exceeded ${sent ? "after sending" : "before sending"} (${timeoutMs}ms)`
+        ? `Request deadline exceeded ${sent ? "after sending" : "before sending"} (${deadlineMs}ms)`
         : "Request was aborted");
       throw error;
     } finally {

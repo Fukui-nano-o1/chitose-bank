@@ -1,6 +1,7 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。求人作成フロー全体（農家・働き手の入口〜確認〜完了）。
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
+import { productAnalytics } from "../../../lib/productAnalytics";
 import { useState, useEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
@@ -1669,6 +1670,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 return;
               }
               setJobSaving(true);
+              const finishMeasurement = productAnalytics.begin("publish");
               let sessionUser = null; // catch 節でも参照する（try の中の const は catch から見えない）
               try {
                 const { data: { session } } = await getSession();
@@ -1757,6 +1759,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   activeDeviceDraft(ownerId, null);
                   setPublishModal(false);
                   emitConfirmedRefresh(REFRESH_JOBS);
+                  finishMeasurement("success");
                   if (typeof onPublished === "function") onPublished(true, _jn, { edited: true });
                   else { setPublishedOpen(true); setStep(12); }
                   return;
@@ -1809,6 +1812,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 // onPublished 未指定時のみ従来の完了ページに倒す
                 // 掲載＝即公開の祝祭。修正のお願い中の再掲載（publishedNow=false）だけ
                 // 「公開の準備が整いしだい」側に分岐（2026-08-14）
+                finishMeasurement("success");
                 if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
                 else { setPublishedOpen(publishedNow); setStep(12); }
               } catch (e) {
@@ -1817,6 +1821,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
                   + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
               } finally {
+                finishMeasurement("failure");
                 setJobSaving(false);
               }
             };

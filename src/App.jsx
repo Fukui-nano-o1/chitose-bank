@@ -11,7 +11,7 @@ import { emitRefresh, REFRESH_APPLICATIONS, REFRESH_JOBS } from "./lib/refreshBu
 import { chatCache, hydrateChatCache } from "./lib/chatCache";
 import { createIdleQueue } from "./lib/idleQueue";
 import { useSheetDragClose } from "./lib/sheetDrag";
-import { getTrafficSrc, getAnonKey } from "./lib/visitSource";
+import { AnalyticsPreferences, ProductAnalyticsController } from "./components/AnalyticsPreferences";
 import { installFixedRepin } from "./lib/fixedRepin";
 import { DoneScreen } from "./components/DoneScreen";
 import { PublishDone } from "./components/PublishDone";
@@ -25,7 +25,7 @@ import { NoticeImage } from "./components/NoticeImage";
 import {
   ChatView, AdminChatPage, ApplyPending, NewApplicantsPage, LandingFlow,
   AdminTab, ConsignmentRoom, AdminBoxRegistryPage, AdminWorkingRoom, AdminUpcomingRoom,
-  AdminEvaluationRoom, AdminSystemRoom, AdminReviewCommentsRoom, AdminReportsRoom, AdminFarmerPagesRoom,
+  AdminEvaluationRoom, AdminSystemRoom, AdminReviewCommentsRoom, AdminReportsRoom, AdminAnalyticsRoom, AdminFarmerPagesRoom,
   AdminAnimationsRoom, FarmTimelessRoom, ProfileHub, ScheduleDetail, TodayPage, SavedJobsView,
   ChatList, LoginScreen, AccountHolderForm, ProfileModal, OnboardingModal,
   JobSearchMapView, WorkerExperiencePage, HelpCenter, InstallGuide, InsurancePrepPage,
@@ -256,7 +256,7 @@ function CalendarRouter({ me, defaultRole }) {
 export default function App(){
   // URL(#/タブ名)⇄tab の同期（リンク第1段）。有効タブ名のみ受け付ける
   const TAB_URL_KEYS = ["admin","boxes","search","work","profile","login","charter","privacy","terms","chats","saved","calendar","help","install","visit","qr","insurance","experience","new-applicants"];
-  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h === "admin/review" || h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment" || h.startsWith("admin/consignment/")) return "admin"; if (h === "admin/working" || h.startsWith("admin/working/")) return "admin"; if (h === "admin/upcoming" || h.startsWith("admin/upcoming/")) return "admin"; if (h === "admin/evaluation" || h.startsWith("admin/evaluation/")) return "admin"; if (h === "admin/system" || h.startsWith("admin/system/")) return "admin"; if (h === "admin/review-comments" || h.startsWith("admin/review-comments/")) return "admin"; if (h === "admin/reports" || h.startsWith("admin/reports/")) return "admin"; if (h === "admin/farmer-pages" || h.startsWith("admin/farmer-pages/")) return "admin"; if (h === "admin/animations" || h.startsWith("admin/animations/")) return "admin"; if (h === "admin/timeless" || h.startsWith("admin/timeless/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
+  const readHashTab = () => { const h = window.location.hash.replace(/^#\/?/, ""); if (h.startsWith("chat/")) return "work"; if (h === "apply/done" || h.startsWith("apply/")) return "search"; if (h.startsWith("work/job/")) return "search"; if (h === "work" || h.startsWith("work/")) return "work"; if (h === "profile" || h.startsWith("profile/")) return "profile"; if (h === "admin/review" || h.startsWith("admin/review/")) return "admin"; if (h === "admin/consignment" || h.startsWith("admin/consignment/")) return "admin"; if (h === "admin/working" || h.startsWith("admin/working/")) return "admin"; if (h === "admin/upcoming" || h.startsWith("admin/upcoming/")) return "admin"; if (h === "admin/evaluation" || h.startsWith("admin/evaluation/")) return "admin"; if (h === "admin/system" || h.startsWith("admin/system/")) return "admin"; if (h === "admin/review-comments" || h.startsWith("admin/review-comments/")) return "admin"; if (h === "admin/analytics") return "admin"; if (h === "admin/reports" || h.startsWith("admin/reports/")) return "admin"; if (h === "admin/farmer-pages" || h.startsWith("admin/farmer-pages/")) return "admin"; if (h === "admin/animations" || h.startsWith("admin/animations/")) return "admin"; if (h === "admin/timeless" || h.startsWith("admin/timeless/")) return "admin"; if (h === "boxes" || h.startsWith("boxes/")) return "boxes"; if (h === "help" || h.startsWith("help/")) return "help"; if (h === "calendar" || h.startsWith("calendar/")) return "calendar"; return TAB_URL_KEYS.includes(h) ? h : null; };
   // #/account（新規登録①）はタブ（部屋番号）を持たないため readHashTab は null を返す。
   // null＝「URLの指定なし＝既定の着地でよい」と読む箇所が3つあり（tab→URL同期・トップ着地・
   // セッション復元）、そのままだとリロードのたびに さがす や まもなく開始に奪われる。
@@ -285,7 +285,7 @@ export default function App(){
     const _subTabOfWork = (tab === "work") && (_curHash === "work/drafts" || _curHash === "work/active" || _curHash === "work/applicants" || _curHash === "work/expired");
     const _subTabOfProfile = (tab === "profile") && (readScheduleRoute(_curHash) || _curHash === "profile/worker" || _curHash.startsWith("profile/worker/profile") || _curHash === "profile/worker/applying" || _curHash === "profile/worker/approved" || _curHash === "profile/worker/calendar" || _curHash === "profile/employer" || _curHash.startsWith("profile/employer/profile") || _curHash === "profile/employer/drafts" || _curHash === "profile/employer/active" || _curHash === "profile/employer/applicants" || _curHash === "profile/employer/expired" || _curHash === "profile/employer/calendar");
     // 審査ページの深いリンク(#/admin/review/{セクション} と #/admin/review/{job_number})を、tab同期で#/adminに巻き戻さないよう保持
-    const _subTabOfAdmin = (tab === "admin") && (_curHash.startsWith("admin/review/") || _curHash === "admin/consignment" || _curHash.startsWith("admin/consignment/") || _curHash === "admin/working" || _curHash.startsWith("admin/working/") || _curHash === "admin/upcoming" || _curHash.startsWith("admin/upcoming/") || _curHash === "admin/evaluation" || _curHash.startsWith("admin/evaluation/") || _curHash === "admin/system" || _curHash.startsWith("admin/system/") || _curHash === "admin/review-comments" || _curHash.startsWith("admin/review-comments/") || _curHash === "admin/reports" || _curHash.startsWith("admin/reports/") || _curHash === "admin/farmer-pages" || _curHash.startsWith("admin/farmer-pages/") || _curHash === "admin/animations" || _curHash.startsWith("admin/animations/") || _curHash === "admin/timeless" || _curHash.startsWith("admin/timeless/"));
+    const _subTabOfAdmin = (tab === "admin") && (_curHash === "admin/analytics" || _curHash.startsWith("admin/review/") || _curHash === "admin/consignment" || _curHash.startsWith("admin/consignment/") || _curHash === "admin/working" || _curHash.startsWith("admin/working/") || _curHash === "admin/upcoming" || _curHash.startsWith("admin/upcoming/") || _curHash === "admin/evaluation" || _curHash.startsWith("admin/evaluation/") || _curHash === "admin/system" || _curHash.startsWith("admin/system/") || _curHash === "admin/review-comments" || _curHash.startsWith("admin/review-comments/") || _curHash === "admin/reports" || _curHash.startsWith("admin/reports/") || _curHash === "admin/farmer-pages" || _curHash.startsWith("admin/farmer-pages/") || _curHash === "admin/animations" || _curHash.startsWith("admin/animations/") || _curHash === "admin/timeless" || _curHash.startsWith("admin/timeless/"));
     // ヘルプの章アンカー(#/help/{chapter})を、tab同期で#/helpに巻き戻さないよう保持
     const _subTabOfHelp = (tab === "help") && _curHash.startsWith("help/");
     // ボックス一覧ページのお知らせタブ(#/boxes/notices)を、tab同期で#/boxesに巻き戻さないよう保持
@@ -439,57 +439,14 @@ export default function App(){
     })();
     return () => { cancelled = true; };
   }, [me?.id, empCtx]);
-  // 行動計測：ページ遷移ロガー（page_eventsへfire-and-forget）。記録するのは2経路だけ：
-  // ①運営者本人（自己デバッグ・従来どおり）②未ログインの訪問者（流入元src＋端末ごとの匿名キーanon_key
-  //   ＝?src=insta 等の流入計測。2026-08-22たきと指示）。ログイン済みの一般利用者は従来どおり記録しない
-  //   （データ憲法・2026-07-27）。DB側のRLSも二重の壁＝管理者本人INSERTと「auth_id=null＋anon_key必須」の
-  //   匿名INSERTだけを通し、読み取りは従来どおり管理者のみ（20260822023935）
-  useEffect(() => { getTrafficSrc(); }, []); // ?src= は初回ロードで必ず拾って控える（記録経路が無いログイン中でも保存だけ残す）
-  const lastLoggedHashRef = useRef(null);
+  // Operator self-debugging is separate from optional visitor/product measurement.
+  const selfDebugId = isAdmin(me) ? me?.id : null;
   useEffect(() => {
-    const adminSelf = !!(me?.id && isAdmin(me));
-    if (me && !adminSelf) return; // ログイン済みの一般利用者は記録しない
-    // 起動バーストから外して後送り（2026-08-18 Speed-1C-1）。
-    // ★記録する値は【発生した瞬間】に確定して持つ。実行時に window.location.hash を読み直すと、
-    //   待っている間に利用者が別画面へ移っていて計測が嘘になる
-    // ★保留中に次の遷移が起きたら、保留分を先に流してから新しい分を送る＝DBで前後が入れ替わらない
-    let pending = null;
-    const insertRow = (row) => supabase.from("page_events").insert(row).then(() => {}, () => {});
-    const send = adminSelf
-      ? insertRow
-      : (row) => supabase.auth.getSession().then(({ data }) => {
-          // 匿名行は「本当に未ログインの端末」だけ：セッション復元が終わる前にこの経路が走った時は
-          // ここで落とし、ハッシュの控えも戻す＝me確定後の管理者経路が同じページを取りこぼさない
-          if (data?.session) { lastLoggedHashRef.current = null; return; }
-          return insertRow(row);
-        }, () => {});
-    // ★必ずPromiseを返す（2026-08-18 C1.1）。返さないと待ち行列から見て即終了になり、
-    //   DBへの挿入が通信中でも次のidle taskへ進んでしまう＝「1本終わってから次」が崩れる
-    const flushPending = () => {
-      if (!pending) return Promise.resolve();
-      const row = pending;
-      pending = null;
-      return send(row);
-    };
-    const logPageEvent = ({ defer = false } = {}) => {
-      const h = window.location.hash || "#/";
-      if (h === lastLoggedHashRef.current) return; // 連続同一hashはskip
-      const src = getTrafficSrc();
-      const row = adminSelf
-        ? { auth_id: me.id, page_hash: h, ...(src ? { src } : {}) } // ここで値を固定する
-        : { page_hash: h, anon_key: getAnonKey(), ...(src ? { src } : {}) };
-      if (!adminSelf && !row.anon_key) return; // 匿名キーを保存できない端末（プライベートモード等）は記録しない
-      lastLoggedHashRef.current = h;
-      // ★保留分の完了を待ってから次を送る（2026-08-18 C1.1）。並行に撃つとDB上で前後が入れ替わる
-      if (!defer) { void flushPending().then(() => send(row)); return; }
-      pending = row;
-      bootIdleQueue.push(flushPending);
-    };
-    logPageEvent({ defer: true }); // 起動の1件目だけ後送り
-    const onHashLog = () => logPageEvent();
-    window.addEventListener("hashchange", onHashLog);
-    return () => { window.removeEventListener("hashchange", onHashLog); flushPending(); };
-  }, [me?.id]);
+    if (!selfDebugId) return;
+    const log = () => { void supabase.from("page_events").insert({ auth_id:selfDebugId, page_hash:window.location.hash || "#/" }).then(() => {}, () => {}); };
+    log(); window.addEventListener("hashchange", log);
+    return () => window.removeEventListener("hashchange", log);
+  }, [selfDebugId]);
   const [needsAccountHolder,setNeedsAccountHolder]=useState(false); // account_holders未登録なら新規登録①を最優先オーバーレイ表示
   const [needsPrivacyReconsent,setNeedsPrivacyReconsent]=useState(() => !!readPendingConsent(me?.id, PRIVACY_VERSION));
   const consentConfirmedFor = useRef(null);
@@ -540,6 +497,7 @@ export default function App(){
   const [animationsRoom,setAnimationsRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/animations"); } catch { return false; } }); // アニメーションページ（#/admin/animations・管理者専用・2026-08-07）
   const [commentRoom,setCommentRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/review-comments"); } catch { return false; } }); // 評価コメントの確認（#/admin/review-comments・管理者専用。承認制は2026-08-23廃止＝即時公開）
   const [reportsRoom,setReportsRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/reports"); } catch { return false; } }); // 統合報告ページ（#/admin/reports・管理者専用・2026-08-15）
+  const [analyticsRoom, setAnalyticsRoom] = useState(() => window.location.hash.replace(/^#\/?/, "") === "admin/analytics");
   const [farmerPagesRoom,setFarmerPagesRoom]=useState(()=>{ try { return window.location.hash.replace(/^#\/?/,"").startsWith("admin/farmer-pages"); } catch { return false; } }); // 農家のアクションページ（#/admin/farmer-pages・管理者専用・見本帳・2026-08-11）
   const [showApplyDone,setShowApplyDone]=useState(()=>window.location.hash.replace(/^#\/?/,"")==="apply/done");
   // 仮応募の成功ページ（#/apply/pending・第15弾・2026-07-30）。応募系の全画面ページは
@@ -673,6 +631,7 @@ export default function App(){
       setAnimationsRoom(rawHash.startsWith("admin/animations"));
       setCommentRoom(rawHash.startsWith("admin/review-comments"));
       setReportsRoom(rawHash.startsWith("admin/reports"));
+      setAnalyticsRoom(rawHash === "admin/analytics");
       setFarmerPagesRoom(rawHash.startsWith("admin/farmer-pages"));
       if (rawHash === "apply/done") {
         try {
@@ -1966,6 +1925,8 @@ export default function App(){
 
       {/* ── MAIN ── */}
       <main style={{maxWidth:1200,margin:"0 auto",padding:"16px 24px 72px",minHeight:"100svh",boxSizing:"border-box"}}>
+        <ProductAnalyticsController excluded={!!isAdmin(me)} />
+        <AnalyticsPreferences hidden={!!isAdmin(me) || safeTab === "privacy" || needsAccountHolder || needsPrivacyReconsent || openAccountForm || !!chatAppId} />
         <DevBadge label="App(Dashboard/Home)" />
         <AppErrorBoundary>
         <Suspense fallback={<RouteLoading />}>
@@ -2053,8 +2014,9 @@ export default function App(){
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&animationsRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminAnimationsRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&commentRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminReviewCommentsRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&reportsRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminReportsRoom/></Suspense>}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&analyticsRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminAnalyticsRoom/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&farmerPagesRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminFarmerPagesRoom/></Suspense>}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&!workingRoom&&!timelessRoom&&!upcomingRoom&&!evalRoom&&!systemRoom&&!commentRoom&&!reportsRoom&&!farmerPagesRoom&&!animationsRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminTab
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="admin"&&isAdmin(me)&&!consignRoom&&!workingRoom&&!timelessRoom&&!upcomingRoom&&!evalRoom&&!systemRoom&&!commentRoom&&!reportsRoom&&!analyticsRoom&&!farmerPagesRoom&&!animationsRoom&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminTab
           destPending={destPend} destApproved={destOk}
           farmers={farmers} farmersPending={farmPend}
           onApprove={appDest} onReject={rejDest}

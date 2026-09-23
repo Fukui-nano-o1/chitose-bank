@@ -15,6 +15,7 @@ export const AdminUpcomingRoom = lazyChunk(() => import("../components/admin/Adm
 export const AdminEvaluationRoom = lazyChunk(() => import("../components/admin/AdminEvaluationRoom").then(m => ({ default: m.AdminEvaluationRoom })));
 export const AdminSystemRoom = lazyChunk(() => import("../components/admin/AdminSystemRoom").then(m => ({ default: m.AdminSystemRoom })));
 export const AdminReviewCommentsRoom = lazyChunk(() => import("../components/admin/AdminReviewCommentsRoom").then(m => ({ default: m.AdminReviewCommentsRoom })));
+export const AdminAnalyticsRoom = lazyChunk(() => import("../components/admin/AdminAnalyticsRoom").then(m => ({ default: m.AdminAnalyticsRoom })));
 export const AdminReportsRoom = lazyChunk(() => import("../components/admin/AdminReportsRoom").then(m => ({ default: m.AdminReportsRoom })));
 export const AdminFarmerPagesRoom = lazyChunk(() => import("../components/admin/AdminFarmerPagesRoom").then(m => ({ default: m.AdminFarmerPagesRoom })));
 export const AdminAnimationsRoom = lazyChunk(() => import("../components/admin/AdminAnimationsRoom").then(m => ({ default: m.AdminAnimationsRoom })));
@@ -54,7 +55,7 @@ const pages = {
 const adminPages = {
   consignment: ConsignmentRoom, working: AdminWorkingRoom, upcoming: AdminUpcomingRoom,
   evaluation: AdminEvaluationRoom, system: AdminSystemRoom, animations: AdminAnimationsRoom,
-  "review-comments": AdminReviewCommentsRoom, reports: AdminReportsRoom,
+  "review-comments": AdminReviewCommentsRoom, reports: AdminReportsRoom, analytics: AdminAnalyticsRoom,
   "farmer-pages": AdminFarmerPagesRoom, timeless: FarmTimelessRoom,
 };
 

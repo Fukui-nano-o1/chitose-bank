@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test:critical": "node --test scripts/request-transport.test.mjs scripts/calendar-move.test.mjs scripts/calendar-updates.test.mjs scripts/privacy-consent.test.mjs scripts/device-drafts.test.mjs scripts/device-drafts-db.test.mjs scripts/device-drafts-ui.test.mjs scripts/job-expiry.test.mjs scripts/farmer-job-expiry.test.mjs scripts/job-expiry-ui.test.mjs scripts/schedule.test.mjs scripts/schedule-ui.test.mjs scripts/pdf-export.test.mjs scripts/admin-reports.test.mjs",
+    "test:critical": "node --test scripts/request-transport.test.mjs scripts/calendar-move.test.mjs scripts/calendar-updates.test.mjs scripts/privacy-consent.test.mjs scripts/device-drafts.test.mjs scripts/device-drafts-db.test.mjs scripts/device-drafts-ui.test.mjs scripts/job-expiry.test.mjs scripts/farmer-job-expiry.test.mjs scripts/job-expiry-ui.test.mjs scripts/schedule.test.mjs scripts/schedule-ui.test.mjs scripts/pdf-export.test.mjs scripts/admin-reports.test.mjs scripts/product-analytics.test.mjs scripts/product-analytics-ui.test.mjs",
     "test:performance": "node --test scripts/performance.test.mjs",
     "measure:startup": "node scripts/measure-startup.mjs"
   },

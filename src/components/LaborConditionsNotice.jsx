@@ -10,6 +10,7 @@
 // ・★記録に無い法定の明示事項（契約の更新・変更の範囲・退職に関する事項ほか）は作らない（データ憲法3条・
 //   表示にダミー禁止）。「記録にありません」と正直に出し、文末で当事者間の別途明示を促す。
 // ・印刷は appStyles の「契約の印刷」@media print と対（.cb-ctr-print / -overlay / -sheet の3クラス）。
+import { productAnalytics } from "../lib/productAnalytics";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase";
@@ -219,13 +220,16 @@ export default function LaborConditionsNotice({ me, role = "worker", application
   const savePdf = async (r) => {
     if (pdfBusy) return;
     setPdfBusy(true);
+    const finishMeasurement = productAnalytics.begin("pdf");
     try {
       await saveElementAsPdf(printRef.current, noticeFileName(r));
+      finishMeasurement("success");
     } catch (error) {
       alert(error?.message === "PDF_TIMEOUT"
         ? "PDFの作成が時間内に完了しませんでした。もう一度「PDFで保存」をお試しください。"
         : "PDFを作成できませんでした。お手数ですが「印刷する」からお試しください。");
     } finally {
+      finishMeasurement("failure");
       setPdfBusy(false);
     }
   };

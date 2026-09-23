@@ -1,4 +1,5 @@
 // 分割3-C（2026-07-25）：App.jsxから移動。プロフィールタブ（両役割の入口カードメニュー＋サブページ切替）。
+import { AnalyticsPreferences } from "./AnalyticsPreferences";
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getCache, setCache } from "../lib/viewCache";
@@ -86,6 +87,7 @@ function ProfileWithdrawSection({ onLogout }) {
   return (
     <div style={{ marginTop:32, paddingBottom:8 }}>
       <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:"0 0 4px" }}>設定</p>
+      <AnalyticsPreferences always />
       {!open
         ? (<div>
             {/* ログアウトはここが唯一の入口（2026-08-25に☰から移した）＝Airbnbと同じくアカウントの面に置く */}
