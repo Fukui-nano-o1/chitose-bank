@@ -130,7 +130,7 @@ export default function LaborConditionsNotice({ me, role = "worker", application
   const [open, setOpen] = useState(null);        // 表示中の契約（applications行）
   const [partnerName, setPartnerName] = useState(""); // 凍結名を持たない旧契約のRPCフォールバック名
   const [infoOpen, setInfoOpen] = useState(false); // 説明は？ボタンで展開（また呼びたいリストと同じ作法・2026-08-18たきと指示）
-  const [pdfBusy, setPdfBusy] = useState(false); // PDFの作成中（html2canvasは一瞬かかる）
+  const [pdfBusy, setPdfBusy] = useState(false); // PDFの作成中（共通出力側で待機期限を管理）
   const printRef = useRef(null);                 // 通知書の本体（.cb-ctr-print）＝PDFに写す範囲
 
   useEffect(() => {
@@ -221,8 +221,10 @@ export default function LaborConditionsNotice({ me, role = "worker", application
     setPdfBusy(true);
     try {
       await saveElementAsPdf(printRef.current, noticeFileName(r));
-    } catch {
-      alert("PDFを作成できませんでした。お手数ですが「印刷する」からお試しください。");
+    } catch (error) {
+      alert(error?.message === "PDF_TIMEOUT"
+        ? "PDFの作成が時間内に完了しませんでした。もう一度「PDFで保存」をお試しください。"
+        : "PDFを作成できませんでした。お手数ですが「印刷する」からお試しください。");
     } finally {
       setPdfBusy(false);
     }
