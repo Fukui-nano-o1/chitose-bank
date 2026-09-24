@@ -5,4 +5,4 @@ import { ProfileHub } from '../../../src/components/ProfileHub';
 
 createRoot(document.getElementById('root')).render(window.qaProfile
   ? <ProfileHub me={{ id: 'fixture-user', email: 'person@fixture.test' }} onLogout={() => { window.qaLoggedOut = true; }} />
-  : <LoginScreen onLogin={() => { window.qaLoggedIn = true; }} />);
+  : <LoginScreen onLogin={user => { window.qaLoggedIn = user; window.qaLoginCount = (window.qaLoginCount || 0) + 1; }} />);

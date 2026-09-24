@@ -167,6 +167,11 @@
 .cb-auth-help { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ebebeb; font-size: 14px; }
 .cb-auth-help summary { cursor: pointer; font-weight: 600; }
 .cb-auth-help p { color: var(--auth-muted); line-height: 1.7; margin: 12px 0 8px; }
+.cb-auth-alternative { margin-top: 28px; padding-top: 24px; border-top: 1px solid #ebebeb; }
+.cb-auth-alternative h2 { margin: 0 0 8px; font: inherit; font-weight: 600; }
+.cb-auth-alternative p { margin: 0 0 16px; color: var(--auth-muted); font-size: 14px; line-height: 1.7; }
+.cb-auth-alternative .cb-auth-secondary:disabled { opacity: .55; cursor: default; }
+.cb-auth-account-email { margin: 0; padding: 16px; border: 1px solid #ddd; border-radius: 8px; font-weight: 600; overflow-wrap: anywhere; }
 .cb-auth-embedded { padding: 0; }
 .cb-auth-embedded .cb-auth-panel { max-width: none; border: 0; border-radius: 0; box-shadow: none; }
 .cb-auth-enter { animation: cbAuthEnter .2s ease-out; }

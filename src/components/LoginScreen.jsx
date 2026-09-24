@@ -10,7 +10,7 @@ import "./auth.css";
 export function LoginScreen({ onLogin, embedded = false, onClose }) {
   // 認証の2経路（2026-07-16）：
   // ・既存の方＝メールアドレス＋パスワード（view "login"・デフォルト）
-  // ・新規登録＝6桁コード認証→パスワード設定（view "otp"→"code"→"setpw"）
+  // ・新規登録＝6桁コード認証→本人の登録情報を確認→未登録ならパスワード設定、登録済みならログイン
   //   パスワード未設定・忘れた既存の方も同じOTP経路で再設定できる（経路を増やさない）
   const fieldId = useId();
   const requestLock = useRef(false);
@@ -21,7 +21,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   const [resendSeconds, setResendSeconds] = useState(0);
   const [resent, setResent] = useState(false);
   const [codeFocused, setCodeFocused] = useState(false);
-  const [view,    setView]    = useState("login"); // login | otp | code | setpw
+  const [view,    setView]    = useState("login"); // login | otp | code | verified | welcome | setpw | ready
   const [signupOpen, setSignupOpen] = useState(false); // 新規登録の開放（app_settings.signup_open・既定false=招待制）。ONにするのは運営（2026-07-21規約v2/プラポリv2で前提充足）
   useEffect(() => { supabase.rpc("signup_open").then(({ data }) => { if (data === true) setSignupOpen(true); }).catch(()=>{}); }, []);
   const [email,   setEmail]   = useState("");
@@ -30,13 +30,6 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   const [code,    setCode]    = useState("");
   const [authedUser, setAuthedUser] = useState(null); // OTP認証済みユーザー（パスワード設定待ち）
   const [alreadyRegistered, setAlreadyRegistered] = useState(false); // 既にアカウントを持っている人が新規登録から入ってきた（2026-08-01）
-  // コードが届かない人の救済（2026-08-04）。認証コードを待たず、パスワードを決めて登録する経路。
-  // 背景：Supabase Auth の「メールアドレスの確認」が無効だと、未登録アドレスへの signInWithOtp は
-  //   サーバー側でアカウント作成＋確認済みにしてセッションを返すが、supabase-js はその応答を捨てる
-  //   （signInWithOtp のメール経路は user/session を必ず null で返す実装）。コードも送られないため、
-  //   画面は6桁コードを待ち続け、誰も先へ進めないまま account_holders の無いアカウントだけが残る。
-  //   実際に2026-07-27・07-29の2件がこの状態で放置された。
-  const [directSignup, setDirectSignup] = useState(false);
   const [sending, setSending] = useState(false);
   const [err,     setErr]     = useState("");
   const [shk,     setShk]     = useState(false);
@@ -62,7 +55,11 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   // 実際の動き（view="otp"）にする。中身は「パスワードを忘れた方・未設定の方」ボタンと同一ので
   // 入口が増えても経路は1本のまま
   useEffect(() => {
-    const f = () => { if (requestLock.current) return; setIntent("reset"); setView("otp"); setErr(""); setPw(""); setDirectSignup(false); };
+    const f = () => {
+      if (requestLock.current) return;
+      setIntent("reset"); setView("otp"); setErr(""); setPw(""); setPw2("");
+      setCode(""); setAuthedUser(null); setAlreadyRegistered(false);
+    };
     window.addEventListener("cb:loginResetPw", f);
     return () => window.removeEventListener("cb:loginResetPw", f);
   }, []);
@@ -84,11 +81,15 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   };
   const openEmail = (nextIntent) => {
     setIntent(nextIntent); setView("otp"); setErr(""); setPw(""); setPw2("");
-    setCode(""); setDirectSignup(false); setResent(false);
+    setCode(""); setResent(false); setAuthedUser(null); setAlreadyRegistered(false);
+  };
+  const openLogin = () => {
+    // 入力したメールアドレスは引き継ぐ。ここでは存在確認やメール送信をしない。
+    setView("login"); setErr(""); setCode(""); setPw(""); setPw2(""); setResent(false);
   };
   const goBack = () => {
-    setErr(""); setCode(""); setPw(""); setPw2(""); setResent(false); setDirectSignup(false);
-    setView(view === "otp" ? "login" : view === "setpw" ? "code" : "otp");
+    setErr(""); setCode(""); setPw(""); setPw2(""); setResent(false);
+    setView(view === "otp" ? "login" : view === "setpw" ? "welcome" : "otp");
   };
 
   const bounce = () => { setShk(true); setTimeout(()=>setShk(false),500); };
@@ -111,11 +112,12 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   // 役割選択ページ(#/role)は撤廃済み＝役割は聞かないアクションベース設計（farmers行あり→農家／無し→最小形の働き手me）
   const completeLogin = async (user) => {
     const normalizedEmail = (user?.email || email).trim().toLowerCase();
-    const { data: farmer } = await supabase
+    const { data: farmer, error } = await supabase
       .from("farmers")
       .select("*")
       .eq("email", normalizedEmail)
       .maybeSingle();
+    if (error) throw error;
     if (farmer) {
       onLogin({
         ...farmer,
@@ -155,7 +157,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   const requestCode = async () => {
     let result;
     try {
-      result = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: signupOpen } });
+      result = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: intent === "signup" && signupOpen } });
     } catch (error) {
       logMailFailure(error);
       throw error;
@@ -176,7 +178,9 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       const isServerMail = error.status === 500 || /error sending|failed to send|smtp|gomail/i.test(msg);
       const isConnection = !error.status || [502, 503, 504].includes(error.status);
       setErr(
-        isInviteOnly ? "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください"
+        isInviteOnly ? (intent === "reset"
+          ? "確認コードをお送りできません。登録時のメールアドレスをご確認ください"
+          : "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください")
         : wait       ? `送信の間隔が短すぎます。${wait[1]}秒ほど待ってから、もう一度お試しください`
         : isRate     ? "ただいま送信が混み合っています。しばらく時間をおいてからお試しください"
         : isServerMail ? "ただいま認証コードのメールをお送りできません。お客さまの操作の問題ではなく、運営側の不具合です。復旧までしばらくお待ちください"
@@ -187,11 +191,24 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       return;
     }
     setCode("");
-    setDirectSignup(false);
     setResent(view === "code");
     setResendAt(Date.now() + 60000);
     setResendSeconds(60);
     setView("code");
+  };
+
+  const continueAfterVerification = async (user) => {
+    if (intent === "reset") { setView("setpw"); return; }
+    // 登録済みかどうかは、コード認証後に本人の登録情報だけで判断する。
+    // 作成からの経過時間では判断しない。未完了の新規登録を「登録済み」と誤案内してしまう。
+    try {
+      const { data, error } = await supabase.from("account_holders").select("id").eq("auth_id", user.id).maybeSingle();
+      if (error) throw error;
+      setAlreadyRegistered(!!data);
+      setView(data ? "welcome" : "setpw");
+    } catch {
+      setErr("登録情報を確認できませんでした。メールの確認は済んでいます。もう一度お試しください");
+    }
   };
 
   const verifyCode = async () => {
@@ -201,67 +218,47 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       type: 'email',
     });
     if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
-    // すでにアカウントを持っている人が、間違えて新規登録から入ってきた場合を見分ける（2026-08-01たきと指示）。
-    // 判定は認証を通った"本人"についてだけ行う＝メールアドレスの存在をログイン前に外へ漏らさない。
-    //   ①auth.usersの作成時刻が5分以上前＝この操作で作られたのではない
-    //   ②account_holders行がある＝当サービスの登録が済んでいる
-    let existed = false;
-    try {
-      const created = data.user?.created_at ? new Date(data.user.created_at).getTime() : 0;
-      existed = !!created && (Date.now() - created > 5 * 60 * 1000);
-      const { data: ah } = await supabase.from("account_holders").select("id").eq("auth_id", data.user.id).maybeSingle();
-      if (ah) existed = true;
-    } catch {}
-    setAlreadyRegistered(existed);
-    // 認証成功→そのままは通さず、パスワード設定へ（次回からメール＋パスワードでログインできるように）
     setAuthedUser(data.user);
-    setPw(""); setPw2(""); setErr("");
-    setView("setpw");
+    setPw(""); setPw2(""); setCode(""); setErr("");
+    setView("verified");
+    await continueAfterVerification(data.user);
   };
 
   // 新規登録（＋パスワード再設定）：OTP認証済みユーザーにパスワードを設定
   const submitPassword = async () => {
     if (pw.length < 8) { setErr("パスワードは8文字以上で設定してください"); return; }
     if (pw !== pw2) { setErr("確認用パスワードが一致しません"); bounce(); return; }
-    // 救済経路：認証コードを受け取っていない＝まだ認証されていないので、更新ではなく新規作成で通す。
-    // メールアドレスの確認が無効な設定なら、その場でセッションが返り、メールを1通も受け取らずに登録が済む。
-    // 有効な設定に戻したあとは session が返らず「確認メールを送りました」に落ちる＝どちらの設定でも壊れない。
-    if (directSignup) {
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: pw });
-      if (error) {
-        const m = String(error.message || "");
-        setErr(/signup/i.test(m)
-          ? "このメールアドレスでは新規登録できません。招待を受けたアドレスでお試しください"
-          : "登録できませんでした。時間をおいてもう一度お試しください");
-        return;
-      }
-      if (data?.session) { await completeLogin(data.user); return; }
-      // identities が空＝すでに登録済みのアドレス（この操作で新しく作られてはいない）
-      if (Array.isArray(data?.user?.identities) && data.user.identities.length === 0) {
-        setErr("このメールアドレスはすでに登録されています。パスワードをお持ちならログイン画面から、お忘れなら認証コードでの再設定が必要です");
-        return;
-      }
-      setErr("確認メールをお送りしました。メールを開いて確認を済ませてから、ログインしてください");
-      return;
-    }
     const { error } = await supabase.auth.updateUser({ password: pw });
     if (error) { setErr("パスワードの設定に失敗しました。時間をおいてもう一度お試しください"); return; }
+    // パスワード保存後のプロフィール取得だけが失敗しても、同じ変更を再送しない。
+    setPw(""); setPw2(""); setView("ready");
     await completeLogin(authedUser);
   };
 
   const isReset = intent === "reset";
   const title = view === "login" ? "ログインまたは新規登録"
     : view === "otp" ? (isReset ? "パスワードの再設定" : "新規登録")
-    : view === "code" ? "メールアドレスの確認" : "パスワードの設定";
+    : view === "code" || view === "verified" ? "メールアドレスの確認"
+    : view === "welcome" || view === "ready" ? "ログイン" : isReset ? "パスワードの再設定" : "パスワードの設定";
   const heading = view === "login" ? "chitose-bankへようこそ"
     : view === "otp" ? "メールアドレスを入力"
     : view === "code" ? "メールを確認してください"
-    : alreadyRegistered ? "パスワードを設定し直す" : "パスワードを設定";
-  const hasBack = view === "otp" || view === "code" || (view === "setpw" && directSignup);
+    : view === "verified" ? "メールアドレスを確認しました"
+    : view === "welcome" ? "おかえりなさい"
+    : view === "ready" ? "パスワードを設定しました"
+    : isReset ? "パスワードを再設定" : "パスワードを設定";
+  const hasBack = view === "otp" || view === "code" || (view === "setpw" && alreadyRegistered);
   const errorId = `${fieldId}-error`;
   const emailId = `${fieldId}-email`;
   const pwId = `${fieldId}-password`;
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const loginAlternative = (
+    <section className="cb-auth-alternative" aria-labelledby={`${fieldId}-alternative`}>
+      <h2 id={`${fieldId}-alternative`}>すでにアカウントをお持ちですか？</h2>
+      <p>パスワードをお持ちなら、メールを待たずにログインできます。</p>
+      <button type="button" className="cb-auth-secondary" disabled={sending} onClick={openLogin}>パスワードでログイン</button>
+    </section>
+  );
 
   return (
     <div className={`cb-auth-page cb-login-page f-sans${embedded ? " cb-auth-embedded" : ""}`}>
@@ -280,6 +277,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
           <h1 className="cb-auth-heading" ref={headingRef} tabIndex={-1}>{heading}</h1>
           {view === "login" ? (
             <>
+              <p className="cb-auth-description">登録済みの方はこちらからログインできます。</p>
               <form onSubmit={e => { e.preventDefault(); if (validEmail && pw) runAction(passwordLogin); }} aria-busy={sending}>
                 <div className="cb-auth-field-group">
                   <div className="cb-auth-field">
@@ -323,10 +321,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
                 {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
                 <button className="cb-auth-primary" disabled={!validEmail || sending}>{sending ? <>送信中<Dots /></> : "続ける"}</button>
               </form>
-              <p className="cb-auth-note">すでに登録済みの方も、同じメールアドレスで続けられます。</p>
-              <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => { setView("login"); setErr(""); setDirectSignup(false); }}>
-                パスワードでログイン
-              </button>
+              {loginAlternative}
             </>
           ) : view === "code" ? (
             <>
@@ -360,16 +355,40 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
                 </button>
               </div>
               {resent && <p className="cb-auth-note" role="status">新しいコードを送信しました。</p>}
+              {loginAlternative}
               <details className="cb-auth-help">
                 <summary>それでも届かない場合</summary>
-                <p>迷惑メールフォルダもご確認ください。パスワードをお持ちの方は、ログイン画面からログインできます。</p>
-                <button type="button" className="cb-auth-link" disabled={sending} onClick={() => { setDirectSignup(true); setAlreadyRegistered(false); setAuthedUser(null); setPw(""); setPw2(""); setErr(""); setView("setpw"); }}>パスワードを決めて登録する</button>
+                <p>入力したメールアドレスと迷惑メールフォルダをご確認ください。同じメールアドレスで再送信できます。新しく登録し直す必要はありません。</p>
               </details>
+            </>
+          ) : view === "verified" ? (
+            <>
+              {err ? <p id={errorId} className="cb-auth-error" role="alert">{err}</p>
+                : <p className="cb-auth-description" role="status">登録情報を確認しています<Dots /></p>}
+              <button type="button" className="cb-auth-primary" disabled={sending}
+                onClick={() => runAction(() => continueAfterVerification(authedUser))}>
+                {sending ? <>確認中<Dots /></> : "もう一度確認する"}
+              </button>
+            </>
+          ) : view === "welcome" || view === "ready" ? (
+            <>
+              <p className="cb-auth-description">{view === "welcome"
+                ? "登録済みのアカウントを確認しました。新しく登録する必要はありません。"
+                : "設定は完了しています。ログインして続けてください。"}</p>
+              <p className="cb-auth-account-email">{email.trim()}</p>
+              {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
+              <button type="button" className="cb-auth-primary" disabled={sending}
+                onClick={() => runAction(() => completeLogin(authedUser))}>
+                {sending ? <>ログイン中<Dots /></> : "ログインして続ける"}
+              </button>
+              {view === "welcome" && <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending}
+                onClick={() => { setIntent("reset"); setErr(""); setView("setpw"); }}>
+                パスワードを再設定する
+              </button>}
             </>
           ) : (
             <>
-              <p className="cb-auth-description">{directSignup ? "8文字以上のパスワードを決めてください。メールの確認が必要な場合は、確認メールをお送りします。"
-                : alreadyRegistered ? "登録済みのアカウントを確認しました。新しくアカウントは作られません。"
+              <p className="cb-auth-description">{isReset ? "メールアドレスを確認しました。次回から使う新しいパスワードを決めてください。"
                 : "メールアドレスを確認しました。次回のログインに使うパスワードを決めてください。"}</p>
               <form onSubmit={e => { e.preventDefault(); if (pw.length >= 8 && pw2) runAction(submitPassword); }} aria-busy={sending}>
                 <div className="cb-auth-field-group">
@@ -389,10 +408,10 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
                 </div>
                 {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
                 <button className="cb-auth-primary" disabled={pw.length < 8 || pw2.length < 8 || sending}>
-                  {sending ? <>設定中<Dots /></> : directSignup ? "登録して続ける" : alreadyRegistered ? "パスワードを設定し直す" : "設定して続ける"}
+                  {sending ? <>設定中<Dots /></> : isReset ? "変更してログイン" : "設定して続ける"}
                 </button>
               </form>
-              {alreadyRegistered && <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => runAction(() => completeLogin(authedUser))}>パスワードを変えずに続ける</button>}
+              {isReset && <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => runAction(() => completeLogin(authedUser))}>パスワードを変更せずログイン</button>}
             </>
           )}
         </div>
