@@ -3,13 +3,15 @@ import { Component } from "react";
 import { clearCache } from "../lib/viewCache";
 import { prepareFreshReload } from "./chunkReload";
 import { logAppError } from "./diagnostics/errorLog";
+import { FeedbackModal } from "./diagnostics/FeedbackModal";
+import { captureSupportContext } from "../lib/supportDiagnostics";
 
 // 画面が真っ暗になるのを止める最後の壁（2026-07-31・委託ページで再発）。
 // lazyChunk の自己修復は「間隔つきの自動再読込」ので、間隔内に再失敗すると
 // 例外がそのまま上まで抜け、React がツリーごと外して何も描かれない＝真っ暗になる。
 // ここで受け止めて、原因と次の一手（再読み込み）を必ず画面に出す。エラーは app_errors にも残す。
 export class AppErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { failed: false, chunk: false }; }
+  constructor(props) { super(props); this.state = { failed: false, chunk: false, supportOpen: false, supportRequest: null }; }
   static getDerivedStateFromError(error) {
     const msg = String(error?.message || error || "");
     // 動的importの失敗＝古いチャンクを掴んだまま（デプロイ直後に起きる）。文言を分ける
@@ -22,6 +24,7 @@ export class AppErrorBoundary extends Component {
   render() {
     if (!this.state.failed) return this.props.children;
     return (
+      <>
       <div className="f-sans" style={{ maxWidth:420, margin:"64px auto", padding:"28px 24px", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16 }}>
         <p style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{this.state.chunk ? "新しい版に更新されました" : "画面を表示できませんでした"}</p>
         <p style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:"0 0 18px" }}>
@@ -40,7 +43,11 @@ export class AppErrorBoundary extends Component {
           window.location.reload();
         }}
           style={{ padding:"12px 26px", fontSize:14, fontWeight:700, background:"#222", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>再読み込み</button>
+        <button type="button" onClick={() => this.setState({ supportOpen: true, supportRequest: { topic: "other", view: "compose", context: captureSupportContext() } })}
+          style={{ display:"block", margin:"14px auto 0", padding:"12px 22px", fontSize:14, fontWeight:700, background:"#fff", color:"#222", border:"1px solid #BBB", borderRadius:12, cursor:"pointer" }}>問題を報告する</button>
       </div>
+      <FeedbackModal open={this.state.supportOpen} onClose={() => this.setState({ supportOpen: false })} userId={this.props.userId || null} initialRequest={this.state.supportRequest} />
+      </>
     );
   }
 }

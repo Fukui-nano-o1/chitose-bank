@@ -10,8 +10,11 @@ import { DAY_FACT_LABELS, dateRangeLabel, payTermsLine } from "../../lib/utils";
 import {
   REPORT_KINDS, REPORT_CACHE, REPORT_STEPS, isDemoReport, isClosedReport,
   needsReportAction, reportKey, reportPath, reportKindLabel, reportStatus,
-  reportSummary, reportNextAction, mergeReportResults, reportRoute, reportDate,
+  reportSummary, reportNextAction, mergeReportResults, reportRoute, reportDate, matchesReportSearch,
 } from "./reportModel";
+import { supportImpactLabel } from "../../lib/supportModel";
+import { SupportReportEvidence } from "./SupportReportEvidence";
+import { AdminSupportThread } from "./AdminSupportThread";
 import "./AdminReportsRoom.css";
 
 function Status({ row }) {
@@ -31,7 +34,7 @@ function ReportDialog({ title, onClose, children, footer, covered = false }) {
   const onKeyDown = event => {
     if (event.key === "Escape") { event.stopPropagation(); onClose(); }
     if (event.key !== "Tab") return;
-    const focusable = [...ref.current.querySelectorAll('button:not(:disabled), a[href], input, select, summary, [tabindex="0"]')];
+    const focusable = [...ref.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), summary, [tabindex="0"]')];
     const first = focusable[0]; const last = focusable.at(-1);
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -104,13 +107,14 @@ function PayEvidence({ row }) {
   </section>;
 }
 
-function ReportDetail({ row, busy, fresh, updateError, onUpdate, onGuide }) {
+function ReportDetail({ row, busy, fresh, updateError, onUpdate, onGuide, onSupportChange }) {
   const [closing, setClosing] = useState(false);
   const [outcome, setOutcome] = useState("");
   const summary = reportSummary(row);
   const demo = isDemoReport(row);
   const closed = isClosedReport(row);
   const disabled = busy || !fresh;
+  const supportThread = row.kind === "screen" && Object.hasOwn(row, "updated_at");
   return <>
     <div className="reports-detail-heading">
       <div className="reports-row-meta"><span>{reportKindLabel(row.kind)}</span><Status row={row} /></div>
@@ -124,14 +128,15 @@ function ReportDetail({ row, busy, fresh, updateError, onUpdate, onGuide }) {
     <section className="reports-section"><h2>{row.kind === "comment" ? "通報時のコメント" : row.kind === "pay" ? "運営メモ" : "通報・報告の内容"}</h2>
       <blockquote>{row.kind === "pay" ? row.admin_note || "メモの記録はありません。" : summary.body}</blockquote>
       {row.kind === "comment" && row.detail && <p className="reports-body">補足：{row.detail}</p>}
-      {row.kind === "screen" && <p className="reports-muted">報告時の画面幅：{row.viewport ? `${row.viewport}px` : "記録なし"}</p>}
+      {row.kind === "screen" && (row.topic || row.diagnostics ? <SupportReportEvidence row={row} /> : <p className="reports-muted">報告時の画面幅：{row.viewport ? `${row.viewport}px` : "記録なし"}</p>)}
       {!demo && <div className="reports-links">
         {(row.kind === "job" || row.kind === "pay") && row.job_number != null && <a className="reports-link" href={`#/admin/review/${row.job_number}`}>対象の求人を確認<span aria-hidden="true">↗</span></a>}
         {row.kind === "person" && row.target_worker_id && <button type="button" className="reports-link" onClick={() => openWorkerPreview(row.target_worker_id, row.source === "work_record" ? 1 : 0)}>対象のプロフィールを確認<span aria-hidden="true">↗</span></button>}
       </div>}
     </section>
     {row.kind === "pay" && !demo && <PayEvidence key={row.id} row={row} />}
-    {!demo && <section className="reports-section"><h2>事実確認の連絡先</h2>
+    {!demo && supportThread && <AdminSupportThread row={row} onChange={onSupportChange} />}
+    {!demo && !supportThread && <section className="reports-section"><h2>事実確認の連絡先</h2>
       <p className="reports-muted">運営チャットが開きます。内容を入力して送信するまでは、相手への連絡は行われません。</p>
       <div className="reports-links">
         <ContactLink id={row.reporter_id}>{row.kind === "pay" ? "申告した働き手に確認" : "通報・報告した人に確認"}</ContactLink>
@@ -147,7 +152,7 @@ function ReportDetail({ row, busy, fresh, updateError, onUpdate, onGuide }) {
       {row.application_id && <div><dt>応募ID</dt><dd>{row.application_id}</dd></div>}
       {row.reporter_id && <div><dt>報告者ID</dt><dd>{row.reporter_id}</dd></div>}
     </dl></details>
-    {!closed && !demo && <section className="reports-section reports-complete" aria-labelledby="reports-complete-heading">
+    {!closed && !demo && !supportThread && <section className="reports-section reports-complete" aria-labelledby="reports-complete-heading">
       <h2 id="reports-complete-heading">対応の状態を更新</h2>
       {!fresh && <p className="reports-error" role="status">最新の状態を取得できるまで、更新はできません。一覧の「再読み込み」をお試しください。</p>}
       {updateError && <p className="reports-error" role="alert">{updateError}</p>}
@@ -178,6 +183,8 @@ export function AdminReportsRoom() {
   const [message, setMessage] = useState("");
   const [view, setView] = useState("open");
   const [kind, setKind] = useState("all");
+  const [search, setSearch] = useState("");
+  const [blockedOnly, setBlockedOnly] = useState(false);
   const [route, setRoute] = useState(() => reportRoute(window.location.hash));
   const [helpOpen, setHelpOpen] = useState(false);
   useEffect(() => {
@@ -205,6 +212,14 @@ export function AdminReportsRoom() {
     setLoading(false);
   }, []);
   useEffect(() => { load(); return () => { sequence.current += 1; }; }, [load]);
+
+  const acceptSupportUpdate = useCallback(report => {
+    setItems(previous => {
+      const next = (previous || []).map(item => reportKey(item) === reportKey(report) && !(Date.parse(item.updated_at) > Date.parse(report.updated_at)) ? { ...item, ...report } : item);
+      setCache(REPORT_CACHE, next);
+      return next;
+    });
+  }, []);
 
   const update = async (row, status) => {
     if (busyRef.current || !freshKinds.includes(row.kind) || !needsReportAction(row)) return;
@@ -239,13 +254,13 @@ export function AdminReportsRoom() {
   const closed = all.filter(row => !isDemoReport(row) && isClosedReport(row));
   const samples = all.filter(isDemoReport);
   const pool = view === "closed" ? closed : active;
-  const visible = pool.filter(row => kind === "all" || row.kind === kind);
+  const visible = pool.filter(row => (kind === "all" || row.kind === kind) && (!blockedOnly || row.kind === "screen" && row.impact === "blocked") && matchesReportSearch(row, search));
   const detail = all.find(row => reportKey(row) === route);
   const closeDetail = () => { window.location.hash = "/admin/reports"; };
   const renderRow = row => {
     const summary = reportSummary(row);
     return <a key={reportKey(row)} href={`#${reportPath(row)}`} className="reports-row">
-      <div className="reports-row-meta"><span>{reportKindLabel(row.kind)}</span><Status row={row} /><time>{reportDate(row.created_at)}</time></div>
+      <div className="reports-row-meta"><span>{reportKindLabel(row.kind)}</span><Status row={row} />{row.kind === "screen" && row.impact && <span className={`reports-impact reports-impact-${row.impact}`}>{supportImpactLabel(row.impact)}</span>}<time>{reportDate(row.created_at)}</time></div>
       <h2>{summary.title}</h2><p className="reports-target">{summary.target}</p><p className="reports-excerpt">{summary.body}</p>
       <div className="reports-row-next"><span>{isDemoReport(row) ? "サンプルの内容を見る" : reportNextAction(row)}</span><span aria-hidden="true">→</span></div>
     </a>;
@@ -264,25 +279,29 @@ export function AdminReportsRoom() {
       <div className="reports-filters"><label>種類<select value={kind} onChange={event => setKind(event.target.value)}><option value="all">すべて（{pool.length}）</option>{REPORT_KINDS.map(source => <option key={source.key} value={source.key}>{source.label}（{pool.filter(row => row.kind === source.key).length}）</option>)}</select></label>
         <button type="button" className="reports-text-button" disabled={loading || busy} onClick={load}>{loading ? "読み込み中…" : "再読み込み"}</button>
       </div>
+      <div className="reports-search"><label htmlFor="reports-search">受付番号・内容から探す</label><input id="reports-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="例：ログイン、PDF、受付番号" />
+        <label className="reports-blocked-filter"><input type="checkbox" checked={blockedOnly} onChange={event => setBlockedOnly(event.target.checked)} />「操作が止まっている」の申告のみ（{pool.filter(row => row.kind === "screen" && row.impact === "blocked").length}件）</label>
+      </div>
       <p className="reports-list-caption">{view === "closed" ? "対応を終えた案件" : "確認・対応が必要な案件"} · 受付が新しい順</p>
       {items === null ? <p role="status" className="reports-empty">通報を読み込み中<Dots /></p>
         : visible.length ? <div className="reports-list">{visible.map(renderRow)}</div>
-          : <div className="reports-empty"><h2>{failedKinds.length ? "表示できる案件がありません" : view === "closed" ? "対応履歴はありません" : kind === "all" ? "要対応の案件はありません" : "この種類の要対応はありません"}</h2><p>{failedKinds.length ? "通信状況を確認して、再読み込みしてください。" : view === "closed" ? "対応を終えた案件はここで確認できます。" : "新しい通報・報告が届くと、ここに表示されます。"}</p></div>}
+          : <div className="reports-empty"><h2>{failedKinds.length ? "表示できる案件がありません" : search.trim() || blockedOnly ? "条件に合う案件はありません" : view === "closed" ? "対応履歴はありません" : kind === "all" ? "要対応の案件はありません" : "この種類の要対応はありません"}</h2><p>{failedKinds.length ? "通信状況を確認して、再読み込みしてください。" : search.trim() || blockedOnly ? "検索語や絞り込みを変更してください。" : view === "closed" ? "対応を終えた案件はここで確認できます。" : "新しい通報・報告が届くと、ここに表示されます。"}</p></div>}
       {samples.length > 0 && <details className="reports-samples"><summary>表示サンプル（{samples.length}件）</summary><p>「【デモ】」の記載がある報告です。要対応件数には含めていません。</p><div className="reports-list">{samples.map(renderRow)}</div></details>}
     </div>
     {route && <ReportDialog title="案件の確認" onClose={closeDetail} covered={helpOpen} footer={<button type="button" className="reports-secondary" onClick={closeDetail}>一覧に戻る</button>}>
-      {detail ? <ReportDetail key={route} row={detail} fresh={freshKinds.includes(detail.kind)} busy={busy} updateError={updateError} onUpdate={update} onGuide={() => setHelpOpen(true)} />
+      {detail ? <ReportDetail key={route} row={detail} fresh={freshKinds.includes(detail.kind)} busy={busy} updateError={updateError} onUpdate={update} onGuide={() => setHelpOpen(true)} onSupportChange={acceptSupportUpdate} />
         : loading ? <p role="status">案件を読み込み中<Dots /></p> : <div className="reports-empty"><h1>この案件を表示できません</h1><p>通信状況や閲覧権限をご確認ください。</p><button type="button" className="reports-secondary" onClick={load}>再読み込み</button></div>}
     </ReportDialog>}
     {helpOpen && <ReportDialog title="通報対応の手順書" onClose={() => setHelpOpen(false)} footer={<button type="button" className="reports-primary" onClick={() => setHelpOpen(false)}>確認した画面に戻る</button>}>
       <p className="reports-lead">迷ったら、この順番で進めてください。</p>
       <ol className="reports-steps">
-        <li><h3>「要対応」から案件を開く</h3><p>種類・対象・受付日を確認します。「未対応」はこれから確認する案件、「事実確認中」は未払いについて確認を進めている案件です。</p></li>
+        <li><h3>「要対応」から案件を開く</h3><p>種類・対象・受付日を確認します。操作が止まっている報告は絞り込めます。「未対応」はこれから確認する案件、「確認中」は調査中、「回答あり」は利用者へ返信した案件です。「事実確認中」は未払いについて確認を進めている案件です。</p></li>
         <li><h3>内容と記録を確認する</h3><p>案件内の「次にすること」と種類別の手順に沿って進めます。通報は利用者からの申告です。必要に応じて双方に事実を確認します。</p></li>
-        <li><h3>対応を終えてから結果を保存する</h3><p>「対応を完了する」または「確認結果を記録する」を選び、内容を確認して保存します。確認を続ける場合は、完了せず一覧へ戻ります。</p></li>
+        <li><h3>続けるための案内を伝え、結果を確認する</h3><p>画面・機能の相談には、案件内の返信欄から案内します。「回答あり」は解決を意味しません。修正や案内の結果を確認した後、「対応を完了する」または「確認結果を記録する」で結果を保存します。</p></li>
       </ol>
       <section className="reports-section"><h2>種類別の対応手順</h2>{REPORT_KINDS.map(source => <details key={source.key} className="reports-disclosure"><summary>{source.label}</summary><ReportSteps kind={source.key} /></details>)}</section>
       <section className="reports-section"><h2>完了した案件はどこへ？</h2><p>「対応履歴」に移ります。内容と結果は後から確認できます。未払いの「未解決で終了」は「解決済み」と区別して表示します。</p></section>
+      <section className="reports-section"><h2>画面・機能の相談を受けたら</h2><p>まず、利用者が続けられる操作を案内してください。原因が分からないときは「確認中」として調査を続け、直ったとは伝えません。パスワード・認証コードを尋ねたり、失敗した保存・応募を確認せず繰り返すよう案内したりしないでください。</p><p>返信と状態は利用者本人の「相談履歴」で確認できます。自動メールや端末通知はありません。ログイン前の相談も同じ画面で扱えます。追加の相談が届くと、再び「要対応」になります。</p></section>
       <section className="reports-section"><h2>表示サンプル・通信エラー</h2><p>「【デモ】」の記載がある報告は、一覧の下にまとめています。通信エラーが表示された場合は、件数が最新か確認できません。「再読み込み」を押してください。</p></section>
     </ReportDialog>}
   </>;

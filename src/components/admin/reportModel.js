@@ -1,3 +1,5 @@
+import { supportTopicLabel, supportImpactLabel, supportReceipt } from "../../lib/supportModel.js";
+
 export const REPORT_KINDS = [
   { key: "pay", label: "未払い", table: "pay_incidents" },
   { key: "job", label: "求人", table: "job_reports" },
@@ -23,6 +25,8 @@ export function reportStatus(row) {
   if (row.status === "unresolved") return { label: "未解決で終了", tone: "closed" };
   if (row.status === "resolved") return { label: row.kind === "pay" ? "解決済み" : "対応済み", tone: "closed" };
   if (row.kind === "pay" && row.status === "checking") return { label: "事実確認中", tone: "checking" };
+  if (row.kind === "screen" && row.status === "checking") return { label: "確認中", tone: "checking" };
+  if (row.kind === "screen" && row.status === "answered") return { label: "回答あり", tone: "answered" };
   return { label: "未対応", tone: "open" };
 }
 
@@ -31,7 +35,15 @@ export function reportSummary(row) {
   if (row.kind === "job") return { title: row.issue_type || "求人についての通報", target: `求人 #${row.job_number}${row.target_field ? ` · ${row.target_field}` : ""}`, body: row.detail || "補足の記載はありません。" };
   if (row.kind === "comment") return { title: row.reason || "コメントについての通報", target: "チャットのコメント", body: row.body_snapshot || "本文の記録はありません。" };
   if (row.kind === "person") return { title: row.issue_type || "プロフィールについての通報", target: [row.source === "work_record" ? "はたらいた記録" : "プロフィール", row.target_field].filter(Boolean).join(" · "), body: row.detail || "補足の記載はありません。" };
-  return { title: FB_LABEL[row.category] || "画面についての報告", target: row.page_hash || "対象ページの記録なし", body: row.body || "本文の記載はありません。" };
+  return { title: row.topic ? `${supportTopicLabel(row.topic)} · ${FB_LABEL[row.category] || "相談"}` : FB_LABEL[row.category] || "画面についての報告", target: row.page_hash || "対象ページの記録なし", body: row.body || "本文の記載はありません。" };
+}
+
+export function matchesReportSearch(row, query) {
+  const words = String(query || "").normalize("NFKC").toLocaleLowerCase("ja-JP").trim().split(/\s+/).filter(Boolean);
+  const summary = reportSummary(row);
+  const text = [summary.title, summary.target, summary.body, row.id, supportReceipt(row.id), row.expected_result, row.kind === "screen" && supportImpactLabel(row.impact)]
+    .filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase("ja-JP");
+  return words.every(word => text.includes(word));
 }
 
 export const REPORT_STEPS = {
@@ -56,15 +68,17 @@ export const REPORT_STEPS = {
     { title: "対応を完了", body: "必要な確認と対応を終えてから完了します。完了操作でアカウントが停止されることはありません。" },
   ],
   screen: [
-    { title: "報告された操作を確認", body: "本文・対象ページ・画面幅を確認します。情報が足りなければ、報告者に操作の手順を尋ねます。" },
-    { title: "動作と対応内容を確認", body: "同じ操作で現象を確認し、修正や案内など必要な対応を行います。改善の提案は、対応方針を整理します。" },
-    { title: "対応を完了", body: "修正後の動作や案内内容を確認してから完了します。完了操作だけで画面が修正されることはありません。" },
+    { title: "できない操作と影響を確認", body: "本文・対象ページ・期待した結果・確認用の記録を読みます。「操作が止まっている」は利用者の申告です。調べ始めたら「確認を始める」を押します。" },
+    { title: "続けるための案内を返信", body: "この案件の返信欄で、試せる手順や確認したい点を伝えます。送信した内容は利用者の相談履歴に表示されます。パスワードや認証コードを求めないでください。" },
+    { title: "修正・案内の結果を確認", body: "実際の動作を確認し、対応内容を返信してから「対応を完了する」を押します。利用者から追加の連絡があれば、再び要対応になります。返信しただけで解決と扱わないでください。" },
   ],
 };
 
 export function reportNextAction(row) {
   if (isClosedReport(row)) return "対応内容を確認する";
   if (row.kind === "pay" && row.status === "checking") return "双方への確認を進める";
+  if (row.kind === "screen" && row.status === "answered") return "回答後の状況を確認する";
+  if (row.kind === "screen" && row.status === "checking") return "調査を進め、続けるための案内を返信する";
   return REPORT_STEPS[row.kind]?.[0].title || "内容を確認する";
 }
 
@@ -73,7 +87,12 @@ export function mergeReportResults(previous, results) {
   const rows = REPORT_KINDS.flatMap((kind, index) => {
     const result = results[index];
     if (result.status !== "fulfilled" || result.value.error) return (previous || []).filter(row => row.kind === kind.key);
-    return (result.value.data || []).map(row => ({ ...row, kind: kind.key }));
+    return (result.value.data || []).map(row => {
+      // A list request begun before an admin reply can finish after the reply.
+      // Do not replace its confirmed result with that older list snapshot.
+      const existing = kind.key === "screen" && (previous || []).find(item => item.kind === kind.key && item.id === row.id);
+      return existing && Date.parse(existing.updated_at) > Date.parse(row.updated_at) ? existing : { ...row, kind: kind.key };
+    });
   });
   return rows.sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
 }

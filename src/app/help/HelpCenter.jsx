@@ -7,6 +7,7 @@ import { Dots } from "../../components/ui";
 import { isIOS } from "../../lib/push";
 import { compressImage } from "../../lib/image";
 import { NavIconInline } from "../../components/NavIcons";
+import { openSupport } from "../../lib/supportDiagnostics";
 
 // ── ヘルプセンター（#/help・#/help/{chapter}） ──────────────────
 // HELP_CONTENT: 章キー→{num,title,items:[{label,body}]}。
@@ -117,7 +118,7 @@ const HELP_CONTENT = {
       { key:"faq-insuranceWho",    label: "保険は誰が掛けますか", body: "保険の準備は農家にお願いしています（1日傷害保険など・多くは前日までの加入が必要です）。農家が「保険を準備した」と報告すると、働き手にお知らせが届きます。お知らせは農家からの報告に基づくもので、運営が証書を確認するものではありません。気になる時は、チャットで保険の内容を気軽に確認してください。働き手自身が1日数百円の傷害保険に入ることもできます。農家プロフィールで、保険の準備の方針を表明できます（自己申告）。" },
       { key:"faq-howToReport",     label: "通報のしかた", body: "求人詳細ページ最下部の「報告する」から通報できます。" },
       { key:"faq-howToDispute",    label: "異議申立のしかた", body: "欠勤記録の通知から72時間以内に、アプリから異議申立ができます。" },
-      { key:"faq-contact",         label: "お問い合わせ", body: "t5fki6643qty@gmail.com までご連絡ください。苦情には遅滞なく対応します。" },
+      { key:"faq-contact",         label: "お問い合わせ", body: "メニューの「ヘルプ・お問い合わせ」から、操作で困ったことや改善の提案を送れます。開いていた画面にそのまま戻れます。ログイン前でも利用できます。\nアプリから送れない場合は、t5fki6643qty@gmail.com へご連絡ください。" },
     ],
   },
 };
@@ -202,7 +203,7 @@ export function InstallGuide({ me }) {
   );
 }
 
-export function HelpCenter({ me, onReportClick }) {
+export function HelpCenter({ me, onReportClick = () => openSupport() }) {
   const chapterFromHash = () => {
     const h = window.location.hash.replace(/^#\/?/, "");
     const m = h.match(/^help\/(\w+)$/);
@@ -306,6 +307,10 @@ export function HelpCenter({ me, onReportClick }) {
     <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（モバイル・CSS側の負マージン併用） */}
       <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>使い方ガイド</h1>
       <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom: isAdmin(me) ? 12 : 36 }}>chitose-bankの使い方をまとめています</p>
+      <div style={{ padding:"18px 20px", marginBottom:24, border:"1px solid #DDD", borderRadius:16 }}>
+        <p className="f-sans" style={{ margin:"0 0 12px", color:"#333", fontSize:14, lineHeight:1.7 }}>操作で困ったことや、分かりにくいところを運営に相談できます。ログイン前でも利用できます。</p>
+        <button type="button" onClick={onReportClick} className="f-sans" style={{ padding:"12px 18px", color:"#fff", background:"#222", border:0, borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer" }}>ヘルプ・お問い合わせ</button>
+      </div>
       {isAdmin(me) && (
         <button onClick={recompressAll} disabled={!!recompressing} className="f-sans" style={{ marginBottom:24, padding:"8px 14px", fontSize:12, fontWeight:700, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:10, cursor: recompressing ? "default" : "pointer" }}>
           {recompressing ? <>🗜 軽量化中 {recompressing}<Dots /></> : "🗜 スクショを一括軽量化（管理）"}
@@ -326,11 +331,11 @@ export function HelpCenter({ me, onReportClick }) {
               </button>
               {isOpen && (
                 <div style={{ padding:"0 24px 24px", display:"grid", gap:20 }}>
-                  {key === "faq" && me && (
+                  {key === "faq" && (
                     <button onClick={onReportClick} className="f-sans" style={{
                       justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",
-                    }}><NavIconInline name="flag" size={12} />この画面を報告</button>
+                    }}><NavIconInline name="flag" size={12} />解決しないときは相談する</button>
                   )}
                   {ch.items.map((it, i) => {
                     const slotKey = it.key;

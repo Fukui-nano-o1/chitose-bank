@@ -68,6 +68,23 @@ test('real authentication UI handles failures and guides returning accounts with
     }
     const updates = w => w.qaRequests.filter(r => r.path === '/auth/v1/user' && r.method === 'PUT');
     const signups = w => w.qaRequests.filter(r => r.path === '/auth/v1/signup');
+    await t.test('login help opens support without losing the email, password or current screen', async () => {
+      const w = mount('success');
+      await until(() => button(w, 'ログインでお困りですか？'), 'support link ready');
+      await fill(w, 'input[type="email"]', 'person@fixture.test');
+      await fill(w, 'input[name="password"]', 'fixture-password');
+      let request;
+      w.addEventListener('cb:open-support', event => { request = event.detail; });
+      button(w, 'ログインでお困りですか？').click();
+      assert.equal(request.topic, 'login');
+      assert.equal(request.context.page_hash, '#/login');
+      assert.equal(w.location.hash, '#/login');
+      assert.equal(w.document.querySelector('input[type="email"]').value, 'person@fixture.test');
+      assert.equal(w.document.querySelector('input[name="password"]').value, 'fixture-password');
+      assert.equal(JSON.stringify(request).includes('person@fixture.test'), false);
+      assert.equal(JSON.stringify(request).includes('fixture-password'), false);
+      assert.equal(otpCalls(w).length, 0);
+    });
     for (const mode of ['smtp', 'timeout', 'body-timeout']) {
       const w = mount(mode);
       await until(() => button(w, '新規登録'), 'login ready');

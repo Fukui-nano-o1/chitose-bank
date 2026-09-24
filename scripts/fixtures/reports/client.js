@@ -11,6 +11,25 @@ export const supabase = createClient('https://reports-fixture.test', 'fixture-ke
     const patch = init?.body ? JSON.parse(init.body) : null;
     window.qaCalls.push({ table, method, query: request.search, patch });
     const response = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+    if (table === 'rpc/support_detail' || table === 'rpc/admin_support_update') {
+      if (window.qaSupportReadFailure && table === 'rpc/support_detail') return response({ message: 'Unavailable' }, 503);
+      const report = window.qaTables.feedback.find(row => row.id === patch.p_id);
+      if (!report) return response({ message: 'SUPPORT_NOT_FOUND' }, 404);
+      window.qaSupportMessages ||= {};
+      const messages = window.qaSupportMessages[report.id] ||= [];
+      if (table === 'rpc/admin_support_update') {
+        if (window.qaSupportGate) await window.qaSupportGate;
+        const previous = messages.find(message => message.id === patch.p_message_id);
+        if (previous) return response({ report, messages });
+        if (report.updated_at !== patch.p_expected_updated_at) return response({ message: 'SUPPORT_STALE' }, 409);
+        if (window.qaSupportWriteFailure) return response({ message: 'Unavailable' }, 503);
+        if (patch.p_body) messages.push({ id: patch.p_message_id, author_role: 'admin', body: patch.p_body, created_at: new Date().toISOString() });
+        report.status = patch.p_status;
+        report.updated_at = new Date(Date.parse(report.updated_at) + 1000).toISOString();
+        if (window.qaSupportLoseResponse) { window.qaSupportLoseResponse = false; return response({ message: 'Connection lost after commit' }, 503); }
+      }
+      return response({ report, messages });
+    }
     if (!Object.hasOwn(window.qaTables, table)) throw new Error(`Unexpected table: ${table}`);
     if (window.qaFailTables?.includes(table)) return response({ message: 'Unavailable' }, 403);
     let rows = window.qaTables[table];

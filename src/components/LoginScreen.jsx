@@ -4,6 +4,7 @@ import { useState, useEffect, useId, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
+import { openSupport, rememberSupportFailure } from "../lib/supportDiagnostics";
 import "./auth.css";
 
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
@@ -76,7 +77,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
     requestLock.current = true;
     setSending(true); setErr("");
     try { await action(); }
-    catch { setErr("通信できませんでした。接続を確認して、もう一度お試しください"); }
+    catch (error) { rememberSupportFailure({ operation: "auth.action", error }); setErr("通信できませんでした。接続を確認して、もう一度お試しください"); }
     finally { requestLock.current = false; setSending(false); }
   };
   const openEmail = (nextIntent) => {
@@ -97,6 +98,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   // 送信できなかったことは利用者の画面で消えて終わるので、運営が気づけるよう記録に残す。
   // メールアドレスは残さない（誰が試したかは auth のログ側にある）。
   const logMailFailure = (error) => {
+    rememberSupportFailure({ operation: "auth.signInWithOtp", error });
     try {
       supabase.from("app_errors").insert({
         level: "error", source: "client", page: "login", component: "LoginScreen",
@@ -148,6 +150,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       ({ data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw }));
     }
     if (error) {
+      rememberSupportFailure({ operation: "auth.signInWithPassword", error });
       setErr(isBadCred(error) ? "メールアドレスまたはパスワードが違います" : "通信が不安定です。もう一度お試しください");
       bounce(); return;
     }
@@ -206,7 +209,8 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       if (error) throw error;
       setAlreadyRegistered(!!data);
       setView(data ? "welcome" : "setpw");
-    } catch {
+    } catch (error) {
+      rememberSupportFailure({ operation: "auth.profile", error });
       setErr("登録情報を確認できませんでした。メールの確認は済んでいます。もう一度お試しください");
     }
   };
@@ -217,7 +221,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       token: code,
       type: 'email',
     });
-    if (error) { setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
+    if (error) { rememberSupportFailure({ operation: "auth.verifyOtp", error }); setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
     setAuthedUser(data.user);
     setPw(""); setPw2(""); setCode(""); setErr("");
     setView("verified");
@@ -229,7 +233,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
     if (pw.length < 8) { setErr("パスワードは8文字以上で設定してください"); return; }
     if (pw !== pw2) { setErr("確認用パスワードが一致しません"); bounce(); return; }
     const { error } = await supabase.auth.updateUser({ password: pw });
-    if (error) { setErr("パスワードの設定に失敗しました。時間をおいてもう一度お試しください"); return; }
+    if (error) { rememberSupportFailure({ operation: "auth.updateUser", error }); setErr("パスワードの設定に失敗しました。時間をおいてもう一度お試しください"); return; }
     // パスワード保存後のプロフィール取得だけが失敗しても、同じ変更を再送しない。
     setPw(""); setPw2(""); setView("ready");
     await completeLogin(authedUser);
@@ -414,6 +418,9 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
               {isReset && <button type="button" className="cb-auth-link cb-auth-recovery" disabled={sending} onClick={() => runAction(() => completeLogin(authedUser))}>パスワードを変更せずログイン</button>}
             </>
           )}
+          <button type="button" className="cb-auth-link cb-auth-recovery" onClick={() => openSupport({ topic: "login" })}>
+            ログインでお困りですか？
+          </button>
         </div>
       </section>
     </div>

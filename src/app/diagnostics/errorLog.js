@@ -3,6 +3,7 @@
 // ★app_errors への記録はプラポリ第3条データ台帳「エラーの記録」の行に対応（保存1年・
 //   purge_old_app_errors が毎日掃除）。記録する項目を増やすときは台帳の改訂が要る。
 import { supabase } from "../../lib/supabase";
+import { rememberSupportFailure } from "../../lib/supportDiagnostics";
 
 export function getSessionId() {
   try {
@@ -17,6 +18,7 @@ export function sanitizeMessage(msg = "") {
 }
 
 export async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {}, userId = null }) {
+  rememberSupportFailure({ source, action, operation, error });
   try {
     await supabase.from("app_errors").insert({
       session_id: getSessionId(), user_id: userId, level, source, page, component, action, operation,

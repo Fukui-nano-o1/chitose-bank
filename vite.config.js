@@ -7,6 +7,9 @@ const startup = startupPrecache()
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_BUILD__: JSON.stringify(/^[a-f0-9]{40}$/i.test(process.env.VERCEL_GIT_COMMIT_SHA || "") ? process.env.VERCEL_GIT_COMMIT_SHA : "v20260924-support"),
+  },
   plugins: [
     react(),
     startup.plugin,

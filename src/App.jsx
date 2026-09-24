@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { supabase, clearBrowserAuthSession } from "./lib/supabase";
 import { createDeviceLogout } from "./lib/authSession";
+import { captureSupportContext, clearSupportDiagnostics, openSupport } from "./lib/supportDiagnostics";
 import { useDeviceSync } from "./hooks/useDeviceSync";
 import { activeDeviceDraft, readPendingConsent } from "./lib/deviceDrafts";
 import { PendingConsentWorkspace } from "./components/PendingConsentWorkspace";
@@ -719,6 +720,16 @@ export default function App(){
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // モバイル下部バー左端☰（PCのmenuOpenとは別系統）
   // この画面を報告：☰の開閉やヘルプの章開閉と無関係な階層で開閉させる（2026-07-14・アンマウントバグ修正）
   const [showFeedback, setShowFeedback] = useState(false);
+  const [supportRequest, setSupportRequest] = useState(null);
+  useEffect(() => {
+    const open = event => {
+      const request = event.detail || {};
+      setSupportRequest({ ...request, context: request.context || captureSupportContext() });
+      setMenuOpen(false); setMobileMenuOpen(false); setShowFeedback(true);
+    };
+    window.addEventListener("cb:open-support", open);
+    return () => window.removeEventListener("cb:open-support", open);
+  }, []);
   const [showTerms,setShowTerms]=useState(false);
   const [showConstitution,setShowConstitution]=useState(false);
   const [showPrivacy,setShowPrivacy]=useState(false);
@@ -1424,7 +1435,7 @@ export default function App(){
     signOut: options => supabase.auth.signOut(options),
     stopAutoRefresh: () => supabase.auth.stopAutoRefresh(),
     clearAuth: clearBrowserAuthSession,
-    clearPrivateState: () => { setMe(null); clearSnapshots(); },
+    clearPrivateState: () => { setMe(null); clearSnapshots(); clearSupportDiagnostics(); },
     navigate: () => { window.location.hash = "/search"; window.location.reload(); },
   });
   const handleLogout = () => logoutRef.current();
@@ -1763,15 +1774,13 @@ export default function App(){
                          fontSize:14, color:"#222", padding:"10px 16px" }}>
                 <NavIconInline name="book" size={13} />使い方
               </button>
-              {me && (
-                <button onClick={() => { setMenuOpen(false); setShowFeedback(true); }}
-                  className="f-sans"
-                  style={{ display:"block", width:"100%", textAlign:"left", background:"none",
-                           border:"none", cursor:"pointer", fontFamily:"inherit",
-                           fontSize:14, color:"#222", padding:"10px 16px" }}>
-                  <NavIconInline name="flag" size={13} />この画面を報告
-                </button>
-              )}
+              <button onClick={() => openSupport()}
+                className="f-sans"
+                style={{ display:"block", width:"100%", textAlign:"left", background:"none",
+                         border:"none", cursor:"pointer", fontFamily:"inherit",
+                         fontSize:14, color:"#222", padding:"10px 16px" }}>
+                <NavIconInline name="question" size={13} />ヘルプ・お問い合わせ
+              </button>
               {isAdmin(me) && (
                 <button onClick={() => { setMenuOpen(false); window.location.hash = "/admin"; }}
                   className="f-sans"
@@ -1806,13 +1815,11 @@ export default function App(){
               <button onClick={()=>{ setMobileMenuOpen(false); window.dispatchEvent(new CustomEvent("cb:openPageGuide")); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />この画面の説明</button>
             )}
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="book" size={13} />使い方</button>
-            {me && (
-              <button onClick={()=>{ setMobileMenuOpen(false); setShowFeedback(true); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="flag" size={13} />この画面を報告</button>
-            )}
+            <button onClick={() => openSupport()} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />ヘルプ・お問い合わせ</button>
             {/* お問い合わせ（2026-08-22たきと指示）。フッター「サポート」列と同じ宛先＝メールの窓口は1つ。
                 aタグだがメニュー項目のCSSに乗せる（下線を消し文字色を揃える） */}
             <a href="mailto:t5fki6643qty@gmail.com" onClick={()=>setMobileMenuOpen(false)}
-               className="f-sans app-header-mobile-menu-item" style={{ textDecoration:"none", color:"#222" }}><NavIconInline name="mail" size={13} />お問い合わせ</a>
+               className="f-sans app-header-mobile-menu-item" style={{ textDecoration:"none", color:"#222" }}><NavIconInline name="mail" size={13} />メールで問い合わせる</a>
             {MOBILE_MENU_ITEMS
               .filter(item => !item.adminOnly || isAdmin(me))
               .map(item => (
@@ -1929,7 +1936,7 @@ export default function App(){
         <ProductAnalyticsController excluded={!!isAdmin(me)} />
         <AnalyticsPreferences hidden={!!isAdmin(me) || safeTab === "privacy" || needsAccountHolder || needsPrivacyReconsent || openAccountForm || !!chatAppId} />
         <DevBadge label="App(Dashboard/Home)" />
-        <AppErrorBoundary>
+        <AppErrorBoundary userId={me?.id || null}>
         <Suspense fallback={<RouteLoading />}>
         {/* 管理者専用エラー帯（2026-08-07）：どのタブでも画面上部に出る。システムページ表示中は
             自分自身を指すだけなので出さない。一般ユーザーには描画も取得も走らない（isAdminゲート） */}
@@ -1946,6 +1953,7 @@ export default function App(){
           </div>
         )}
         {(needsAccountHolder || openAccountForm) ? (
+          <>
           <AccountHolderForm onDone={()=>{
             setNeedsAccountHolder(false); setOpenAccountForm(false);
             const ret = peekApplyReturn();
@@ -1955,6 +1963,10 @@ export default function App(){
             setNeedsAccountHolder(false); setOpenAccountForm(false);
             window.location.hash="/login";
           }} onShowTerms={()=>setShowTerms(true)} onShowPrivacy={()=>setShowPrivacy(true)} />
+          <div style={{ textAlign:"center", margin:"12px 0 24px" }}>
+            <button type="button" onClick={() => openSupport({ topic: "signup" })} className="f-sans" style={{ background:"none", border:0, color:"#222", fontSize:14, padding:12, textDecoration:"underline", cursor:"pointer" }}>登録でお困りですか？</button>
+          </div>
+          </>
         ) : needsPrivacyReconsent ? (
           deviceSync.pending ? <PendingConsentWorkspace owner={me?.id} error={deviceSync.error} onRetry={deviceSync.retry}
             onNewJob={() => { activeDeviceDraft(me.id, null); setShowJobPost(true); window.location.hash = "/work/new"; }} />
@@ -2035,7 +2047,7 @@ export default function App(){
           onShowAccountForm={() => { setOpenAccountForm(true); window.location.hash = "/account"; }}/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="boxes"&&isAdmin(me)&&<Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminBoxRegistryPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="charter"&&<CharterPage />}
-        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => setShowFeedback(true)} />}
+        {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="help"&&<HelpCenter me={me} onReportClick={() => openSupport()} />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="install"&&<InstallGuide me={me} />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="visit"&&<VisitEntrance />}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="insurance"&&me&&<InsurancePrepPage me={me} />}
@@ -2056,7 +2068,7 @@ export default function App(){
             <button data-prefetch-route="/help/faq" onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">よくある質問</button>
             <button data-prefetch-route="/help/faq" onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">通報のしかた</button>
             <button data-prefetch-route="/help/faq" onClick={()=>{ window.location.hash="/help/faq"; }} className="f-sans footer-col-link">異議申立</button>
-            <a href="mailto:t5fki6643qty@gmail.com" className="f-sans footer-col-link">お問い合わせ</a>
+            <button onClick={() => openSupport()} className="f-sans footer-col-link">ヘルプ・お問い合わせ</button>
           </div>
           <div>
             <p className="f-sans footer-col-title">雇う・働く</p>
@@ -2085,7 +2097,7 @@ export default function App(){
       </footer>}
 
       {/* この画面を報告：☰やヘルプの章開閉と無関係な階層に常駐（2026-07-14アンマウントバグ修正） */}
-      <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} />
+      <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} userId={me?.id || null} initialRequest={supportRequest} />
 
       {/* この画面の説明（2026-09-01たきと指示「訪問者にページの説明をすべき」＝Airbnbの
           初回教育＋(i)入口の写し）：はじめて開いたページで一度だけ自動表示・
@@ -2133,7 +2145,7 @@ export default function App(){
           （2026-08-07 コピー→白画面の修理）：包まないと、チャンク読み込み失敗・描画エラーが
           ここで起きた時にReactがツリー全体を落とし、復帰ボタンも無い白画面になる */}
       {!me&&showLanding&&(
-        <AppErrorBoundary><Suspense fallback={null}><LandingFlow
+        <AppErrorBoundary userId={me?.id || null}><Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowLanding(false)}
           onSkip={()=>{setShowLanding(false);setTab("search");}}
           onLogin={()=>{setShowLanding(false);setTab("login");}}
@@ -2142,7 +2154,7 @@ export default function App(){
         /></Suspense></AppErrorBoundary>
       )}
       {me&&showJobPost&&(!needsPrivacyReconsent || deviceSync.pending)&&(
-        <AppErrorBoundary><Suspense fallback={<FlowLoading />}><LandingFlow
+        <AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading />}><LandingFlow
           key={me.id + (window.location.hash.match(/work\/(?:local\/[^/]+|edit\/\d+)/)?.[0] || "new")}
           ownerId={me.id}
           localOnly={needsPrivacyReconsent}
@@ -2158,7 +2170,7 @@ export default function App(){
         /></Suspense></AppErrorBoundary>
       )}
       {me&&showDevJump&&(
-        <AppErrorBoundary><Suspense fallback={null}><LandingFlow
+        <AppErrorBoundary userId={me?.id || null}><Suspense fallback={null}><LandingFlow
           onComplete={()=>setShowDevJump(false)}
           onSkip={()=>setShowDevJump(false)}
           onLogin={()=>setShowDevJump(false)}
@@ -2166,11 +2178,11 @@ export default function App(){
             setShowDevJump(false); setWorkerFlowDone(true); }}
         /></Suspense></AppErrorBoundary>
       )}
-      {showTerms&&<AppErrorBoundary><Suspense fallback={<FlowLoading label="文書を開いています" />}><Terms onClose={()=>setShowTerms(false)}/></Suspense></AppErrorBoundary>}
-      {showConstitution&&<AppErrorBoundary><Suspense fallback={<FlowLoading label="文書を開いています" />}><DataConstitution onClose={()=>setShowConstitution(false)}/></Suspense></AppErrorBoundary>}
-      {showPrivacy&&<AppErrorBoundary><Suspense fallback={<FlowLoading label="文書を開いています" />}><PrivacyPolicy onClose={()=>setShowPrivacy(false)}/></Suspense></AppErrorBoundary>}
+      {showTerms&&<AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading label="文書を開いています" />}><Terms onClose={()=>setShowTerms(false)}/></Suspense></AppErrorBoundary>}
+      {showConstitution&&<AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading label="文書を開いています" />}><DataConstitution onClose={()=>setShowConstitution(false)}/></Suspense></AppErrorBoundary>}
+      {showPrivacy&&<AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading label="文書を開いています" />}><PrivacyPolicy onClose={()=>setShowPrivacy(false)}/></Suspense></AppErrorBoundary>}
       {me&&!me.isWorker&&!me.viaAccountHolder&&showOnboarding&&(
-        <AppErrorBoundary><Suspense fallback={<FlowLoading label="プロフィールを開いています" />}><OnboardingModal
+        <AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading label="プロフィールを開いています" />}><OnboardingModal
           key={obModalKey}
           me={me}
           setMe={setMe}
@@ -2180,7 +2192,7 @@ export default function App(){
         /></Suspense></AppErrorBoundary>
       )}
       {showProfile&&me&&(
-        <AppErrorBoundary><Suspense fallback={<FlowLoading label="プロフィールを開いています" />}><ProfileModal
+        <AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading label="プロフィールを開いています" />}><ProfileModal
           me={me}
           recs={recs}
           isContributor={isContributor}

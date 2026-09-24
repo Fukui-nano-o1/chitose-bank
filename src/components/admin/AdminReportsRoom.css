@@ -1,7 +1,7 @@
 .reports-room, .reports-modal { color: #222; font-size: 14px; line-height: 1.65; }
 .reports-room *, .reports-modal * { box-sizing: border-box; }
 .reports-room { max-width: 680px; margin: 0 auto; padding: 16px 0 100px; }
-.reports-room button, .reports-room select, .reports-modal button, .reports-modal input { font: inherit; }
+.reports-room button, .reports-room select, .reports-room input, .reports-modal button, .reports-modal input, .reports-modal textarea { font: inherit; }
 .reports-room button, .reports-modal button { cursor: pointer; }
 .reports-room button:disabled, .reports-modal button:disabled { cursor: default; opacity: .5; }
 .reports-room :focus-visible, .reports-modal :focus-visible { outline: 3px solid #008556; outline-offset: 3px; }
@@ -31,7 +31,15 @@
 .reports-status { border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 700; }
 .reports-status-open { background: #fff3dd; color: #825000; }
 .reports-status-checking { background: #e8f0fa; color: #235780; }
+.reports-status-answered { background: #f1ecfa; color: #614194; }
 .reports-status-closed { background: #eaf4ef; color: #286144; }
+.reports-impact { color: #555; font-size: 11px; }
+.reports-impact-blocked { color: #9e3d22; font-weight: 700; }
+.reports-search { display: grid; gap: 8px; margin: 18px 0; }
+.reports-search > label { font-size: 13px; color: #555; }
+.reports-search > input { min-width: 0; width: 100%; min-height: 46px; border: 1px solid #ccc; border-radius: 10px; padding: 11px 12px; background: white; color: #222; font-size: 16px; }
+.reports-blocked-filter { display: flex; align-items: center; gap: 9px; min-height: 44px; }
+.reports-blocked-filter input { flex: 0 0 20px; height: 20px; width: 20px; accent-color: #008556; }
 .reports-status-sample { background: #f0f0f0; color: #555; }
 .reports-row h2 { font-size: 17px; line-height: 1.55; margin: 12px 0 5px; overflow-wrap: anywhere; font-weight: 700; }
 .reports-target { color: #555; font-size: 13px; margin: 0 0 6px; overflow-wrap: anywhere; }
@@ -69,10 +77,24 @@
 .reports-facts > div { display: grid; grid-template-columns: minmax(0, 110px) minmax(0, 1fr); gap: 12px; border-bottom: 1px solid #eee; padding: 12px 0; }
 .reports-facts dt { color: #626262; }
 .reports-facts dd { margin: 0; overflow-wrap: anywhere; }
+.reports-impact-note { display: block; color: #717171; margin-top: 4px; }
 .reports-disclosure { margin-top: 14px; border-bottom: 1px solid #e6e6e6; }
 .reports-events { padding-left: 20px; }
 .reports-events li { margin: 16px 0; }
 .reports-events p { margin: 3px 0; font-size: 13px; color: #555; }
+.reports-conversation { list-style: none; padding: 0; margin: 20px 0; display: grid; gap: 14px; }
+.reports-conversation li { background: #f6f6f6; padding: 14px; border-radius: 12px; }
+.reports-conversation .reports-message-admin { background: #eef6f1; border-left: 3px solid #008556; }
+.reports-conversation li > div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+.reports-conversation time { color: #717171; }
+.reports-conversation p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
+.reports-reply-label { display: block; margin: 18px 0 8px; font-weight: 600; }
+.reports-support textarea { display: block; width: 100%; min-width: 0; padding: 12px; border: 1px solid #aaa; border-radius: 10px; color: #222; background: white; font-size: 16px; resize: vertical; }
+.reports-support textarea:disabled { background: #f7f7f7; }
+.reports-reply-actions { margin-top: 12px; }
+.reports-support-status { margin-top: 24px; border-top: 1px solid #eee; padding-top: 20px; }
+.reports-support-status h3 { font-size: 16px; margin: 0; }
+.reports-support-status > button { margin-top: 10px; }
 .reports-steps { padding-left: 24px; margin: 18px 0; }
 .reports-steps li { padding-left: 8px; margin: 0 0 20px; }
 .reports-steps li::marker { font-weight: 700; }
