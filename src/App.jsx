@@ -1774,7 +1774,10 @@ export default function App(){
                          fontSize:14, color:"#222", padding:"10px 16px" }}>
                 <NavIconInline name="book" size={13} />使い方
               </button>
-              <button onClick={() => { setMenuOpen(false); openSupport({ view: "compose" }); }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#222", padding:"10px 16px" }}><NavIconInline name="flag" size={13} />この画面を報告</button>
+              <button onClick={() => { setMenuOpen(false); openSupport({ view: "compose" }); }} aria-label="この画面を報告" aria-describedby="desktop-report-screen-note" className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#222", padding:"10px 16px" }}>
+                <NavIconInline name="flag" size={13} />この画面を報告
+                <small id="desktop-report-screen-note" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.5 }}>送信時に、画面の種類も自動で添付</small>
+              </button>
               <button onClick={() => openSupport()}
                 className="f-sans"
                 style={{ display:"block", width:"100%", textAlign:"left", background:"none",
@@ -1816,7 +1819,10 @@ export default function App(){
               <button onClick={()=>{ setMobileMenuOpen(false); window.dispatchEvent(new CustomEvent("cb:openPageGuide")); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />この画面の説明</button>
             )}
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="book" size={13} />使い方</button>
-            <button onClick={() => { setMobileMenuOpen(false); openSupport({ view: "compose" }); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="flag" size={13} />この画面を報告</button>
+            <button onClick={() => { setMobileMenuOpen(false); openSupport({ view: "compose" }); }} aria-label="この画面を報告" aria-describedby="mobile-report-screen-note" className="f-sans app-header-mobile-menu-item">
+              <NavIconInline name="flag" size={13} />この画面を報告
+              <small id="mobile-report-screen-note" style={{ display:"block", fontSize:11, color:"#717171", marginTop:4, lineHeight:1.5 }}>送信時に、画面の種類も自動で添付</small>
+            </button>
             <button onClick={() => openSupport()} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />ヘルプ・お問い合わせ</button>
             {/* お問い合わせ（2026-08-22たきと指示）。フッター「サポート」列と同じ宛先＝メールの窓口は1つ。
                 aタグだがメニュー項目のCSSに乗せる（下線を消し文字色を揃える） */}
