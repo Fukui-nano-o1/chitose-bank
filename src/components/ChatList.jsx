@@ -4,7 +4,9 @@ import { supabase } from "../lib/supabase";
 import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache";
 import { useRefreshTick, REFRESH_APPLICATIONS } from "../lib/refreshBus";
-import { openEmployerPreview, openWorkerPreview, openPhaseInfo } from "../lib/previewBus";
+import { openSupport } from "../lib/supportDiagnostics";
+import { CHAT_CLOSED, chatInboxTime, mergeChatPreviews, chatDeadline } from "../lib/chatMessaging";
+import "./Chat.css";
 import { AutoSkeleton, useSkeletonProbe } from "./ui";
 import { pushStatus, enablePush, isIOS } from "../lib/push";
 import { ROLE_ORANGE, ROLE_GREEN, CHAT_LIST_STATUSES, appPhaseKey, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseLabelNow, appPhaseColorNow } from "../lib/utils";
@@ -14,7 +16,6 @@ import { NavIcon } from "./NavIcons";
 
 // 隠せる段階（2026-08-18たきと指示）：見送り／失効／取り消しの3つ。応募者ページの APP_HIDABLE と対。
 // モジュールレベル定義＝毎描画で作り直さない（effectの依存にも安全に使える）
-const CHAT_HIDABLE = ["rejected", "expired", "canceled"];
 
 // 読み込み中に届いた新着を、遅れて返った履歴や順序が前後した配信で巻き戻さない。
 const mergeMessageTimes = (previous, messages) => {
@@ -42,6 +43,11 @@ export function ChatList() {
   // 段階1＝応募行が届いたら（1往復目）名前なしの行を出す（名前は「求人 #N」に落ちる）
   // 段階2＝相手名・求人名が届いたら（2往復目）上書き。以降は従来どおり
   const [rows, setRows] = useState(() => hydrateChatCache()?.rows || []);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [loadError, setLoadError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const [previews, setPreviews] = useState({}); // 本文の要約はメモリのみ。永続キャッシュへ入れない
   const [loading, setLoading] = useState(() => !chatCache.v); // キャッシュがあれば最初からスピナーを出さない
   const refreshTick = useRefreshTick(REFRESH_APPLICATIONS);
   const pendingAppUpdates = useRef(null);
@@ -98,8 +104,14 @@ export function ChatList() {
       if (inFlight) { refreshAgain = true; return; }
       inFlight = true;
       try {
-        const { data, error } = await supabase.rpc("my_unread_message_counts");
-        if (!cancelled && !error && data) setUnreadMap(data.by_application || {});
+        const [unread, latest] = await chatDeadline(Promise.all([
+          supabase.rpc("my_unread_message_counts"), supabase.rpc("my_chat_inbox_previews"),
+        ]));
+        if (!cancelled && !unread.error && unread.data) setUnreadMap(unread.data.by_application || {});
+        if (!cancelled && !latest.error && latest.data) {
+          setLastMsgMap(previous => mergeMessageTimes(previous, latest.data));
+          setPreviews(previous => mergeChatPreviews(previous, latest.data));
+        }
       } catch {} finally {
         inFlight = false;
         if (refreshAgain && !cancelled) { refreshAgain = false; refreshUnreadMap(); }
@@ -109,7 +121,10 @@ export function ChatList() {
     const onNewMsg = (payload) => {
       refreshUnreadMap();
       const m = payload?.new;
-      if (!cancelled && m?.application_id && m?.created_at) setLastMsgMap(prev => mergeMessageTimes(prev, [m]));
+      if (!cancelled && m?.application_id && m?.created_at) {
+        setLastMsgMap(prev => mergeMessageTimes(prev, [m]));
+        setPreviews(prev => mergeChatPreviews(prev, [m]));
+      }
     };
     // 応募のアクション（承認・採用・保険報告・開始・完了・終了確認）で並びが動くよう、
     // applicationsのUPDATEも購読して手元の行を差し替える（2026-07-27・アクション順）
@@ -126,7 +141,7 @@ export function ChatList() {
     refreshUnreadMap();
     // 復帰時の再読込＋保険ポーリング（2026-07-27たきと指示）：iOS PWAのバックグラウンドで
     // WebSocketが凍結・切断されるため、画面復帰で未読を即再取得＋表示中は10秒ごとの保険
-    const onWake = () => { if (document.visibilityState === "visible") refreshUnreadMap(); };
+    const onWake = () => { if (document.visibilityState === "visible") { refreshUnreadMap(); setRetry(value => value + 1); } };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
     const iv = setInterval(() => { if (document.visibilityState === "visible") refreshUnreadMap(); }, 10000);
@@ -144,15 +159,18 @@ export function ChatList() {
     pendingAppUpdates.current = liveUpdates;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled || !session) return;
+        const { data: { session } } = await chatDeadline(supabase.auth.getSession());
+        if (cancelled) return;
+        if (!session) throw new Error("session");
         const uid = session.user.id;
-        const [workerRes, farmerRes] = await Promise.all([
+        const [workerRes, farmerRes] = await chatDeadline(Promise.all([
           supabase.from("applications").select("*").eq("worker_id", uid).in("status", CHAT_LIST_STATUSES),
           supabase.from("applications").select("*").eq("farmer_id", uid).in("status", CHAT_LIST_STATUSES),
-        ]);
+        ]));
         // 片側だけ失敗した場合も、既存の一覧を空／半分の結果で置き換えない。
-        if (cancelled || workerRes.error || farmerRes.error) return;
+        if (cancelled) return;
+        if (workerRes.error || farmerRes.error) throw workerRes.error || farmerRes.error;
+        setLoadError("");
         // worker_id===farmer_id（自分の求人に自分で応募したテストデータ等）で同一行が
         // 両方のクエリに一致するケースがあるため、id基準で重複排除する
         const byId = new Map();
@@ -202,12 +220,7 @@ export function ChatList() {
             const jobs = new Map(data.map(j => [j.job_number, j]));
             setRows(prev => prev.map(a => ({ ...a, job: jobs.get(a.job_number) || null })));
           }).catch(() => {});
-        Promise.resolve(supabase.from("messages").select("application_id,created_at")
-          .in("application_id", all.map(a => a.id)).order("created_at", { ascending: false }).limit(1000))
-          .then(({ data, error }) => {
-            if (!cancelled && !error && data) setLastMsgMap(prev => mergeMessageTimes(prev, data));
-          }).catch(() => {});
-      } catch {} finally {
+      } catch { if (!cancelled) setLoadError("会話を読み込めませんでした。通信状況を確認して、もう一度お試しください。"); } finally {
         if (!cancelled) setLoading(false);
         if (pendingAppUpdates.current === liveUpdates) pendingAppUpdates.current = null;
       }
@@ -216,7 +229,7 @@ export function ChatList() {
       cancelled = true;
       if (pendingAppUpdates.current === liveUpdates) pendingAppUpdates.current = null;
     };
-  }, [refreshTick]);
+  }, [refreshTick, retry]);
 
   // 一覧スナップショットの保存（2026-07-22）：初回ロード完了後、rows/未読/イニシャルが変わるたびキャッシュへ。
   // チャットから戻った再マウントで即表示され、スピナー（リロード感）が出なくなる
@@ -247,42 +260,21 @@ export function ChatList() {
   // ＝「相手の返信が上に来ない」の原因だった。rowLastAt＝メッセージ（双方向）と応募の記録の最新時刻
   const sortedRows = [...rows].sort((x, y) => rowLastAt(y) - rowLastAt(x));
 
-  // 非表示の選択（2026-08-18たきと指示。同日改定「すべて削除で、取り消しに差し替え」）：
-  // ピルは【隠すもの】3つだけ＝見送り／失効／取り消し。選ぶとその段階のチャットが一覧から消える。
-  // 3つとも同時に選べる（複数選択）。「すべて」ピルは廃止＝全部表示したい時は選択を1つずつ外す
-  //   （空状態からは「すべて表示する」で一度に戻せる）。
-  // 既定＝すべて表示（2026-08-28たきと報告「完了ラベルのままだ」の根治）：
-  // 従来は見送り・失効・取り消しを既定で隠していたため、求人を取り下げて見送りになったチャットが
-  // 一覧から【消え】、同じ相手の別の求人の行（完了）だけが残って「取り下げても変わらない」ように
-  // 見えていた。LINEは終わったチャットを隠さない＝並びで下へ沈むだけ。応募者一覧（2026-08-22）・
-  // 働き手のカレンダー（2026-08-23「見送り・失効・取り消しであっても表示して」）と同じ既定に揃えた。
-  // 隠したい人のためにピルは残す（隠すのは表示だけ＝記録・未読・データ取得は不変）
-  const [chatHidden, setChatHidden] = useState(() => {
-    // 保存キーは_v3＝既定を「すべて表示」に変えたので、旧v2の既定（3つとも非表示）を引き継がない
-    try {
-      const raw = sessionStorage.getItem("cb_chatHidden_v3");
-      if (raw !== null) { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter(k => CHAT_HIDABLE.includes(k)); }
-    } catch {}
-    return []; // 既定＝すべて表示
+  const shownRows = sortedRows.filter(a => {
+    if (filter === "support") return false;
+    if (filter === "unread" && !rowUnreadOf(a)) return false;
+    if (filter === "active" && CHAT_CLOSED.includes(a.status)) return false;
+    if (filter === "past" && !CHAT_CLOSED.includes(a.status)) return false;
+    const words = query.trim().toLocaleLowerCase().split(/\s+/).map(word => word.replace(/^#/, "")).filter(Boolean);
+    const haystack = [a.partnerName, a.job_number, a.job?.crop, a.job?.task].join(" ").toLocaleLowerCase();
+    return words.every(word => haystack.includes(word));
   });
-  useEffect(() => { try { sessionStorage.setItem("cb_chatHidden_v3", JSON.stringify(chatHidden)); } catch {} }, [chatHidden]);
-  const shownRows = sortedRows.filter(a => !chatHidden.includes(appPhaseKey(a)));
-  const filterButtons = CHAT_HIDABLE.map(k => ({
-    k, label: APP_PHASE_LABEL[k], on: chatHidden.includes(k),
-    onTap: () => setChatHidden(prev => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]),
-  })).map(b => (
-    <button key={b.k} onClick={b.onTap} aria-pressed={b.on} className="f-sans" style={{ flex:"1 0 auto", display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border: b.on ? "2px solid #222" : "1px solid #EBEBEB", background:"#fff", fontSize:13, fontWeight: b.on?800:600, color: b.on?"#222":"#999", cursor:"pointer", whiteSpace:"nowrap" }}>
-      {/* 段階色の点＝帯・チップと同じAPP_PHASE_COLOR */}
-      <span aria-hidden="true" style={{ width:8, height:8, borderRadius:"50%", background: APP_PHASE_COLOR[b.k] || "#999", flexShrink:0 }} />
-      {/* 選択中＝隠している、を目で分かるように取り消し線 */}
-      <span style={{ textDecoration: b.on ? "line-through" : "none" }}>{b.label}</span>
-    </button>
-  ));
-
   return (
-    <div style={{ maxWidth:600, margin:"0 auto", padding:"5px 0 8px" }}>{/* 上余白はmainの10px＋ここ5px＝15px固定（2026-07-25たきと指示） */}
-      {/* 見出し「チャット」は削除（2026-07-27たきと指示）：下部ナビで現在地が分かる＝重複。
-          上の空白は15px固定のまま（main 10px＋この箱 5px） */}
+    <section className="chat-inbox f-sans" aria-label="メッセージ一覧">
+      <div className="chat-inbox-heading"><h1>メッセージ</h1><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>
+      <label className="chat-search"><NavIcon name="search" size={20} /><input aria-label="相手の名前・仕事・求人番号で検索" type="search" placeholder="名前・仕事・求人番号で検索" value={query} onChange={event => setQuery(event.target.value)} /></label>
+      <div className="chat-filters" aria-label="会話の絞り込み">{[["all","すべて"],["unread","未読"],["active","進行中"],["past","終了"],["support","運営"]].map(([key,label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</div>
+      {loadError && <div className="chat-notice" role="alert">{loadError}<br/><button className="chat-text-button" onClick={() => setRetry(value => value + 1)}>再読み込み</button><button className="chat-text-button" onClick={() => openSupport({ topic: "chat" })}>ヘルプ</button></div>}
       {/* 通知をオンにする案内（2026-07-19）：未許可かつ対応環境のみ。granted/denied/未対応では出さない */}
       {!pushDismissed && (pushSt === "default" || pushSt === "need-standalone") && (
         <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:12, background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:12, padding:"12px 14px", marginBottom:CHAT_ROW_GAP }}>
@@ -297,66 +289,27 @@ export function ChatList() {
           <button onClick={()=>{ setPushDismissed(true); try{localStorage.setItem("cb_pushBannerDismissed","1");}catch{} }} aria-label="閉じる" style={{ flexShrink:0, width:26, height:26, borderRadius:"50%", background:"rgba(0,0,0,0.06)", border:"none", cursor:"pointer", color:"#5B7B6D", display:"flex", alignItems:"center", justifyContent:"center" }}><NavIcon name="close" size={12} /></button>
         </div>
       )}
-      {/* ステータス絞り込みバー（2026-08-07たきと指示）：応募者ページと同じCSSクラスを共用＝
-          モバイルは下部の浮遊バー・PCは本文中の並び。格納・入力中退避・チャット表示中の非表示も同じ作法 */}
-      <div className="cb-applicant-filter-inline" style={{ display:"flex", gap:6, marginBottom:CHAT_ROW_GAP, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>{filterButtons}</div>
-      <div className="cb-applicant-filter-bar">{filterButtons}</div>
-      {/* 運営チャット＝一覧の最上部の行（2026-08-19たきと指示「浮遊ボックスは撤回。チャット一覧に移植」）。
-          読み込み中・チャット0件でも出す＝運営への連絡口はいつでもここにある */}
-      <AdminChatRow />
-      {/* 運営専用：利用者から運営宛のDMスレッド（2026-09-04たきと報告「利用者が運営にチャットから
-          連絡してもこちらに送信されない」の受け皿）。運営以外・0件なら何も描かない */}
-      <AdminDmInboxRows />
-      {loading ? (
-        /* 空白や「読み込み中...」でなく、これから出るスレッドと同じ形の箱を並べる（2026-07-27たきと指示） */
-        <AutoSkeleton shapeKey="chats" />
-      ) : rows.length === 0 ? (
-        <div style={{ textAlign:"center", padding:"56px 20px", color:"#999" }} className="f-sans">
-          <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="chats" size={40} /></div>
-          <p style={{ fontSize:14, margin:0 }}>チャットはまだありません。<br/>応募が承認されると、ここに表示されます。</p>
+      {["all","unread","support"].includes(filter) ? <><AdminChatRow query={query} unreadOnly={filter === "unread"} /><AdminDmInboxRows query={query} unreadOnly={filter === "unread"} /></> : null}
+      {filter === "support" && <p className="chat-inbox-note">運営への相談・返信はこちらから確認できます。</p>}
+      {filter === "support" ? null : loading ? <AutoSkeleton shapeKey="chats" /> : shownRows.length === 0 ? (
+        <div className="chat-empty">
+          <NavIcon name="chats" size={36}/><h2>{rows.length ? "該当する仕事の会話はありません" : loadError ? "会話を取得できません" : "会話はここから始まります"}</h2>
+          <p>{rows.length ? "検索する言葉や絞り込みを変えてみてください。" : loadError ? "上の再読み込みから、もう一度お試しください。" : "応募が承認されると、仕事ごとに相手と連絡できます。"}</p>
+          {rows.length ? <button className="chat-text-button" onClick={() => { setQuery(""); setFilter("all"); }}>すべての会話を表示</button> : !loadError && <a className="chat-text-button" href="#/search">仕事を探す</a>}
         </div>
-      ) : shownRows.length === 0 ? (
-        /* 非表示で0件（チャット自体はある）＝理由と戻し方を明記（空ボックスに説明の原則・2026-08-03） */
-        <div style={{ textAlign:"center", padding:"48px 20px", color:"#999" }} className="f-sans">
-          <p style={{ fontSize:14, margin:0 }}>
-            表示できるチャットはありません。<br/>
-            {chatHidden.map(k => APP_PHASE_LABEL[k]).join("・")}を非表示にしています。
-          </p>
-          <button onClick={()=>setChatHidden([])} className="f-sans" style={{ marginTop:14, padding:"9px 16px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>すべて表示する</button>
-        </div>
-      ) : (
-        /* 幅の固定（2026-08-06たきと報告「チャット欄の幅が大きくなった」）：
-           列を minmax(0,1fr) にする。既定の auto 列は中身の min-content まで広がるため、
-           下の「求人 #… 作物 作業」が whiteSpace:nowrap＝1行で全文ぶんの幅を要求し、
-           画面が狭いと列ごとカードが画面より広くなっていた（body の overflow-x:clip で
-           右が切れ、段階チップが画面外に消える）。0 を下限にすれば列は器を超えない */
-        <div ref={skelRef} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr)", gap:CHAT_ROW_GAP }}>
-          {shownRows.map((a, i) => {
-            const title = a.job ? [a.job.crop, a.job.task].filter(Boolean).join(" ") : "";
-            const rowUnread = rowUnreadOf(a); // 相手との全応募の未読合算
-            return (
-              <button key={a.id} data-guide="chat-row" onClick={()=>{ window.location.hash = "/chat/" + a.id; }}
-                className={"f-sans" + (rowUnread > 0 ? " cb-urgent-card" : "")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
-                  border:"none", borderBottom: i < shownRows.length - 1 ? CHAT_ROW_DIVIDER : "none", borderRadius:0, padding:CHAT_ROW_PAD, cursor:"pointer" }}>
-                {/* アイコンタップで相手のプレビュー展開（2026-07-19）：農家側→働き手プレビュー／働き手側→雇い手プレビュー */}
-                <span onClick={(e)=>{ e.stopPropagation(); if (a._role === "farmer") openWorkerPreview(a.worker_id); else openEmployerPreview(a.farmer_id); }} style={{ flexShrink:0 }}>
-                  <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={40} ring={a._role === "farmer" ? ROLE_ORANGE : ROLE_GREEN} />
-                </span>
-                <div style={{ minWidth:0, flex:1 }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginBottom:2 }}>
-                    {/* 名前が長くても段階チップを押し出さない＝はみ出す側は名前（…で畳む） */}
-                    <p style={{ fontSize:14, fontWeight:700, color:"#222", margin:0, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{a.partnerName || ("求人 #" + a.job_number)}</p>
-                    {rowUnread > 0 && <span style={{ minWidth:22, height:22, borderRadius:11, background:"#E24B4A", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 6px", flexShrink:0, marginLeft:"auto" }}>{rowUnread}</span>}
-                    {/* 帯統一（2026-07-25たきと指示）：応募者リストと同じ段階色（APP_PHASE_COLOR）のチップ。凡例と同じ地色＋白文字 */}
-                    <span onClick={(e)=>{ e.stopPropagation(); openPhaseInfo(appPhaseKey(a)); }} role="button" style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20, background: appPhaseColorNow(a, phaseEntry(a)) || "#999", color:"#fff", flexShrink:0, cursor:"pointer" }}>{appPhaseLabelNow(a, phaseEntry(a)) || a.status}</span>
-                  </div>
-                  <p style={{ fontSize:12, color:"#717171", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>求人 #{a.job_number}{title ? "　" + title : ""}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      ) : <div ref={skelRef}>{shownRows.map(a => {
+        const unread = rowUnreadOf(a), preview = previews[a.id];
+        const title = [a.job?.crop, a.job?.task].filter(Boolean).join(" ") || "仕事の連絡";
+        return <button key={a.id} data-guide="chat-row" className={`chat-inbox-row${unread ? " is-unread" : ""}`} onClick={() => { window.location.hash = "/chat/" + a.id; }}>
+          <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={56} />
+          <div className="chat-row-content">
+            <div className="chat-row-title"><strong>{a.partnerName || "相手の名前を確認中"}</strong><time>{chatInboxTime(rowLastAt(a))}</time>{unread > 0 && <span className="chat-unread" aria-label={`未読${unread}件`} />}</div>
+            <p className="chat-row-preview">{preview ? String(preview.body || "").replace(/\s+/g," ") : "会話を開いてメッセージを確認"}</p>
+            <p>{title} · #{a.job_number}</p>
+            <p><span className={`chat-stage${CHAT_CLOSED.includes(a.status) ? " is-closed" : ""}`}>{appPhaseLabelNow(a, phaseEntry(a)) || a.status}</span>{a.job?.date_start ? ` · ${chatInboxTime(a.job.date_start)}${a.job?.work_time ? ` ${a.job.work_time}` : ""}` : ""}</p>
+          </div>
+        </button>;
+      })}</div>}
+    </section>
   );
 }

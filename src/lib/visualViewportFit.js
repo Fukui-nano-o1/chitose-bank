@@ -7,7 +7,7 @@
 // パネル側の幅指定（maxWidth 520・左右16px）は正しく、いくら幅を絞っても直らない類の症状。
 //
 // 対処：visualViewport（＝いま見えている範囲）の大きさと位置を読み、被せをそこへ合わせる。
-// 拡大していない時は何も書かない＝従来の inset:0 のままで、見た目も挙動も一切変わらない。
+// キーボードだけで高さが縮んだ場合も追従する。通常倍率・位置・画面サイズがすべて一致する時だけCSSへ戻す。
 //
 // ★transform を使うので、被せの【中】に position:fixed の子を置かないこと
 //   （transform は fixed の基準を作り替える・2026-07-14の既知の罠）。
@@ -16,7 +16,8 @@ import { useEffect } from "react";
 
 // 拡大していない＝倍率が1でズレも無い状態か（浮動小数の誤差を見込んで判定）
 function isPlain(vv) {
-  return Math.abs(vv.scale - 1) < 0.01 && Math.abs(vv.offsetLeft) < 0.5 && Math.abs(vv.offsetTop) < 0.5;
+  return Math.abs(vv.scale - 1) < 0.01 && Math.abs(vv.offsetLeft) < 0.5 && Math.abs(vv.offsetTop) < 0.5
+    && Math.abs(vv.height - window.innerHeight) < 1 && Math.abs(vv.width - window.innerWidth) < 1;
 }
 
 export function useVisualViewportFit(ref, active) {

@@ -1774,6 +1774,7 @@ export default function App(){
                          fontSize:14, color:"#222", padding:"10px 16px" }}>
                 <NavIconInline name="book" size={13} />使い方
               </button>
+              <button onClick={() => { setMenuOpen(false); openSupport({ view: "compose" }); }} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#222", padding:"10px 16px" }}><NavIconInline name="flag" size={13} />この画面を報告</button>
               <button onClick={() => openSupport()}
                 className="f-sans"
                 style={{ display:"block", width:"100%", textAlign:"left", background:"none",
@@ -1815,6 +1816,7 @@ export default function App(){
               <button onClick={()=>{ setMobileMenuOpen(false); window.dispatchEvent(new CustomEvent("cb:openPageGuide")); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />この画面の説明</button>
             )}
             <button onClick={()=>{ setMobileMenuOpen(false); window.location.hash="/help"; }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="book" size={13} />使い方</button>
+            <button onClick={() => { setMobileMenuOpen(false); openSupport({ view: "compose" }); }} className="f-sans app-header-mobile-menu-item"><NavIconInline name="flag" size={13} />この画面を報告</button>
             <button onClick={() => openSupport()} className="f-sans app-header-mobile-menu-item"><NavIconInline name="question" size={13} />ヘルプ・お問い合わせ</button>
             {/* お問い合わせ（2026-08-22たきと指示）。フッター「サポート」列と同じ宛先＝メールの窓口は1つ。
                 aタグだがメニュー項目のCSSに乗せる（下線を消し文字色を揃える） */}
@@ -1977,9 +1979,9 @@ export default function App(){
              ★←は history.back() でなく行き先を名指しする：この部屋の入口はチャット一覧の行so戻り先は必ず一覧。
              back() は直前の履歴（＝プッシュ通知から開いた時や、hashを二度書いた時のマイページ等）へ飛び、
              「戻るを押すとマイページに行く／押しても何も起きない」になっていた（2026-08-24たきと報告） */
-          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage targetUserId={chatAppId.startsWith("admin/") ? chatAppId.slice("admin/".length) : null} onBack={()=>{ window.location.hash = "/chats"; }} /></Suspense>
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><AdminChatPage key={`${me?.id || "guest"}:${chatAppId}`} targetUserId={chatAppId.startsWith("admin/") ? chatAppId.slice("admin/".length) : null} onBack={()=>{ window.location.hash = "/chats"; }} /></Suspense>
         ) : chatAppId ? (
-          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ChatView applicationId={chatAppId} onBack={()=>{ window.history.length > 1 ? window.history.back() : (window.location.hash="/profile"); }} /></Suspense>
+          <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ChatView key={`${me?.id || "guest"}:${chatAppId}`} applicationId={chatAppId} onBack={()=>{ window.location.hash="/chats"; }} /></Suspense>
         ) : showApplyPending ? (
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><ApplyPending /></Suspense>
         ) : showApplyDone ? (
@@ -2003,7 +2005,7 @@ export default function App(){
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="new-applicants"&&me&&
           <Suspense fallback={<p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>}><NewApplicantsPage/></Suspense>}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="chats"&&(me
-          ? <ChatList />
+          ? <ChatList key={me.id} />
           : <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:14,color:"#717171"}}>チャットを見るにはログインしてください</p><button onClick={goLogin} className="f-sans" style={{marginTop:16,padding:"12px 24px",border:"1px solid #EBEBEB",borderRadius:12,background:"#fff",fontSize:13,color:"#222",cursor:"pointer"}}>ログインへ</button></div>)}
         {!needsAccountHolder&&!openAccountForm&&!needsPrivacyReconsent&&!chatAppId&&!applyPage&&safeTab==="saved"&&(me
           ? <SavedJobsView me={me} />

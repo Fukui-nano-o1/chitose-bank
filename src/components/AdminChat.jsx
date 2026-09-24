@@ -19,6 +19,11 @@ import { fmtJstShort, isAdmin } from "../lib/utils";
 import { useSwipeBack } from "../lib/swipeBack";
 import { LinkifiedText, Dots, Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD, CHAT_ROW_DIVIDER } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
+import { useChatViewport } from "../lib/useChatViewport";
+import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
+import { readChatDraft, saveChatDraft } from "../lib/chatDrafts";
+import { openSupport } from "../lib/supportDiagnostics";
+import "./Chat.css";
 
 
 export const ADMIN_CHAT_HASH = "/chat/admin";
@@ -34,7 +39,7 @@ async function fetchDm(targetUserId) {
   return { uid: session.user.id, user: session.user, msgs: data || [] };
 }
 
-export function AdminChatRow() {
+export function AdminChatRow({ query = "", unreadOnly = false }) {
   const [msgs, setMsgs] = useState([]);
   const load = async () => { const r = await fetchDm(); if (r) setMsgs(r.msgs); };
   useEffect(() => {
@@ -56,6 +61,7 @@ export function AdminChatRow() {
   // 一覧に出す1行ぶんの下書き（プレビュー＝最後のメッセージ。無ければ使い方の一言）
   const last = msgs.length ? msgs[msgs.length - 1] : null;
   const preview = last ? (last.from_admin ? "運営：" : "") + String(last.body || "").replace(/\s+/g, " ") : "運営への連絡もここから送れます。";
+  if ((unreadOnly && !unread) || !query.trim().toLowerCase().split(/\s+/).every(word => "chitose-bank運営".includes(word))) return null;
   return (
     // 一覧の最上部の行（他のスレッド行と同じ形：アイコン40px・名前・未読バッジ・下に1行の要約）。
     // 他の行と同じくページへ遷移する（ここで開かない）
@@ -81,7 +87,7 @@ export function AdminChatRow() {
 // チャット一覧の運営行の直下に並ぶ。運営以外・スレッド0件なら何も描かない。
 // 読むのは admin_messages（RLS「am select」＝運営は全スレッド可）と、名前・アイコンの
 // worker_profiles / employer_profiles（どちらも管理者RLSで読める）。書き込みはここには無い。
-export function AdminDmInboxRows() {
+export function AdminDmInboxRows({ query = "", unreadOnly = false }) {
   const [threads, setThreads] = useState([]);
   const load = async () => {
     try {
@@ -131,10 +137,11 @@ export function AdminDmInboxRows() {
       window.removeEventListener("cb:unreadRefresh", load);
     };
   }, []);
-  if (!threads.length) return null;
+  const visible = threads.filter(thread => (!unreadOnly || thread.unread) && query.trim().toLowerCase().split(/\s+/).every(word => (thread.profile?.nickname || "利用者").toLowerCase().includes(word)));
+  if (!visible.length) return null;
   return (
     <div style={{ marginTop: 8 }}>
-      {threads.map((t, i) => (
+      {visible.map((t, i) => (
         <button key={t.uid} onClick={()=>{ window.location.hash = ADMIN_CHAT_HASH + "/" + t.uid; }}
           className={"f-sans" + (t.unread > 0 ? " cb-urgent-card" : "")}
           style={{ display:"flex", alignItems:"center", gap:12, width:"100%", minWidth:0, textAlign:"left", background:"#fff",
@@ -158,108 +165,83 @@ export function AdminDmInboxRows() {
 // ＝下部バー・ヘッダー・フッターが隠れ、ページ自体はスクロールせず中のメッセージ欄だけが動く。
 // targetUserId あり（#/chat/admin/{uid}・運営専用）＝その利用者のスレッドを開いて運営として返信する
 export function AdminChatPage({ onBack, targetUserId }) {
-  const [msgs, setMsgs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [denied, setDenied] = useState(false); // 運営以外が #/chat/admin/{uid} を開いた時
-  const [partnerName, setPartnerName] = useState(null); // targetUserId のニックネーム（読めるまで「利用者」）
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const uidRef = useRef(null);
-  const scrollRef = useRef(null);
-  // 右スワイプで一覧へ戻る（LINEと同じ・2026-08-24たきと指示）。←と同じ行き先
-  const pageRef = useRef(null);
+  const [msgs, setMsgs] = useState([]), [loading, setLoading] = useState(true), [denied, setDenied] = useState(false);
+  const [partnerName, setPartnerName] = useState(null), [text, setText] = useState("");
+  const [sending, setSending] = useState(false), [error, setError] = useState(""), [loadError, setLoadError] = useState("");
+  const [pending, setPending] = useState(null);
+  const uidRef = useRef(null), scrollRef = useRef(null), pageRef = useRef(null), alive = useRef(true), loadingRef = useRef(false), busyRef = useRef(false), pendingRef = useRef(null), nearBottom = useRef(true);
+  const thread = "admin:" + (targetUserId || "self");
   useSwipeBack(pageRef, onBack);
-  // 自分の吹き出しか（運営として見ている時は from_admin が自分）
-  const isMine = (m) => (targetUserId ? m.from_admin : !m.from_admin);
-  const load = async (markRead) => {
-    const r = await fetchDm(targetUserId);
-    setLoading(false);
-    if (!r) return;
-    if (targetUserId && !isAdmin(r.user)) { setDenied(true); return; } // RLSでも読めない（0件になる）が、理由を出す
-    uidRef.current = r.uid;
-    setMsgs(r.msgs);
-    const unread = r.msgs.filter(m => !isMine(m) && !m.read_at).length;
-    if (markRead && unread > 0) {
-      try {
-        // 既読化＝相手からの分だけ（運営として見ている時は from_admin=false・自分のスレッドでは from_admin=true）
-        await supabase.from("admin_messages").update({ read_at: new Date().toISOString() })
-          .eq("user_id", targetUserId || r.uid).eq("from_admin", targetUserId ? false : true).is("read_at", null);
-        setMsgs(prev => prev.map(m => (!isMine(m) && !m.read_at) ? { ...m, read_at: new Date().toISOString() } : m));
-        window.dispatchEvent(new Event("cb:unreadRefresh"));
-        if (!targetUserId) closeReadNotifications(["cb-dm"]); // 読んだら運営DMの通知も消す（2026-08-18・LINEと同じ設計）
-      } catch {}
-    }
+  useChatViewport(pageRef);
+  const isMine = message => targetUserId ? message.from_admin : !message.from_admin;
+  const change = value => { setText(value); saveChatDraft(uidRef.current, thread, { text: value, pending: pendingRef.current }); };
+  const load = async () => {
+    if (loadingRef.current || !alive.current) return;
+    loadingRef.current = true;
+    try {
+      const result = await chatDeadline(fetchDm(targetUserId));
+      if (!alive.current) return;
+      if (!result) throw new Error("load");
+      if (targetUserId && !isAdmin(result.user)) { setDenied(true); return; }
+      if (!uidRef.current) {
+        const draft = readChatDraft(result.uid, thread);
+        setText(draft.text); setPending(draft.pending); pendingRef.current = draft.pending;
+      }
+      uidRef.current = result.uid; setLoadError("");
+      setMsgs(previous => result.msgs.length || !previous.length ? result.msgs : previous);
+      if (pendingRef.current && result.msgs.some(message => message.id === pendingRef.current.id)) {
+        pendingRef.current = null; setPending(null); setText(""); setError("");
+        saveChatDraft(result.uid, thread, { text: "", pending: null });
+      }
+      const unread = result.msgs.filter(message => !isMine(message) && !message.read_at);
+      if (document.visibilityState === "visible" && nearBottom.current && unread.length) {
+        const marked = await supabase.from("admin_messages").update({ read_at: new Date().toISOString() }).in("id", unread.map(message => message.id));
+        if (!marked.error && alive.current) { window.dispatchEvent(new Event("cb:unreadRefresh")); if (!targetUserId) closeReadNotifications(["cb-dm"]); }
+      }
+    } catch { if (alive.current) setLoadError("メッセージを読み込めませんでした。もう一度お試しください。"); }
+    finally { loadingRef.current = false; if (alive.current) setLoading(false); }
   };
   useEffect(() => {
-    setMsgs([]); setLoading(true); setDenied(false); setPartnerName(null);
-    load(true);
-    // 相手の名前（運営がスレッドを開いた時だけ・管理者RLSで読める。働き手名→雇い手名→利用者）
-    if (targetUserId) {
-      (async () => {
-        try {
-          const [w, e] = await Promise.all([
-            supabase.from("worker_profiles").select("nickname").eq("auth_id", targetUserId).maybeSingle(),
-            supabase.from("employer_profiles").select("nickname").eq("auth_id", targetUserId).maybeSingle(),
-          ]);
-          setPartnerName(w.data?.nickname || e.data?.nickname || null);
-        } catch {}
-      })();
-    }
-    const ch = supabase.channel("admin-dm-page" + (targetUserId ? "-" + targetUserId : ""))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => load(true))
-      .subscribe();
-    const onWake = () => { if (document.visibilityState === "visible") load(true); };
-    document.addEventListener("visibilitychange", onWake);
-    window.addEventListener("focus", onWake);
-    return () => {
-      supabase.removeChannel(ch);
-      document.removeEventListener("visibilitychange", onWake);
-      window.removeEventListener("focus", onWake);
-    };
-  }, [targetUserId]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 最新を下端に（当事者チャットと同じ見え方）
-  useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs.length]);
+    alive.current = true; load();
+    if (targetUserId) Promise.all([
+      supabase.from("worker_profiles").select("nickname").eq("auth_id", targetUserId).maybeSingle(),
+      supabase.from("employer_profiles").select("nickname").eq("auth_id", targetUserId).maybeSingle(),
+    ]).then(([worker, employer]) => { if (alive.current) setPartnerName(worker.data?.nickname || employer.data?.nickname || null); }).catch(() => {});
+    const channel = supabase.channel("admin-dm-page:" + thread).on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, () => load()).subscribe();
+    const wake = () => { if (document.visibilityState === "visible") load(); };
+    window.addEventListener("focus", wake); document.addEventListener("visibilitychange", wake);
+    const timer = setInterval(wake, 10000);
+    return () => { alive.current = false; supabase.removeChannel(channel); clearInterval(timer); window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", wake); };
+    // The route keys this component by account and thread, so async results cannot cross conversations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => { if (nearBottom.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [msgs.length]);
   const send = async () => {
-    const body = text.trim();
-    const uid = uidRef.current;
-    if (!body || sending || !uid) return;
-    setSending(true);
-    const row = targetUserId
-      ? { user_id: targetUserId, from_admin: true, body }   // 運営としての返信（利用者側のスレッドに届く）
-      : { user_id: uid, from_admin: false, body };          // 利用者としての連絡（従来どおり）
-    const { data, error } = await supabase.from("admin_messages").insert(row).select().single();
-    if (error) alert("送信に失敗しました：" + error.message);
-    else { setText(""); if (data) setMsgs(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data]); }
-    setSending(false);
+    const uid = uidRef.current, body = text.trim();
+    if (!body || busyRef.current || !uid || denied) return;
+    const row = pendingRef.current || { id: crypto.randomUUID(), user_id: targetUserId || uid, from_admin: !!targetUserId, body };
+    pendingRef.current = row; setPending(row); saveChatDraft(uid, thread, { text: body, pending: row });
+    busyRef.current = true; setSending(true); setError("");
+    try {
+      const message = await sendChatMessage(supabase, "admin_messages", row);
+      saveChatDraft(uid, thread, { text: "", pending: null });
+      if (!alive.current) return;
+      pendingRef.current = null; setPending(null); setText(""); nearBottom.current = true;
+      setMsgs(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message]);
+    } catch { if (alive.current) setError("送信を確認できませんでした。入力は残っています。同じ内容で再送できます。"); }
+    finally { busyRef.current = false; if (alive.current) setSending(false); }
   };
-  const title = targetUserId ? ((partnerName || "利用者") + "さん（運営として返信）") : "chitose-bank運営";
-  return (
-    <div ref={pageRef} className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0 10px", borderBottom:"1px solid #EEE" }}>
-        <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
-        <p className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{!targetUserId && <NavIconInline name="support" size={15} />}{title}</p>
-      </div>
-      <div ref={scrollRef} style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"14px 0", display:"flex", flexDirection:"column", gap:10 }}>
-        {loading ? (
-          <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>読み込み中<Dots /></p>
-        ) : denied ? (
-          <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>このページは運営専用です。</p>
-        ) : msgs.length === 0 ? (
-          <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>{targetUserId ? "まだメッセージはありません。" : "まだメッセージはありません。運営への連絡もここから送れます。"}</p>
-        ) : msgs.map(m => (
-          <div key={m.id} style={{ alignSelf: isMine(m) ? "flex-end" : "flex-start", maxWidth:"85%" }}>
-            {m.from_admin && !targetUserId && <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"0 0 2px" }}><NavIconInline name="support" size={10} />運営</p>}
-            <div className="f-sans" style={{ background: isMine(m) ? "#00A86B" : "#F5F5F5", color: isMine(m) ? "#fff" : "#222", borderRadius:14, padding:"10px 14px", fontSize:14, lineHeight:1.7, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={m.body} /></div>
-            <p className="f-sans" style={{ fontSize:10, color:"#C8C8C8", margin:"3px 2px 0", textAlign: isMine(m) ? "right" : "left" }}>{fmtJstShort(m.created_at)}</p>
-          </div>
-        ))}
-      </div>
-      {!denied && (
-      <div style={{ display:"flex", gap:8, padding:"10px 0 calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
-        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if (e.key === "Enter") send(); }} placeholder={targetUserId ? "運営として返信" : "運営へのメッセージ"} className="field f-sans" style={{ flex:1, marginBottom:0, fontSize:14 }} />
-        <button onClick={send} disabled={sending || !text.trim()} className="btn-primary f-sans" style={{ padding:"0 18px", fontSize:14, fontWeight:700, opacity: (sending || !text.trim()) ? 0.5 : 1 }}>送信</button>
-      </div>
-      )}
+  const title = targetUserId ? (partnerName || "利用者") : "chitose-bank運営";
+  return <div ref={pageRef} className="chat-full chat-room f-sans">
+    <header className="chat-room-header"><button onClick={onBack} aria-label="メッセージ一覧に戻る" className="chat-icon-button">←</button><div className="chat-row-content"><strong>{title}</strong><p style={{ fontSize:12, margin:4 }}>{targetUserId ? "運営として返信" : "運営へのお問い合わせ"}</p></div><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></header>
+    {loadError && <div role="alert" className="chat-notice">{loadError}<br/><button className="chat-text-button" onClick={load}>再読み込み</button></div>}
+    <div ref={scrollRef} className="chat-messages" aria-label="運営との会話" onScroll={event => { const element = event.currentTarget; nearBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80; }}>
+      {loading ? <p className="chat-empty" aria-busy="true">読み込み中<Dots /></p> : denied ? <p className="chat-empty">このページは運営専用です。</p> : !msgs.length && !loadError ? <p className="chat-empty">困ったことや気づいたことを、運営にお知らせください。</p> : msgs.map((message, index) => <div key={message.id} style={{ display:"contents" }}>
+        {(!index || chatDay(msgs[index - 1].created_at) !== chatDay(message.created_at)) && <p className="chat-day">{chatDay(message.created_at)}</p>}
+        <div className={`chat-bubble${isMine(message) ? " is-mine" : ""}`}><LinkifiedText text={message.body}/></div><span className={`chat-message-time${isMine(message) ? " is-mine" : ""}`}>{chatTime(message.created_at)}</span>
+      </div>)}
     </div>
-  );
+    {error && <div className="chat-notice" role="alert">{error}<button className="chat-text-button" disabled={sending} onClick={send}>同じ内容で再送</button></div>}
+    {!denied && <div className="chat-composer"><div className="chat-composer-row"><textarea aria-label="運営へのメッセージ" rows={2} value={text} disabled={!uidRef.current} readOnly={!!pending || sending} onChange={event => change(event.target.value)} placeholder={targetUserId ? "運営として返信" : "運営へのメッセージ"}/><button className="chat-send" onClick={send} disabled={sending || !text.trim() || !uidRef.current}>{sending ? "送信中" : pending ? "再送" : "送信"}</button></div>{text && <p className="chat-draft-hint">未送信の内容は、このアプリを開いている間だけ下書きに残ります。</p>}</div>}
+  </div>;
 }

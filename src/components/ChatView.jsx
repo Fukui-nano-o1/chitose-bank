@@ -6,7 +6,6 @@ import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
   CHAT_ELIGIBLE_STATUSES, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
-import { useSheetDragClose } from "../lib/sheetDrag";
 import { useSwipeBack } from "../lib/swipeBack";
 import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
@@ -14,7 +13,20 @@ import { chatCache, hydrateChatCache } from "../lib/chatCache";
 import { readChatBody, writeChatBody } from "../lib/chatBodyCache";
 import { Avatar, Dots } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
+import { ChatSheet } from "./ChatSheet";
+import { useChatViewport } from "../lib/useChatViewport";
+import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
+import { readChatDraft, saveChatDraft } from "../lib/chatDrafts";
+import { openSupport } from "../lib/supportDiagnostics";
+import "./Chat.css";
 export function ChatView({ applicationId, onBack }) {
+  const aliveRef = useRef(true), loadBusyRef = useRef(false), sendBusyRef = useRef(false), pendingRef = useRef(null);
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; }; }, []);
+  const [loadError, setLoadError] = useState("");
+  const [sendError, setSendError] = useState("");
+  const [pending, setPending] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false), [quickOpen, setQuickOpen] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
   // 前回の会話の先出し（2026-08-26 Speed-4B）。暗号化した直近30件を端末から復号して即描画し、
@@ -44,7 +56,17 @@ export function ChatView({ applicationId, onBack }) {
   }, [text]);
   const [myId, setMyId] = useState(null);
   const myIdRef = useRef(null); // 購読のクロージャが凍結しないよう、今の自分のidをrefでも持つ
-  useEffect(() => { myIdRef.current = myId; }, [myId]);
+  useEffect(() => {
+    myIdRef.current = myId;
+    if (!myId) return;
+    const draft = readChatDraft(myId, applicationId);
+    setText(draft.text); setPending(draft.pending); pendingRef.current = draft.pending;
+    if (draft.pending) setSendError("前の送信結果を確認しています。未送信の場合は同じ内容で再送できます。");
+  }, [myId, applicationId]);
+  const changeText = value => {
+    setText(value);
+    saveChatDraft(myId, applicationId, { text: value, pending: pendingRef.current });
+  };
   // 段階表示の先出し（2026-08-07たきと指示「はじめは最低限の要素のみ表示。段階的に表示させていく」）：
   // 一覧キャッシュ（viewCache永続＝アプリ再起動後も残る骨・本文なし）に開いた応募の行があれば、
   // 相手名・#N・段階・採用済みフラグ・役割を0往復で先出しする。本物の取得（applyActive）が後から上書き。
@@ -72,8 +94,6 @@ export function ChatView({ applicationId, onBack }) {
   // 中身は【📅日程案】の1枚＝農家の機能。働き手側には＋を出さない
   const [tmplOpen, setTmplOpen] = useState(false);
   // 下スワイプで閉じる（指に連動・応募者ページのボックスと同じ規則・2026-08-19）
-  const tmplSheetRef = useRef(null), tmplScrollRef = useRef(null);
-  useSheetDragClose(tmplSheetRef, tmplScrollRef, ()=>setTmplOpen(false), tmplOpen);
   const [dateSel, setDateSel] = useState([]); // ＋シート「日程案を送る」で選択中の日（農家→働き手・2026-07-24）
   // 日程案の承認（2026-08-19たきと指示「提案した日程案はタブ化。働き手はタップしたタブを承認する形。
   // タップするたびにメッセージ入力に入力されていく。送信ボタンタップで最終確認」）：
@@ -105,11 +125,12 @@ export function ChatView({ applicationId, onBack }) {
     // このメッセージのタブを触り始めた時点の入力を土台にする（打ちかけの文を壊さない）
     // 土台＝打ちかけの文。★前に作った承認文（【日程の承認】以降）は必ず落とす
     //   （2026-08-19たきと報告：古い日程案→新しい日程案の順にタップすると承認文が二重に積まれた）
+    if (pendingRef.current || sendBusyRef.current) return;
     if (!planSel || planSel.msgId !== msgId) planBaseRef.current = stripPlanReply(text);
     const next = cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label];
     const base = planBaseRef.current;
     setPlanSel(next.length ? { msgId, labels: next } : null);
-    setText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
+    changeText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
   };
   // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
   const [partnerReadAt, setPartnerReadAt] = useState(null);
@@ -184,6 +205,7 @@ export function ChatView({ applicationId, onBack }) {
           fetchJobRowForMe(row.job_number),
           supabase.rpc('job_meeting_place', { p_job_number: row.job_number }),
         ]);
+        if (!aliveRef.current || activeAppIdRef.current !== row.id) return;
         if (jobRes.data) setConfirmJob(mapJobPublicRow(jobRes.data));
         if (mpRes.data && mpRes.data.ok) setConfirmMeetingPlace(mpRes.data);
       } catch {}
@@ -194,14 +216,17 @@ export function ChatView({ applicationId, onBack }) {
   const msgSigRef = useRef("");
   const readStampRef = useRef(0);
   const load = async (ids) => {
+    if (!aliveRef.current || loadBusyRef.current) return;
+    loadBusyRef.current = true;
     const scope = ids || appIds || [applicationId];
     try {
       // 自分のidは起動時に取ってある（myId）。毎回 getSession を待たない＝送信・更新の往復を1つ減らす
       let uid = myId;
-      if (!uid) { const { data: { session } } = await supabase.auth.getSession(); uid = session?.user?.id || null; }
-      if (!uid) return;
+      if (!uid) { const { data: { session } } = await chatDeadline(supabase.auth.getSession()); uid = session?.user?.id || null; }
+      if (!aliveRef.current) return;
+      if (!uid) throw new Error("SESSION_REQUIRED");
       // 本文と「相手の最終既読」は互いに独立so同時に投げる（直列2往復→1往復ぶんの待ちに）
-      const [msgRes, prRes, stRes] = await Promise.all([
+      const [msgRes, prRes, stRes] = await chatDeadline(Promise.all([
         supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true}),
         supabase.from("chat_reads").select("last_read_at").in("application_id", scope).neq("reader_id", uid)
           .order("last_read_at", { ascending: false }).limit(1).maybeSingle(),
@@ -211,9 +236,10 @@ export function ChatView({ applicationId, onBack }) {
         // DB側にも同じ壁（msg insert party の with_check・migration 20260831125430）＝二重の壁
         supabase.from("applications").select("id,status")
           .in("id", [...new Set([...scope, activeAppIdRef.current].filter(Boolean))]),
-      ]);
+      ]));
+      if (!aliveRef.current) return;
       const data = msgRes.data;
-      if (!msgRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
+      if (!prRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
       // 失敗時は手元の値を上書きしない（2026-08-07規則）
       if (!stRes.error && stRes.data) {
         const row = stRes.data.find(r => r.id === activeAppIdRef.current);
@@ -222,11 +248,12 @@ export function ChatView({ applicationId, onBack }) {
       // ★一度確認できた履歴は、空配列・通信エラーでは消さない（2026-08-26 Speed-4B.1）。
       //   messages はDBで削除できない恒久ルールなので、「0件になった」という値だけは正として採用しない
       //  （サーバーが正の原則は、非空が返ってきた時に従来どおり働く）
-      if (msgRes.error) {
-        // 通信エラーを「メッセージ0件」に化けさせない。出せているものはそのまま残し、
-        // まだ何も出せていない時は仮配置のまま次の再取得（復帰・5秒ポーリング）を待つ
-        if (knownHistoryRef.current) setMsgsLoading(false);
-        return;
+      if (msgRes.error) throw msgRes.error;
+      setLoadError("");
+      const draft = readChatDraft(uid, applicationId);
+      if (draft.pending && data?.some(message => message.id === draft.pending.id)) {
+        saveChatDraft(uid, applicationId, { text: "", pending: null });
+        pendingRef.current = null; setPending(null); setText(""); setSendError("");
       }
       if (data && data.length === 0 && knownHistoryRef.current) {
         // 履歴があると分かっているスレッドの空応答＝一時的なものとして捨てる。
@@ -246,8 +273,7 @@ export function ChatView({ applicationId, onBack }) {
         // （insertの返りを通信の都合で受け取れなかった時に、同じ文が二重に出たままにならない）。
         // 60秒たっても届かない仮の分も落とす＝いつまでも幽霊が残らない
         const pend = prev.filter(m => m._pending
-          && !data.some(d => d.id === m.id || (d.sender_id === m.sender_id && d.body === m.body))
-          && Date.now() - new Date(m.created_at).getTime() < 60000);
+          && !data.some(d => d.id === m.id));
         const next = pend.length ? [...data, ...pend] : data;
         return (prev.length === next.length && (next.length === 0 || prev[prev.length-1].id === next[next.length-1].id)) ? prev : next;
       });
@@ -264,10 +290,11 @@ export function ChatView({ applicationId, onBack }) {
       if (data && data.length && changed) writeChatBody(applicationId, data);
       // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
       try {
-        {
+        if (document.visibilityState === "visible" && nearBottomRef.current) {
           if ((data || []).some(m => m.sender_id !== uid && !m.read_at)) {
-            await supabase.from("messages").update({ read_at: new Date().toISOString() })
-              .in("application_id", scope).neq("sender_id", uid).is("read_at", null);
+            const readResult = await supabase.from("messages").update({ read_at: new Date().toISOString() })
+              .in("id", data.filter(m => m.sender_id !== uid && !m.read_at).map(m => m.id)).neq("sender_id", uid).is("read_at", null);
+            if (readResult.error) throw readResult.error;
             window.dispatchEvent(new Event("cb:unreadRefresh"));
             // 読んだら、そのスレッドの通知も消す（2026-08-18たきと指示「LINEと同じ設計を」）。
             // 通知はtagがスレッドごとso、この応募の分だけが消えて他のチャットの通知は残る
@@ -286,7 +313,8 @@ export function ChatView({ applicationId, onBack }) {
           //   相手の既読の【読み取り】は上のPromise.allで毎回している＝「既読」表示の即時性は落ちない
           if (changed || Date.now() - readStampRef.current > 60000) {
             readStampRef.current = Date.now();
-            const now = new Date().toISOString();
+            const now = data?.at(-1)?.created_at;
+            if (!now) return;
             await supabase.from("chat_reads").upsert(
               scope.map(id => ({ application_id: id, reader_id: uid, last_read_at: now })),
               { onConflict: "application_id,reader_id" }
@@ -294,7 +322,8 @@ export function ChatView({ applicationId, onBack }) {
           }
         }
       } catch {}
-    } catch {}
+    } catch { if (aliveRef.current) { setMsgsLoading(false); setLoadError("メッセージを更新できません。表示中の会話と入力は残っています。"); } }
+    finally { loadBusyRef.current = false; }
   };
 
   const decideApplication = async (approve) => {
@@ -323,7 +352,7 @@ export function ChatView({ applicationId, onBack }) {
     knownHistoryRef.current = false; // 別のスレッド＝まだ何も知らない状態から始める
     const _cacheReq = ++cacheReqRef.current;
     readChatBody(applicationId).then(list => {
-      if (cacheReqRef.current !== _cacheReq || !list || !list.length) return;
+      if (!aliveRef.current || cacheReqRef.current !== _cacheReq || !list || !list.length) return;
       knownHistoryRef.current = true; // 控えがある＝このスレッドには履歴がある
       setMsgs(prev => { if (prev.length) return prev; restoredFromCacheRef.current = true; return list; });
       setMsgsLoading(false);
@@ -337,18 +366,20 @@ export function ChatView({ applicationId, onBack }) {
     }
     (async () => {
       try {
-        const { data:{ session } } = await supabase.auth.getSession(); // ローカル読み＝往復なし
+        const { data:{ session } } = await chatDeadline(supabase.auth.getSession()); // ローカル読み＝往復なし
         // ★本文の復元を最優先（2026-08-07たきと報告「チャットの復元が遅い」）：
         //   メッセージは applicationId だけで取れる（RLSが当事者に絞る）ので、応募行→相手情報の
         //   取得を待たずに最初の往復で取りに行く。従来は直列3往復目（応募行→相手情報の並列取得→本文）で、
         //   DBのコールドスパイク（数秒/往復）が3回重なると復元が数秒×3になっていた。
         //   相手の名前・アイコン・求人No.帯・文脈カードは後から埋まる（先に会話を出す）
+        if (!aliveRef.current) return;
         load([applicationId]);
         if (!session) return;
         setMyId(session.user.id);
         const { data: app } = await supabase.from("applications")
           .select("farmer_id,worker_id")
           .eq("id", applicationId).maybeSingle();
+        if (!aliveRef.current) return;
         if (app) {
           const iAmWorker = session.user.id === app.worker_id;
           const table = iAmWorker ? "employer_profiles_public" : "worker_profiles"; // 他人の雇い手行は公開ビュー経由（番地・未公開テキスト遮断・2026-07-19監査#1）
@@ -366,6 +397,7 @@ export function ChatView({ applicationId, onBack }) {
               .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
               .order("created_at", { ascending: false }),
           ]);
+          if (!aliveRef.current) return;
           if (pRes.data) setPartner(pRes.data);
           // ニックネーム未設定時のアイコン用に、相手のメール頭文字2文字（本体は伏せる）を使う（2026-07-22）
           if (initRes.data && initRes.data[partnerId]) setPartnerInitials(initRes.data[partnerId]);
@@ -403,7 +435,7 @@ export function ChatView({ applicationId, onBack }) {
                   const own = await supabase.from("jobs").select("job_number,work_time,date_start,date_end,holidays").in("job_number", rest);
                   if (!own.error) (own.data || []).forEach(j => { map[j.job_number] = j; });
                 }
-                setJobSchedMap(map);
+                if (aliveRef.current) setJobSchedMap(map);
               } catch {}
             })();
           }
@@ -458,7 +490,8 @@ export function ChatView({ applicationId, onBack }) {
     const el = msgScrollRef.current;
     if (!el) return;
     const mine = msgs.length > 0 && myId && msgs[msgs.length - 1].sender_id === myId;
-    if (nearBottomRef.current || mine) el.scrollTop = el.scrollHeight;
+    if (nearBottomRef.current || mine) { el.scrollTop = el.scrollHeight; setHasNewMessages(false); }
+    else setHasNewMessages(true);
   }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   // 働き手の内容確認専用（農家の採用実行は採用するページ #/calendar/todo/hire に一本化・2026-08-06
   // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsが農家の初回確定時のみ見るので、
@@ -475,7 +508,7 @@ export function ChatView({ applicationId, onBack }) {
         // 履歴として残り、農家にも「確認済み」が伝わる
         if (isWorkerSide && !wasWorkerConfirmed && data.worker_confirmed) {
           try {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await chatDeadline(supabase.auth.getSession());
             if (session) {
               await supabase.from("messages").insert({ application_id: activeAppId, sender_id: session.user.id, body: "✓ 求人内容を確認しました。よろしくお願いします。" });
               await load(appIds);
@@ -513,50 +546,37 @@ export function ChatView({ applicationId, onBack }) {
   //   （.select().single()）③load は呼ばない（リアルタイム購読と保険ポーリングが受け持つ）。
   // ★失敗したら楽観表示を取り消し、本文を入力欄に返す＝送ったつもりで消える、を作らない
   const send = async () => {
-    const body = text.trim();
-    if (!body || sending) return;
-    if (chatClosed) return; // 幕が出ている＝終了した応募。入力欄は無いはずだがここでも止める（2026-08-31）
-    const uid = myId;
-    if (!uid) return;
-    setSending(true);
-    const tempId = "temp-" + Date.now();
-    setMsgs(prev => [...prev, { id: tempId, application_id: activeAppId, sender_id: uid, body,
-      created_at: new Date().toISOString(), read_at: null, _pending: true }]);
-    setText(""); setPlanSel(null); setPlanConfirm(null); planBaseRef.current = "";
+    const body = text.trim(), uid = myId;
+    if (!body || sendBusyRef.current || chatClosed || !uid) return;
+    const row = pendingRef.current || { id: crypto.randomUUID(), application_id: applicationId, sender_id: uid, body };
+    pendingRef.current = row; setPending(row);
+    saveChatDraft(uid, applicationId, { text: body, pending: row });
+    sendBusyRef.current = true; setSending(true); setSendError("");
     try {
-      const { data, error } = await supabase.from("messages")
-        .insert({ application_id: activeAppId, sender_id: uid, body }).select().single();
-      if (error) {
-        setMsgs(prev => prev.filter(m => m.id !== tempId));
-        if (error.code === "42501") {
-          // DBの壁（終了した応募への送信拒否・migration 20260831125430）に当たった＝画面が古かった。
-          // 状態を取り直して幕を出す（本文は入力欄に返さない＝入力欄ごと消えるため）
-          try {
-            const { data: r } = await supabase.from("applications").select("status").eq("id", activeAppId).maybeSingle();
-            if (r?.status) setActiveStatus(r.status);
-          } catch {}
-          alert("この応募は終了しているため、メッセージを送信できません。");
-        } else {
-          setText(prev => prev.trim() ? prev : body);
-          alert("送信できませんでした：" + error.message);
-        }
-      } else if (data) {
-        // 本物の行に差し替える（保険ポーリングが先に本物を持ってきていたら、仮の分を落とすだけ）
-        setMsgs(prev => prev.some(m => m.id === data.id)
-          ? prev.filter(m => m.id !== tempId)
-          : prev.map(m => (m.id === tempId ? data : m)));
-      }
-    } catch (e) {
-      setMsgs(prev => prev.filter(m => m.id !== tempId));
-      setText(prev => prev.trim() ? prev : body);
-      alert("送信できませんでした。通信を確かめて、もう一度お試しください。");
+      const message = await sendChatMessage(supabase, "messages", row);
+      saveChatDraft(uid, applicationId, { text: "", pending: null });
+      if (!aliveRef.current) return;
+      pendingRef.current = null; setPending(null); setText(""); setPlanSel(null); setPlanConfirm(null); planBaseRef.current = "";
+      nearBottomRef.current = true;
+      setMsgs(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message]);
+    } catch (error) {
+      if (!aliveRef.current) return;
+      if (error.code === "42501") {
+        pendingRef.current = null; setPending(null);
+        saveChatDraft(uid, applicationId, { text: body, pending: null });
+        setSendError("送信が許可されませんでした。応募の状態を更新しています。入力は残しています。");
+        load([applicationId]);
+      } else setSendError("送信を確認できませんでした。入力は残っています。同じ内容で再送しても、重複して届くことはありません。");
+    } finally {
+      sendBusyRef.current = false;
+      if (aliveRef.current) setSending(false);
     }
-    setSending(false);
   };
   // 送信ボタン：日程の承認を積んでいる時だけ最終確認を挟む（2026-08-19たきと指示）。
   // ふつうのメッセージは従来どおり1タップで送る＝毎回の確認で会話を鈍らせない
   const onSendTap = () => {
     if (!text.trim() || sending) return;
+    if (pendingRef.current) { send(); return; }
     if (planSel && planSel.labels.length) { setPlanConfirm({ body: text.trim(), labels: planSel.labels }); return; }
     send();
   };
@@ -608,36 +628,35 @@ export function ChatView({ applicationId, onBack }) {
   // 右スワイプで一覧へ戻る（LINEと同じ・2026-08-24たきと指示）。←と同じ行き先＝入口を増やしていない
   const pageRef = useRef(null);
   useSwipeBack(pageRef, onBack);
+  useChatViewport(pageRef);
   return (
-    <div ref={pageRef} className="chat-full" style={{ maxWidth:600, marginLeft:"auto", marginRight:"auto", display:"flex", flexDirection:"column" }}>
-      {/* 上部フッター（LINE式・2026-07-22）：← / 名前さん / 報告する の1行ヘッダー。求人No.は下の帯へ移動 */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0 10px", borderBottom:"1px solid #EEE" }}>
-        <button onClick={onBack} aria-label="戻る" className="f-sans" style={{ background:"none", border:"none", color:"#717171", fontSize:20, cursor:"pointer", padding:"4px 4px", flexShrink:0, lineHeight:1 }}>←</button>
-        {partner ? (<>
-          <p data-guide="chat-partner" onClick={()=>{ if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }} className="f-sans" style={{ flex:1, minWidth:0, fontSize:15, fontWeight:700, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{partner.nickname || "名前未設定"}さん</p>
-          {/* ？＝この画面の説明を開き直す入口（2026-09-02たきと指示「？を設置しよう」）。このページは下部バー・
-              浮遊☰が消える（chat-full）ので、☰の「この画面の説明」に届かない＝ここだけ専用の入口を置く。
-              合図は☰と同じ cb:openPageGuide（PageGuide が受ける・入口が増えても説明は1つ） */}
-          <button onClick={()=>{ try { window.dispatchEvent(new CustomEvent("cb:openPageGuide")); } catch {} }} aria-label="この画面の説明" className="f-sans"
-            style={{ flexShrink:0, width:30, height:30, borderRadius:"50%", background:"none", border:"1px solid #EBEBEB", color:"#717171", fontSize:14, fontWeight:800, cursor:"pointer", padding:0, lineHeight:1 }}>?</button>
-          <button data-guide="chat-report" onClick={()=>{ setReportMode(v=>!v); setReportTarget(null); }} className="f-sans" style={{ flexShrink:0, background: reportMode ? "#FDECEC" : "none", border:"1px solid " + (reportMode ? "#E24B4A" : "#EBEBEB"), borderRadius:20, padding:"6px 12px", fontSize:12, fontWeight:600, color: reportMode ? "#E24B4A" : "#717171", cursor:"pointer" }}>{reportMode ? "キャンセル" : <><NavIconInline name="flag" size={12} style={{ verticalAlign:"-1.5px" }} />報告する</>}</button>
-        </>) : <span style={{ flex:1 }} />}
-      </div>
-      {/* 求人No.の帯（#N・段階・横スワイプでの求人切替）は削除（2026-08-24たきと指示）。
-          ★同じ相手の別の求人へは、それぞれの求人のチャットのリンク（応募者ページ・カード・お知らせ）から入る。
-            メッセージ自体は従来どおり相手ごとにまとめて表示している（表示は変えていない）。
-            帯と対だった横スワイプの求人切替も同時に外した＝帯が無いと、いま何番の求人かが画面に出ないまま
-            指の動きで別の応募に切り替わる（送信先も変わる）ため */}
-      {/* 相手の本名の表示はチャットから削除（2026-08-24たきと指示「氏名は契約時に明記されればよい」）。
-          ★消えたのはチャットの表示だけ＝開示の窓口（contract_party_name RPC・契約成立後・当事者のみ）と、
-            労働条件通知書・応募者シート・今日ページの表示は従来どおり不変
-            （2026-07-30たきと裁定(B)＝雇用の法定手続きのため契約の相手方には氏名を示す、は生きている） */}
-      {/* 相手の緊急連絡先カードはチャットから削除（2026-08-18たきと指示）。
-          ★消えたのはチャットの表示だけ＝登録（プロフィールの🆘ボックス）・開示の窓口
-          （contract_emergency_contact RPC）・今日ページの緊急連絡シート／応募者シートの
-          同カードは従来どおり不変（2026-08-03の裁定＝採用成立後・相手方のみ開示、は生きている） */}
+    <div ref={pageRef} className="chat-full chat-room f-sans">
+      <header className="chat-room-header">
+        <button onClick={onBack} aria-label="メッセージ一覧に戻る" className="chat-icon-button">←</button>
+        <button data-guide="chat-partner" className="chat-partner-button" onClick={() => { if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }}>
+          <Avatar url={partner?.avatar_url} name={partner?.nickname || partnerInitials} size={36}/>
+          <span><strong>{partner?.nickname || "メッセージ"}</strong><small>{chatJobNumber ? `求人 #${chatJobNumber} の会話` : "相手と仕事を確認中"}</small></span>
+        </button>
+        <button data-guide="chat-details" className="chat-details-button" onClick={() => setDetailsOpen(true)}>詳細</button>
+      </header>
+      <button className="chat-context" onClick={() => setDetailsOpen(true)}><span><strong>{confirmJob ? [confirmJob.crop,confirmJob.task].filter(Boolean).join(" ") : "仕事の詳細"}</strong><small>{confirmJob?.dateLabel}{confirmJob?.workTime ? ` · ${confirmJob.workTime}` : ""}</small></span><span className="chat-stage">{APP_PHASE_LABEL[activeStatus] || "確認中"}</span><span aria-hidden="true">›</span></button>
+      {loadError && <div role="alert" className="chat-notice">{loadError}<br/><button className="chat-text-button" onClick={() => load([applicationId])}>再読み込み</button><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>}
+      {detailsOpen && <ChatSheet title="会話の詳細" onClose={() => setDetailsOpen(false)}>
+        <h3>{confirmJob ? [confirmJob.crop,confirmJob.task].filter(Boolean).join(" ") : `求人 #${chatJobNumber || ""}`}</h3>
+        <dl className="chat-detail-list">
+          <div><dt>相手</dt><dd>{partner?.nickname || "確認中"}</dd></div>
+          <div><dt>仕事の状況</dt><dd>{APP_PHASE_LABEL[activeStatus] || "確認中"}</dd></div>
+          <div><dt>日程・時間</dt><dd>{activeAgreed?.length ? activeAgreed.map(calFmtDate).join("・") : confirmJob?.dateLabel || "確認中"}<br/>{confirmJob?.workTime}</dd></div>
+          {confirmMeetingPlace?.full_address && <div><dt>集合場所</dt><dd>{confirmMeetingPlace.full_address}</dd></div>}
+        </dl>
+        <button className="chat-detail-action" onClick={() => { setDetailsOpen(false); openJobBox(chatJobNumber); }}>仕事の内容を確認する →</button>
+        <a className="chat-detail-action" href="#/calendar">カレンダーで予定を確認する →</a>
+        <button className="chat-detail-action" onClick={() => { setDetailsOpen(false); setReportMode(true); }}>問題のあるメッセージを通報</button>
+        <button className="chat-detail-action" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button>
+        <button className="chat-detail-action" onClick={() => openSupport({ topic: "chat" })}>チャットの使い方・お問い合わせ</button>
+      </ChatSheet>}
       {reportMode && !reportTarget && (
-        <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください</p>
+        <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください <button className="chat-text-button" onClick={() => setReportMode(false)}>キャンセル</button></p>
       )}
 
       {/* 求人コンテキストカード（#N「作物 作業」＋確認/採用/保険/求人リンクの展開）は削除（2026-07-25たきと指示）。
@@ -682,8 +701,7 @@ export function ChatView({ applicationId, onBack }) {
         ];
         const done = confirmStep >= rows.length;
         return (
-          <div className="cb-lock-scroll" onClick={()=>setConfirmBoxOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-            <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:18, padding:"20px", maxWidth:420, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <ChatSheet title="求人内容の確認" onClose={() => setConfirmBoxOpen(false)}>
               <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 4px" }}>はじめる前の確認</p>
               <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 14px" }}>{chatJobNumber != null ? `求人 #${chatJobNumber}　` : ""}{!done ? `${confirmStep + 1} / ${rows.length}` : "内容の確認"}</p>
               {!done ? (
@@ -723,17 +741,16 @@ export function ChatView({ applicationId, onBack }) {
                   </button>
                 </div>
               )}
-            </div>
-          </div>
+        </ChatSheet>
         );
       })()}
 
       {/* 失効した求人のチャット（2026-07-25たきと指示）：メッセージ領域を薄暗くし中央に「失効中」ラベル。
           オーバーレイはpointerEvents:noneなので背後のチャットは従来どおりスクロール・閲覧できる（履歴保全と整合） */}
-      <div style={{ flex:1, minHeight:0, position:"relative", display:"flex", flexDirection:"column" }}>
+      <div className="chat-message-area">
       <div ref={msgScrollRef}
-        onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; }}
-        style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain", padding:"12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+        onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; if (nearBottomRef.current) setHasNewMessages(false); }}
+        className="chat-messages" aria-label="会話の履歴">
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {/* 読み込み中は吹き出しの仮配置（2026-07-27たきと指示）。「まだメッセージはありません」を
             先に出すと、履歴があるのに一瞬「無い」と誤読させるため、読込中と空を分ける */}
@@ -743,13 +760,17 @@ export function ChatView({ applicationId, onBack }) {
               <div key={i} className="ghost-line" style={{ height: i % 2 ? 44 : 62, width: i % 2 ? "58%" : "72%", borderRadius:16, justifySelf: i % 2 ? "end" : "start" }} />
             ))}
           </div>
-        ) : msgs.length === 0 ? (
+        ) : msgs.length === 0 && loadError ? null : msgs.length === 0 ? (
           <p className="f-sans" style={{ textAlign:"center", color:"#B0B0B0", fontSize:13, marginTop:40 }}>まだメッセージはありません。<br/>面接や打ち合わせの連絡は、ここで行えます。</p>
-        ) : msgs.map(m => (
+        ) : msgs.map((m, index) => (
           <Fragment key={m.id}>
+          {(index === 0 || chatDay(msgs[index - 1].created_at) !== chatDay(m.created_at)) && <p className="chat-day">{chatDay(m.created_at)}</p>}
           <div
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
-            style={{ alignSelf: m.sender_id===myId ? "flex-end" : "flex-start", maxWidth:"75%", padding:"10px 14px", borderRadius:14, fontSize:14, background: m.sender_id===myId ? "#00A86B" : "#F0F0F0", color: m.sender_id===myId ? "#fff" : "#222", cursor: reportMode ? "pointer" : "default", boxShadow: reportMode ? "0 2px 6px rgba(226,75,74,.35)" : "none", whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }} className="f-sans">{m.body}</div>
+            role={reportMode ? "button" : undefined} tabIndex={reportMode ? 0 : undefined}
+            onKeyDown={event => { if (reportMode && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
+            className={`chat-bubble${m.sender_id === myId ? " is-mine" : ""}${reportMode ? " is-reportable" : ""}`}>{m.body}</div>
+          <span className={`chat-message-time${m.sender_id === myId ? " is-mine" : ""}`}>{chatTime(m.created_at)}{m.id === readMarkMsgId ? " · 既読" : ""}</span>
           {/* 日程案のタブ（2026-08-19たきと指示）：本文の下に日付を並べ直す。
               働き手はタップして承認＝入力欄に返事が積まれる／農家（自分が送った側）は押せないタグ */}
           {(() => {
@@ -786,10 +807,6 @@ export function ChatView({ applicationId, onBack }) {
               </div>
             );
           })()}
-          {/* 既読（2026-07-22・第8弾）：相手が読んだ自分の最新メッセージにだけ小さく表示 */}
-          {m.id === readMarkMsgId && (
-            <span className="f-sans" style={{ alignSelf:"flex-end", fontSize:10, color:"#B0B0B0", marginTop:-4 }}>既読</span>
-          )}
           {/* 応募の自動メッセージの直後（農家側のみ）：2通目として応募者のプロフィールカード＋
               「応募された求人を見る →」リンクを表示（2026-07-19）。旧文言（確認をお願いします）にも出すためstartsWithで判定 */}
           {!isWorkerSide && partnerWorkerId && m.sender_id !== myId && m.body.startsWith("あなたの求人に応募しました！") && (
@@ -814,17 +831,13 @@ export function ChatView({ applicationId, onBack }) {
           </Fragment>
         ))}
       </div>
-      {chatClosed && (
-        <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, pointerEvents:"none", zIndex:5 }}>
-          <span className="f-sans" style={{ background: APP_PHASE_COLOR[activeStatus] || "#607D8B", color:"#fff", fontSize:14, fontWeight:800, padding:"8px 24px", borderRadius:20 }}>{APP_PHASE_LABEL[activeStatus] || "終了"}</span>
-          <span className="f-sans" style={{ color:"#fff", fontSize:12, fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,0.6)" }}>{CHAT_CLOSED_NOTE[activeStatus]}</span>
-        </div>
-      )}
+      {hasNewMessages && <button className="chat-latest" onClick={() => { const element = msgScrollRef.current; if (element) element.scrollTop = element.scrollHeight; nearBottomRef.current = true; setHasNewMessages(false); load([applicationId]); }}>新しいメッセージ ↓</button>}
       </div>
+      {chatClosed && <div className="chat-notice">{CHAT_CLOSED_NOTE[activeStatus]}。履歴は引き続き確認できます。{text && <details><summary>未送信の下書き</summary><p style={{ whiteSpace: "pre-wrap" }}>{text}</p></details>}<br/><button className="chat-text-button" onClick={() => openSupport({ topic: "chat" })}>運営に相談する</button></div>}
+      {sendError && <div className="chat-notice" role="alert">{sendError}<br/>{!chatClosed && <button className="chat-text-button" disabled={sending} onClick={send}>{pending ? "同じ内容で再送" : "もう一度送信"}</button>}<button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>}
       {/* コメント報告ボックス（2026-07-19）：該当コメントの引用＋どう問題かの選択＋補足→送信で運営に届く */}
       {reportTarget && (
-        <div className="cb-lock-scroll" onClick={()=>{ if (!reportSending) { setReportTarget(null); if (reportDone) setReportMode(false); } }} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <ChatSheet title="メッセージを通報" onClose={() => { setReportTarget(null); if (reportDone) setReportMode(false); }}>
             {reportDone ? (
               <div style={{ textAlign:"center", padding:"16px 0" }}>
                 <div style={{ marginBottom:12, display:"flex", justifyContent:"center", color:"#E24B4A" }}><NavIcon name="flag" size={40} /></div>
@@ -845,14 +858,12 @@ export function ChatView({ applicationId, onBack }) {
                 <button onClick={submitReport} disabled={!reportReason || reportSending} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (!reportReason || reportSending) ? 0.5 : 1 }}>{reportSending ? <>送信中<Dots /></> : "報告する"}</button>
               </>
             )}
-          </div>
-        </div>
+        </ChatSheet>
       )}
 
       {/* 該当求人ボックス（2026-07-19）：「応募された求人を見る →」タップで展開。写真＋主要情報＋詳細ページへのリンク */}
       {jobBox && (
-        <div className="cb-lock-scroll" onClick={()=>setJobBox(null)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <ChatSheet title="仕事の内容" onClose={() => setJobBox(null)}>
             {jobBox.loading ? (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
             ) : jobBox.job ? (
@@ -879,8 +890,7 @@ export function ChatView({ applicationId, onBack }) {
             ) : (
               <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 16px" }}>この求人（#{jobBox.job_number}）は現在公開されていません</p>
             )}
-          </div>
-        </div>
+        </ChatSheet>
       )}
 
       {/* 採用するボタンはチャット右上の浮遊に移設（2026-07-19・上のsticky）。下部の常駐ブロックは廃止 */}
@@ -900,25 +910,19 @@ export function ChatView({ applicationId, onBack }) {
          （onKeyDownのEnter送信は削除。誤送信も同時に無くなる）。
          高さは中身に合わせて伸ばす＝1行から最大6行（それ以上は内側スクロール）。
          alignItemsをflex-endにして、伸びた時に＋と送信が下端に揃う */
-      <div style={{ display:"flex", gap:8, padding:"12px 0", borderTop:"1px solid #EEE", alignItems:"flex-end" }}>
-        {/* ＋シート（2026-07-22・第8弾）：📅日程案。農家の機能ので働き手側には出さない
-            （定型文・質問集の削除で、働き手にとって中身が無くなったため） */}
-        {!isWorkerSide && (
-        <button onClick={()=>setTmplOpen(true)} aria-label="日程案" className="f-sans" style={{ flexShrink:0, width:40, height:40, borderRadius:"50%", background:"#F0F7F3", border:"1px solid #DDEDE5", fontSize:20, fontWeight:700, color:"#00A86B", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>＋</button>
-        )}
-        <textarea data-guide="chat-input" ref={inputRef} value={text} rows={1} onChange={e=>setText(e.target.value)}
-          placeholder="メッセージを入力" className="field f-sans"
-          style={{ flex:1, fontSize:14, resize:"none", lineHeight:1.6, maxHeight:132, overflowY:"auto" }} />
-        <button onClick={onSendTap} disabled={sending} className="f-sans" style={{ flexShrink:0, padding:"14px 20px", fontSize:14, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", lineHeight:1.4 }}>{sending?"...":"送信"}</button>
+      <div className="chat-composer">
+        <div className="chat-composer-tools"><button className="chat-text-button" aria-expanded={quickOpen} onClick={() => setQuickOpen(value => !value)}>定型文</button>{!isWorkerSide && <button className="chat-text-button" disabled={!!pending || sending} onClick={() => setTmplOpen(true)}>日程を相談</button>}<button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>
+        {quickOpen && <div className="chat-quick-replies">{(isWorkerSide ? [["あいさつ","よろしくお願いします。"],["集合場所","当日の集合場所を教えてください。"],["持ち物","当日に必要な持ち物を教えてください。"]] : [["あいさつ","ご連絡ありがとうございます。よろしくお願いします。"],["日程の相談","作業の日程について相談させてください。"],["確認のお礼","確認しました。ありがとうございます。"]]).map(([label,body]) => <button key={label} disabled={!!pending || sending} onClick={() => { changeText(text ? `${text}\n${body}` : body); setQuickOpen(false); inputRef.current?.focus(); }}>{label}</button>)}</div>}
+        <div className="chat-composer-row"><textarea data-guide="chat-input" ref={inputRef} value={text} rows={1} readOnly={!!pending || sending} disabled={!myId} onChange={event => changeText(event.target.value)} aria-label="メッセージ" placeholder="メッセージを入力" />
+          <button onClick={onSendTap} className="chat-send" disabled={sending || !text.trim() || !myId}>{sending ? "送信中" : pending ? "再送" : "送信"}</button></div>
+        {text && <p className="chat-draft-hint">未送信の内容は、このアプリを開いている間だけ下書きに残ります。</p>}
       </div>
       )}
 
       {/* 日程の承認の最終確認（2026-08-19たきと指示「送信ボタンタップで最終確認」）：
           後戻りしにくい返事ので、送る前に日付と本文をそのまま見せる。ボックス外タップで閉じる */}
       {planConfirm && (
-        <div className="cb-box-overlay cb-lock-scroll" onClick={()=>{ if (!sending && !planBusy) setPlanConfirm(null); }}
-          style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, animation:"fadeIn .2s ease" }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ width:"100%", maxWidth:420, maxHeight:"86vh", overflowY:"auto", background:"#fff", borderRadius:18, padding:"20px 18px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
+        <ChatSheet title="日程の返事を確認" onClose={() => { if (!sending && !planBusy) setPlanConfirm(null); }}>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", textAlign:"center", margin:"0 0 4px" }}>最終確認</p>
             <p className="f-sans" style={{ fontSize:12, color:"#717171", textAlign:"center", margin:"0 0 14px" }}>この日程で返事を送ります</p>
             <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", marginBottom:12 }}>
@@ -934,8 +938,7 @@ export function ChatView({ applicationId, onBack }) {
               <button onClick={()=>{ if (!sending && !planBusy) setPlanConfirm(null); }} disabled={sending || planBusy} className="f-sans"
                 style={{ padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
             </div>
-          </div>
-        </div>
+        </ChatSheet>
       )}
 
       {/* ＋シート（2026-07-22 第8弾→2026-08-19 定型文を削除→2026-08-17 質問集を削除）：
@@ -977,20 +980,18 @@ export function ChatView({ applicationId, onBack }) {
                   ラベルが2行になるとシートが上に伸びてチップの位置がずれる＝誤タップの原因になる */}
               <button disabled={dateSel.length===0} onClick={()=>{
                 const msg = "【日程案】" + [...dateSel].sort().map(calFmtDate).join("・") + " に来ていただきたいです。ご都合はいかがでしょうか。";
-                setText(prev => prev.trim() ? (prev.replace(/\s*$/, "") + " " + msg) : msg);
+                changeText(text.trim() ? (text.replace(/\s*$/, "") + " " + msg) : msg);
                 setDateSel([]); setTmplOpen(false);
               }} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background: dateSel.length===0 ? "#EBEBEB" : "#00A86B", color: dateSel.length===0 ? "#999" : "#fff", border:"none", borderRadius:10, cursor: dateSel.length===0 ? "not-allowed" : "pointer", whiteSpace:"nowrap" }}>日程案を入力欄に入れる{dateSel.length>0 ? `（${dateSel.length}日）` : ""}</button>
             </>
           );
         })();
         return (
-        <div className="cb-lock-scroll" onClick={()=>setTmplOpen(false)} style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"flex-end", justifyContent:"center", animation:"fadeIn .2s ease" }}>
-          <div ref={tmplSheetRef} onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:"18px 18px 0 0", padding:"18px 18px 24px", maxWidth:600, width:"100%", maxHeight:"70vh", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
+        <ChatSheet title="日程を相談" onClose={() => setTmplOpen(false)}>
             {/* 質問集タブは廃止（2026-08-17たきと指示）＝このシートは📅日程案の1枚ので、タブとスワイプは置かない */}
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 10px" }}><NavIconInline name="calendar" size={15} />日程案</p>
             {datesPanel}
-          </div>
-        </div>
+        </ChatSheet>
         );
       })()}
     </div>

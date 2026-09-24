@@ -173,7 +173,13 @@ test('report inbox, per-case instructions, evidence, contacts, outcomes and reco
     await until(() => w.document.querySelectorAll('[role="dialog"]').length === 1, 'handbook returns to sample');
     Object.assign(w.visualViewport, { scale: 1, width: 390, height: 844, offsetLeft: 0, offsetTop: 0 });
     w.visualViewport.dispatchEvent(new w.Event('scroll'));
-    await until(() => dialog(w).style.height === '', 'normal viewport uses the dynamic CSS height');
+    await until(() => dialog(w).style.height === `${w.visualViewport.height}px`, 'viewport fit retains visible bounds at normal scale');
+    Object.assign(w.visualViewport, { width: w.innerWidth, height: 300, offsetLeft: 0, offsetTop: 0 });
+    w.visualViewport.dispatchEvent(new w.Event('resize'));
+    await until(() => dialog(w).style.height === '300px', 'keyboard alone resizes the panel without zoom or pan');
+    Object.assign(w.visualViewport, { width: w.innerWidth, height: w.innerHeight });
+    w.visualViewport.dispatchEvent(new w.Event('resize'));
+    await until(() => dialog(w).style.height === '', 'full viewport restores CSS bounds');
     header.querySelector('button').click();
     await until(() => !dialog(w), 'top back button returns from sample');
     assert.equal(w.document.querySelector('.reports-samples').open, true, 'sample list stays expanded on return');

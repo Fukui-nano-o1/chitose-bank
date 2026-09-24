@@ -373,9 +373,9 @@ input:focus { outline: none; }
   .bottom-tab-bar button:hover { color: #008F5B; }
   .bottom-tab-bar button.active { color: #00A86B; font-weight: 600; }
   .bottom-tab-bar button span.icon { font-size: 20px; line-height: 1; }
-  /* 求人掲載・通報詳細のヘッダーは各画面の余白（safe-areaを含む）を使う。
-     :whereで詳細度を元のheaderと同じに保ち、下部バーの左右4px・safe-areaを上書きしない。 */
-  header:where(:not(.listing-header, .reports-modal-header)) { padding: 0 16px !important; }
+  /* ナビゲーションのみに適用する。各ページ・ダイアログのsafe-areaを消さない。
+     :whereで詳細度を元のheaderと同じに保ち、下部バーの指定も上書きしない。 */
+  header:where(.app-header) { padding: 0 16px !important; }
   /* 上余白に safe-area を足す（2026-07-31・ステータスバーblack-translucent化に伴い、時計の下に文字が潜らないように） */
   main { padding: calc(10px + env(safe-area-inset-top, 0px)) 12px calc(90px + env(safe-area-inset-bottom, 0px)) !important; }
   .ledger-card { padding: 16px !important; }

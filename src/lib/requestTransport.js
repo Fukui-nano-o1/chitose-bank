@@ -8,7 +8,7 @@ const READ_RPCS = new Set([
   "employer_public_jobs", "employer_public_jobs_by_farmer", "employer_trust_info",
   "get_minimum_wage", "get_my_calendar_jobs", "is_account_moderated", "is_worker_profile_ready",
   "job_details_for_party", "job_employer_profile", "job_employer_reviews", "job_employer_trust_info",
-  "job_exists", "job_meeting_place", "my_chat_partner_initials", "my_farm_applicants",
+  "job_exists", "job_meeting_place", "my_chat_partner_initials", "my_chat_inbox_previews", "my_farm_applicants",
   "my_farm_jobs", "my_job_actions", "my_nav_badges", "my_todo_items", "my_unread_message_counts",
   "my_worker_trust_stats", "pending_job_previews", "push_vapid_public", "reviews_public_badges",
   "signup_open", "worker_cards_for_farmer", "worker_profile_for_farmer", "worker_trust_info",
