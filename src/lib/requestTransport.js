@@ -29,6 +29,7 @@ export function createSupabaseFetch({
 } = {}) {
   const base = new URL(supabaseUrl);
   const restPath = base.pathname.replace(/\/$/, "") + "/rest/v1/";
+  const authPath = base.pathname.replace(/\/$/, "") + "/auth/v1/";
   const queue = [];
   let active = 0, reads = 0;
 
@@ -69,8 +70,9 @@ export function createSupabaseFetch({
   return async function managedFetch(input, options = {}) {
     let url;
     try { url = new URL(typeof input === "string" || input instanceof URL ? input : input.url); } catch {}
-    if (!url || url.origin !== base.origin || !url.pathname.startsWith(restPath)) {
-      // 認証・画像アップロードは従来のタイムアウトと呼び出し元のsignalを維持する。
+    const auth = url?.origin === base.origin && url.pathname.startsWith(authPath);
+    if (!url || url.origin !== base.origin || (!auth && !url.pathname.startsWith(restPath))) {
+      // 画像アップロード等は従来のストリームと呼び出し元のsignalを維持する。
       const signal = options.signal || input?.signal;
       if (!signal && typeof AbortSignal !== "undefined" && AbortSignal.timeout) {
         return fetchImpl(input, { ...options, signal: AbortSignal.timeout(timeoutMs) });
@@ -97,11 +99,12 @@ export function createSupabaseFetch({
     const timer = setTimeout(() => { expired = true; cancel(); }, deadlineMs);
     let release;
     try {
-      release = await acquire(read, controller.signal);
+      // 認証はRESTの混雑に並ばない。ただし既存signalの有無にかかわらず本文受信まで期限を守る。
+      if (!auth) release = await acquire(read, controller.signal);
       if (controller.signal.aborted) throw abortError();
       sent = true;
       const response = await fetchImpl(input, { ...options, signal: controller.signal });
-      // RESTはSDKも本文全体を読んでから結果を返す。ここで受信まで待ち、ヘッダーだけ
+      // REST・AuthはSDKも本文全体を読んでから結果を返す。ここで受信まで待ち、ヘッダーだけ
       // 届く通信も上限と期限の内側に置く。Storage等のストリームは上の直通経路。
       // body が空のストリームになるブラウザーでも、HEAD・204等には本文を渡せない。
       // 空のArrayBufferで作り直すと、保存成功の応答までTypeErrorになってしまう。

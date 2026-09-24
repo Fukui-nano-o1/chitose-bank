@@ -264,7 +264,7 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
                         if (error) console.error("退会申請の記録に失敗:", error.message);
                       }
                     } catch (e) { console.error("退会申請の記録に失敗:", e); }
-                    await supabase.auth.signOut(); onLogout();
+                    onLogout();
                   }} style={{
                     flex:1, padding:"11px", background:"#E24B4A", color:"#fff", border:"none",
                     borderRadius:12, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit",
@@ -272,7 +272,7 @@ export function ProfileModal({ me, recs, isContributor, avatarUrl, onClose, onEd
                 </div>
               </div>
           }
-          <button onClick={() => { if (window.confirm("ログアウトしますか？")) onLogout(); }} className="f-sans" style={{
+          <button onClick={onLogout} className="f-sans" style={{
             width:"100%", padding:"12px", border:"none", background:"none",
             fontSize:12, color:"#B0B0B0", cursor:"pointer", textAlign:"center", marginTop:8,
           }}>ログアウト</button>

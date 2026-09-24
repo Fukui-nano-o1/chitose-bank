@@ -100,9 +100,9 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       supabase.from("app_errors").insert({
         level: "error", source: "client", page: "login", component: "LoginScreen",
         action: "requestCode", operation: "auth.signInWithOtp",
-        error_code: String(error?.status || error?.code || ""),
-        message: String(error?.message || "").slice(0, 500),
-        url: window.location.href, user_agent: navigator.userAgent,
+        error_code: String(error?.code || error?.status || error?.name || "unknown").slice(0, 80),
+        message: "認証コードの送信要求に失敗しました",
+        url: window.location.origin + window.location.pathname + "#/login", user_agent: navigator.userAgent,
       }).then(()=>{}, ()=>{});
     } catch {}
   };
@@ -153,7 +153,14 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   };
 
   const requestCode = async () => {
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: signupOpen } });
+    let result;
+    try {
+      result = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: signupOpen } });
+    } catch (error) {
+      logMailFailure(error);
+      throw error;
+    }
+    const { error } = result;
     if (error) {
       // 失敗の理由を出し分ける（2026-08-01たきと報告「なぜ？」）。
       // 以前は「招待されていない」以外を全部「メール送信に失敗しました」に丸めていたため、
@@ -167,14 +174,16 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       // 実例：2026-08-04 gomail 550 "API key is invalid"（Supabase Auth のカスタムSMTP）→
       //       画面には英語のまま「詳細: Error sending magic link email」が出ていた。
       const isServerMail = error.status === 500 || /error sending|failed to send|smtp|gomail/i.test(msg);
+      const isConnection = !error.status || [502, 503, 504].includes(error.status);
       setErr(
         isInviteOnly ? "このメールアドレスは招待されていません。招待を受けたアドレスでお試しください"
         : wait       ? `送信の間隔が短すぎます。${wait[1]}秒ほど待ってから、もう一度お試しください`
         : isRate     ? "ただいま送信が混み合っています。しばらく時間をおいてからお試しください"
         : isServerMail ? "ただいま認証コードのメールをお送りできません。お客さまの操作の問題ではなく、運営側の不具合です。復旧までしばらくお待ちください"
+        : isConnection ? "通信が完了せず、メールを送信できたか確認できません。届いていない場合は、接続を確認してもう一度お試しください"
         : `メールを送信できませんでした。時間をおいて再度お試しください（詳細：${msg || "不明"}）`
       );
-      if (isServerMail) logMailFailure(error);
+      logMailFailure(error);
       return;
     }
     setCode("");

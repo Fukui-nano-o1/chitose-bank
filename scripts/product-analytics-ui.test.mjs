@@ -46,7 +46,14 @@ test('real preferences and PostgREST: no-consent application still works; opt-in
     assert.deepEqual(JSON.parse(JSON.stringify(measurements()[1].body.map(row=>row.event))),['apply_start','apply_success']);
     w.qaApplyResult={ ok:false,reason:'job_not_open' };await w.qaApply();w.qaAnalytics.flush();await until(()=>measurements().length===3,'failure event');
     assert.deepEqual(JSON.parse(JSON.stringify(measurements()[2].body.map(row=>row.event))),['apply_start','apply_failure']);
-    assert.doesNotMatch(JSON.stringify(measurements()),/1311|2026-09-24|job_number|available_dates/);
+    for (const call of measurements()) for (const row of call.body) {
+      // 同意日時が求人日と同じ日でも、許可した計測項目だけなら個別の求人情報ではない。
+      assert.deepEqual(Object.keys(row).sort(), [
+        'session_id','sequence','event','screen','source','operation_id',
+        'duration_bucket','consent_version','consent_at',
+      ].sort());
+      assert.ok(!Object.values(row).some(value => [1311, '1311', '2026-09-24'].includes(value)));
+    }
     const finish=w.qaAnalytics.begin('pdf');button(w,'許可しない').click();
     await until(()=>/現在：許可していません/.test(w.document.body.textContent),'withdrawn');finish('success');w.qaAnalytics.flush();
     assert.equal(measurements().length,3);

@@ -203,6 +203,41 @@ test('auth, storage, and other hosts bypass the REST queue', async () => {
   await drain(server, 6); await Promise.all(pending);
 });
 
+test('auth deadlines include response bodies and combine with an existing caller signal', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const caller = new AbortController();
+  let signal;
+  const send = createSupabaseFetch({ supabaseUrl: origin, fetchImpl: async (_url, options) => {
+    signal = options.signal;
+    return new Response(new ReadableStream({ start(controller) {
+      signal.addEventListener('abort', () => controller.error(signal.reason), { once: true });
+    } }));
+  } });
+  const request = assert.rejects(send(origin + '/auth/v1/otp', { method: 'POST', signal: caller.signal }), abort);
+  await flush();
+  t.mock.timers.tick(15000);
+  await request;
+  assert.equal(signal.aborted, true);
+  assert.equal(caller.signal.aborted, false);
+});
+
+test('the installed Auth SDK finishes a stalled OTP request without automatic resend', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(console, 'error', () => {}); // SDK reports the expected simulated network abort.
+  const server = backend();
+  const client = createClient(origin, 'fixture-key', {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: createSupabaseFetch({ supabaseUrl: origin, fetchImpl: server.fetchImpl }) },
+  });
+  const result = client.auth.signInWithOtp({ email: 'person@fixture.test', options: { shouldCreateUser: false } });
+  await flush();
+  assert.equal(server.calls.length, 1);
+  t.mock.timers.tick(15000);
+  assert.ok((await result).error);
+  assert.equal(server.calls.length, 1);
+  assert.ok(server.calls[0].url.endsWith('/auth/v1/otp'));
+});
+
 test('cancelled queued calls are removed and never sent; other calls still finish', async () => {
   const server = backend();
   const send = createSupabaseFetch({ supabaseUrl: origin, fetchImpl: server.fetchImpl });

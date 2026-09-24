@@ -81,7 +81,6 @@ function ProfileWithdrawSection({ onLogout }) {
         if (error) console.error("退会申請の記録に失敗:", error.message);
       }
     } catch (e) { console.error("退会申請の記録に失敗:", e); }
-    try { await supabase.auth.signOut(); } catch {}
     if (onLogout) onLogout();
   };
   return (
@@ -91,7 +90,7 @@ function ProfileWithdrawSection({ onLogout }) {
       {!open
         ? (<div>
             {/* ログアウトはここが唯一の入口（2026-08-25に☰から移した）＝Airbnbと同じくアカウントの面に置く */}
-            <ToolRow icon="login" label="ログアウト" onClick={()=>{ if (window.confirm("ログアウトしますか？") && onLogout) onLogout(); }} />
+            <ToolRow icon="login" label="ログアウト" onClick={onLogout} />
             <ToolRow icon="alert" label="退会する" sub="登録した情報の削除を申し出ます" danger last onClick={()=>setOpen(true)} />
           </div>)
         : <div style={{ marginTop:12, padding:20, background:"#FCEBEB", borderRadius:14, border:"1px solid #E24B4A22" }}>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { supabase } from "./lib/supabase";
+import { supabase, clearBrowserAuthSession } from "./lib/supabase";
+import { createDeviceLogout } from "./lib/authSession";
 import { useDeviceSync } from "./hooks/useDeviceSync";
 import { activeDeviceDraft, readPendingConsent } from "./lib/deviceDrafts";
 import { PendingConsentWorkspace } from "./components/PendingConsentWorkspace";
@@ -1418,15 +1419,15 @@ export default function App(){
     return () => { if (channel) { try { supabase.removeChannel(channel); } catch {} } };
   }, [showWelcomeApproved, realtimeBootReady]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setMe(null);
-    clearSnapshots(); // 前回画面の残像（me等）を残さない
-    window.location.hash = "/search"; // reload前に直接書く（setTabの予約はreloadに間に合わない）
-    /* 検証中：本来はsetShowLanding(true)。完成後に戻す */
-    localStorage.removeItem('sb-aegwepgtmwcnwzybpgsh-auth-token');
-    window.location.reload();
-  };
+  const logoutRef = useRef(null);
+  if (!logoutRef.current) logoutRef.current = createDeviceLogout({
+    signOut: options => supabase.auth.signOut(options),
+    stopAutoRefresh: () => supabase.auth.stopAutoRefresh(),
+    clearAuth: clearBrowserAuthSession,
+    clearPrivateState: () => { setMe(null); clearSnapshots(); },
+    navigate: () => { window.location.hash = "/search"; window.location.reload(); },
+  });
+  const handleLogout = () => logoutRef.current();
 
   const completeOnboarding=useCallback(async(updates)=>{
     const{data:{user}}=await supabase.auth.getUser();
