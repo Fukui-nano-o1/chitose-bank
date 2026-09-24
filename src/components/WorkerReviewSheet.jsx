@@ -1,4 +1,4 @@
-// 最終日の評価（働き手→農家）＝今回の仕事のふりかえり（2026-08-20たきと裁定で3問×3択に再設計）。
+// 最終日の評価（働き手→農家）。基本3問＋任意3問（2026-09-24 評価項目の追加）。
 // ★この形は2箇所から開く：①応募状況ページ（#/profile/worker/approved）②今日ページの「仕事の評価」。
 //   同じ入力が枝分かれしないよう、設問と保存はこの1部品に集約する。
 // ★対称設計にしすぎない（たきと裁定）：働き手側が測るのは人柄より【求人の信頼性】＝
@@ -35,6 +35,26 @@ const WORKER_FINAL_QUESTIONS = [
   ]},
 ];
 
+// 既存の nullable boolean 列と公開集計を使う。未回答・判断できないは null
+// （否定に数えない）。農家→働き手の設問には追加しない。
+const WORKER_OPTIONAL_QUESTIONS = [
+  { k:"instructions_clear", label:"仕事の教え方や指示は分かりやすかったですか", choices:[
+    { v:"yes", l:"分かりやすかった" },
+    { v:"no", l:"分かりにくかった" },
+    { v:"unknown", l:"判断できない" },
+  ]},
+  { k:"safety_care", label:"安全に作業できるよう、配慮がありましたか", choices:[
+    { v:"yes", l:"配慮があった" },
+    { v:"no", l:"配慮が足りなかった" },
+    { v:"unknown", l:"判断できない" },
+  ]},
+  { k:"on_time", label:"仕事は約束した時間どおりに始まりましたか", choices:[
+    { v:"yes", l:"時間どおりに始まった" },
+    { v:"no", l:"時間どおりではなかった" },
+    { v:"unknown", l:"判断できない" },
+  ]},
+];
+
 // app＝{ id, farmer_id }（応募のID と 相手＝農家のauth_id）。meId＝自分のauth_id。
 // dayCount＝実働日数（分かる時だけ・客観データの見出しに出す）。
 // onDone(applicationId)＝保存できた時に親へ知らせる（一覧から消す・祝祭を出すのは親の仕事）。
@@ -57,6 +77,9 @@ export function WorkerReviewSheet({ app, meId, dayCount, onDone, onClose }) {
         as_described: answers.match_level === "matched",
         paid_as_posted: answers.pay_status === "paid",
         want_again: wc === "yes" ? true : wc === "no" ? false : null,
+        ...Object.fromEntries(WORKER_OPTIONAL_QUESTIONS.map(({ k }) => [
+          k, answers[k] === "yes" ? true : answers[k] === "no" ? false : null,
+        ])),
       });
       if (error) { fbError(); alert("評価の保存に失敗しました：" + error.message); setSubmitting(false); return; }
       fbSuccess();
@@ -69,9 +92,10 @@ export function WorkerReviewSheet({ app, meId, dayCount, onDone, onClose }) {
     <FinalReviewSheet
       app={app}
       title="今回の仕事のふりかえり"
-      intro="これで今回の仕事は終わりになります。答えは3つだけです。"
+      intro="基本の3問に答えてください。教え方・安全・開始時間についても、任意で振り返れます。"
       dayCount={dayCount}
       questions={WORKER_FINAL_QUESTIONS}
+      optionalQuestions={WORKER_OPTIONAL_QUESTIONS}
       answers={answers}
       onAnswer={(k, v)=>setAnswers(prev => ({ ...prev, [k]: v }))}
       submitting={submitting}

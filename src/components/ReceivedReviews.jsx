@@ -28,15 +28,14 @@ const BADGE_DEFS = {
     { k: "as_described", label: "聞いていたとおり", legacy: true },
     { k: "followed_instructions", label: "指示どおり", legacy: true },
   ],
-  // 2026-08-20に3問×3択へ再設計（求人と一致・報酬は約束どおり・また働きたい）。
-  // safety_care/on_time/instructions_clear は旧データ用に残す（>0の時だけ出る）
+  // 基本3問＋任意3問。再開した設問は従来の集計キーを使い、過去の回答も引き継ぐ。
   worker_to_farmer: [
     { k: "want_again", label: "また働きたい", icon:"star" },
     { k: "as_described", label: "求人のとおりだった" },
     { k: "paid_as_posted", label: "報酬は約束どおり" },
-    { k: "safety_care", label: "安全に配慮", legacy: true },
-    { k: "on_time", label: "時間どおり", legacy: true },
-    { k: "instructions_clear", label: "教え方が分かりやすい", legacy: true },
+    { k: "instructions_clear", label: "教え方が分かりやすい" },
+    { k: "safety_care", label: "安全に配慮" },
+    { k: "on_time", label: "時間どおりに開始" },
   ],
 };
 

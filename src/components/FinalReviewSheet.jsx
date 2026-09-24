@@ -4,7 +4,7 @@
 // この画面の構造：
 //   ①客観データの自動表示＝日次に蓄積された事実（遅刻・欠勤・合流トラブル…）を件数で見せる。
 //     本人に再入力させない。0件でも見せる（「問題なし」も情報）。
-//   ②設問は3問程度・すべて選択式（3択）。公開自由記述は置かない（2026-08-20たきと裁定
+//   ②基本の設問と任意の追加設問・すべて選択式。公開自由記述は置かない（2026-08-20たきと裁定
 //     「自由記述は誹謗中傷・感情的評価・個人情報・削除依頼の泥沼を召喚する。MVPでは触らない」）。
 //   ③農家側だけ特記事項のタグ選択（肯定タグは公開集計・否定タグは記録のみ＝規約第8条2）。
 //   ④送信するタップで最終確認（答えを並べて見せてから保存・後戻りできない操作の直前の一拍）。
@@ -87,7 +87,7 @@ const ctaStyle = (enabled, submitting) => ({
 // accent＝互換のため受けるだけ（見た目はAirbnbの黒に統一・2026-08-31）
 export function FinalReviewSheet({
   app, title, intro, dayCount,
-  questions, answers, onAnswer,
+  questions, optionalQuestions = [], answers, onAnswer,
   tagDef, tags = [], onToggleTag,
   extra, confirmNote, confirmExtra, footer,
   submitting, onSubmit, onClose, accent = "#00A86B",
@@ -95,7 +95,8 @@ export function FinalReviewSheet({
   const [confirming, setConfirming] = useState(false);
   useEffect(() => { setConfirming(false); }, [app?.id]);
   if (!app) return null;
-  const unanswered = questions.filter(q => !answers[q.k]);
+  const unanswered = questions.filter(q => !q.choices.some(c => c.v === answers[q.k]));
+  const answeredOptional = optionalQuestions.filter(q => q.choices.some(c => c.v === answers[q.k]));
   const ready = unanswered.length === 0;
   const choiceLabel = (q) => (q.choices.find(c => c.v === answers[q.k]) || {}).l || "（未回答）";
 
@@ -136,7 +137,7 @@ export function FinalReviewSheet({
           「どちらともいえない」が1文字ずつの縦書きになっていた。下のタグ行と同じ
           「小さい灰色のラベル＋大きい答え」の形に全部そろえる＝行の形が枝分かれしない */}
       <div style={{ border:"1px solid #DDDDDD", borderRadius:12, padding:"4px 16px", marginBottom:14 }}>
-        {questions.map(q => (
+        {[...questions, ...answeredOptional].map(q => (
           <div key={q.k} style={{ padding:"12px 0", borderBottom:"1px solid #F4F4F4" }}>
             <p className="f-sans" style={{ fontSize:12, color:"#999", margin:"0 0 3px", lineHeight:1.5 }}>{q.label}</p>
             <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0, lineHeight:1.5 }}>{choiceLabel(q)}</p>
@@ -152,6 +153,9 @@ export function FinalReviewSheet({
         )}
         {confirmExtra}
       </div>
+      {optionalQuestions.length > 0 && answeredOptional.length === 0 && (
+        <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7 }}>任意の項目は未回答のまま送信します。</p>
+      )}
     </>,
     /* 下部の固定バー（Airbnbのフローの足：左＝下線の戻る／右＝黒いボタン） */
     <div style={{ ...barInner, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
@@ -166,6 +170,28 @@ export function FinalReviewSheet({
   );
 
   const answeredN = questions.length - unanswered.length;
+  const renderQuestion = (q, optional = false) => (
+    <fieldset key={q.k} style={{ border:0, padding:0, minWidth:0, margin:"0 0 28px" }}>
+      <legend className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 12px", padding:0 }}>{q.label}</legend>
+      <div style={{ display:"grid", gap:10 }}>
+        {q.choices.map(c => {
+          const on = answers[q.k] === c.v;
+          return (
+            <button key={c.v} type="button" onClick={()=>onAnswer(q.k, c.v)} aria-pressed={on} disabled={submitting} className="f-sans"
+              style={{ textAlign:"left", padding:"16px", borderRadius:12, fontSize:15, cursor:"pointer",
+                fontWeight: on ? 700 : 500, color:"#222",
+                border: on ? "1px solid #222" : "1px solid #B0B0B0",
+                boxShadow: on ? "inset 0 0 0 1px #222" : "none",
+                background: on ? "#F7F7F7" : "#fff" }}>{c.l}</button>
+          );
+        })}
+      </div>
+      {optional && answers[q.k] && (
+        <button type="button" onClick={()=>onAnswer(q.k, undefined)} disabled={submitting} className="f-sans"
+          style={{ border:0, background:"none", color:"#717171", padding:"12px 0 0", fontSize:13, textDecoration:"underline", cursor:"pointer" }}>回答を取り消す</button>
+      )}
+    </fieldset>
+  );
   return shell(
     headerBtn(()=>{ if (!submitting) onClose(); }, "とじる", <NavIcon name="close" size={18} />),
     <>
@@ -176,24 +202,17 @@ export function FinalReviewSheet({
       {/* ②設問（3問程度・3択・縦に選択肢を並べる）。選択の型＝Airbnbのフォーム：
           白いカード＋灰色の枠→選んだら黒い2重の枠＋うすい灰の下地。太い枠は boxShadow inset で
           描く＝枠の太さで高さが変わらない（タップ対象を動かさない・2026-08-16の誤タップの型を作らない） */}
-      {questions.map(q => (
-        <div key={q.k} style={{ marginBottom:28 }}>
-          <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 12px" }}>{q.label}</p>
-          <div style={{ display:"grid", gap:10 }}>
-            {q.choices.map(c => {
-              const on = answers[q.k] === c.v;
-              return (
-                <button key={c.v} type="button" onClick={()=>onAnswer(q.k, c.v)} className="f-sans"
-                  style={{ textAlign:"left", padding:"16px", borderRadius:12, fontSize:15, cursor:"pointer",
-                    fontWeight: on ? 700 : 500, color:"#222",
-                    border: on ? "1px solid #222" : "1px solid #B0B0B0",
-                    boxShadow: on ? "inset 0 0 0 1px #222" : "none",
-                    background: on ? "#F7F7F7" : "#fff" }}>{c.l}</button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      {questions.map(q => renderQuestion(q))}
+      {optionalQuestions.length > 0 && (
+        <details key={app.id} style={{ border:"1px solid #DDDDDD", borderRadius:12, padding:"16px", marginBottom:28 }}>
+          <summary className="f-sans" style={{ cursor:"pointer", fontSize:16, fontWeight:700, lineHeight:1.6 }}>
+            詳しく振り返る（任意・{optionalQuestions.length}項目）
+            {answeredOptional.length > 0 && <span style={{ display:"block", fontSize:12, fontWeight:400, color:"#717171" }}>{answeredOptional.length}項目に回答済み</span>}
+          </summary>
+          <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:"12px 0 20px" }}>答えられる項目だけで大丈夫です。未回答でも送信できます。</p>
+          {optionalQuestions.map(q => renderQuestion(q, true))}
+        </details>
+      )}
       {/* ③特記事項のタグ（農家のみ・複数選択・任意）＝Airbnbのレビューのチップ：丸いチップ・
           選んだら黒地に白。否定タグだけ選択時 #B54A0E ＝「公開されない記録」の意味の色は消さない */}
       {tagDef && (
