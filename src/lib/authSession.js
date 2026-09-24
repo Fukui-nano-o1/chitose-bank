@@ -7,16 +7,20 @@ export function createAuthStorage(key, getStorage = () => window.localStorage) {
   const memory = new Map();
   const sessionKeys = new Set([key, `${key}-code-verifier`, `${key}-user`]);
   let signedOut = false;
+  let memoryOnly = false;
   const storage = {
     getItem(name) {
       if (signedOut && sessionKeys.has(name)) return null;
+      if (memoryOnly) return memory.get(name) ?? null;
       try { return getStorage().getItem(name); }
-      catch { return memory.get(name) ?? null; }
+      catch { memoryOnly = true; return memory.get(name) ?? null; }
     },
     setItem(name, value) {
       if (signedOut && sessionKeys.has(name)) return;
       memory.set(name, value);
-      try { getStorage().setItem(name, value); } catch { /* 保存不可の端末はメモリだけで利用する */ }
+      if (memoryOnly) return;
+      try { getStorage().setItem(name, value); }
+      catch { memoryOnly = true; /* 読み取りだけ可能な端末も以後はメモリで一貫させる */ }
     },
     removeItem(name) {
       memory.delete(name);

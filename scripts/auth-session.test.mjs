@@ -62,6 +62,19 @@ test('logout clears the memory fallback when browser storage is unavailable', as
   assert.equal(auth.storage.getItem(key), null);
 });
 
+test('a storage write failure keeps the new session readable in memory until logout', () => {
+  const raw = memoryStorage();
+  raw.setItem(key, 'old session');
+  const auth = createAuthStorage(key, () => ({
+    ...raw, setItem() { throw new Error('Quota exceeded'); },
+  }));
+  auth.storage.setItem(key, 'new session');
+  assert.equal(auth.storage.getItem(key), 'new session');
+  auth.clearSession();
+  assert.equal(auth.storage.getItem(key), null);
+  assert.equal(raw.getItem(key), null, 'also remove a session saved before storage became unwritable');
+});
+
 test('a real SDK refresh completing after logout cannot persist or recover the previous session', async () => {
   const raw = memoryStorage(), auth = createAuthStorage(key, () => raw);
   const user = { id: '10000000-0000-4000-8000-000000000001' };
