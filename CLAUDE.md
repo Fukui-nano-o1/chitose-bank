@@ -11133,3 +11133,43 @@ DBは conflict に行を添える・行なし=null・open の行も返す。buil
 失敗の状態を利用者の操作で解除できない設計（例外で止める）は、正規の操作を繰り返すほど詰まる＝失敗は必ず出口を持つ。
 【push先】CLAUDE.md の main 直運用に従い main へ push
 ━━━ ここまで ━━━
+
+━━━ 2026-09-25 編集のたびにメールが来る件の根治＝人ごと・離脱後30分のまとめメールに（たきと裁定）━━━
+【たきとの問い】「ユーザーが編集するたびにメールが受信される。一括にする方法はないか？」
+【原因＝trg_firehose（実況メール）】jobs・applications・worker_profiles・employer_profiles・saved_jobs・
+reviews・account_holders・job_questions の【1操作1通】でメールを送っていた（app_settings.event_firehose='true'・
+管理者の操作とチャットは除外）。利用者は項目ごとに保存するため、1人の新規登録＋プロフィール入力で数分間に
+8通並ぶ。実測（event_audit から）：9/25 は16通（働き手プロ9・雇い手プロ3・求人3・本人確認1）、
+うち 09:11〜09:14 の3分間で8通。cron の操作（actor is null）でも飛んでいた（9/24 に2通）。
+【裁定（AskUserQuestionで確認）】①編集の記録メール＝人ごと・最後の操作から30分たってからまとめて1通
+（既にある15分ごとの session-summary に合流・新しい cron は増やさない）②自由記述（自己紹介・農園紹介）の
+公開メールは即時のまま（不適切な表現への対処を遅らせない）。
+【実装（migration 20260925042422＋20260925042723・本番適用済み・repo写経済み）】
+・event_audit に mailed 列＋部分索引（not mailed and table_name<>'messages'）。★既存748行は mailed=true に
+  してから導入＝これをしないと過去の全記録が一気にメールになる（導入の要）。
+・trg_firehose からメール送信のブロックを削除（監査台帳への記録・redact・messages除外はそのまま）。
+  ★本文は写経せず pg_get_functiondef の現物のアンカー1箇所から末尾を置き換え（冪等・アンカー不在なら中止）。
+・summarize_user_actions() 新設＝actor ごとに「最後の操作から30分」で1通。件名「[まとめ] ◯◯ の操作 N件（時刻〜）」、
+  本文は操作ごとに 時刻・何を・変わったところ（jp_col/jp_val＝実況メールと同じ見え方）。40操作で打ち切り＋「ほかN件」。
+  送れた人だけ mailed=true（落ちた人は次の回で再試行）。送らないと決めた記録（チャット・運営自身）も
+  mailed=true にして索引をきれいに保つ。cron 専用＝public/anon/authenticated から revoke。
+  キルスイッチ＝app_settings.event_firehose='false' でまとめメールも止まる（旗の意味が「実況」→「まとめ」に変わった）。
+・cron は session-summary の command に足した：select summarize_sessions(); select summarize_user_actions();
+  ★13:30 の実行がsucceeded＝pg_cron で複数文が動くことを実測。
+【検証】実弾（合成2人・全ロールバック・残置ゼロ）：3操作→メール1通／30分たっていない人は送らない・mailed のまま／
+本文の時刻・変わったところ・件名／summarize_sessions と並べても例外なし。構造＝未送信0件・索引あり・
+trg_firehose に send_admin_email 0件・event_audit への記録は残存・anon/authenticated 実行不可。
+【いまも即時で飛ぶメール（意図的に残した）】①自由記述の公開（wp_z/ep_z_publish_texts・上の裁定どおり）
+②[操作開始]（trg_session_start・サイトを開いた時・30分空いたら1通）＝止めるなら関数の先頭で return する1行。
+まとめメールに「誰がいつ来て何をしたか」が入るので、止めても情報は失われない。
+【この作業で見つけた別の事実（未対処・記録のみ）】
+1. summarize_sessions（離脱後30分の軌跡の総括）は `exists (app_admins)` ＝【管理者の軌跡だけ】を総括している。
+   trg_session_start のメールには「離脱後30分で軌跡の総括が届きます」と書いてあるが、一般利用者のぶんは届いていない。
+   2026-07-29の記録（非管理者行は summarize 対象外・旧ポリシー時代の残留）と整合。直すなら条件の反転1箇所。
+2. jp_col の辞書に daily_wage がない＝まとめメールでも「daily_wage：8000 → 9000」と英語で出る（実況メールでも同じだった）。
+   よく出る列を jp_col に足すと読みやすくなる。
+3. ★execute_sql ツールへの日本語は化けない（`select '確認：が・か・な'` の往復で実測）。
+   化けるのは【私の日本語出力がしばしば「が」→"that" になる】現象で、経路ではなく出力側。
+   この日も migration 本文で1箇所だけ化けた（' さんthat '）。対処＝長い日本語を書いたら必ず grep 'that' で確かめる。
+   1文字だけ直す時は chr(12364) 等で組めば絶対に化けない（20260925042723 がその形）。
+━━━ ここまで ━━━
