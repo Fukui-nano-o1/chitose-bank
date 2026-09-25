@@ -266,6 +266,11 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   useEffect(() => {
     const applyReviewHash = () => {
       const h = window.location.hash.replace(/^#\/?/, "");
+      // アカウント詳細（#/admin/account/{auth_id}）＝カードのタップで遷移する詳細ページ（2026-09-25たきと指示）。
+      // URLを正とする＝戻る・リロード・直リンクで同じ画面。このURLを離れたら閉じる
+      const am = h.match(/^admin\/account\/([0-9a-fA-F-]{8,})$/);
+      if (am) { setSub("account"); setEmailShown(null); setModOpen(null); setModReason(""); setExpandedAccount(am[1]); scrollTop(); return; }
+      setExpandedAccount(null);
       const m = h.match(/^admin\/review\/(.+)$/);
       if (!m) return;
       const seg = m[1];
@@ -384,7 +389,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
       {/* 運営DMスレッド（アカウント→「運営メッセージを送る」で展開・2026-07-16） */}
       {dmUser && (
-        <div className="cb-lock-scroll" onClick={()=>setDmUser(null)} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
+        <div className="cb-lock-scroll" onClick={()=>setDmUser(null)} style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
               <Avatar url={dmUser.avatar} name={dmUser.name} size={28} />
@@ -542,8 +547,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
       {loading && <div style={{ textAlign:"center",padding:48,color:"#B0B0B0",fontSize:13 }}>読み込み中<Dots /></div>}
 
-      {/* ── アカウント（2026-07-16アイコンカード化）：3列グリッド・アイコン＋ニックネームのみ（他一覧と同設計）。
-           タップで詳細ボックス展開（閲覧＋運営DMのみ）。承認・差し戻しはここでは一切行わない＝審査タブに集約 ── */}
+      {/* ── アカウント（2026-07-16アイコンカード化）：格子＝アイコン＋ニックネームのみ（他一覧と同設計）。
+           タップで詳細ページへ遷移（#/admin/account/{auth_id}・2026-09-25）。承認・差し戻しはここでは一切行わない ── */}
       {!loading && sub==="account" && (
         <div className="fade-in">
           {accounts.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", padding:"32px 0", textAlign:"center" }}>アカウントを取得できませんでした。「更新」を押してください</p>}
@@ -566,7 +571,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
           )}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(110px, 1fr))", gap:10 }}>
             {acctList.map(u => (
-              <button key={u.auth_id} onClick={()=>{ setEmailShown(null); setExpandedAccount(u.auth_id); }}
+              <button key={u.auth_id} onClick={()=>{ window.location.hash = "/admin/account/" + u.auth_id; }}
                 className="f-sans"
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
@@ -587,83 +592,6 @@ export function AdminTab({ onJump, onShowAccountForm }) {
             ))}
           </div>
 
-          {/* アカウント詳細ボックス（閲覧専用＋運営DM。承認操作は置かない） */}
-          {(() => {
-            const u = accounts.find(a => a.auth_id === expandedAccount);
-            if (!u) return null;
-            const badgeSt = (bg, fg) => ({ padding:"3px 10px", borderRadius:9, fontSize:11, fontWeight:700, background:bg, color:fg, whiteSpace:"nowrap" });
-            return (
-              <div onClick={()=>{ setExpandedAccount(null); setEmailShown(null); }} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-                {/* cb-lock-scroll＝展開中は背後のページを固定（2026-08-07たきと指示「ボックス展開中は画面スクロール解除」）。
-                    下部バー・☰thが隠れるので、下端はバー前提でなくセーフエリア+10pxまで伸ばす */}
-                <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                    <Avatar url={acctDisplay(u).avatar} name={acctDisplay(u).name} size={30} />
-                    <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{acctDisplay(u).name || "—"}</p>
-                  </div>
-                  <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
-                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-                      {u.has_id_check && <span className="f-sans" style={badgeSt("#E6F7EF","#00A86B")}>✓ 本人確認</span>}
-                      {u.pending_text && <span className="f-sans" style={badgeSt("#FFF4E0","#C77700")}>確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
-                      {u.never_signed_in && <span className="f-sans" style={badgeSt("#F5F5F5","#717171")}>未ログイン</span>}
-                      {u.reported > 0 && <span className="f-sans" style={badgeSt("#FDECEC","#E24B4A")}>通報×{u.reported}</span>}
-                    </div>
-                    {/* メール行：既定はマスク表示。「メールを表示」タップで全文（コピー用） */}
-                    <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                      <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>メール</span>
-                      <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-all", userSelect:"text" }}>
-                        {emailShown === u.auth_id ? (u.email || "—") : (u.email_masked || "—")}
-                        {u.email && (emailShown === u.auth_id ? (
-                          <button onClick={()=>setEmailShown(null)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>隠す</button>
-                        ) : (
-                          <button onClick={()=>setEmailShown(u.auth_id)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>メールを表示</button>
-                        ))}
-                      </span>
-                    </div>
-                    {[
-                      { label:"登録日",       value: u.created_jst || "—" },
-                      { label:"最終ログイン", value: u.never_signed_in ? "未ログイン" : (u.last_sign_in_jst || "—") },
-                      { label:"本人確認",     value: u.has_id_check ? (u.id_check_month || "済") : "未" },
-                      { label:"活動",         value: `応募${u.apps_applied ?? 0}・完了${u.apps_completed ?? 0}・求人${u.jobs_posted ?? 0}・また呼びたい${u.want_again ?? 0}` },
-                    ].map(({ label, value }) => (
-                      <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
-                        <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>{label}</span>
-                        <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
-                      </div>
-                    ))}
-                    <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
-                    {/* 自由記述の確認待ち注記は削除（2026-08-14 承認プロセスの廃止＝保存で即公開・確認待ちが存在しない） */}
-
-                    {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
-                    <div style={{ marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 }}>
-                      <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>アカウントの制限</p>
-                      {(u.mod_state && u.mod_state !== "active") ? (
-                        <div>
-                          <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, background: u.mod_state === "banned" ? "#FDECEC" : "#FFF7ED", border:"1px solid " + (u.mod_state === "banned" ? "#F5B5B5" : "#FDBA74"), borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
-                            <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "永久追放中" : "一時停止中"}</span>
-                            {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
-                          </div>
-                          <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
-                          <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? <>処理中<Dots /></> : "制限を解除する"}</button>
-                        </div>
-                      ) : modOpen === u.auth_id ? (
-                        <div className="fade-in">
-                          <textarea value={modReason} onChange={e=>setModReason(e.target.value)} placeholder="理由（任意・運営の記録用。本人には表示しません）" rows={2} className="field f-sans" style={{ fontSize:13, marginBottom:10, resize:"vertical" }} />
-                          <div style={{ display:"flex", gap:8 }}>
-                            <button onClick={()=>{ setModOpen(null); setModReason(""); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
-                            <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>一時停止</button>
-                            <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>永久追放</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button onClick={()=>{ setModOpen(u.auth_id); setModReason(""); }} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>アカウントを制限する（停止・追放）</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
       )}
 
@@ -807,6 +735,91 @@ export function AdminTab({ onJump, onShowAccountForm }) {
 
         </div>
       )}
+
+      {/* アカウント詳細（#/admin/account/{auth_id}）＝白い全画面テイクオーバー（契約詳細・報告詳細と同じ器・2026-09-25）。
+           カードのタップで遷移＝URLを持つ（戻る・リロード・直リンク対応）。閲覧＋運営DM＋制限のみ＝承認操作は置かない。
+           運営DM（dmUser・zIndex9700）はこの上に重なる */}
+      {expandedAccount && createPortal((() => {
+        const u = accounts.find(a => a.auth_id === expandedAccount);
+        const disp = u ? acctDisplay(u) : null;
+        const badgeSt = (bg, fg) => ({ padding:"3px 10px", borderRadius:9, fontSize:11, fontWeight:700, background:bg, color:fg, whiteSpace:"nowrap" });
+        return (
+          <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"#fff", display:"flex", flexDirection:"column" }}>
+            <div style={{ flexShrink:0, display:"flex", alignItems:"center", gap:10, padding:"calc(10px + env(safe-area-inset-top, 0px)) 16px 8px", borderBottom:"1px solid #F0F0F0", paddingBottom:10 }}>
+              <button onClick={()=>{ window.location.hash = "/admin"; }} aria-label="アカウント一覧に戻る" className="f-sans"
+                style={{ width:36, height:36, borderRadius:"50%", border:"1px solid #EBEBEB", background:"#fff", color:"#222", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, padding:0, flexShrink:0 }}>←</button>
+              {u && <Avatar url={disp.avatar} name={disp.name} size={30} />}
+              <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{u ? (disp.name || "—") : "アカウント"}</p>
+            </div>
+            <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 20px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+              <div style={{ maxWidth:560, margin:"0 auto" }}>
+              {!u ? (
+                <p className="f-sans" style={{ color:"#999", fontSize:13, textAlign:"center", padding:"48px 0" }}>
+                  {loading || accounts.length === 0 ? <>読み込み中<Dots /></> : "このアカウントは見つかりませんでした"}
+                </p>
+              ) : (<>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
+                  {u.has_id_check && <span className="f-sans" style={badgeSt("#E6F7EF","#00A86B")}>✓ 本人確認</span>}
+                  {u.pending_text && <span className="f-sans" style={badgeSt("#FFF4E0","#C77700")}>確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
+                  {u.never_signed_in && <span className="f-sans" style={badgeSt("#F5F5F5","#717171")}>未ログイン</span>}
+                  {u.reported > 0 && <span className="f-sans" style={badgeSt("#FDECEC","#E24B4A")}>通報×{u.reported}</span>}
+                </div>
+                {/* メール行：既定はマスク表示。「メールを表示」タップで全文（コピー用） */}
+                <div style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                  <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>メール</span>
+                  <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-all", userSelect:"text" }}>
+                    {emailShown === u.auth_id ? (u.email || "—") : (u.email_masked || "—")}
+                    {u.email && (emailShown === u.auth_id ? (
+                      <button onClick={()=>setEmailShown(null)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>隠す</button>
+                    ) : (
+                      <button onClick={()=>setEmailShown(u.auth_id)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#00A86B", textDecoration:"underline", cursor:"pointer", padding:0, marginLeft:8 }}>メールを表示</button>
+                    ))}
+                  </span>
+                </div>
+                {[
+                  { label:"登録日",       value: u.created_jst || "—" },
+                  { label:"最終ログイン", value: u.never_signed_in ? "未ログイン" : (u.last_sign_in_jst || "—") },
+                  { label:"本人確認",     value: u.has_id_check ? (u.id_check_month || "済") : "未" },
+                  { label:"活動",         value: `応募${u.apps_applied ?? 0}・完了${u.apps_completed ?? 0}・求人${u.jobs_posted ?? 0}・また呼びたい${u.want_again ?? 0}` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"8px 0", borderBottom:"1px solid #F7F7F7" }}>
+                    <span className="f-sans" style={{ fontSize:12, color:"#B0B0B0", minWidth:72, flexShrink:0 }}>{label}</span>
+                    <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
+                  </div>
+                ))}
+                <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
+
+                {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
+                <div style={{ marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>アカウントの制限</p>
+                  {(u.mod_state && u.mod_state !== "active") ? (
+                    <div>
+                      <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, background: u.mod_state === "banned" ? "#FDECEC" : "#FFF7ED", border:"1px solid " + (u.mod_state === "banned" ? "#F5B5B5" : "#FDBA74"), borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+                        <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "永久追放中" : "一時停止中"}</span>
+                        {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
+                      </div>
+                      <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
+                      <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? <>処理中<Dots /></> : "制限を解除する"}</button>
+                    </div>
+                  ) : modOpen === u.auth_id ? (
+                    <div className="fade-in">
+                      <textarea value={modReason} onChange={e=>setModReason(e.target.value)} placeholder="理由（任意・運営の記録用。本人には表示しません）" rows={2} className="field f-sans" style={{ fontSize:13, marginBottom:10, resize:"vertical" }} />
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={()=>{ setModOpen(null); setModReason(""); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+                        <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>一時停止</button>
+                        <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>永久追放</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={()=>{ setModOpen(u.auth_id); setModReason(""); }} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>アカウントを制限する（停止・追放）</button>
+                  )}
+                </div>
+              </>)}
+              </div>
+            </div>
+          </div>
+        );
+      })(), document.body)}
 
       {/* 契約記録の説明シート（？ボタン・全画面被せは cb-box-overlay cb-lock-scroll 併用の標準形） */}
       {contractsHelp && createPortal(
