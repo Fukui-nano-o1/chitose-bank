@@ -17,7 +17,11 @@
 .chat-unread{width:8px;height:8px;border-radius:50%;background:#008a62;flex-shrink:0}.chat-stage{font-size:12px;color:#00805a;font-weight:650}.chat-stage.is-closed{color:#717171}
 .chat-empty{padding:42px 16px;text-align:center;line-height:1.8;color:#717171}.chat-empty h2{color:#222;font-size:20px}
 .chat-notice{background:#f7f7f7;padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.6;color:#484848;margin:8px 0;flex-shrink:0}.chat-notice[role=alert]{background:#fff4ef;color:#842c16}.chat-notice button{margin-right:16px}
-.chat-full.chat-room{position:fixed;z-index:1200;inset:auto;top:var(--chat-top,0px);left:var(--chat-left,0px);width:var(--chat-width,100%);height:var(--chat-height,100dvh);max-width:none!important;margin:0!important;padding:0 max(16px,calc((var(--chat-width,100vw) - 760px)/2));box-sizing:border-box;background:#fff;overflow:hidden;color:#222}
+/* 画面の高さに固定した縦の列（ヘッダー→仕事の行→メッセージ欄→入力欄）。★display:flex は必須＝
+   無いと子は積み上がるだけで .chat-message-area の flex:1 が効かず、メッセージ欄が中身の高さまで伸びて
+   入力欄が画面の外へ押し出される（2026-09-25たきと報告「チャットの画面上下固定。メッセージだけスクロール」）。
+   スクロールするのは .chat-messages（overflow:auto）だけ。上下（ヘッダー・入力欄）は flex-shrink:0 で動かない */
+.chat-full.chat-room{position:fixed;z-index:1200;inset:auto;top:var(--chat-top,0px);left:var(--chat-left,0px);width:var(--chat-width,100%);height:var(--chat-height,100dvh);max-width:none!important;margin:0!important;padding:0 max(16px,calc((var(--chat-width,100vw) - 760px)/2));box-sizing:border-box;background:#fff;overflow:hidden;color:#222;display:flex;flex-direction:column}
 .chat-room>*{flex-shrink:0}.chat-room .chat-message-area{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
 .chat-room-header{display:flex;align-items:center;gap:10px;min-height:68px;padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid #ebebeb;background:#fff}
 .chat-icon-button{width:44px;height:44px;flex-shrink:0;border:0;border-radius:50%;background:#fff;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;color:#222}
