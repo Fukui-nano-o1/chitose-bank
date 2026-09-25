@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { openWorkerPreview } from "../../lib/previewBus";
-import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS } from "../../lib/utils";
-import { Avatar, LinkifiedText, Dots } from "../ui";
+import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, workerQaItems, farmHostQa, farmIntroTopics, ROLE_ORANGE, ROLE_GREEN } from "../../lib/utils";
+import { Avatar, LinkifiedText, Dots, QaChat } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 import { getCache, setCache } from "../../lib/viewCache";
 import { saveElementAsPdf } from "../../lib/pdfExport";
@@ -154,6 +154,24 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   }, [reviewSec]); // eslint-disable-line react-hooks/exhaustive-deps
   const [accounts, setAccounts] = useState(() => getCache("admin:console")?.accounts || []); // 新アカウントタブ：admin_list_accounts()の全ユーザー台帳
   const [expandedAccount, setExpandedAccount] = useState(null); // 展開中のauth_id
+  // アカウント詳細の「紹介」（2026-09-25たきと指示「紹介をすべて見せてほしい」）：
+  // 開いた1人ぶんだけ worker_profiles / employer_profiles を引く（admin RLSで全行読める）。
+  // 表示はプレビューと同じ唯一のソース（workerQaItems・farmHostQa・farmIntroTopics）を流用＝二重実装しない
+  const [acctProf, setAcctProf] = useState(null); // { authId, wp, ep, error } | null=閉じている/読み込み中
+  useEffect(() => {
+    if (!expandedAccount) { setAcctProf(null); return; }
+    let alive = true;
+    (async () => {
+      const [w, e] = await Promise.all([
+        supabase.from("worker_profiles").select("*").eq("auth_id", expandedAccount).maybeSingle(),
+        supabase.from("employer_profiles").select("*").eq("auth_id", expandedAccount).maybeSingle(),
+      ]);
+      if (!alive) return;
+      // どちらも失敗＝失敗と言う。片方だけ失敗はある方だけ出す（フェイルオープン規則＝黙ってnull扱いにしない）
+      setAcctProf({ authId: expandedAccount, wp: w.error ? null : w.data, ep: e.error ? null : e.data, error: !!(w.error && e.error) });
+    })();
+    return () => { alive = false; };
+  }, [expandedAccount]);
   const [emailShown, setEmailShown] = useState(null); // 「メールを表示」で全文表示中のauth_id（既定はemail_masked）
   // アカウントの停止／追放（2026-07-19）：一時停止・永久追放・解除。管理者のみ・解除は手動
   const [modOpen, setModOpen] = useState(null); // 操作パネルを開いているauth_id
@@ -787,6 +805,54 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                     <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
                   </div>
                 ))}
+                {/* 紹介（すべて・2026-09-25たきと指示「アカウントの紹介をすべて見せてほしい」）：
+                     働き手＝自己紹介＋Q&A（はたらき方の希望を含む）／農家＝挨拶・代表より・お題・3問。
+                     表示はプレビューと同じ唯一のソース（workerQaItems・farmHostQa・farmIntroTopics）を流用 */}
+                {(() => {
+                  const p = (acctProf && acctProf.authId === u.auth_id) ? acctProf : null;
+                  const secWrap = { marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 };
+                  const secHead = (t) => <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>{t}</p>;
+                  const textBlock = (label, body) => (body && String(body).trim()) ? (
+                    <div style={{ marginBottom:10 }}>
+                      <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0", margin:"0 0 3px" }}>{label}</p>
+                      <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}><LinkifiedText text={String(body)} /></p>
+                    </div>
+                  ) : null;
+                  if (!p) return (
+                    <div style={secWrap}>{secHead("紹介")}<p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>読み込み中<Dots /></p></div>
+                  );
+                  if (p.error) return (
+                    <div style={secWrap}>{secHead("紹介")}<p className="f-sans" style={{ fontSize:13, color:"#E24B4A", margin:0 }}>紹介を読み込めませんでした。ページを開き直してください</p></div>
+                  );
+                  const wQa = p.wp ? workerQaItems(p.wp) : [];
+                  const wHasText = !!(p.wp && (((p.wp.pr || "") + "").trim() || wQa.length > 0));
+                  const topics = p.ep ? farmIntroTopics(p.ep) : [];
+                  const eQa = p.ep ? farmHostQa(p.ep) : [];
+                  const eHasText = !!(p.ep && (((p.ep.owner_comment || "") + "").trim() || ((p.ep.pr || "") + "").trim() || topics.length > 0 || eQa.length > 0));
+                  return (<>
+                    {p.wp && (
+                      <div style={secWrap}>
+                        {secHead("紹介（働き手）")}
+                        {textBlock("自己紹介", p.wp.pr)}
+                        <QaChat items={wQa} accent={ROLE_ORANGE} style={{ marginTop:8 }} />
+                        {!wHasText && <p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>まだ書かれていません</p>}
+                      </div>
+                    )}
+                    {p.ep && (
+                      <div style={secWrap}>
+                        {secHead("紹介（農家）")}
+                        {textBlock("挨拶", p.ep.owner_comment)}
+                        {textBlock("代表より", p.ep.pr)}
+                        {topics.map(t => <div key={t.label}>{textBlock(t.label, t.body)}</div>)}
+                        <QaChat items={eQa} accent={ROLE_GREEN} style={{ marginTop:8 }} />
+                        {!eHasText && <p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>まだ書かれていません</p>}
+                      </div>
+                    )}
+                    {!p.wp && !p.ep && (
+                      <div style={secWrap}>{secHead("紹介")}<p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>プロフィールはまだ作られていません</p></div>
+                    )}
+                  </>);
+                })()}
                 <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
 
                 {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
