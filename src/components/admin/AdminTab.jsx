@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { openWorkerPreview } from "../../lib/previewBus";
-import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, workerQaItems, farmHostQa, farmIntroTopics, ROLE_ORANGE, ROLE_GREEN } from "../../lib/utils";
-import { Avatar, LinkifiedText, Dots, QaChat } from "../ui";
+import { fmtJstShort, SURVEY_SOURCES, SURVEY_REASONS, workerQaItems, farmHostQa, farmIntroTopics, ROLE_ORANGE, ROLE_GREEN, photoThumb, APP_PHASE_LABEL, APP_PHASE_COLOR } from "../../lib/utils";
+import { Avatar, LinkifiedText, Dots, QaChat, SwipeTabPages } from "../ui";
 import { AdminJobPreview } from "../AdminJobPreview";
 import { getCache, setCache } from "../../lib/viewCache";
 import { saveElementAsPdf } from "../../lib/pdfExport";
@@ -157,18 +157,27 @@ export function AdminTab({ onJump, onShowAccountForm }) {
   // アカウント詳細の「紹介」（2026-09-25たきと指示「紹介をすべて見せてほしい」）：
   // 開いた1人ぶんだけ worker_profiles / employer_profiles を引く（admin RLSで全行読める）。
   // 表示はプレビューと同じ唯一のソース（workerQaItems・farmHostQa・farmIntroTopics）を流用＝二重実装しない
-  const [acctProf, setAcctProf] = useState(null); // { authId, wp, ep, error } | null=閉じている/読み込み中
+  const [acctProf, setAcctProf] = useState(null); // { authId, wp, ep, error, jobs, jobsError } | null=閉じている/読み込み中
+  const [acctPage, setAcctPage] = useState(0); // 詳細の面（0=基本 1=紹介 2=求人）＝プレビューと同じSwipeTabPages
   useEffect(() => {
     if (!expandedAccount) { setAcctProf(null); return; }
     let alive = true;
     (async () => {
-      const [w, e] = await Promise.all([
+      const [w, e, jr] = await Promise.all([
         supabase.from("worker_profiles").select("*").eq("auth_id", expandedAccount).maybeSingle(),
         supabase.from("employer_profiles").select("*").eq("auth_id", expandedAccount).maybeSingle(),
+        // 求人タブの材料（掲載した求人＋応募した求人）＝管理者専用RPC（applications に admin SELECT が無いため）
+        supabase.rpc("admin_account_jobs", { p_auth_id: expandedAccount }),
       ]);
       if (!alive) return;
+      const jd = (!jr.error && jr.data && jr.data.ok) ? jr.data : null;
       // どちらも失敗＝失敗と言う。片方だけ失敗はある方だけ出す（フェイルオープン規則＝黙ってnull扱いにしない）
-      setAcctProf({ authId: expandedAccount, wp: w.error ? null : w.data, ep: e.error ? null : e.data, error: !!(w.error && e.error) });
+      setAcctProf({
+        authId: expandedAccount,
+        wp: w.error ? null : w.data, ep: e.error ? null : e.data, error: !!(w.error && e.error),
+        jobs: jd ? { posted: jd.posted || [], applied: jd.applied || [] } : null,
+        jobsError: !jd,
+      });
     })();
     return () => { alive = false; };
   }, [expandedAccount]);
@@ -287,7 +296,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
       // アカウント詳細（#/admin/account/{auth_id}）＝カードのタップで遷移する詳細ページ（2026-09-25たきと指示）。
       // URLを正とする＝戻る・リロード・直リンクで同じ画面。このURLを離れたら閉じる
       const am = h.match(/^admin\/account\/([0-9a-fA-F-]{8,})$/);
-      if (am) { setSub("account"); setEmailShown(null); setModOpen(null); setModReason(""); setExpandedAccount(am[1]); scrollTop(); return; }
+      if (am) { setSub("account"); setEmailShown(null); setModOpen(null); setModReason(""); setAcctPage(0); setExpandedAccount(am[1]); scrollTop(); return; }
       setExpandedAccount(null);
       const m = h.match(/^admin\/review\/(.+)$/);
       if (!m) return;
@@ -374,7 +383,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
     if (!reasonText) return false;
     const { data, error } = await supabase.rpc('request_job_revision', { p_job_number: jobNumber, p_reason: reasonText });
     if (error || !data?.ok) { alert("修正依頼の送信に失敗しました：" + (data?.reason || error?.message || "不明")); return false; }
-    setTimeout(() => { setPreviewJobNumber(null); window.location.hash = "/admin"; load(); }, 1300);
+    setTimeout(() => { setPreviewJobNumber(null); if (!window.location.hash.includes("/admin/account/")) window.location.hash = "/admin"; load(); }, 1300);
     return true;
   };
 
@@ -776,6 +785,10 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                   {loading || accounts.length === 0 ? <>読み込み中<Dots /></> : "このアカウントは見つかりませんでした"}
                 </p>
               ) : (<>
+                {/* プレビューと同じ方式の面ページャー（2026-09-25たきと指示「プレビューと同じ方式でやろう」）：
+                     基本＝バッジ・メール・記録・運営メッセージ・制限／紹介＝自己紹介一式／求人＝掲載＋応募 */}
+                <SwipeTabPages tabs={["基本","紹介","求人"]} page={acctPage} onPage={setAcctPage}>
+                <div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
                   {u.has_id_check && <span className="f-sans" style={badgeSt("#E6F7EF","#00A86B")}>✓ 本人確認</span>}
                   {u.pending_text && <span className="f-sans" style={badgeSt("#FFF4E0","#C77700")}>確認待ち{u.pending_since ? ` ${u.pending_since}` : ""}</span>}
@@ -805,12 +818,41 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                     <span className="f-sans" style={{ fontSize:13, color:"#222", overflowWrap:"break-word", wordBreak:"break-word" }}>{value}</span>
                   </div>
                 ))}
+                <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
+
+                {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
+                <div style={{ marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 }}>
+                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>アカウントの制限</p>
+                  {(u.mod_state && u.mod_state !== "active") ? (
+                    <div>
+                      <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, background: u.mod_state === "banned" ? "#FDECEC" : "#FFF7ED", border:"1px solid " + (u.mod_state === "banned" ? "#F5B5B5" : "#FDBA74"), borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
+                        <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "永久追放中" : "一時停止中"}</span>
+                        {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
+                      </div>
+                      <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
+                      <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? <>処理中<Dots /></> : "制限を解除する"}</button>
+                    </div>
+                  ) : modOpen === u.auth_id ? (
+                    <div className="fade-in">
+                      <textarea value={modReason} onChange={e=>setModReason(e.target.value)} placeholder="理由（任意・運営の記録用。本人には表示しません）" rows={2} className="field f-sans" style={{ fontSize:13, marginBottom:10, resize:"vertical" }} />
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={()=>{ setModOpen(null); setModReason(""); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
+                        <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>一時停止</button>
+                        <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>永久追放</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={()=>{ setModOpen(u.auth_id); setModReason(""); }} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>アカウントを制限する（停止・追放）</button>
+                  )}
+                </div>
+                </div>
+                <div>
                 {/* 紹介（すべて・2026-09-25たきと指示「アカウントの紹介をすべて見せてほしい」）：
                      働き手＝自己紹介＋Q&A（はたらき方の希望を含む）／農家＝挨拶・代表より・お題・3問。
                      表示はプレビューと同じ唯一のソース（workerQaItems・farmHostQa・farmIntroTopics）を流用 */}
                 {(() => {
                   const p = (acctProf && acctProf.authId === u.auth_id) ? acctProf : null;
-                  const secWrap = { marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 };
+                  const secWrap = { marginTop:4, marginBottom:16 }; // タブの面の先頭なので上の罫線は引かない（見出しで区切る）
                   const secHead = (t) => <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>{t}</p>;
                   const textBlock = (label, body) => (body && String(body).trim()) ? (
                     <div style={{ marginBottom:10 }}>
@@ -853,33 +895,62 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                     )}
                   </>);
                 })()}
-                <button onClick={()=>openAccountDm(u)} className="f-sans" style={{ marginTop:12, width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}>運営メッセージを送る</button>
-
-                {/* アカウントの停止／追放（2026-07-19）：管理者のみ。ログイン封鎖＋アプリ内操作の封鎖＋公開物の非表示 */}
-                <div style={{ marginTop:16, borderTop:"1px solid #F0F0F0", paddingTop:14 }}>
-                  <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 8px" }}>アカウントの制限</p>
-                  {(u.mod_state && u.mod_state !== "active") ? (
-                    <div>
-                      <div className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, background: u.mod_state === "banned" ? "#FDECEC" : "#FFF7ED", border:"1px solid " + (u.mod_state === "banned" ? "#F5B5B5" : "#FDBA74"), borderRadius:10, padding:"10px 12px", marginBottom:10 }}>
-                        <span style={{ fontSize:13, fontWeight:800, color: u.mod_state === "banned" ? "#E24B4A" : "#C77700" }}>{u.mod_state === "banned" ? "永久追放中" : "一時停止中"}</span>
-                        {u.mod_reason && <span style={{ fontSize:12, color:"#717171" }}>理由：{u.mod_reason}</span>}
-                      </div>
-                      <p className="f-sans" style={{ fontSize:11, color:"#999", lineHeight:1.7, margin:"0 0 10px" }}>ログイン・応募・掲載・チャット送信が止まり、公開求人とプロフィールは非表示になっています。チャット履歴は保全されています。</p>
-                      <button onClick={()=>runModerate(u.auth_id, "unban")} disabled={modBusy} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{modBusy ? <>処理中<Dots /></> : "制限を解除する"}</button>
-                    </div>
-                  ) : modOpen === u.auth_id ? (
-                    <div className="fade-in">
-                      <textarea value={modReason} onChange={e=>setModReason(e.target.value)} placeholder="理由（任意・運営の記録用。本人には表示しません）" rows={2} className="field f-sans" style={{ fontSize:13, marginBottom:10, resize:"vertical" }} />
-                      <div style={{ display:"flex", gap:8 }}>
-                        <button onClick={()=>{ setModOpen(null); setModReason(""); }} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>やめる</button>
-                        <button onClick={()=>runModerate(u.auth_id, "suspend", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#C77700", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>一時停止</button>
-                        <button onClick={()=>runModerate(u.auth_id, "ban", modReason)} disabled={modBusy} className="f-sans" style={{ flex:1, padding:"12px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>永久追放</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={()=>{ setModOpen(u.auth_id); setModReason(""); }} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer" }}>アカウントを制限する（停止・追放）</button>
-                  )}
                 </div>
+                <div>
+                {/* 求人タブ（2026-09-25たきと指示「求人も見えるように。掲載している求人と応募した求人」）：
+                     材料は admin_account_jobs（管理者専用RPC・1往復）。行のタップで求人プレビュー（AdminJobPreview）を開く */}
+                {(() => {
+                  const p = (acctProf && acctProf.authId === u.auth_id) ? acctProf : null;
+                  const secHead = (t) => <p className="f-sans" style={{ fontSize:11, fontWeight:700, color:"#B0B0B0", letterSpacing:".06em", margin:"0 0 6px" }}>{t}</p>;
+                  const emptyLine = <p className="f-sans" style={{ fontSize:13, color:"#999", margin:"4px 0 0" }}>まだありません</p>;
+                  if (!p) return <p className="f-sans" style={{ fontSize:13, color:"#999", margin:"8px 0 0" }}>読み込み中<Dots /></p>;
+                  if (!p.jobs) return <p className="f-sans" style={{ fontSize:13, color:"#E24B4A", margin:"8px 0 0" }}>求人を読み込めませんでした。ページを開き直してください</p>;
+                  const chipSt = (c) => ({ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:700, background:(c||"#717171")+"14", color:c||"#717171", whiteSpace:"nowrap", flexShrink:0 });
+                  // 掲載側の状態＝求人の行から導く（表示用の別状態を持たない）。closed > pending > open > 一時非公開(draft+opened_at) > 作成中
+                  const postedChip = (j) => j.status==="closed" ? ["終了","#9E9E9E"] : j.status==="pending" ? ["公開間近","#0E8A6B"] : j.status==="open" ? ["掲載中","#00A86B"] : j.unlisted ? ["一時非公開","#757575"] : ["作成中","#C77700"];
+                  const jobRow = (j, chip, sub, key) => {
+                    const thumb = photoThumb(j.photo);
+                    const named = [j.crop, j.task].filter(Boolean).join(" ");
+                    const title = named || (j.job_number != null ? `求人 #${j.job_number}` : "無題の求人");
+                    return (
+                      <button key={key} onClick={()=>{ if (j.job_number != null) setPreviewJobNumber(j.job_number); }} className="f-sans"
+                        style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"none", borderBottom:"1px solid #F7F7F7", padding:"10px 0", cursor:"pointer" }}>
+                        {thumb
+                          ? <img loading="lazy" src={thumb} alt="" style={{ width:44, height:44, objectFit:"cover", borderRadius:8, flexShrink:0, background:"#F5F5F5" }} />
+                          : <span style={{ width:44, height:44, borderRadius:8, flexShrink:0, background:"#F5F5F5", display:"block" }} />}
+                        <span style={{ flex:1, minWidth:0, display:"block" }}>
+                          <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", minWidth:0 }}>{title}</span>
+                            {named && j.job_number != null && <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>#{j.job_number}</span>}
+                          </span>
+                          {sub && <span className="f-sans" style={{ display:"block", fontSize:11, color:"#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</span>}
+                        </span>
+                        <span className="f-sans" style={chipSt(chip[1])}>{chip[0]}</span>
+                      </button>
+                    );
+                  };
+                  return (<>
+                    <div style={{ marginTop:4, marginBottom:18 }}>
+                      {secHead(`掲載している求人（${p.jobs.posted.length}）`)}
+                      {p.jobs.posted.length === 0 ? emptyLine
+                        : p.jobs.posted.map(j => jobRow(j, postedChip(j),
+                            [j.city, j.date_label, j.created_jst ? `作成 ${j.created_jst}` : null].filter(Boolean).join(" · "),
+                            "p" + j.job_number))}
+                    </div>
+                    <div>
+                      {secHead(`応募した求人（${p.jobs.applied.length}）`)}
+                      {p.jobs.applied.length === 0 ? emptyLine
+                        : p.jobs.applied.map(j => jobRow(j,
+                            [APP_PHASE_LABEL[j.phase] || j.phase || "—", APP_PHASE_COLOR[j.phase]],
+                            [j.city, j.date_label, j.applied_jst ? `応募 ${j.applied_jst}` : null].filter(Boolean).join(" · "),
+                            "a" + j.application_id))}
+                    </div>
+                    {(p.jobs.posted.length > 0 || p.jobs.applied.length > 0) &&
+                      <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"10px 0 0" }}>タップすると求人プレビューが開きます</p>}
+                  </>);
+                })()}
+                </div>
+                </SwipeTabPages>
               </>)}
               </div>
             </div>
@@ -976,8 +1047,8 @@ export function AdminTab({ onJump, onShowAccountForm }) {
         <AdminJobPreview
           jobNumber={previewJobNumber}
           publishing={publishing===previewJobNumber}
-          onClose={()=>{ setPreviewJobNumber(null); window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
-          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
+          onClose={()=>{ setPreviewJobNumber(null); if (!window.location.hash.includes("/admin/account/")) window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
+          onPublish={async ()=>{ await publishJob(previewJobNumber); setPreviewJobNumber(null); if (!window.location.hash.includes("/admin/account/")) window.location.hash = reviewSec ? ("/admin/review/" + reviewSec) : "/admin"; }}
           onRequestRevision={(reasonText)=>submitJobRevision(previewJobNumber, reasonText)}
         />
       )}

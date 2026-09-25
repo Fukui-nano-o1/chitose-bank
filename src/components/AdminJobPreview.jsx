@@ -249,10 +249,11 @@ export function AdminJobPreview({ jobNumber, onClose, onPublish, publishing, onR
   // 保持していると、その要素がposition:fixedの基準になり全画面に広がらない（審査プレビューが途中で切れる不具合）。
   // bodyへ出せばfixedの基準が確実にビューポートになる
   // cb-lock-scroll＝展開中は背後のページを固定し、下部バー・浮遊☰も隠す（2026-07-26たきと指示）
+  // zIndex 9650＝アカウント詳細のテイクオーバー(9600)の上・DM/プレビューシート(9700)の下（2026-09-25）
   return createPortal(
     <div onClick={ownerView ? onClose : undefined} className="cb-lock-scroll" style={ownerView
-      ? { position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
-      : { position:"fixed", inset:0, zIndex:9000, background:"#fff" }}>
+      ? { position:"fixed", inset:0, zIndex:9650, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }
+      : { position:"fixed", inset:0, zIndex:9650, background:"#fff" }}>
     {/* 下部バーを隠すので画面下端まで伸ばす（角丸は上だけ・セーフエリアは内側の下パディングで確保）。
         審査（!ownerView）も同じ flex column 構造＝上:説明バー／中:スクロール／下:操作ボタン固定バー
         （2026-08-05たきと指示「閉じる・修正を依頼・公開は下部に。上はタップしずらい」） */}
