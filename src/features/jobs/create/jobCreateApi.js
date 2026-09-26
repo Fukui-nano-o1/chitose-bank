@@ -49,6 +49,13 @@ export const fetchJobByNumber = (jobNumber) =>
 export const fetchJobStatus = (jobNumber) =>
   supabase.from("jobs").select("job_number,status").eq("job_number", jobNumber).maybeSingle();
 
+// 過去に掲載した自分の求人の写真（step7「過去の写真から選ぶ」・2026-09-26）。
+// 自分の求人だけ＝farmer_id の絞り込み＋RLS「jobs owner select」の二重の壁。写真は jsonb の参照だけを
+// 使い回す（ファイルは job-photos の元の場所のまま・再アップロードしない）。新しい順・最大80件
+export const fetchMyJobPhotos = (authUid) =>
+  supabase.from("jobs").select("job_number,crop,task,photos,date_start,created_at")
+    .eq("farmer_id", authUid).order("created_at", { ascending: false }).limit(80);
+
 // 所有者の絞り込み（farmer_id）は移設前と同じ＝他人の求人を書き換えられない二重の壁の内側
 export const updateJob = (payload, jobNumber, farmerId) =>
   supabase.from("jobs").update(payload).eq("job_number", jobNumber).eq("farmer_id", farmerId);

@@ -11,6 +11,50 @@ export function normalizePhotos(arr) {
     .filter(p => p && typeof p.url === "string" && p.url.trim());
 }
 
+// 過去に掲載した求人の写真を「求人ごとの束」に組む（step7「過去の写真から選ぶ」・2026-09-26）。
+// 入力＝自分の求人の行（job_number/crop/task/photos/date_start/created_at）。新しい順のまま束にする。
+// ・いま編集中の求人（excludeJobNumber）は外す＝その写真は既に手元にある
+// ・同じ url は最初の束にだけ出す（コピーで作った求人は同じ写真を持つため、重複して並べない）
+// ・いま選んでいる写真（currentPhotos）と同じ url は inUse=true＝一覧には出すが選べない（「追加済み」）
+// ・写真の無い求人は束にしない（空の束を並べない）
+export function pastPhotoGroups(rows, { excludeJobNumber = null, currentPhotos = [] } = {}) {
+  const have = new Set(normalizePhotos(currentPhotos).map(p => p.url));
+  const seen = new Set();
+  const groups = [];
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (!r) continue;
+    if (excludeJobNumber != null && r.job_number === excludeJobNumber) continue;
+    const photos = [];
+    for (const p of normalizePhotos(r.photos)) {
+      if (seen.has(p.url)) continue;
+      seen.add(p.url);
+      photos.push({ url: p.url, thumb: p.thumb || null, caption: p.caption || "", inUse: have.has(p.url) });
+    }
+    if (photos.length === 0) continue;
+    const title = [r.crop, r.task].map(s => (s || "").trim()).filter(Boolean).join(" ") || "無題の求人";
+    const date = (r.date_start || (r.created_at || "").slice(0, 10) || "");
+    groups.push({ jobNumber: r.job_number ?? null, title, date, photos });
+  }
+  return groups;
+}
+
+// 選んだ過去の写真を手元の写真に足す。同じ url は足さない・上限（10枚）を越えたぶんは捨てる。
+// 足す形は uploadPhoto の結果と同じ {url, thumb?, caption}＝以後の保存・表示は新規アップロードと区別しない。
+// 元の求人で付けていた説明（caption）は引き継ぐ（step8で書き換えられる）
+export function mergePastPhotos(current, picked, cap = 10) {
+  const base = normalizePhotos(current);
+  const have = new Set(base.map(p => p.url));
+  const added = [];
+  for (const p of Array.isArray(picked) ? picked : []) {
+    if (!p || typeof p.url !== "string" || !p.url.trim()) continue;
+    if (have.has(p.url)) continue;
+    if (base.length + added.length >= cap) break;
+    have.add(p.url);
+    added.push({ url: p.url, ...(p.thumb ? { thumb: p.thumb } : {}), caption: p.caption || "" });
+  }
+  return added.length ? [...base, ...added] : current;
+}
+
 // 危険項目の2つ目に中身（タイトル・説明・写真）があるか（2026-07-16）。
 // 復元時にshowPlace2/showTask2を立てないと、2つ目がstep9で見えないまま確認ページに残り続ける
 export function dangerHasSecond(arr) {

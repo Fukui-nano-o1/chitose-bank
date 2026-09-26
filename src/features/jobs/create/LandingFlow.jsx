@@ -1627,7 +1627,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {isFarmer && step === 6 && <ListingDetailsIntro crop={farmerCrop} task={farmerTask} region={farmerPref + farmerCity} dates={jobDateLabel} wage={dailyWage} />}
 
           {/* ── 農家 step7: 写真 ── */}
-          {isFarmer && step === 7 && <StepPhotos jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} />}
+          {isFarmer && step === 7 && <StepPhotos jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
 
           {/* ── 農家 step8: 作業説明文 ── */}
           {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef} />}
