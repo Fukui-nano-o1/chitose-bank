@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavIcon } from "../../../../components/NavIcons";
 import { zipLookup } from "../../../../lib/zipLookup";
 import { getSession, upsertEmployerProfile } from "../jobCreateApi";
-import { isAllowedPrefecture } from "../model";
+import { isAllowedPrefecture, isValidStreetAddress } from "../model";
 
 export function SavedWorkplaceCard({ address, status, onUse, onRegister, onRetry }) {
   const loading = status === "loading";
@@ -74,7 +74,8 @@ export function WorkplacePage({ initialAddress, onBack, onSaved, draftOnly = fal
     }
   };
   const complete = address.zip.replace(/[^0-9]/g, "").length === 7 &&
-    isAllowedPrefecture(address.prefecture) && [address.city, address.town, address.address].every(value => value.trim());
+    isAllowedPrefecture(address.prefecture) && [address.city, address.town].every(value => value.trim()) &&
+    isValidStreetAddress(address.address);
   const save = async event => {
     event.preventDefault();
     if (savingRef.current || searching || !complete) return;
@@ -136,6 +137,10 @@ export function WorkplacePage({ initialAddress, onBack, onSaved, draftOnly = fal
             <input id="workplace-town" className="field f-sans" value={address.town} onChange={event => change("town", event.target.value)} placeholder="例：山川町〇〇" autoComplete="address-line1" required />
             <label htmlFor="workplace-address">番地・建物名</label>
             <input ref={streetRef} id="workplace-address" className="field f-sans" value={address.address} onChange={event => change("address", event.target.value)} placeholder="例：1-2-3 〇〇ハイツ101" autoComplete="address-line2" required />
+            {/* 番地が「00」のように住所として読めない時（2026-09-27）。就業場所は法定の明示事項 */}
+            {!!address.address.trim() && !isValidStreetAddress(address.address) && (
+              <p className="listing-workplace-error">番地・建物名を正しく入力してください（例：1-2-3 〇〇ハイツ101）。</p>
+            )}
           </fieldset>
           <p className="listing-workplace-note">農家プロフィールの「作業場所」にも保存されます。</p>
           {error && <p id="listing-workplace-error" className="listing-workplace-error" role="alert">{error}</p>}

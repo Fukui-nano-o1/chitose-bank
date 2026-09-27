@@ -19,7 +19,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../../lib/supabase";
 import { CalendarView } from "../../../../components/CalendarView";
 import { JobLocationMap } from "../../../../components/JobLocationMap";
-import { DangerItem, LinkifiedText, MaskedText, NoticeJumpText, Carousel, JobPhotoFallback, Avatar, JOB_FLAG_INFO } from "../../../../components/ui";
+import { DangerItem, LinkifiedText, MaskedText, MaskedAddress, NoticeJumpText, Carousel, JobPhotoFallback, Avatar, JOB_FLAG_INFO } from "../../../../components/ui";
 import { JobCard } from "../../../../components/JobCard";
 import { JobInsuranceSection } from "../../../../components/InsurancePanel";
 import { ReceivedReviews } from "../../../../components/ReceivedReviews";
@@ -302,10 +302,18 @@ export function JobLocationSection({ job, me }) {
         visitor={!me}
         cityArea={job.cityArea}
       />
-      {/* 場所の1行＝region（都道府県＋市区町村＋町域）。cityArea は region に含まれているので添えない
+      {/* 場所の1行＝region（都道府県＋市区町村＋町域）＋番地（2026-09-27たきと指摘
+          「番地まで表示されてない。応募判断は正確な住所を明記しておかなければならない」）。
+          開示の粒度はタイトルの住所行と同じ＝会員には番地まで／訪問者にはDBマスクで町域から先が届かず
+          伏せ字（MaskedText/MaskedAddress）になる。
+          cityArea は region に含まれているので添えない
           （添えると訪問者には「徳島県吉野川市 徳島県吉野川市」と二重に出ていた・2026-09-19） */}
       {job.region && (
-        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"12px 0 0" }}>{job.region}</p>
+        <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", margin:"12px 0 0", lineHeight:1.5, overflowWrap:"break-word" }}>
+          {job.region}
+          {Array.isArray(job.maskedFields) && job.maskedFields.includes("town") && <MaskedText label="町域から先の住所" chars={4} />}
+          {me && <MaskedAddress value={job.workAddress} unlocked={true} exists={job.hasWorkAddress} />}
+        </p>
       )}
     </AirSection>
   );

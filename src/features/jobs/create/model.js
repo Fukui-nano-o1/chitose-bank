@@ -66,6 +66,24 @@ export function dangerHasSecond(arr) {
 export const ALLOWED_PREFECTURES = ["徳島県"];
 export const isAllowedPrefecture = (pref) => ALLOWED_PREFECTURES.includes((pref || "").trim());
 
+// 番地・建物名が「住所として意味を持つか」（2026-09-27たきと指摘）。
+// 就業場所（番地まで）は求人広告の法定明示事項（職安法5条の3・則4条の2）so、入力自体は
+// フロント（この判定）とDB（trg_job_publish_snapshot）の両方で必須にしてある。
+// ところが「空でなければ何でも通る」ままだったため、番地が「00」だけの求人が実際に公開されていた
+// （#1313）＝働き手には町域までしか分からず、Googleマップの導線も町域の中心に着地する。
+// ★弾くのは「明らかに住所でないもの」だけ＝保守的に（正当な番地を止めない）。
+//   0・記号・空白・「番地」「号」等の語を取り除いて【何も残らない】なら住所ではない。
+//   例：「00」「０」「-」「番地」→ 不可／「1-2-3」「37-2」「甲10」「西1」→ 可。
+// ★DB側（trg_job_publish_snapshot の address 検査）と同じ文字の集合。片方だけ変えないこと。
+//   取り除く文字＝0 ０ 空白 全角空白 ー － ‐ - 番 地 号 の 、 , .
+//   （DBの migration と字面で見比べられるよう、どちらも同じ \u エスケープで書いてある）
+export const STREET_ADDRESS_STRIP = /[0\uFF10\s\u3000\u30FC\-\uFF0D\u2010\u756A\u5730\u53F7\u306E\u3001,.]/g;
+export function isValidStreetAddress(s) {
+  const t = String(s || "").trim();
+  if (!t) return false;
+  return t.replace(STREET_ADDRESS_STRIP, "") !== "";
+}
+
 // 時給・日給が最低賃金を下回っていないかを判定する純関数
 // workHours: 勤務時間（終了時刻 - 開始時刻、時間単位）。breakMinutes: 申告休憩（分）。
 // 実働 = 拘束 − greatest(申告休憩, 法定最低休憩)。法定最低休憩＝拘束6時間超45分・8時間超60分（労基法34条）。

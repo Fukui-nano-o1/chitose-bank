@@ -20,7 +20,7 @@ import { CalendarView } from "../../../components/CalendarView";
 import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
-import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, validateMinWage } from "./model";
+import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, isValidStreetAddress, validateMinWage } from "./model";
 import { geocodeTown } from "./jobCreateGeo";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
   fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
@@ -1055,7 +1055,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 「あり」なら目安の時間まで書く＝「有無（どれくらいの時間）」を明記させる
   const overtimeOk = !!overtimePolicy && (overtimePolicy !== "あり" || !!overtimeDetail.trim());
   // 賃金の確認待ちでも下書きの入力は続ける。掲載時の必須チェックとDB検査は維持する。
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&!!farmerAddr.trim(), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (unknownWage || !dailyViolation) && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&isValidStreetAddress(farmerAddr), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (unknownWage || !dailyViolation) && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -1093,7 +1093,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref),     3],
       ["市区町村",                !!farmerCity.trim(),                 3],
       ["町域",                   !!farmerTown.trim(),                 3],
-      ["番地・建物名",             !!farmerAddr.trim(),                 3],
+      ["番地・建物名",             isValidStreetAddress(farmerAddr),    3],
       ["作業日程（開始日）",       !!jobDateStart,                      4],
       ["採用人数",                Number.isInteger(Number(jobCount)) && Number(jobCount) > 0,                4],
       // 勤務時間：終了が開始以前だと、DB側の job_scheduled_minutes が null を返して掲載が止まる。
@@ -1397,6 +1397,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   style={{ fontSize:16 }}
                 />
                 {(!farmerZip.trim() || !farmerPref.trim() || !farmerCity.trim() || !farmerTown.trim() || !farmerAddr.trim()) && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:4 }}>すべての住所欄を入力してください</p>}
+                {/* 番地が「00」のように住所として読めない時（2026-09-27）。就業場所は法定の明示事項so、
+                    空でなければ何でも通る状態をやめた（DBの掲載トリガーも同じ式で止める） */}
+                {!!farmerAddr.trim() && !isValidStreetAddress(farmerAddr) && (
+                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
+                    番地・建物名を正しく入力してください（例：1-2-3 〇〇ハイツ101）。働き手は、この住所を見て応募するかどうかを決めます
+                  </p>
+                )}
                 {prefNotAllowed && (
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
                     現在、徳島県内の求人のみ受け付けています。他の地域への展開は準備中です
