@@ -3,12 +3,18 @@
 //   候補の生成）は親に残してある。この2部品は「選んだ内容を見せる」「選ばせる」しかしない。
 // ★sections は親が自分のstateから組み立てて渡す＝状態の持ち主を動かさないための形。
 //   { k, q, title, opts, sel, tog, label } の7キーは移設前の配列リテラルと同じ。
+//   kind:"calendar" のセクション（いつする？・2026-09-27）は { k, q, title, kind, range, onPick, onClearRange }
+//   ＝チップでなくカレンダー。タップの規則（1回目＝始まり・2回目＝終わり・3回目で始まりに戻る）は
+//   親が model.js の pickDateRange で決める。この部品は日をタップしたことを伝えるだけ。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 
 // 下部バー直上の浮遊ピル。適用中は条件の要約＋件数＋✕クリアを出す
 import { useRef } from "react";
 import { NavIcon } from "../../../../components/NavIcons";
+import { CalendarView } from "../../../../components/CalendarView";
 import { useVisualViewportFit } from "../../../../lib/visualViewportFit";
+import { ymdLocal } from "../../../../lib/utils";
+import { dateRangeLabel } from "../model";
 
 export function SearchFab({ active, summary, count, onOpen, onClear }) {
   return (<>
@@ -68,7 +74,28 @@ export function SearchFilterPanel({ open, onClose, sections, section, onSection,
         {sections.map(sec => section === sec.k ? (
           <div key={sec.k} onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:20, boxShadow:"0 2px 10px rgba(0,0,0,0.07)", padding:"18px 18px 20px" }}>
             <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"0 0 14px" }}>{sec.title}</p>
-            {sec.opts.length === 0 ? (
+            {sec.kind === "calendar" ? (
+              <div>
+                {/* カレンダーは求人フローの日程入力と同じ部品（CalendarView）＝見た目を2つ作らない。
+                    始まり・終わりは塗り、間はうすい塗りで出る。★CalendarView は Date で受けるので
+                    "YYYY-MM-DD" を T00:00:00 付きで Date に（時差で前日にならない） */}
+                <CalendarView
+                  start={sec.range?.start ? new Date(sec.range.start + "T00:00:00") : null}
+                  end={sec.range?.end ? new Date(sec.range.end + "T00:00:00") : null}
+                  onSelect={(dt) => sec.onPick(ymdLocal(dt))}
+                  hideHints />
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginTop:10 }}>
+                  <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, lineHeight:1.6 }}>
+                    {!sec.range ? "1回目のタップが始まり、2回目が終わりです"
+                      : !sec.range.end ? `${dateRangeLabel(sec.range)} 　終わりの日をタップ`
+                      : `${dateRangeLabel(sec.range)} 　もう一度タップすると始まりから選び直せます`}
+                  </p>
+                  {sec.range && (
+                    <button onClick={sec.onClearRange} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:12, fontWeight:700, color:"#222", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>日付をクリア</button>
+                  )}
+                </div>
+              </div>
+            ) : sec.opts.length === 0 ? (
               <p className="f-sans" style={{ fontSize:12, color:"#999", margin:0 }}>選べる条件がありません</p>
             ) : (
               <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
@@ -81,7 +108,7 @@ export function SearchFilterPanel({ open, onClose, sections, section, onSection,
         ) : (
           <button key={sec.k} onClick={e=>{ e.stopPropagation(); onSection(sec.k); }} className="f-sans" style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, background:"#fff", border:"none", borderRadius:16, padding:"16px 18px", cursor:"pointer", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
             <span style={{ fontSize:13, fontWeight:600, color:"#717171", flexShrink:0 }}>{sec.q}</span>
-            <span style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sec.sel.length ? sec.sel.map(sec.label).join("・") : "指定なし"}</span>
+            <span style={{ fontSize:13, fontWeight:700, color:"#222", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sec.kind === "calendar" ? (dateRangeLabel(sec.range) || "指定なし") : sec.sel.length ? sec.sel.map(sec.label).join("・") : "指定なし"}</span>
           </button>
         ))}
       </div>

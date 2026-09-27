@@ -25,8 +25,8 @@ import { FarmerTrustCard } from "./TrustCards";
 import { SearchLaneTabs } from "./SearchLaneTabs";
 import { ConsignmentSearchList } from "./ConsignmentSearchList";
 import { canSeeConsignment } from "../lib/consignAccess";
-import { calcMaxPay, jobMonths } from "../features/jobs/search/model";
-import { readStoredSearch, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
+import { calcMaxPay, pickDateRange, normalizeDateRange, jobInDateRange, dateRangeLabel } from "../features/jobs/search/model";
+import { readStoredSearch, readStoredDateRange, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
 import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/SearchFilterPanel";
 import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
   JobLocationSection, JobReviewsAndHost, JobThingsToKnow,
@@ -42,7 +42,7 @@ import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobP
 // ── JobSearchMapView ────────────────────────────────────────
 // 「募集中の仕事を探す」画面。LandingFlow・LaborTab 両方で使用。
 // 将来: Google Maps / Mapbox / Leaflet に差し替え可能な構造にしてある。
-// 応募パネルの最高額 calcMaxPay・絞り込みの月 jobMonths → features/jobs/search/model.js へ移設（2026-08-17）
+// 応募パネルの最高額 calcMaxPay・絞り込みの日付 pickDateRange/jobInDateRange → features/jobs/search/model.js
 
 // 求人詳細のディープリンク（#/work/job/{番号}・タブ指定つきは /questions 等）。
 // ★モジュール直下に置く理由：最初の描画の【前】に「いま求人詳細を開こうとしているか」を知りたいため。
@@ -404,7 +404,7 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [selectedJob]);
 
   // ── Airbnb風検索（2026-07-27たきと指示・骨格②の段階解禁を運営判断で前倒し）：
-  // 上部ピルバー→タップで全画面パネル。なにを（作物・作業）／どこで（地域）／いつ（月）の3セクションを
+  // 上部ピルバー→タップで全画面パネル。なにを（作物・作業）／どこで（地域）／いつ（カレンダーの範囲・2026-09-27）の3セクションを
   // アコーディオンで選び「検索」で確定。チップは実在の求人から生成（ダミー禁止・憲法3条）。
   // 下書き（sel*）と確定（appliedSearch）を分離＝Airbnbと同じ「検索ボタンで初めて反映」動作
   const [searchOpen, setSearchOpen] = useState(false);
@@ -413,38 +413,39 @@ export function JobSearchMapView({ onRegister, me }) {
   // 掛かりっぱなしでもピルの要約＋✕クリアで状態は常に見える
   const [selWhats, setSelWhats] = useState(() => readStoredSearch("w"));
   const [selRegions, setSelRegions] = useState(() => readStoredSearch("r"));
-  const [selMonths, setSelMonths] = useState(() => readStoredSearch("m"));
+  // いつする？＝カレンダーの範囲（2026-09-27たきと指示・月チップを廃止）。{start,end}|null。
+  // タップの規則は model.js の pickDateRange（1回目＝始まり・2回目＝終わり・3回目で始まりに戻るループ）
+  const [selRange, setSelRange] = useState(() => normalizeDateRange(readStoredDateRange()));
   // 求人No.でさがす（2026-08-31たきと指示「No.検索だ」）：数字の前方一致で一覧を絞る。
   // ★localStorageには保存しない（作物・地域と違い、No.は一覧を1件に固定する条件so、
   //   リロード後も掛かりっぱなしだと「求人が1件しかない」ように見える誤解の元になる）
   const [selNo, setSelNo] = useState("");
   useEffect(() => {
-    writeStoredSearch(selWhats, selRegions, selMonths);
-  }, [selWhats, selRegions, selMonths]);
+    writeStoredSearch(selWhats, selRegions, selRange);
+  }, [selWhats, selRegions, selRange]);
   // リアルタイム反映（2026-07-27たきと指示）：チップを触った瞬間に一覧へ反映（検索ボタン待ちの下書き方式は廃止）。
   // パネルは半透明の暗幕ので、背後で一覧が絞られていくのが見える
   const noQuery = selNo.trim();
-  const searchActive = selWhats.length > 0 || selRegions.length > 0 || selMonths.length > 0 || noQuery.length > 0;
+  const searchActive = selWhats.length > 0 || selRegions.length > 0 || !!selRange || noQuery.length > 0;
   const filteredList = !searchActive ? jobList : jobList.filter(j => {
     if (noQuery && !String(j.id).startsWith(noQuery)) return false;
     if (selWhats.length && !selWhats.some(w => j.crop === w || j.task === w)) return false;
     if (selRegions.length && !selRegions.includes(j.region || "")) return false;
-    if (selMonths.length && !selMonths.some(m => jobMonths(j).includes(m))) return false;
+    if (selRange && !jobInDateRange(j, selRange)) return false;
     return true;
   });
   const searchWhatOpts = [...new Set(jobList.flatMap(j => [j.crop, j.task]).filter(Boolean))];
   const searchRegionOpts = [...new Set(jobList.map(j => j.region).filter(Boolean))];
-  const searchMonthOpts = [...new Set(jobList.flatMap(jobMonths))].sort((a, b) => a - b);
-  const searchSummary = [noQuery ? "No." + noQuery : "", selWhats.join("・"), selRegions.join("・"), selMonths.map(m => m + "月").join("・")].filter(Boolean).join("｜");
+  const searchSummary = [noQuery ? "No." + noQuery : "", selWhats.join("・"), selRegions.join("・"), dateRangeLabel(selRange)].filter(Boolean).join("｜");
   const togSel = (setter) => (v) => setter(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
-  const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelMonths([]); setSelNo(""); };
+  const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelRange(null); setSelNo(""); };
   // 絞り込みパネルに渡す3セクション（移設前は JSX 内の配列リテラルだった。中身は同一）。
   // ★state（selWhats/…）と候補（searchWhatOpts/…）の持ち主は親のまま＝
   //   パネルは「選ばせて見せる」だけ。どの求人が残るかは上の filteredList が決める
   const searchSections = [
     { k:"what",   q:"なにを", title:"なにをする？", opts: searchWhatOpts,   sel: selWhats,   tog: togSel(setSelWhats),   label: v => v },
     { k:"region", q:"どこで", title:"どこでする？", opts: searchRegionOpts, sel: selRegions, tog: togSel(setSelRegions), label: v => v },
-    { k:"month",  q:"いつ",   title:"いつする？",   opts: searchMonthOpts,  sel: selMonths,  tog: togSel(setSelMonths),  label: v => v + "月" },
+    { k:"month",  q:"いつ",   title:"いつする？",   kind:"calendar", range: selRange, onPick: (ymd) => setSelRange(prev => pickDateRange(prev, ymd)), onClearRange: () => setSelRange(null) },
   ];
 
   // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──
