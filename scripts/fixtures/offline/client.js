@@ -38,4 +38,6 @@ export const supabase = createClient('https://offline-fixture.test', 'fixture-ke
 });
 supabase.auth.getSession = async () => ({data:{session:{user:{id:owner,email:'fixture@example.test'}}}});
 export const geocodeTown = async () => null;
+// 住所の実在チェック（2026-09-27）：オフラインでは確かめられない＝"error"（止めない側）
+export const verifyTownAddress = async () => "error";
 export const zipLookup = async () => ({ok:false,reason:'network'});

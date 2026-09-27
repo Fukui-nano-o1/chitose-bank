@@ -3,6 +3,7 @@ import { NavIcon } from "../../../../components/NavIcons";
 import { zipLookup } from "../../../../lib/zipLookup";
 import { getSession, upsertEmployerProfile } from "../jobCreateApi";
 import { isAllowedPrefecture, isValidStreetAddress } from "../model";
+import { useTownCheck, TOWN_NOT_FOUND_MESSAGE, TOWN_CHECK_ERROR_MESSAGE } from "../useTownCheck";
 
 export function SavedWorkplaceCard({ address, status, onUse, onRegister, onRetry }) {
   const loading = status === "loading";
@@ -73,7 +74,9 @@ export function WorkplacePage({ initialAddress, onBack, onSaved, draftOnly = fal
       if (version === lookupVersion.current) setSearching(false);
     }
   };
-  const complete = address.zip.replace(/[^0-9]/g, "").length === 7 &&
+  // 住所の実在チェック（2026-09-27）：町域まで見つからない住所は保存させない。通信で確かめられない時は止めない
+  const townCheck = useTownCheck(address.prefecture, address.city, address.town);
+  const complete = townCheck !== "notfound" && address.zip.replace(/[^0-9]/g, "").length === 7 &&
     isAllowedPrefecture(address.prefecture) && [address.city, address.town].every(value => value.trim()) &&
     isValidStreetAddress(address.address);
   const save = async event => {
@@ -141,6 +144,9 @@ export function WorkplacePage({ initialAddress, onBack, onSaved, draftOnly = fal
             {!!address.address.trim() && !isValidStreetAddress(address.address) && (
               <p className="listing-workplace-error">番地・建物名を正しく入力してください（例：1-2-3 〇〇ハイツ101）。</p>
             )}
+            {townCheck === "notfound" && <p className="listing-workplace-error" role="alert">{TOWN_NOT_FOUND_MESSAGE}</p>}
+            {townCheck === "checking" && !!address.town.trim() && <p className="listing-workplace-note">住所を確かめています…</p>}
+            {townCheck === "error" && <p className="listing-workplace-note">{TOWN_CHECK_ERROR_MESSAGE}</p>}
           </fieldset>
           <p className="listing-workplace-note">農家プロフィールの「作業場所」にも保存されます。</p>
           {error && <p id="listing-workplace-error" className="listing-workplace-error" role="alert">{error}</p>}

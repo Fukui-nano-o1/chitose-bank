@@ -22,6 +22,7 @@ import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, isValidStreetAddress, validateMinWage } from "./model";
 import { geocodeTown } from "./jobCreateGeo";
+import { useTownCheck, TOWN_NOT_FOUND_MESSAGE, TOWN_CHECK_ERROR_MESSAGE } from "./useTownCheck";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
   fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
   fetchJobByNumber, fetchJobStatus, publishMyJob, insertJobPublishCheck,
@@ -1055,7 +1056,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 「あり」なら目安の時間まで書く＝「有無（どれくらいの時間）」を明記させる
   const overtimeOk = !!overtimePolicy && (overtimePolicy !== "あり" || !!overtimeDetail.trim());
   // 賃金の確認待ちでも下書きの入力は続ける。掲載時の必須チェックとDB検査は維持する。
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&isValidStreetAddress(farmerAddr), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (unknownWage || !dailyViolation) && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
+  // 住所の実在チェック（2026-09-27）：町域まで見つからない住所は入力エラー＝「次へ」も掲載も止める。
+  // 通信で確かめられない時（"error"）は止めない（フェイルオープン）
+  const townCheck = useTownCheck(farmerPref, farmerCity, farmerTown);
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&townCheck!=="notfound"&&isValidStreetAddress(farmerAddr), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (unknownWage || !dailyViolation) && breakTime !== "" && overtimeOk), true, true, true, true, true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
@@ -1092,7 +1096,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       ["郵便番号",                !!farmerZip.trim(),                  3],
       ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref),     3],
       ["市区町村",                !!farmerCity.trim(),                 3],
-      ["町域",                   !!farmerTown.trim(),                 3],
+      ["町域（実在する住所）",       !!farmerTown.trim() && townCheck !== "notfound", 3],
       ["番地・建物名",             isValidStreetAddress(farmerAddr),    3],
       ["作業日程（開始日）",       !!jobDateStart,                      4],
       ["採用人数",                Number.isInteger(Number(jobCount)) && Number(jobCount) > 0,                4],
@@ -1403,6 +1407,16 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
                     番地・建物名を正しく入力してください（例：1-2-3 〇〇ハイツ101）。働き手は、この住所を見て応募するかどうかを決めます
                   </p>
+                )}
+                {/* 住所の実在チェック（2026-09-27たきと指示「ヒットしない住所はエラーにしよう。赤字で説明させよう」） */}
+                {townCheck === "notfound" && (
+                  <p className="f-sans" role="alert" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>{TOWN_NOT_FOUND_MESSAGE}</p>
+                )}
+                {townCheck === "checking" && !!farmerTown.trim() && (
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginTop:4 }}>住所を確かめています…</p>
+                )}
+                {townCheck === "error" && (
+                  <p className="f-sans" style={{ fontSize:13, color:"#717171", marginTop:4 }}>{TOWN_CHECK_ERROR_MESSAGE}</p>
                 )}
                 {prefNotAllowed && (
                   <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:4 }}>
