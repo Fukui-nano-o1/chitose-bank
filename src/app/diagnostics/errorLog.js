@@ -1,9 +1,14 @@
 // ── エラー監視ユーティリティ ──────────────────────────────────
-// 第2次構造改革（2026-08-17）でApp.jsxから移設。中身は一切変えていない。
+// 第2次構造改革（2026-08-17）でApp.jsxから移設。2026-09-28に連発の間引きを追加。
 // ★app_errors への記録はプラポリ第3条データ台帳「エラーの記録」の行に対応（保存1年・
 //   purge_old_app_errors が毎日掃除）。記録する項目を増やすときは台帳の改訂が要る。
 import { supabase } from "../../lib/supabase";
 import { rememberSupportFailure } from "../../lib/supportDiagnostics";
+import { makeErrorThrottle, MAX_PER_MESSAGE } from "./errorThrottle";
+
+// 連発の間引き（2026-09-28・Script error 18,200行/15分の教訓・詳細は errorThrottle.js）。
+// rememberSupportFailure（端末内の診断メモ）は間引きの前＝手元の診断は全件見える
+const admitError = makeErrorThrottle();
 
 export function getSessionId() {
   try {
@@ -20,12 +25,17 @@ export function sanitizeMessage(msg = "") {
 export async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {}, userId = null }) {
   rememberSupportFailure({ source, action, operation, error });
   try {
+    const message = sanitizeMessage(error?.message || String(error || ""));
+    const gate = admitError(message);
+    if (!gate.ok) return;   // 同じ文言の連発＝この読み込みでは以後書かない（DBを守る）
     await supabase.from("app_errors").insert({
       session_id: getSessionId(), user_id: userId, level, source, page, component, action, operation,
       error_code: error?.code || error?.status || null,
-      message: sanitizeMessage(error?.message || String(error || "")),
+      message,
       stack: sanitizeMessage(error?.stack || ""),
-      url: window.location.href, user_agent: navigator.userAgent, metadata,
+      url: window.location.href, user_agent: navigator.userAgent,
+      // 枠を使い切る1件に印＝運営が「以後は間引かれている」と分かる
+      metadata: gate.last ? { ...metadata, throttled_after: MAX_PER_MESSAGE } : metadata,
     });
   } catch (e) { console.warn("error logging failed", e); }
 }
