@@ -5,6 +5,8 @@
 // 規則＝同じ文言はページの読み込みごとに MAX_PER_MESSAGE 件まで・全部で MAX_PER_LOAD 件まで。
 // 状態はメモリだけ＝リロードで最初から（リロードのループの記録は1回の読み込みにつき数行なので
 // 従来どおり残る）。捨てた分は数だけ覚え、最後に書く1件の印（throttled_after）に添える。
+// ★DB側にも壁がある（migration 20260928095100・同じsession 20件/分・200件/日・全体300件/分）＝
+//   古いJSのタブ・API直叩きはそちらが止める。ここは「そもそも撃たない」ための前段。
 export const MAX_PER_MESSAGE = 5;
 export const MAX_PER_LOAD = 50;
 
