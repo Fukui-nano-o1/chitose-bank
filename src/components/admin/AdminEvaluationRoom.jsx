@@ -10,6 +10,7 @@
 //   出すのは記録そのもの（出欠・求人の勤務時間）だけ。運営の主観は混ぜない（2026-07-16）。
 //   遅刻の判定は持たない（2026-08-18「打刻の全面削除」）＝開始時刻は自動で入るため。
 import { useState, useEffect, useCallback } from "react";
+import { AdminWorkReviewsRoom } from "./AdminWorkReviewsRoom";
 import { supabase } from "../../lib/supabase";
 import { getCache, setCache } from "../../lib/viewCache";
 import { Dots } from "../ui";
@@ -25,6 +26,17 @@ function readWorkerId() {
 }
 
 export function AdminEvaluationRoom() {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  return hash.replace(/^#\/?/, '').startsWith('admin/evaluation/reviews')
+    ? <AdminWorkReviewsRoom /> : <WorkerRecordsRoom />;
+}
+
+function WorkerRecordsRoom() {
   const [workerId, setWorkerId] = useState(readWorkerId);
   useEffect(() => {
     const onHash = () => setWorkerId(readWorkerId());
@@ -55,6 +67,7 @@ export function AdminEvaluationRoom() {
     /* cb-admin-page＝サイトフッターを隠す目印（下部バー・浮遊☰は出す・appStyles・2026-08-05） */
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
 
+      {!workerId && <><a href="#/admin">← 管理画面に戻る</a><h1 className="f-sans" style={{ fontSize:24 }}>勤務実績</h1></>}
       {workerId && (
         <button type="button" className="f-sans" onClick={() => { window.location.hash = "/admin/evaluation"; }}
           style={{ background:"none", border:"none", padding:"0 0 12px", color:"#717171", fontSize:12, fontWeight:700, cursor:"pointer" }}>← 働き手の一覧</button>

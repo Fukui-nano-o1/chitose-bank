@@ -1,0 +1,20 @@
+.admin-work-reviews { max-width:640px; margin:0 auto; padding:20px 16px calc(140px + env(safe-area-inset-bottom, 0px)); color:#222; overflow-wrap:anywhere; }
+.admin-work-reviews h1 { font-size:26px; margin:22px 0 12px; }
+.admin-work-reviews h2 { font-size:18px; margin:8px 0; }
+.admin-work-reviews h3 { font-size:15px; margin:16px 0 8px; }
+.admin-work-reviews p { line-height:1.7; font-size:14px; margin:8px 0; }
+.admin-work-reviews a { color:inherit; text-underline-offset:4px; display:inline-block; padding:12px 0; }
+.admin-work-reviews__back { min-height:44px; box-sizing:border-box; }
+.admin-work-reviews__muted, .admin-work-reviews h2 span, .admin-work-reviews h3 span { color:#717171; font-size:13px; font-weight:400; }
+.admin-work-reviews__filters, .admin-work-reviews__pagination { display:flex; align-items:center; gap:8px; margin:20px 0; }
+.admin-work-reviews button { border:1px solid #ddd; border-radius:24px; background:white; color:#222; min-height:44px; padding:10px 14px; font:inherit; font-size:13px; cursor:pointer; }
+.admin-work-reviews button[aria-pressed=true] { background:#222; color:white; border-color:#222; }
+.admin-work-reviews button:disabled { opacity:.4; cursor:default; }
+.admin-work-reviews__card { border:1px solid #e5e5e5; border-radius:16px; padding:16px; margin:16px 0; }
+.admin-work-reviews summary { cursor:pointer; padding:16px 0; min-height:44px; box-sizing:border-box; font-size:14px; font-weight:700; }
+.admin-work-reviews summary span { display:block; font-size:13px; font-weight:400; margin:8px 0 0; }
+.admin-work-reviews details { border-top:1px solid #eee; border-bottom:1px solid #eee; margin:12px 0 4px; }
+.admin-work-reviews ul { padding-left:20px; font-size:14px; line-height:1.8; }
+.admin-work-reviews__negative, .admin-work-reviews a.admin-work-reviews__unpaid { color:#a33d19; }
+.admin-work-reviews__pagination { justify-content:space-between; font-size:12px; }
+.admin-work-reviews :focus-visible { outline:2px solid #222; outline-offset:3px; }
