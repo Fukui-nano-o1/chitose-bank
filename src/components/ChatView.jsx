@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
-  CHAT_ELIGIBLE_STATUSES, APP_PHASE_LABEL, APP_PHASE_COLOR, photoThumb,
+  CHAT_ELIGIBLE_STATUSES, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseKey,
   payTermsLine, WAGE_CLOSING_RULE_LABELS, PAY_TERMS_UNKNOWN } from "../lib/utils";
 import { useSwipeBack } from "../lib/swipeBack";
 import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
@@ -14,6 +14,8 @@ import { readChatBody, writeChatBody } from "../lib/chatBodyCache";
 import { Avatar, Dots } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { ChatSheet } from "./ChatSheet";
+import { ChatDetails } from "./ChatDetails";
+import { schedulePath } from "../features/today/schedule";
 import { useChatViewport } from "../lib/useChatViewport";
 import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
 import { readChatDraft, saveChatDraft } from "../lib/chatDrafts";
@@ -85,6 +87,7 @@ export function ChatView({ applicationId, onBack }) {
   const [chatJobNumber, setChatJobNumber] = useState(() => _cr?.job_number ?? null); // ヘッダー・確認カードの#N表示用（jobs_publicから消えた求人でも出す）
   const [confirmMeetingPlace, setConfirmMeetingPlace] = useState(null);
   const [workerConfirmed, setWorkerConfirmed] = useState(() => !!_cr?.terms_confirmed_worker_at);
+  const [farmerConfirmed, setFarmerConfirmed] = useState(() => !!_cr?.terms_confirmed_farmer_at);
   const [insurancePreparedAt, setInsurancePreparedAt] = useState(() => _cr?.insurance_prepared_at ?? null);
   const [isWorkerSide, setIsWorkerSide] = useState(() => _cr?._role === "worker");
   const [confirmingTerms, setConfirmingTerms] = useState(false);
@@ -157,14 +160,11 @@ export function ChatView({ applicationId, onBack }) {
   // （進行中で最新のもの。無ければ最新。完了した過去の応募は履歴としてメッセージに混ざる）
   const [appIds, setAppIds] = useState(null);
   const [appJobMap, setAppJobMap] = useState({}); // application_id→job_number（自動メッセージ下「応募された求人を見る」用・2026-07-19）
-  const [jobBox, setJobBox] = useState(null); // 該当求人のボックス表示：{loading, job_number, job}
-  const openJobBox = async (jobNumber) => {
+  const openJob = (jobNumber) => {
     if (!jobNumber) return;
-    setJobBox({ loading: true, job_number: jobNumber, job: null });
-    try {
-      const { data } = await fetchJobRowForMe(jobNumber);
-      setJobBox({ loading: false, job_number: jobNumber, job: data ? mapJobPublicRow(data) : null });
-    } catch { setJobBox({ loading: false, job_number: jobNumber, job: null }); }
+    setDetailsOpen(false);
+    try { sessionStorage.setItem("cb_jobBackTo", `/chat/${applicationId}`); } catch {}
+    window.location.hash = `/work/job/${jobNumber}`;
   };
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const activeAppIdRef = useRef(applicationId); // loadの5秒ポーリングから現役応募の状態を取り直すための鏡（2026-08-31）
@@ -195,6 +195,7 @@ export function ChatView({ applicationId, onBack }) {
     setActiveAvail(row.available_dates ?? null);
     setActiveAgreed(row.agreed_dates ?? null);
     setWorkerConfirmed(!!row.terms_confirmed_worker_at);
+    setFarmerConfirmed(!!row.terms_confirmed_farmer_at);
     setInsurancePreparedAt(row.insurance_prepared_at);
     setChatJobNumber(row.job_number ?? null);
     setConfirmBoxOpen(false); setConfirmJob(null); setConfirmMeetingPlace(null); // 前の求人の残像を消す
@@ -234,7 +235,7 @@ export function ChatView({ applicationId, onBack }) {
         // メッセージを送信すると本当に送信される。絶対にだめ」）：見送り・失効・取り消し・完了に
         // なっていれば5秒ポーリング・復帰と同じタイミングで幕が閉まり、入力欄が消える。
         // DB側にも同じ壁（msg insert party の with_check・migration 20260831125430）＝二重の壁
-        supabase.from("applications").select("id,status")
+        supabase.from("applications").select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
           .in("id", [...new Set([...scope, activeAppIdRef.current].filter(Boolean))]),
       ]));
       if (!aliveRef.current) return;
@@ -243,7 +244,11 @@ export function ChatView({ applicationId, onBack }) {
       // 失敗時は手元の値を上書きしない（2026-08-07規則）
       if (!stRes.error && stRes.data) {
         const row = stRes.data.find(r => r.id === activeAppIdRef.current);
-        if (row?.status) setActiveStatus(prev => (prev === row.status ? prev : row.status));
+        if (row?.status) {
+          setActiveStatus(prev => (prev === row.status ? prev : row.status));
+          setWorkerConfirmed(!!row.terms_confirmed_worker_at);
+          setFarmerConfirmed(!!row.terms_confirmed_farmer_at);
+        }
       }
       // ★一度確認できた履歴は、空配列・通信エラーでは消さない（2026-08-26 Speed-4B.1）。
       //   messages はDBで削除できない恒久ルールなので、「0件になった」という値だけは正として採用しない
@@ -405,12 +410,8 @@ export function ChatView({ applicationId, onBack }) {
           const relRows = (rel && rel.length > 0) ? rel : null;
           // 現役＝開いた応募(applicationId)そのもの（2026-07-22 修正）。メッセージ履歴は相手ごとに束ねる(appIds)が、
           // 状態（採用/確認カード/保険/#N・"勲章"）は開いた応募に固定する。以前は「相手との最新の応募」を現役にしていたため、
-          // 同じ相手に複数応募があると別の求人(例#1055)の状態が開いた求人(例#1053)に映っていた。見つからない時だけ従来の推定へ
-          const active = relRows
-            ? (relRows.find(r => r.id === applicationId)
-               || relRows.find(r => CHAT_ELIGIBLE_STATUSES.includes(r.status))
-               || relRows[0])
-            : null;
+          // 同じ相手に複数応募があると別の求人の状態が映るため、見つからなくても別の応募に置き換えない。
+          const active = relRows?.find(r => r.id === applicationId) || null;
           // チャットは求人（応募）ごとに分ける（2026-07-23）：メッセージ履歴は開いた応募だけに限定する。
           // 相手ごとに束ねると、求人ごとの terms_snapshot（契約内容）が混同する恐れがあるため。
           // threadApps は「この相手の他の求人」への導線＋二重予約チェック用に残す（切替は各求人の別チャットへ遷移）。
@@ -629,32 +630,38 @@ export function ChatView({ applicationId, onBack }) {
   const pageRef = useRef(null);
   useSwipeBack(pageRef, onBack);
   useChatViewport(pageRef);
+  const activePhase = activeStatus ? appPhaseKey({ status: activeStatus,
+    terms_confirmed_worker_at: workerConfirmed, terms_confirmed_farmer_at: farmerConfirmed }) : null;
+  const openPartner = () => {
+    setDetailsOpen(false);
+    if (partnerWorkerId) openWorkerPreview(partnerWorkerId);
+    else if (partnerFarmerId) openEmployerPreview(partnerFarmerId);
+  };
+  const openSchedule = () => {
+    setDetailsOpen(false);
+    window.location.hash = schedulePath(isWorkerSide ? 'worker' : 'farmer', applicationId);
+    // 戻り先はこの履歴項目にだけ付ける。別の日にマイページから開いた予定には持ち越さない。
+    window.history.replaceState({ ...window.history.state, cbScheduleChat: applicationId }, '');
+  };
+  const detailsSupport = view => { setDetailsOpen(false); openSupport({ topic: 'chat', view }); };
   return (
     <div ref={pageRef} className="chat-full chat-room f-sans">
       <header className="chat-room-header">
         <button onClick={onBack} aria-label="メッセージ一覧に戻る" className="chat-icon-button">←</button>
-        <button data-guide="chat-partner" className="chat-partner-button" onClick={() => { if (partnerWorkerId) openWorkerPreview(partnerWorkerId); else if (partnerFarmerId) openEmployerPreview(partnerFarmerId); }}>
+        <button data-guide="chat-partner" className="chat-partner-button" onClick={openPartner}>
           <Avatar url={partner?.avatar_url} name={partner?.nickname || partnerInitials} size={36}/>
           <span><strong>{partner?.nickname || "メッセージ"}</strong><small>{chatJobNumber ? `求人 #${chatJobNumber} の会話` : "相手と仕事を確認中"}</small></span>
         </button>
         <button data-guide="chat-details" className="chat-details-button" onClick={() => setDetailsOpen(true)}>詳細</button>
       </header>
-      <button className="chat-context" onClick={() => setDetailsOpen(true)}><span><strong>{confirmJob ? [confirmJob.crop,confirmJob.task].filter(Boolean).join(" ") : "仕事の詳細"}</strong><small>{confirmJob?.dateLabel}{confirmJob?.workTime ? ` · ${confirmJob.workTime}` : ""}</small></span><span className="chat-stage">{APP_PHASE_LABEL[activeStatus] || "確認中"}</span><span aria-hidden="true">›</span></button>
+      <button className="chat-context" onClick={() => setDetailsOpen(true)}><span><strong>{confirmJob ? [confirmJob.crop,confirmJob.task].filter(Boolean).join(" ") : "仕事の詳細"}</strong><small>{confirmJob?.dateLabel}{confirmJob?.workTime ? ` · ${confirmJob.workTime}` : ""}</small></span><span className="chat-stage">{APP_PHASE_LABEL[activePhase] || "確認中"}</span><span aria-hidden="true">›</span></button>
       {loadError && <div role="alert" className="chat-notice">{loadError}<br/><button className="chat-text-button" onClick={() => load([applicationId])}>再読み込み</button><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>}
-      {detailsOpen && <ChatSheet title="会話の詳細" onClose={() => setDetailsOpen(false)}>
-        <h3>{confirmJob ? [confirmJob.crop,confirmJob.task].filter(Boolean).join(" ") : `求人 #${chatJobNumber || ""}`}</h3>
-        <dl className="chat-detail-list">
-          <div><dt>相手</dt><dd>{partner?.nickname || "確認中"}</dd></div>
-          <div><dt>仕事の状況</dt><dd>{APP_PHASE_LABEL[activeStatus] || "確認中"}</dd></div>
-          <div><dt>日程・時間</dt><dd>{activeAgreed?.length ? activeAgreed.map(calFmtDate).join("・") : confirmJob?.dateLabel || "確認中"}<br/>{confirmJob?.workTime}</dd></div>
-          {confirmMeetingPlace?.full_address && <div><dt>集合場所</dt><dd>{confirmMeetingPlace.full_address}</dd></div>}
-        </dl>
-        <button className="chat-detail-action" onClick={() => { setDetailsOpen(false); openJobBox(chatJobNumber); }}>仕事の内容を確認する →</button>
-        <a className="chat-detail-action" href="#/calendar">カレンダーで予定を確認する →</a>
-        <button className="chat-detail-action" onClick={() => { setDetailsOpen(false); setReportMode(true); }}>問題のあるメッセージを通報</button>
-        <button className="chat-detail-action" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button>
-        <button className="chat-detail-action" onClick={() => openSupport({ topic: "chat" })}>チャットの使い方・お問い合わせ</button>
-      </ChatSheet>}
+      {detailsOpen && <ChatDetails job={confirmJob} jobNumber={chatJobNumber} status={activeStatus} phase={activePhase}
+        partner={partner} isWorkerSide={isWorkerSide} agreedDates={activeAgreed} meetingPlace={confirmMeetingPlace}
+        canOpenPartner={!!(partnerWorkerId || partnerFarmerId)} canReport={msgs.some(message => message.sender_id !== myId)}
+        onClose={() => setDetailsOpen(false)} onJob={() => openJob(chatJobNumber)} onPartner={openPartner} onSchedule={openSchedule}
+        onReport={() => { setDetailsOpen(false); setReportMode(true); }}
+        onScreenReport={() => detailsSupport('compose')} onHelp={() => detailsSupport('guide')} />}
       {reportMode && !reportTarget && (
         <p className="f-sans" style={{ fontSize:12, color:"#E24B4A", fontWeight:700, margin:0, padding:"8px 0", textAlign:"center" }}>問題のあるコメントをタップしてください <button className="chat-text-button" onClick={() => setReportMode(false)}>キャンセル</button></p>
       )}
@@ -823,7 +830,7 @@ export function ChatView({ applicationId, onBack }) {
               </div>
             </div>
             <button
-              onClick={()=>{ if (!reportMode) openJobBox(appJobMap[m.application_id] ?? chatJobNumber); }}
+              onClick={()=>{ if (!reportMode) openJob(appJobMap[m.application_id] ?? chatJobNumber); }}
               className="f-sans"
               style={{ alignSelf:"flex-start", background:"none", border:"none", padding:"0 0 2px", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor: reportMode ? "default" : "pointer" }}>応募された求人を見る →</button>
             </>
@@ -860,39 +867,6 @@ export function ChatView({ applicationId, onBack }) {
             )}
         </ChatSheet>
       )}
-
-      {/* 該当求人ボックス（2026-07-19）：「応募された求人を見る →」タップで展開。写真＋主要情報＋詳細ページへのリンク */}
-      {jobBox && (
-        <ChatSheet title="仕事の内容" onClose={() => setJobBox(null)}>
-            {jobBox.loading ? (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 0" }}>読み込み中<Dots /></p>
-            ) : jobBox.job ? (
-              <>
-                {(() => {
-                  const p0 = jobBox.job.photos?.[0];
-                  const src = photoThumb(p0);
-                  return src
-                    ? <img loading="lazy" src={src} alt="" style={{ width:"100%", height:170, objectFit:"cover", display:"block", borderRadius:"16px 16px 0 0" }} />
-                    : <div style={{ width:"100%", height:170, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#C8C8C8", borderRadius:"16px 16px 0 0" }}><NavIcon name="image" size={48} /></div>;
-                })()}
-                <div style={{ padding:"14px 18px 18px" }} className="f-sans">
-                  <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
-                    <p style={{ fontSize:16, fontWeight:700, color:"#222", margin:0, flex:1, minWidth:0 }}>{[jobBox.job.crop, jobBox.job.task].filter(Boolean).join(" ") || "求人"}</p>
-                    <span style={{ fontSize:11, color:"#C8C8C8", flexShrink:0 }}>#{jobBox.job.id}</span>
-                  </div>
-                  {jobBox.job.region && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="pin" size={12} />{jobBox.job.region}</p>}
-                  {jobBox.job.dateLabel && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="calendar" size={12} style={{ verticalAlign:"-1px" }} />{jobBox.job.dateLabel}{jobBox.job.workTime ? "　" + jobBox.job.workTime : ""}</p>}
-                  {jobBox.job.pay > 0 && <p className="f-mono" style={{ fontSize:14, fontWeight:700, color:"#00A86B", margin:"6px 0 0" }}>{jobBox.job.payType === "daily" ? "日給" : "時給"} {jobBox.job.pay.toLocaleString()}円</p>}
-                  {jobBox.job.count && <p style={{ fontSize:12, color:"#717171", margin:"4px 0 0" }}><NavIconInline name="applicants" size={12} />募集 {jobBox.job.count}</p>}
-                  <button onClick={()=>{ setJobBox(null); try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {} window.location.hash = "/work/job/" + jobBox.job_number; }} className="f-sans" style={{ marginTop:14, background:"none", border:"none", padding:"0 0 2px", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", cursor:"pointer" }}>詳細ページで見る →</button>
-                </div>
-              </>
-            ) : (
-              <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"48px 16px" }}>この求人（#{jobBox.job_number}）は現在公開されていません</p>
-            )}
-        </ChatSheet>
-      )}
-
       {/* 採用するボタンはチャット右上の浮遊に移設（2026-07-19・上のsticky）。下部の常駐ブロックは廃止 */}
       {/* 失効・完了・見送り（2026-07-25たきと指示・2026-07-27に見送り追加）：入力バーごと非表示＝送信不可。空いた分メッセージ領域(flex:1)が自動で広がる */}
       {chatClosed ? null : (!isWorkerSide && activeStatus === "applied") ? (

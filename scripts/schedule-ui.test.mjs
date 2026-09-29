@@ -40,7 +40,7 @@ test('real upcoming/detail/notice UI follows the selected application, survives 
       },
     }, react()], build: { outDir: output, lib: { entry: path.join(root, 'scripts/fixtures/schedule/entry.jsx'), name: 'ScheduleQA', formats: ['iife'], fileName: 'fixture' }, minify: false } });
     const script = await readFile(path.join(output, 'fixture.iife.js'), 'utf8');
-    function mount(entries, hash = '#/profile/employer', { cached = entries, offline = false } = {}) {
+    function mount(entries, hash = '#/profile/employer', { cached = entries, offline = false, fromChat = null } = {}) {
       dom?.window.close();
       const console = new VirtualConsole();
       console.on('jsdomError', e => { if (!/CSS|navigation/.test(e.message)) errors.push(e.message); });
@@ -67,6 +67,7 @@ test('real upcoming/detail/notice UI follows the selected application, survives 
       w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
       w.qaScrolls = [];
       w.scrollTo = options => w.qaScrolls.push(options);
+      if (fromChat) w.history.replaceState({cbScheduleChat:fromChat},'');
       w.eval(script);
       return w;
     }
@@ -137,6 +138,13 @@ test('real upcoming/detail/notice UI follows the selected application, survives 
     await until(() => w.document.querySelector('.schedule-phase')?.textContent === '応募中', 'realtime refresh updates phase');
     assert.equal(button(w, '労働条件通知書を確認'), undefined);
     assert.equal(w.qaCalls.filter(c => c.method !== 'GET' && c.path !== 'rpc/get_my_calendar_jobs').length, 0, 'no mutations');
+    w = mount(entries, `#/profile/employer/schedule/${second}`, { fromChat: second });
+    await until(() => w.document.querySelector('#schedule-partner-heading')?.textContent === 'テスト乙', 'schedule from chat');
+    assert.equal(w.document.querySelector('[aria-label="マイページに戻る"]'), null);
+    w.document.querySelector('[aria-label="会話に戻る"]').click();
+    await until(() => w.location.hash === `#/chat/${second}`, 'return to originating chat');
+    w = mount(entries, `#/profile/employer/schedule/${first}`, { fromChat: second });
+    await until(() => w.document.querySelector('[aria-label="マイページに戻る"]'), 'unrelated chat is not a return destination');
     assert.deepEqual(errors, []);
   } finally {
     dom?.window.close();

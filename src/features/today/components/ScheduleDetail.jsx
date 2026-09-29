@@ -16,6 +16,8 @@ export function ScheduleDetail({ me, role, applicationId }) {
   // 求人番号では照合しない。同じ求人の別の相手へすり替わるのを防ぐ。
   const entry = entries.find(e => e.relation === "application" && e.my_role === role && e.application_id === applicationId);
   const home = role === "farmer" ? "/profile/employer" : "/profile/worker";
+  const fromChat = window.history.state?.cbScheduleChat === applicationId;
+  const backTo = fromChat ? `/chat/${applicationId}` : home;
   const phase = entry ? schedulePhase(entry) : null;
   const { days, label } = workDaysStripData(entry, entry);
   const photo = photoThumb(entry?.photos?.[0]);
@@ -35,7 +37,7 @@ export function ScheduleDetail({ me, role, applicationId }) {
   return (
     <section className="schedule-detail f-sans" style={{ "--schedule-accent": role === "farmer" ? ROLE_GREEN : ROLE_ORANGE }} aria-labelledby="schedule-heading">
       <header className="schedule-header">
-        <button type="button" className="schedule-back" aria-label="マイページに戻る" onClick={() => { window.location.hash = home; }}>‹</button>
+        <button type="button" className="schedule-back" aria-label={fromChat ? "会話に戻る" : "マイページに戻る"} onClick={() => { window.location.hash = backTo; }}>‹</button>
         <h1 id="schedule-heading">予定の詳細</h1>
       </header>
 
