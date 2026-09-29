@@ -12,8 +12,8 @@ const require = createRequire(import.meta.url);
 const { JSDOM, VirtualConsole } = require(process.env.CB_TEST_NODE_MODULES ? `${process.env.CB_TEST_NODE_MODULES}/jsdom` : 'jsdom');
 const root = fileURLToPath(new URL('../', import.meta.url));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(predicate, label) {
-  const deadline = Date.now() + 5000;
+async function until(predicate, label, timeout = 5000) {
+  const deadline = Date.now() + timeout;
   while (!predicate()) {
     assert.ok(Date.now() < deadline, `timed out: ${label}`);
     await pause(10);
@@ -86,6 +86,16 @@ test('real upcoming/detail/notice UI follows the selected application, survives 
     await until(() => w.document.querySelector('.cb-ctr-print')?.textContent.includes('テスト乙専用の通知書'), 'selected application notice');
     assert.doesNotMatch(w.document.querySelector('.cb-ctr-print').textContent, /テスト甲専用/);
     assert.ok(w.qaCalls.find(c => c.path === 'applications' && c.query.includes('farmer_id=eq.30000000-0000-4000-8000-000000000003')));
+    assert.equal(w.location.hash, `#/profile/employer/notice/${second}`);
+    assert.ok(w.document.querySelector('.labor-notice-page'));
+    assert.equal(w.document.querySelector('.cb-box-overlay'), null, 'notice is a page, not a dialog');
+    assert.ok(w.qaCalls.some(c => c.path === 'applications' && c.query.includes('id=eq.' + second)));
+    w.document.querySelector('[aria-label="予定の詳細に戻る"]').click();
+    await until(() => w.document.querySelector('#schedule-partner-heading')?.textContent === 'テスト乙', 'notice returns to same schedule');
+    w.history.forward();
+    await until(() => w.document.querySelector('.cb-ctr-print'), 'forward restores notice');
+    w.history.back();
+    await until(() => w.document.querySelector('.schedule-message'), 'back restores schedule again');
     w.document.querySelector('.schedule-message').click();
     await until(() => w.location.hash === `#/chat/${second}`, 'selected chat');
     w.history.back();
@@ -145,6 +155,29 @@ test('real upcoming/detail/notice UI follows the selected application, survives 
     await until(() => w.location.hash === `#/chat/${second}`, 'return to originating chat');
     w = mount(entries, `#/profile/employer/schedule/${first}`, { fromChat: second });
     await until(() => w.document.querySelector('[aria-label="マイページに戻る"]'), 'unrelated chat is not a return destination');
+    // Notice URLs reload independently and retain a safe fallback when there is no prior route.
+    w = mount(entries, `#/profile/employer/notice/${second}`);
+    await until(() => w.document.querySelector('.cb-ctr-print'), 'cold notice URL');
+    assert.match(w.document.querySelector('.cb-ctr-print').textContent, /テスト乙専用/);
+    assert.equal(w.document.querySelectorAll('.labor-notice-actions button').length, 2);
+    w.document.querySelector('[aria-label="応募一覧に戻る"]').click();
+    await until(() => w.location.hash === '#/profile/employer/applicants', 'direct notice fallback');
+    w = mount([row(first, 'テスト農家', { my_role: 'worker' })], `#/profile/worker/notice/${first}`);
+    await until(() => w.document.querySelector('.cb-ctr-print'), 'worker notice URL');
+    assert.ok(w.qaCalls.some(c => c.path === 'applications' && c.query.includes('worker_id=eq.' + w.qaMe.id) && c.query.includes('id=eq.' + first)));
+    w.document.querySelector('[aria-label="応募一覧に戻る"]').click();
+    await until(() => w.location.hash === '#/profile/worker/applying', 'worker direct fallback');
+    w = mount(entries, '#/profile/employer/notice/99999999-0000-4000-8000-000000000009');
+    await until(() => w.document.body.textContent.includes('労働条件の記録を確認できません'), 'unavailable notice');
+    assert.equal(w.document.querySelector('.cb-ctr-print'), null);
+    assert.equal(w.document.querySelector('.labor-notice-actions'), null);
+    assert.ok(w.document.querySelector('.labor-notice-header button'), 'unavailable notice can still go back');
+    w = mount(entries, `#/profile/employer/notice/${second}`, {offline:true});
+    await until(() => w.document.body.textContent.includes('通知書を読み込めませんでした'), 'notice offline error after SDK retries', 12000);
+    assert.equal(w.document.querySelector('.cb-ctr-print'), null);
+    w.qaOffline = false;
+    button(w, '再読み込み').click();
+    await until(() => w.document.querySelector('.cb-ctr-print'), 'notice retry');
     assert.deepEqual(errors, []);
   } finally {
     dom?.window.close();

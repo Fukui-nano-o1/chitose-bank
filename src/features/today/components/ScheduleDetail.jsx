@@ -1,17 +1,14 @@
 import { goAlongPath, returnAlongPath } from "../../../lib/routeTrail";
-import { Suspense, useEffect, useState } from "react";
-import { lazyChunk } from "../../../app/chunkReload";
+import { useEffect } from "react";
+import { openLaborNotice } from "../../../lib/laborNoticeRoute";
 import { NavIconInline } from "../../../components/NavIcons";
 import { APP_PHASE_LABEL, APP_PHASE_DESC, APP_PHASE_COLOR, CHAT_LIST_STATUSES, ROLE_GREEN, ROLE_ORANGE, calFmtDate, photoThumb, workDaysStripData } from "../../../lib/utils";
 import { schedulePath, schedulePhase } from "../schedule";
 import { useScheduleEntries } from "../useScheduleEntries";
 import "./ScheduleDetail.css";
 
-const LaborConditionsNotice = lazyChunk(() => import("../../../components/LaborConditionsNotice"));
-
 export function ScheduleDetail({ me, role, applicationId }) {
   const { entries, loading, error, reload } = useScheduleEntries();
-  const [noticeOpen, setNoticeOpen] = useState(false);
   // マイページ下部から開いても、予定詳細の先頭へ着地させる。
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [applicationId]);
   // 求人番号では照合しない。同じ求人の別の相手へすり替わるのを防ぐ。
@@ -85,10 +82,9 @@ export function ScheduleDetail({ me, role, applicationId }) {
 
         <section className="schedule-section" aria-label="関連する情報">
           {role === "farmer" && <button type="button" className="schedule-link" onClick={openApplicant}><span>応募内容・採用の手続きを確認</span><span aria-hidden="true">›</span></button>}
-          {hasNotice && <button type="button" className="schedule-link" onClick={() => setNoticeOpen(true)}><span>労働条件通知書を確認</span><span aria-hidden="true">›</span></button>}
+          {hasNotice && <button type="button" className="schedule-link" onClick={() => openLaborNotice(role, applicationId, "予定の詳細に戻る")}><span>労働条件通知書を確認</span><span aria-hidden="true">›</span></button>}
           <button type="button" className="schedule-link" onClick={openJob}><span>求人の内容を見る</span><span aria-hidden="true">›</span></button>
         </section>
-        {noticeOpen && hasNotice && <Suspense fallback={<p role="status">通知書を読み込み中…</p>}><LaborConditionsNotice me={me} role={role} applicationId={applicationId} onClose={() => setNoticeOpen(false)} /></Suspense>}
       </>}
     </section>
   );

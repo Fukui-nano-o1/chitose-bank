@@ -18,7 +18,7 @@ import { MyCalendar } from "./MyCalendar";
 import { WorkDaysStrip } from "./WorkDaysStrip";
 import ContractEmergencyContact from "./ContractEmergencyContact";
 import { NavIcon, NavIconInline } from "./NavIcons";
-import LaborConditionsNotice from "./LaborConditionsNotice";
+import { openLaborNotice } from "../lib/laborNoticeRoute";
 import { DayReportSheet } from "./DayReportSheet";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
 
@@ -248,7 +248,6 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   const [cancelingId, setCancelingId] = useState(null); // 応募の取り消し中（多重送信ガード）
   // 求人カードのボタン（2026-08-23たきと指示「働き手のカレンダーも同じ構造で」＝雇い手の求人カードと同じ
   // 労働条件通知書／記録する（最終の作業日からは評価する））。表示・保存はすべて共有部品が担う
-  const [noticeAppId, setNoticeAppId] = useState(null);   // 労働条件通知書（1件だけ開くモード）
   const [dayReportApp, setDayReportApp] = useState(null); // その日の記録
   const [reviewApp, setReviewApp] = useState(null);       // 仕事の評価（働き手→農家）
   // カードの真ん中に出す募集主のアイコン（jobs_public の公開情報）。掲載が終わって
@@ -645,7 +644,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                             ★この通知書だけは最前線に置く（2026-08-24たきと指示「労働条件通知書は最前線」）＝
                             暗幕（zIndex:2）より上の zIndex:3。暗幕はタップを飲み込まない（pointerEvents:none）ので
                             押せること自体は重ね順に依存しないが、終わった仕事でも文字が暗くならず読める */}
-                      <button onClick={()=>setNoticeAppId(a.id)} className="f-sans"
+                      <button onClick={()=>openLaborNotice("worker", a.id, "応募状況に戻る")} className="f-sans"
                         style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer", background:"#fff", color:"#F76B1C", border:"1.5px solid #F76B1C", position:"relative", zIndex:3, pointerEvents:"auto" }}><NavIconInline name="book" size={14} style={{ verticalAlign:"-2px" }} />労働条件通知書</button>
                       {/* 働く日と応募の進み具合＝通知書の下（2026-08-23たきと指示）。
                           日の集合とラベルは workDaysStripData＝カレンダーと同じ優先順（確定＞来られる日の申告＞
@@ -677,7 +676,6 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
       )}
 
       {/* 求人カードのボタンが開くもの（表示・入力・保存は全部これらの共有部品が持つ） */}
-      {noticeAppId && <LaborConditionsNotice me={me} role="worker" applicationId={noticeAppId} onClose={()=>setNoticeAppId(null)} />}
       <DayReportSheet app={dayReportApp} meId={me?.id} role="worker"
         onClose={()=>setDayReportApp(null)} onDone={()=>setDayReportApp(null)} />
       <WorkerReviewSheet app={reviewApp} meId={me?.id}

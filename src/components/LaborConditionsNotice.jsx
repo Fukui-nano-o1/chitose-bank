@@ -1,15 +1,5 @@
-// 労働条件通知書カード（2026-08-18 たきと指示「労働条件通知書カードを新設する。両者のプロフィールページに新設」）
-// ・両役割の入口カード。働き手＝ProfileHubの「わたしの記録」／雇い手＝FarmerDashboardの「記録」に置く。
-//   同じ部品を role で出し分ける＝文言・体裁が片側だけ古くなることが起きない。
-// ・出どころは applications.terms_snapshot（採用＝両者の確認の時点で凍結・変更不可）だけ。
-//   現在のプロフィール・求人の値は一切混ぜない（凍結記録に現在値を混ぜると「通知書」が後から変わる）。
-// ・読み取り専用：applications は当事者RLS（worker_id／farmer_id が自分の行のみ）。新しい保存・入力は無い。
-// ・氏名の窓口は従来どおり：凍結名（terms_snapshot.party_names／掲載時の recruiter_name）を第一に、
-//   凍結名を持たない旧契約だけ contract_party_name（当事者のみ・SECURITY DEFINER）で相手名を引く。
-//   自分の氏名は account_holders（self-read）。worker_profiles へ本名を写さない原則（2026-07-30裁定(B)）は不変。
-// ・★記録に無い法定の明示事項（契約の更新・変更の範囲・退職に関する事項ほか）は作らない（データ憲法3条・
-//   表示にダミー禁止）。「記録にありません」と正直に出し、文末で当事者間の別途明示を促す。
-// ・印刷は appStyles の「契約の印刷」@media print と対（.cb-ctr-print / -overlay / -sheet の3クラス）。
+// 労働条件通知書の専用ページ。本文・PDF・印刷は同じ契約記録から作成する。
+// 当事者本人と応募IDで絞り込み、既存のRLS・旧契約の来歴表示を維持する。
 import { productAnalytics } from "../lib/productAnalytics";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -18,6 +8,8 @@ import { fetchJobRowsForMe } from "../lib/jobForMe";
 import { saveElementAsPdf } from "../lib/pdfExport";
 import { payTermsLine, overtimeLine, WAGE_CLOSING_RULE_LABELS, INSURANCE_ITEMS, normalizeInsuranceItems, ROLE_GREEN, ROLE_ORANGE } from "../lib/utils";
 import { Dots } from "./ui";
+import { returnAlongPath, routeReturn } from "../lib/routeTrail";
+import "./LaborConditionsNotice.css";
 
 // 通知書には年まで要る（fmtJstShort は月日からなので使わない）
 const fmtJstFull = (ts) => {
@@ -116,98 +108,76 @@ function buildSections(s, r) {
   ];
 }
 
-// applicationId（任意・2026-08-23たきと指示「求人カードに労働条件通知書ボタン」）：
-//   渡すと入口カード・一覧を出さず、その1件の通知書だけをその場で開く（呼び出し元が入口を持つ形）。
-//   読む先・組み立て・印刷は一覧から開いた時と完全に同じ＝通知書の姿を二重に作らない。
-//   とじる／外タップで onClose を呼ぶ（開いているかどうかは呼び出し元が持つ）
-export default function LaborConditionsNotice({ me, role = "worker", applicationId = null, onClose }) {
-  const single = !!applicationId;
+export default function LaborConditionsNotice({ me, role = "worker", applicationId }) {
   const isWorker = role === "worker";
   const accent = isWorker ? ROLE_ORANGE : ROLE_GREEN;
-  const [rows, setRows] = useState(null);        // null=読み込み中
-  const [jobRows, setJobRows] = useState({});    // 凍結が無い採用のための求人の記録（job_number→行）
+  const [open, setOpen] = useState(null);
+  const [jobRows, setJobRows] = useState({});
   const [myName, setMyName] = useState("");
-  const [listOpen, setListOpen] = useState(false);
-  const [open, setOpen] = useState(null);        // 表示中の契約（applications行）
-  const [partnerName, setPartnerName] = useState(""); // 凍結名を持たない旧契約のRPCフォールバック名
-  const [infoOpen, setInfoOpen] = useState(false); // 説明は？ボタンで展開（また呼びたいリストと同じ作法・2026-08-18たきと指示）
-  const [pdfBusy, setPdfBusy] = useState(false); // PDFの作成中（共通出力側で待機期限を管理）
-  const printRef = useRef(null);                 // 通知書の本体（.cb-ctr-print）＝PDFに写す範囲
+  const [partnerName, setPartnerName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const printRef = useRef(null);
+  const headingRef = useRef(null);
+  const printCleanup = useRef(null);
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+    return () => printCleanup.current?.();
+  }, []);
 
   useEffect(() => {
-    if (!me?.id) return;
     let live = true;
+    setOpen(null); setJobRows({}); setMyName(""); setPartnerName("");
+    setLoading(true); setError(false);
     (async () => {
-      const [apps, ah] = await Promise.all([
-        supabase.from("applications")
-          .select("id, job_number, status, terms_snapshot, terms_confirmed_worker_at, terms_confirmed_farmer_at")
-          .eq(isWorker ? "worker_id" : "farmer_id", me.id)
-          // ★凍結（terms_snapshot）が無い採用も拾う（2026-08-24たきと指示「通知書の提供は義務だ」）：
-          //   凍結は2026-08-02からの仕組みなので、それ以前の採用と記録を入れ直した分は凍結が無い。
-          //   双方の確認時刻が揃っている＝契約は現に成立している＝通知書を出さないわけにはいかない。
-          //   絞り込みは「募集主の採用の時刻がある」1本だけにして（実測：凍結・完了の行は必ずこれを持つ）、
-          //   細かい判定は下の filter で行う＝入り組んだ or() をサーバーに書かない
-          .not("terms_confirmed_farmer_at", "is", null)
-          .order("terms_confirmed_farmer_at", { ascending: false, nullsFirst: false }),
-        supabase.from("account_holders").select("full_name").eq("auth_id", me.id).maybeSingle(),
-      ]);
-      if (!live) return;
-      // 契約が成立している行だけ＝凍結がある、または双方の確認時刻が揃っている、または完了した仕事
-      const contracts = (apps.data || []).filter(r => r.terms_snapshot
-        || (r.terms_confirmed_worker_at && r.terms_confirmed_farmer_at) || r.status === "completed");
-      if (!apps.error) setRows(contracts); else setRows(r => r ?? []); // 失敗時は手元の値を上書きしない
-      if (!ah.error && ah.data?.full_name) setMyName(ah.data.full_name);
-      // 凍結が無い分は、求人の記録から通知書を作る（当事者用の窓口＝掲載が終わっていても引ける）。
-      // ★これは「いまの求人の値」であり凍結記録ではない＝通知書の中でその旨を必ず明示する（下の fromJob）
-      const noSnap = contracts.filter(r => !r.terms_snapshot).map(r => r.job_number);
-      if (noSnap.length > 0) {
-        const { rows: jr } = await fetchJobRowsForMe(noSnap);
-        if (live) setJobRows(jr);
+      try {
+        if (!me?.id || !applicationId) return;
+        const [apps, ah] = await Promise.all([
+          supabase.from("applications")
+            .select("id, job_number, status, terms_snapshot, terms_confirmed_worker_at, terms_confirmed_farmer_at")
+            .eq(isWorker ? "worker_id" : "farmer_id", me.id)
+            .eq("id", applicationId)
+            .not("terms_confirmed_farmer_at", "is", null),
+          supabase.from("account_holders").select("full_name").eq("auth_id", me.id).maybeSingle(),
+        ]);
+        if (apps.error) throw apps.error;
+        const r = (apps.data || []).find(row => row.id === applicationId && row.terms_confirmed_farmer_at &&
+          (row.terms_snapshot || row.terms_confirmed_worker_at || row.status === "completed"));
+        if (!r || !live) return;
+        let jobs = {};
+        if (!r.terms_snapshot) {
+          const result = await fetchJobRowsForMe([r.job_number]);
+          if (result.error && !result.rows[r.job_number]) throw result.error;
+          jobs = result.rows;
+        }
+        const terms = r.terms_snapshot || jobs[r.job_number] || {};
+        const frozenName = isWorker ? (terms.party_names?.farmer || terms.recruiter_name) : terms.party_names?.worker;
+        let name = "";
+        if (!frozenName) {
+          const result = await supabase.rpc("contract_party_name", { p_application_id: r.id });
+          if (!result.error && result.data?.ok) name = result.data.name || "";
+        }
+        if (!live) return;
+        setJobRows(jobs); setMyName(ah.data?.full_name || ""); setPartnerName(name); setOpen(r);
+      } catch {
+        if (live) setError(true);
+      } finally {
+        if (live) setLoading(false);
       }
     })();
     return () => { live = false; };
-  }, [me?.id, isWorker]);
+  }, [me?.id, isWorker, applicationId, reload]);
 
-  // 通知書の中身の出どころ：凍結（terms_snapshot）があればそれ、無ければ求人の記録から作る。
-  // ★求人の記録は「いまの値」＝凍結ではないので、fromJob を立てて画面と紙の両方に明示する。
-  //   列の名前は凍結と同じ（jobs_public 由来）なので、address だけ work_address から移せば buildSections がそのまま使える
   const termsOf = (r) => {
     if (r?.terms_snapshot) return { s: r.terms_snapshot, fromJob: false };
     const j = jobRows[r?.job_number];
-    if (j) return { s: { ...j, address: j.work_address }, fromJob: true };
-    return { s: {}, fromJob: true };
+    return { s: j ? { ...j, address: j.work_address } : {}, fromJob: true };
   };
-  const openNotice = (r) => {
-    setOpen(r); setPartnerName("");
-    const { s } = termsOf(r);
-    // 相手の凍結名が無い旧契約だけRPCで引く（働き手から見た相手＝募集主／雇い手から見た相手＝働き手）。
-    // ★凍結が無い採用（2026-08-24）もここを通る＝contract_party_name を双方の確認時刻で開くようにした
-    const frozen = isWorker ? (s?.party_names?.farmer || s?.recruiter_name) : s?.party_names?.worker;
-    if (!frozen) {
-      Promise.resolve(supabase.rpc("contract_party_name", { p_application_id: r.id }))
-        .then(res => { if (!res.error && res.data?.ok && res.data.name) setPartnerName(res.data.name); })
-        .catch(() => {});
-    }
+  const back = () => {
+    if (!returnAlongPath()) window.location.hash = isWorker ? "/profile/worker/applying" : "/profile/employer/applicants";
   };
-
-  // 1件だけ開くモード：契約が読み終わったらその行をそのまま開く（一覧は挟まない）
-  useEffect(() => {
-    if (!single || !rows) return;
-    const r = rows.find(x => x.id === applicationId);
-    if (r) openNotice(r);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [single, rows, applicationId]);
-  // とじる＝1件モードでは呼び出し元にも知らせる（呼び出し元が開閉を持っているため）
-  const closeNotice = () => { setOpen(null); if (single) onClose?.(); };
-
-  // 印刷（2026-08-18たきと報告「1枚目の大部分が空白」）：紙に出さないものを流し込みから外すため、
-  // 押した瞬間に html/body へ .cb-print-doc を付ける。効くのは @media print の中だけなので画面は変わらない。
-  // ★:has() に頼らない＝素のクラスセレクタで確実に当てる。afterprint は iOS で発火しないことが
-  //   あるため時間でも外す（外し忘れても画面には影響しない）。
-  // PDFは「印刷」からブラウザ・OSの「PDFとして保存」で作る（2026-08-19たきと指示）。
-  // 外部ライブラリでPDFを組み立てない＝日本語フォントの埋め込み（数MB）も、文字を画像に焼く劣化も避ける。
-  // 印刷と同じ出力＝紙とPDFで体裁が食い違わない。docTitle は保存時の既定のファイル名になる
-  // （ブラウザは document.title をPDFの名前に使う）。押した後は必ず元のタイトルへ戻す。
   const noticeFileName = (r) => {
     const s = termsOf(r).s;
     const label = [s.crop, s.task].filter(Boolean).join(" ");
@@ -235,127 +205,45 @@ export default function LaborConditionsNotice({ me, role = "worker", application
   };
 
   const printNotice = (r) => {
+    printCleanup.current?.();
     const docTitle = noticeFileName(r);
     const prevTitle = document.title;
     const el = [document.documentElement, document.body];
     el.forEach(n => n && n.classList.add("cb-print-doc"));
     document.title = docTitle;
+    let timer;
     const off = () => {
+      clearTimeout(timer);
+      printCleanup.current = null;
       el.forEach(n => n && n.classList.remove("cb-print-doc"));
       document.title = prevTitle;
       window.removeEventListener("afterprint", off);
     };
     window.addEventListener("afterprint", off);
-    setTimeout(off, 60000);
+    printCleanup.current = off;
+    timer = setTimeout(off, 60000);
     try { window.print(); } catch { off(); }
   };
 
-  const count = rows ? rows.length : 0;
-
-  return (
-    <>
-      {/* 「わたしの記録」「記録」カテゴリーの中に並ぶ1枚（2026-08-18たきと指示）＝専用の見出しは持たない。
-          件数0でもカードは出す（タップ不能・非表示にしない＝2026-08-03の原則。中で説明を出す）。
-          1件だけ開くモード（applicationId）では入口カードを出さない＝呼び出し元のボタンが入口 */}
-      {!single && <button type="button" onClick={() => setListOpen(true)} className="f-sans" style={{ width:"100%", marginTop:12, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, padding:"18px 16px", cursor:"pointer", display:"block", textAlign:"left", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-        <span className="f-sans" style={{ display:"block", fontSize:16, fontWeight:800, color:"#222" }}>労働条件通知書</span>
-        <span className="f-sans" style={{ display:"block", fontSize:13, color:"#717171", marginTop:4, lineHeight:1.6 }}>
-          {rows === null ? <>読み込み中<Dots /></> : count > 0 ? `${count}件　採用の時点で決まった労働条件です。表示・印刷できます` : (isWorker ? "採用が決まると、その時の労働条件がここに残ります" : "働き手の採用を決めると、その時の労働条件がここに残ります")}
-        </span>
-      </button>}
-
-      {/* 1件だけ開くモードの読み込み中・見つからない時（黙って何も出さない、を作らない） */}
-      {single && !open && createPortal(
-        <div onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10500, padding:"40px 16px" }}>
-          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:16, padding:"22px 20px", maxWidth:380, width:"100%", textAlign:"center" }}>
-            <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.9, margin:"0 0 14px" }}>
-              {rows === null ? <>読み込み中<Dots /></> : "この仕事の労働条件の記録が見つかりません。"}
-            </p>
-            <button onClick={() => onClose?.()} className="f-sans" style={{ background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"11px 22px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* 一覧（契約の選択）。ボックスは上下40pxの余白を残して画面中央＝2026-08-01に統一した
-          編集モーダルと同じ規格（overlayに padding:"40px 16px"／シートは maxHeight:"100%"＝
-          余白を差し引いた高さが上限）。85vhだと余白が上下で不均等に見えるので使わない */}
-      {listOpen && createPortal(
-        <div onClick={(e) => { if (e.target === e.currentTarget) setListOpen(false); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10000, padding:"40px 16px" }}>
-          <div onClick={e => e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", position:"relative" }}>
-            {/* 見出し行ごと「？」の当たり判定にする（22pxだけだと外して黒幕に当たる・2026-08-18たきと報告）。
-                ✕（右上・36px）と重ならないよう右に48pxの余白を空ける。？は見た目の丸チップ＝入れ子のbuttonにしない */}
-            <button type="button" onClick={(e) => { e.stopPropagation(); setInfoOpen(v => !v); }} aria-label="説明を見る" aria-expanded={infoOpen}
-              style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 12px", padding:"4px 48px 4px 0", background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
-              <span className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222" }}>労働条件通知書</span>
-              <span className="f-sans" style={{ width:22, height:22, borderRadius:11, background: infoOpen ? accent : "#F0F0F0", color: infoOpen ? "#fff" : "#717171", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
-            </button>
-            {infoOpen && (
-              <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.8, margin:"0 0 12px" }}>
-                採用（両者の確認）が決まった時点の労働条件の記録です。タップすると内容の表示・印刷ができます。あとから変更できません。
-              </p>
-            )}
-            {rows === null ? (
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", padding:"24px 8px" }}>読み込み中<Dots /></p>
-            ) : count === 0 ? (
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", textAlign:"center", lineHeight:1.9, padding:"24px 8px" }}>
-                まだ採用が決まった仕事はありません。<br />
-                {isWorker ? "採用が決まると、その時の労働条件がここに残ります。" : "働き手の採用を決めると、その時の労働条件がここに残ります。"}
-              </p>
-            ) : (
-              <div style={{ display:"grid", gap:8 }}>
-                {rows.map(r => {
-                  const { s, fromJob } = termsOf(r);
-                  const title = [s.crop, s.task].filter(Boolean).join(" ") || `求人 #${r.job_number}`;
-                  // 雇い手は同じ求人に複数人ぶん並ぶので、相手（働き手）の凍結名を添えて見分けられるようにする
-                  const who = isWorker ? (s?.party_names?.farmer || s?.recruiter_name || "") : (s?.party_names?.worker || "");
-                  return (
-                    <button key={r.id} onClick={() => openNotice(r)} className="f-sans" style={{ display:"block", width:"100%", textAlign:"left", border:"1px solid #EBEBEB", borderRadius:12, padding:"12px 14px", background:"#fff", cursor:"pointer" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:8 }}>
-                        <span style={{ fontSize:13, fontWeight:700, color:"#222" }}>{title} <span style={{ fontSize:11, color:"#C8C8C8" }}>#{r.job_number}</span></span>
-                        <span style={{ fontSize:11, color:"#B0B0B0", flexShrink:0 }}>{fmtJstFull(s.snapshot_at || r.terms_confirmed_farmer_at)}</span>
-                      </div>
-                      {who && <span style={{ display:"block", fontSize:12, color:"#717171", marginTop:2 }}>{isWorker ? "募集主" : "働き手"}：{who}</span>}
-                      {fromJob && <span style={{ display:"block", fontSize:11, color:"#B07500", marginTop:2 }}>求人の記録から作成（凍結記録なし）</span>}
-                      <span style={{ display:"block", fontSize:11, color:accent, marginTop:4 }}>表示・印刷 →</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* 通知書本体（印刷対象＝.cb-ctr-print） */}
-      {open && createPortal(
-        (() => {
+  return createPortal(
+    <section role="main" className="labor-notice-page cb-ctr-print-overlay f-sans" style={{ "--notice-accent": accent }} aria-labelledby="labor-notice-heading">
+      <header className="labor-notice-header no-print">
+        <button type="button" onClick={back} aria-label={routeReturn()?.label || "応募一覧に戻る"}>‹</button>
+        <h1 id="labor-notice-heading" ref={headingRef} tabIndex={-1}>労働条件通知書</h1>
+      </header>
+      <div className="labor-notice-scroll cb-ctr-print-sheet">
+        {!open && <div className="labor-notice-feedback" role="status">
+          <p>{loading ? <>通知書を読み込み中<Dots /></> : error
+            ? "通知書を読み込めませんでした。通信状況を確認して、もう一度お試しください。"
+            : "この仕事の労働条件の記録を確認できません。応募一覧からご確認ください。"}</p>
+          {error && <button type="button" onClick={() => setReload(value => value + 1)}>再読み込み</button>}
+        </div>}
+        {open && (() => {
           const r = open; const { s, fromJob } = termsOf(r);
           const farmerName = s?.party_names?.farmer || s?.recruiter_name || (isWorker ? partnerName : myName) || "—";
           const workerName = s?.party_names?.worker || (isWorker ? myName : partnerName) || "—";
           const sections = buildSections(s, r);
-          // 印刷する／とじるは2箇所に置く（当事者欄の直下と、いちばん下）。
-          // 長い通知書でも最後までスクロールせずに押せる。className="no-print" ＝紙には出ない
-          const actionRow = (style, hint) => (
-            <div className="no-print" style={{ ...style }}>
-              <div style={{ display:"flex", gap:8 }}>
-                <button onClick={() => printNotice(r)} className="f-sans" style={{ flex:1, background:accent, color:"#fff", border:"none", borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer" }}>印刷する</button>
-                <button onClick={() => savePdf(r)} disabled={pdfBusy} className="f-sans" style={{ flex:1, background:"#fff", color:accent, border:"1.5px solid " + accent, borderRadius:12, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer", opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? <>作成中<Dots /></> : "PDFで保存"}</button>
-                <button onClick={closeNotice} className="f-sans" style={{ flex:"0 0 auto", background:"#F0F0F0", color:"#555", border:"none", borderRadius:12, padding:"13px 14px", fontSize:14, fontWeight:700, cursor:"pointer" }}>とじる</button>
-              </div>
-              {hint && (
-                <p className="f-sans" style={{ fontSize:11, color:"#909090", lineHeight:1.7, margin:"8px 0 0" }}>
-                  「PDFで保存」を押すとPDFファイルが保存されます（iPhoneはダウンロード → ファイルアプリに入ります）。<br />
-                  「印刷する」は、iPhoneで「自動的に印刷することは禁止されています」と出たら「許可」を選んでください。
-                </p>
-              )}
-            </div>
-          );
           return (
-            <div onClick={(e) => { if (e.target === e.currentTarget) closeNotice(); }} className="cb-box-overlay cb-lock-scroll cb-ctr-print-overlay" style={{ zIndex: 10500, padding:"40px 16px" }}>
-              <div onClick={e => e.stopPropagation()} className="cb-sheet-up cb-ctr-print-sheet" style={{ background:"#fff", borderRadius:16, padding:"20px", maxWidth:460, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-                {/* ✕は置かない（外タップで閉じる・入力ボックスの統一と同じ作法）。下部に「とじる」あり */}
                 <div className="cb-ctr-print" ref={printRef}>
                   <p className="f-sans" style={{ fontSize:19, fontWeight:800, color:"#222", margin:"0 0 2px", textAlign:"center" }}>労働条件通知書</p>
                   <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"0 0 14px", textAlign:"center" }}>
@@ -383,7 +271,6 @@ export default function LaborConditionsNotice({ me, role = "worker", application
                     <p className="f-sans" style={{ fontSize:11, color:"#909090", margin:"10px 0 2px" }}>労働者</p>
                     <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", margin:0 }}>{workerName}</p>
                   </div>
-                  {actionRow({ margin:"0 0 14px" })}
 
                   {sections.map(sec => (
                     <div key={sec.h} className="cb-ctr-sec" style={{ marginBottom:12 }}>
@@ -418,13 +305,13 @@ export default function LaborConditionsNotice({ me, role = "worker", application
                     chitose-bank（https://chitose-bank.com）
                   </p>
                 </div>
-                {actionRow({ marginTop:16 }, true)}
-              </div>
-            </div>
           );
-        })(),
-        document.body
-      )}
-    </>
+        })()}
+      </div>
+      {open && <footer className="labor-notice-actions no-print">
+        <button type="button" onClick={() => printNotice(open)}>印刷する</button>
+        <button type="button" className="labor-notice-save" onClick={() => savePdf(open)} disabled={pdfBusy} aria-busy={pdfBusy}>{pdfBusy ? <>作成中<Dots /></> : "PDFで保存"}</button>
+      </footer>}
+    </section>, document.body
   );
 }

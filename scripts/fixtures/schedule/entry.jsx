@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { UpcomingSchedule } from '../../../src/features/today/components/Upcoming';
 import { ScheduleDetail } from '../../../src/features/today/components/ScheduleDetail';
+import { readLaborNoticeRoute } from "../../../src/lib/laborNoticeRoute";
+import LaborConditionsNotice from "../../../src/components/LaborConditionsNotice";
 import { readScheduleRoute } from '../../../src/features/today/schedule';
 import { emitConfirmedRefresh, REFRESH_APPLICATIONS } from '../../../src/lib/refreshBus';
 
@@ -14,6 +16,8 @@ function Fixture() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+  const notice = readLaborNoticeRoute(hash);
+  if (notice) return <LaborConditionsNotice key={hash} me={window.qaMe} {...notice} />;
   const route = readScheduleRoute(hash);
   if (route) return <ScheduleDetail key={hash} me={window.qaMe} {...route} />;
   if (hash.startsWith('#/chat/')) return <p>チャットへの遷移を確認</p>;

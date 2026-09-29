@@ -94,6 +94,16 @@ test('notice PDF isolates stalled page resources, bounds canvases, recovers from
     w.qaCapture = async (_el, options) => canvas(options);
     w.eval(script);
     await until(() => w.document.querySelector('.cb-ctr-print'), 'notice loaded');
+    assert.equal(w.document.querySelector('.cb-box-overlay'), null);
+    assert.equal(w.document.querySelectorAll('.labor-notice-actions button').length, 2);
+    const originalTitle = w.document.title;
+    let printed = false;
+    w.print = () => { printed = true; assert.ok(w.document.body.classList.contains('cb-print-doc')); };
+    [...w.document.querySelectorAll('button')].find(b => b.textContent === '印刷する').click();
+    assert.equal(printed, true);
+    w.dispatchEvent(new w.Event('afterprint'));
+    assert.equal(w.document.body.classList.contains('cb-print-doc'), false);
+    assert.equal(w.document.title, originalTitle);
     const expected = w.document.querySelector('.cb-ctr-print').cloneNode(true);
     expected.querySelectorAll('.no-print').forEach(n => n.remove());
     const save = () => [...w.document.querySelectorAll('button')].find(b => b.textContent === 'PDFで保存');

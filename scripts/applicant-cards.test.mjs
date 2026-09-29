@@ -141,6 +141,9 @@ test('applicant cards keep per-person actions, schedule accuracy, and closed-sta
     button(card(w, 'second'), '労働条件通知書›').click();
     await until(() => w.document.querySelector('.cb-ctr-print')?.textContent.includes('worker-second専用の通知書'), 'notice for selected applicant');
     assert.doesNotMatch(w.document.querySelector('.cb-ctr-print').textContent, /worker-first専用/);
+    assert.equal(w.location.hash, '#/profile/employer/notice/second');
+    w.document.querySelector('[aria-label="応募者一覧に戻る"]').click();
+    await until(() => card(w, 'second'), 'notice returns to original applicant list');
     assert.ok(w.qaRequests.some(r => r.path === 'applications' && r.query.includes('farmer_id=eq.30000000-0000-4000-8000-000000000003')));
     assert.deepEqual(Array.from(w.qaUnexpected), []);
 

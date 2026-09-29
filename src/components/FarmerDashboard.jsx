@@ -26,7 +26,7 @@ import { WorkerTrustCard, FarmerTrustCard } from "./TrustCards";
 import { MyReviewsOfWorker } from "./MyReviewsOfWorker";
 import ContractPartyName from "./ContractPartyName";
 import ContractEmergencyContact from "./ContractEmergencyContact";
-import LaborConditionsNotice from "./LaborConditionsNotice";
+import { openLaborNotice } from "../lib/laborNoticeRoute";
 import { HireConfirm } from "./HireConfirm";
 import { getCache, setCache } from "../lib/viewCache";
 import { classifyFarmerJobs } from "../lib/farmerJobLists";
@@ -274,9 +274,6 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   // （今日ページの📋今日の記録・緊急連絡のシートと同じもの＝入力を枝分かれさせない）。
   // ★ここで記録しても作業全体の出欠（applications.attended）は変わらない＝最終日の評価で決まる
   const [dayReportApp, setDayReportApp] = useState(null);
-  // 労働条件通知書を1件だけ開く（求人カードのボタン・2026-08-23たきと指示）。表示・印刷は
-  // 共有部品 LaborConditionsNotice が担う＝通知書の姿をこの画面で作らない
-  const [noticeAppId, setNoticeAppId] = useState(null);
   // 完了・評価モーダル（Part1）
   const [completeModalApp, setCompleteModalApp] = useState(null);
   // 最終日の評価の答え（2026-08-20に3問×3択＋タグへ再設計）。列名をそのまま鍵にする
@@ -970,8 +967,6 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
       {/* その日の記録（最終の作業日より前の作業日・2026-08-19）。祝祭は出さない（祝う場面ではない） */}
       <DayReportSheet app={dayReportApp && { id: dayReportApp.id }} meId={me?.id} role="farmer"
         onClose={()=>setDayReportApp(null)} onDone={()=>setDayReportApp(null)} />
-      {/* 労働条件通知書（求人カードのボタンから1件だけ開く・2026-08-23）。入口カードは出さないモード */}
-      {noticeAppId && <LaborConditionsNotice me={me} role="farmer" applicationId={noticeAppId} onClose={()=>setNoticeAppId(null)} />}
       {jobTab === "home" ? (
         <>
           {/* ═══ Airbnb型入口メニュー（2026-07-14）：大プロフィールカード＋絵文字カード格子＋ワイド求人作成カード。
@@ -1088,7 +1083,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
               : <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>{rosterRows.map(r => (<button key={r.worker_id} onClick={()=>openRosterDetail(r.worker_id)} aria-label="働き手の詳細" style={{ background:"none", border:"none", padding:0, cursor:"pointer" }}><Avatar url={r.avatar_url} name={r.nickname || "？"} size={52} ring={ROLE_ORANGE} bg={ROLE_ORANGE} /></button>))}</div>}
             {/* 「労働条件通知書」の入口カードは削除（2026-08-22たきと指示）。
                 ★通知書そのものは残っている：求人カードのボタンから1件ずつ開く
-                （上の noticeAppId 経由・applicationId付きのLaborConditionsNotice・表示と印刷）＝
+                （応募IDごとの専用ページ・LaborConditionsNotice・表示と印刷）＝
                 雇用主が労働条件を明示・交付する手段はサイトから失われていない */}
           </div>
           {/* つぎの予定（7日以内）。やることの格子は2026-08-25たきと指示で撤去（働き手面と対）＝
@@ -1292,7 +1287,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                       onOpenDetails={app => setSheetApplicantId(app.id)}
                       onChat={id => { window.location.hash = "/chat/" + id; }}
                       onHire={openHire} onInsurance={goInsurancePage} onReview={openCompleteModal}
-                      onReport={setDayReportApp} onNotice={setNoticeAppId} />
+                      onReport={setDayReportApp} onNotice={id => openLaborNotice("farmer", id, "応募者一覧に戻る")} />
                   ));
                 });
             // カレンダータブ：日を選んでいない時は静かな面＝カレンダー・案内・直近カード1枚だけ
