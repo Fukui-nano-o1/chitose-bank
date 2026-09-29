@@ -1,3 +1,4 @@
+import { WorkReviewFlow } from "./WorkReviewFlow";
 // 最終日の評価の器（2026-08-20たきと裁定で全面再設計）。両方向で同じ器・違う設問。
 // 三層の設計：日次＝事故ログ（DayReportSheet・attendance_events）／最終日＝この画面で評価／
 //   プロフィール＝その両方から自動生成（worker_work_record・reviews_public_badges）。
@@ -192,6 +193,30 @@ export function FinalReviewSheet({
       )}
     </fieldset>
   );
+  if (tagDef?.points) {
+    const pointAnswers = Object.fromEntries(tagDef.points.map(point => [point.key,
+      tags.includes(point.positiveTag) ? 'positive' : tags.includes(point.negativeTag) ? 'negative' : undefined]));
+    const summary = <>
+      {questions.map(q => <p key={q.k}>{q.label}<br /><strong>{choiceLabel(q)}</strong></p>)}
+      {confirmExtra}
+    </>;
+    return <WorkReviewFlow key={app.id} points={tagDef.points} answers={pointAnswers}
+      onAnswer={(key, polarity) => {
+        const point = tagDef.points.find(item => item.key === key);
+        const next = polarity === 'positive' ? point.positiveTag : polarity === 'negative' ? point.negativeTag : null;
+        for (const tag of [point.positiveTag, point.negativeTag]) {
+          if (tags.includes(tag) !== (tag === next)) onToggleTag(tag);
+        }
+      }} dayCount={dayCount} submitting={submitting} onSubmit={onSubmit} onClose={onClose}
+      startTitle={title} startReady={ready} summaryContent={summary} publicationNote={confirmNote}
+      startContent={<>
+        {intro && <p className="work-review-lead">{intro}</p>}
+        <DayFacts applicationId={app.id} dayCount={dayCount} />
+        {questions.map(q => renderQuestion(q))}
+        {extra}{footer}
+        {!ready && <p role="status">あと{unanswered.length}問、選んでください</p>}
+      </>} />;
+  }
   return shell(
     headerBtn(()=>{ if (!submitting) onClose(); }, "とじる", <NavIcon name="close" size={18} />),
     <>

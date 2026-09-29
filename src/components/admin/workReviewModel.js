@@ -1,10 +1,6 @@
+import { detailReviewTags } from '../../lib/reviewCatalog.js';
 import { WORK_REVIEW_POINTS } from '../../lib/workReview.js';
 
-const TRAITS = {
-  careful: ['丁寧だった', true], fast: ['作業が早かった', true],
-  attentive: ['指示をよく確認した', true], safe: ['安全に作業した', true],
-  work_issue: ['作業に問題があった', false], comm_issue: ['コミュニケーションに問題があった', false],
-};
 const WORKER_LEGACY = { on_time: '時間を守っていた', completed_work: '仕事を完了した' };
 const FARMER_LEGACY = { on_time: '時間を守っていた', followed_instructions: '指示どおりに作業した', entrust: '任せられた' };
 export function reviewAnswers(review) {
@@ -13,6 +9,10 @@ export function reviewAnswers(review) {
     for (const point of WORK_REVIEW_POINTS) {
       if (review[point.key] === true) positive.push(point.positive);
       else if (review[point.key] === false) negative.push(point.negative);
+    }
+    for (const tag of Array.isArray(review.traits) ? review.traits : []) {
+      const item = detailReviewTags(review.direction).find(option => option.v === tag);
+      if (item) (item.negative ? negative : positive).push(item.l);
     }
     if (review.match_level === 'partly') other.push('求人との一致：一部違った');
     if (review.match_level === 'differed') other.push('求人との一致：大きく違った');
@@ -26,8 +26,8 @@ export function reviewAnswers(review) {
     if (again === 'yes') positive.push('またこの人と働きたい');
     if (again === 'no') negative.push('またこの人と働きたいとは思わなかった');
     for (const tag of Array.isArray(review.traits) ? review.traits : []) {
-      const item = TRAITS[tag];
-      if (item) (item[1] ? positive : negative).push(item[0]);
+      const item = detailReviewTags(review.direction).find(option => option.v === tag);
+      if (item) (item.negative ? negative : positive).push(item.l);
     }
   }
   if (review.want_again_choice === 'neutral') other.push('また働きたいか：どちらともいえない');

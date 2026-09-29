@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { NavIconInline } from "./NavIcons";
+import { FARMER_TRAIT_TAGS } from "../lib/reviewCatalog";
 
 // あなたの評価（2026-07-19）：この農家自身が過去にこの働き手へ行った評価の全記録。
 // 職安法対応：reviewsのRLSは reviewer_id = auth.uid() のSELECTのみ＝評価した当人にしか読めず、
@@ -10,12 +11,13 @@ export function MyReviewsOfWorker({ workerId }) {
   const [rows, setRows] = useState(null);
   useEffect(() => {
     let cancelled = false;
+    setRows(null);
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { if (!cancelled) setRows([]); return; }
         const { data } = await supabase.from("reviews")
-          .select("id,application_id,want_again,entrust,public_comment,private_memo,created_at")
+          .select("id,application_id,want_again,want_again_choice,work_outcome,traits,entrust,public_comment,private_memo,created_at")
           .eq("reviewer_id", session.user.id).eq("reviewee_id", workerId).eq("direction", "farmer_to_worker")
           .order("created_at", { ascending: false });
         if (!cancelled) setRows(data || []);
@@ -32,7 +34,15 @@ export function MyReviewsOfWorker({ workerId }) {
       {rows.map(r => (
         <div key={r.id} className="f-sans" style={{ borderTop:"1px solid #E5F2EB", padding:"8px 0 6px", fontSize:12, color:"#222" }}>
           <p style={{ margin:"0 0 4px", color:"#999", fontSize:11 }}>{new Date(r.created_at).toLocaleDateString("ja-JP")}</p>
-          <p style={{ margin:0 }}>また呼びたい：<b>{yn(r.want_again)}</b>　安心して任せられた：<b>{yn(r.entrust)}</b></p>
+          <p style={{ margin:0 }}>また呼びたい：<b>{r.want_again_choice === 'neutral' ? 'どちらともいえない' : yn(r.want_again)}</b>
+            {typeof r.entrust === 'boolean' && <>　安心して任せられた：<b>{yn(r.entrust)}</b></>}</p>
+          {r.work_outcome && <p style={{ margin:'6px 0 0' }}>仕事の完了：<b>{{completed:'予定どおり完了',partial:'一部完了',not_completed:'完了できなかった'}[r.work_outcome]}</b></p>}
+          {[{negative:false,label:'良い点'},{negative:true,label:'悪い点（非公開）'}].map(group => {
+            const selected=FARMER_TRAIT_TAGS.options.filter(tag=>!!tag.negative===group.negative && Array.isArray(r.traits) && r.traits.includes(tag.v));
+            return selected.length > 0 && <p key={group.label} style={{ margin:'6px 0 0',lineHeight:1.8 }}>
+              {group.label}：{selected.map(tag=>tag.l).join('・')}
+            </p>;
+          })}
           {r.public_comment && <p style={{ margin:"4px 0 0", lineHeight:1.6, overflowWrap:"break-word", wordBreak:"break-word" }}>働きぶり：{r.public_comment}</p>}
           {r.private_memo && <p style={{ margin:"4px 0 0", lineHeight:1.6, color:"#717171", overflowWrap:"break-word", wordBreak:"break-word" }}><NavIconInline name="lock" size={11} style={{ verticalAlign:"-1.5px" }} />メモ（自分のみ）：{r.private_memo}</p>}
         </div>

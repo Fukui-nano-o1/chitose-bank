@@ -1,5 +1,5 @@
 // 働き手→農家の評価。応募状況と今日ページが同じ入力・保存を使う。
-// 良い点5つ／悪い点5つは workReview.js が正。公開範囲は既存のDB関数が担保する。
+// 良い点20・悪い点20は reviewCatalog.js が正。公開範囲はDB関数が担保する。
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { fbSuccess, fbError } from '../lib/feedback';

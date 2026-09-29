@@ -1,3 +1,4 @@
+import { detailReviewTags } from "../lib/reviewCatalog";
 // 受け取った評価（利用規約 第8条・2026-08-07たきと承認）。
 // 肯定的な選択項目（trueのみ）＋公開コメントを表示する（コメントの承認制は2026-08-23に廃止＝即時公開。
 // 運営が非表示にしたものだけ落ちる＝判定はDB側 reviews_public_badges）。
@@ -19,22 +20,20 @@ const BADGE_DEFS = {
   farmer_to_worker: [
     { k: "want_again", label: "また呼びたい", icon:"star" },
     { k: "completed_work", label: "予定どおり完了" },
-    { k: "trait_careful", label: "丁寧だった" },
-    { k: "trait_fast", label: "作業が早かった" },
-    { k: "trait_attentive", label: "指示をよく確認した" },
-    { k: "trait_safe", label: "安全に作業した" },
+    ...detailReviewTags('farmer_to_worker').filter(tag => !tag.negative).map(tag => ({ k:'trait_' + tag.v, label:tag.l })),
     { k: "entrust", label: "安心して任せられた", legacy: true },
     { k: "on_time", label: "時間どおり", legacy: true },
     { k: "as_described", label: "聞いていたとおり", legacy: true },
     { k: "followed_instructions", label: "指示どおり", legacy: true },
   ],
-  // 良い点5つ／悪い点5つ。従来の集計キーを使い、過去の肯定回答も引き継ぐ。
+  // 基本5項目＋詳細15項目。従来の集計キーを使い、過去の肯定回答も引き継ぐ。
   worker_to_farmer: [
     { k: "want_again", label: "また働きたい", icon:"star" },
     { k: "as_described", label: "求人のとおりだった" },
     { k: "paid_as_posted", label: "報酬は約束どおり" },
     { k: "instructions_clear", label: "教え方が分かりやすい" },
     { k: "safety_care", label: "安全に配慮" },
+    ...detailReviewTags('worker_to_farmer').filter(tag => !tag.negative).map(tag => ({ k:'trait_' + tag.v, label:tag.l })),
     { k: "on_time", label: "時間どおりに開始", legacy: true },
   ],
 };

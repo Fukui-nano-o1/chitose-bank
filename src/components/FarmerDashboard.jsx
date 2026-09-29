@@ -1,3 +1,4 @@
+import { FARMER_TRAIT_TAGS } from "../lib/reviewCatalog";
 import { goAlongPath, readApplicantView, rememberApplicantView, clearApplicantView } from "../lib/routeTrail";
 import { DeviceDrafts } from "./DeviceDrafts";
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
@@ -66,20 +67,6 @@ const FARMER_FINAL_QUESTIONS = [
     { v:"no",      l:"いいえ" },
   ]},
 ];
-// 特記事項のタグ。肯定4つ＝公開集計（reviews_public_badges の trait_*）／否定2つ＝記録のみ・非公開。
-// ★タグを足す時は DBの badges 関数と ReceivedReviews.BADGE_DEFS（肯定のみ）を対で直すこと
-const FARMER_TRAIT_TAGS = {
-  label: "特記事項（あれば・複数可）",
-  hint: "良かった点は働き手のページに集計で表示されます。問題は記録として残ります（公開されません）",
-  options: [
-    { v:"careful",    l:"丁寧だった" },
-    { v:"fast",       l:"作業が早かった" },
-    { v:"attentive",  l:"指示をよく確認した" },
-    { v:"safe",       l:"安全に作業した" },
-    { v:"work_issue", l:"作業に問題があった", negative:true },
-    { v:"comm_issue", l:"コミュニケーションに問題があった", negative:true },
-  ],
-};
 
 export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, onDismissDraftSaved }) {
   const hashToJobTab = () => {

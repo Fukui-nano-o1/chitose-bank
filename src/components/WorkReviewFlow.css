@@ -74,3 +74,6 @@
   .work-review-actions { gap: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .work-review-primary { padding-left: 16px; padding-right: 16px; }
 }
+
+.work-review-group { margin:24px 0 32px; }
+.work-review-group h3 { font-size:17px; margin:0 0 12px; }

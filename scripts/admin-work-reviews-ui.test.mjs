@@ -8,6 +8,7 @@ import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import { JSDOM } from 'jsdom';
 import { reviewAnswers } from '../src/components/admin/workReviewModel.js';
+import { detailReviewTags } from '../src/lib/reviewCatalog.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const sample={id:'r1',direction:'worker_to_farmer',job_number:1311,crop:'ブロッコリー',task:'収穫',worker_name:'働き手A',farmer_name:'農家A',created_at:'2026-09-29T00:00:00Z',work_completed_at:'2026-09-28T00:00:00Z',as_described:true,instructions_clear:false,safety_care:null,pay_status:'other'};
@@ -24,6 +25,14 @@ test('admin review answer labels preserve null, neutral, legacy and unpaid disti
   assert.deepEqual(farmer.positive,['丁寧だった']); assert.deepEqual(farmer.negative,['コミュニケーションに問題があった']);
   assert.ok(farmer.other.includes('また働きたいか：どちらともいえない'));
   assert.ok(reviewAnswers({direction:'worker_to_farmer',pay_status:'unpaid'}).other.includes('未払いの申告あり'));
+});
+test('admin review labels cover every new positive and private negative selection in both directions',()=>{
+  for (const direction of ['worker_to_farmer','farmer_to_worker']) {
+    const tags=detailReviewTags(direction);
+    const result=reviewAnswers({direction,traits:tags.map(tag=>tag.v)});
+    assert.deepEqual(result.positive,tags.filter(tag=>!tag.negative).map(tag=>tag.l));
+    assert.deepEqual(result.negative,tags.filter(tag=>tag.negative).map(tag=>tag.l));
+  }
 });
 test('admin review list: directions, pagination, retry, denied, stale requests and links',async t=>{
   const output=await mkdtemp(path.join(tmpdir(),'admin-reviews-')); let dom;
