@@ -34,7 +34,7 @@ export function ApplicantProfile({ profile, trust }) {
       <div className="applicant-profile__chips">{profile.interests.map((tag,i) => <span key={i}>{tag}</span>)}</div>
     </section>}
     {qa.length > 0 && <section className="applicant-detail__section"><h3>働き方・人となり</h3>
-      <dl>{qa.map((item,i) => <div key={i}><dt>{item.q}</dt><dd>{item.a}</dd></div>)}</dl>
+      <dl className="applicant-profile__conversation">{qa.map((item,i) => <div key={i}><dt>{item.q}</dt><dd>{item.a}</dd></div>)}</dl>
     </section>}
   </div>;
 }

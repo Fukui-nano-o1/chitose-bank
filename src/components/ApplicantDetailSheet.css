@@ -25,6 +25,12 @@
 .applicant-profile dl > div { padding:14px 0; border-bottom:1px solid #f0f0f0; }
 .applicant-profile dt { font-size:13px; color:#717171; margin-bottom:6px; }
 .applicant-profile dd { margin:0; font-size:15px; line-height:1.8; white-space:pre-wrap; }
+.applicant-profile__conversation { display:flex; flex-direction:column; gap:24px; }
+.applicant-profile .applicant-profile__conversation > div { display:flex; flex-direction:column; gap:10px; padding:0; border:0; min-width:0; }
+.applicant-profile__conversation dt,
+.applicant-profile__conversation dd { box-sizing:border-box; max-width:88%; padding:12px 16px; font-size:15px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.applicant-profile__conversation dt { align-self:flex-start; margin:0; color:#444; background:#f3f3f3; border-radius:18px 18px 18px 4px; }
+.applicant-profile__conversation dd { align-self:flex-end; color:#222; background:#e1f4ed; border-radius:18px 18px 4px 18px; }
 .applicant-profile__note { font-size:12px; color:#717171; line-height:1.7; }
 .applicant-profile__chips { display:flex; flex-wrap:wrap; gap:8px; }
 .applicant-profile__chips span { border:1px solid #ddd; border-radius:8px; padding:7px 10px; font-size:14px; }
