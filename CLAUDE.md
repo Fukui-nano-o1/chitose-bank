@@ -11351,3 +11351,24 @@ message="Script error." / filename="" / lineno=0 / error=null だけを渡す。
 build 全緑（192テスト・eslint 0 error・警告18＝変更前と同数）。
 【残る限界】デプロイ前のJSを掴んだままの端末からは従来どおり届く（DBのレート制限 20件/分が壁）。
 ━━━ ここまで ━━━
+
+━━━ 2026-09-29(続) ウォレット拡張の注入スクリプトのエラー（window.ethereum）は記録しない ━━━
+【契機】システムページの報告＝「undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')」
+（09-29 12:29 JST・/work/job/1242・iPhone・未ログイン・1件）。
+【事実】端末は Brave（iPhone）＝昨日の「Script error.」2件と同じ端末・同じ時刻の出来事。Brave のウォレット
+（MetaMask・Coinbase Wallet 等も同じ）はページの先頭に自分のスクリプトを差し込み、window.ethereum を触る。
+スタックが global code@https://www.chitose-bank.com/:1:16 と【サイトのURLを名乗る】のはそのため＝
+Script error. と違ってブラウザが詳細を隠さないので、昨日の判定（isOpaqueScriptError）では捨てられなかった。
+このサイトは window.ethereum 等の暗号資産ウォレットの口を一切使わない（src 内の参照ゼロを grep で確認）
+＝サイトのコードの外で起きたもの。
+【修理（フロントのみ・DB変更なし）】
+・errorThrottle.js に isInjectedWalletError（純関数）＝文言にウォレットのグローバル名
+  （window.ethereum / window.solana / window.phantom / window.tronlink / window.web3 ほか）を含むなら外部起因。
+  ★サイトがこの名前を使い始めたら（予定なし）一覧から外す
+・logAppError＝この型は app_errors に書かない（端末内の診断メモには残る・Script error. と同じ扱い）
+・errorCatalog の辞書に「ブラウザのウォレット拡張が注入したスクリプトのエラー」を追加
+  （2026-09-29以降は記録しない・最終発生がそれ以前なら対応不要）
+・未解決の1件（da526700…）は fixed に（DML）
+【検証】scripts/error-throttle.test.mjs に3本追加（Brave の実文言・サイト自身のエラーは捨てない・空で落ちない）。
+build 全緑（eslint 0 error・警告18＝変更前と同数）。
+━━━ ここまで ━━━

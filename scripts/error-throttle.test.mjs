@@ -75,3 +75,25 @@ test('空・null で落ちない', () => {
   assert.equal(isOpaqueScriptError({}), false);
   assert.equal(isOpaqueScriptError({ message: '' }), false);
 });
+
+// ── ウォレット拡張が注入したスクリプトのエラーは記録しない（2026-09-29） ──
+import { isInjectedWalletError } from '../src/app/diagnostics/errorThrottle.js';
+
+test('wallet: Brave iPhone の注入スクリプト（サイトのURLを名乗る）は捨てる', () => {
+  const brave = { message: "undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')", stack: 'global code@https://www.chitose-bank.com/:1:16' };
+  assert.equal(isInjectedWalletError(brave), true);
+  assert.equal(isInjectedWalletError({ message: "Cannot redefine property: ethereum (window.ethereum)" }), true);
+  assert.equal(isInjectedWalletError({ message: "TypeError: window.solana.connect is not a function" }), true);
+});
+
+test('wallet: サイト自身のエラーは捨てない', () => {
+  assert.equal(isInjectedWalletError({ message: "undefined is not an object (evaluating 'e.getFullYear')", stack: 'x@https://www.chitose-bank.com/assets/a.js:1:1' }), false);
+  assert.equal(isInjectedWalletError({ message: 'Failed to fetch' }), false);
+  assert.equal(isInjectedWalletError({ message: 'Script error.' }), false);   // それは isOpaqueScriptError の担当
+});
+
+test('wallet: 空・null で落ちない', () => {
+  assert.equal(isInjectedWalletError(null), false);
+  assert.equal(isInjectedWalletError({}), false);
+  assert.equal(isInjectedWalletError({ message: '' }), false);
+});

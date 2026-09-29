@@ -43,3 +43,20 @@ export function isOpaqueScriptError(err) {
   if (err.filename) return false;                  // ファイル名がある＝同一オリジン
   return true;
 }
+
+// ブラウザのウォレット拡張が注入したスクリプトのエラー（2026-09-29）：Brave（iPhone）のウォレット・
+// MetaMask・Coinbase Wallet 等は、ページの先頭（スタックが global code@<サイトのURL>:1:N になる）に
+// 自分のスクリプトを差し込み、window.ethereum / window.solana などを触る。その途中で落ちると
+// 「undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')」のように
+// 【サイトのURLを名乗る】エラーとして届く＝Script error. と違ってブラウザが隠さないので、
+// 上の判定では捨てられない。このサイトは window.ethereum 等の暗号資産ウォレットの口を一切
+// 使わない（grep で参照ゼロ）ので、これらの名前を含むエラーは必ずサイトの外で起きたもの。
+// ★判定は「ウォレットのグローバル名を含む」だけ＝サイトのコードがこの名前を使い始めたら
+//   （使う予定はない）この一覧から外すこと。
+const WALLET_GLOBALS = ["window.ethereum", "window.solana", "window.phantom", "window.tronlink", "window.web3", "window.coinbasewalletextension", "window.braveethereum"];
+export function isInjectedWalletError(err) {
+  if (!err) return false;
+  const message = String(err.message ?? "").toLowerCase();
+  if (!message) return false;
+  return WALLET_GLOBALS.some(name => message.includes(name));
+}
