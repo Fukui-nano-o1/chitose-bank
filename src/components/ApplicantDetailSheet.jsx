@@ -3,16 +3,21 @@ import { createPortal } from 'react-dom';
 import { useVisualViewportFit } from '../lib/visualViewportFit';
 import './ApplicantDetailSheet.css';
 
-export function ApplicantDetailSheet({ name, jobTitle, status, description, profile, application, actions, onClose }) {
-  const [tab, setTab] = useState('profile');
+export function ApplicantDetailSheet({ name, jobTitle, status, description, profile, application, actions, onClose, initialView, onRemember }) {
+  const [tab, setTab] = useState(initialView?.tab === 'application' ? 'application' : 'profile');
   const shell = useRef(null), scroll = useRef(null), close = useRef(null);
+  const restored = useRef(false);
   useVisualViewportFit(shell, true);
   useEffect(() => {
     const previous = document.activeElement;
     close.current?.focus({ preventScroll: true });
     return () => { if (previous?.isConnected) previous.focus({ preventScroll: true }); };
   }, []);
-  useEffect(() => { if (scroll.current) scroll.current.scrollTop = 0; }, [tab]);
+  useEffect(() => {
+    if (scroll.current) scroll.current.scrollTop = restored.current ? 0 : (initialView?.scrollTop || 0);
+    restored.current = true;
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps -- restore once per applicant
+  const remember = () => onRemember?.(tab, scroll.current?.scrollTop || 0);
   function keyDown(event) {
     if (event.key === 'Escape') { event.stopPropagation(); onClose(); return; }
     if (event.key !== 'Tab') return;
@@ -21,7 +26,7 @@ export function ApplicantDetailSheet({ name, jobTitle, status, description, prof
     if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1)?.focus(); }
     else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0]?.focus(); }
   }
-  return createPortal(<div ref={shell} className="applicant-detail-overlay cb-lock-scroll f-sans" onKeyDown={keyDown}>
+  return createPortal(<div ref={shell} className="applicant-detail-overlay cb-lock-scroll f-sans" onKeyDown={keyDown} onClickCapture={remember}>
     <section className="applicant-detail" role="dialog" aria-modal="true" aria-labelledby="applicant-detail-title">
       <header className="applicant-detail__header">
         <button ref={close} type="button" onClick={onClose} aria-label="応募者詳細を閉じる">×</button>

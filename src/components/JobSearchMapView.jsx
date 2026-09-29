@@ -1,3 +1,4 @@
+import { returnAlongPath, routeReturn } from "../lib/routeTrail";
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
@@ -1175,6 +1176,7 @@ export function JobSearchMapView({ onRegister, me }) {
             try { window.scrollTo(0, 0); } catch {}
             return;
           }
+          if (returnAlongPath()) return;
           // チャット等の出どころから来た場合はそこへ戻る（2026-07-16）
           if (backTo) { setSelectedJob(null); setBackTo(null); window.location.hash = backTo; return; }
           setSelectedJob(null); pushRoute("#/search");
@@ -1185,6 +1187,7 @@ export function JobSearchMapView({ onRegister, me }) {
           // ★カレンダー（働き手＝/saved／農家＝/profile/employer/calendar）から来た時は
           //   「カレンダーに戻る」（2026-08-23たきと指示）。/profile/employer の判定より先に見る
           aria-label={jobBackStack.length > 0 ? "前の求人に戻る"
+            : routeReturn() ? routeReturn().label
             : /^\/profile\/(employer|worker)\/schedule\//.test(backTo || "") ? "予定の詳細に戻る"
             : (backTo === "/saved" || (backTo || "").startsWith("/profile/employer/calendar")) ? "カレンダーに戻る"
             : (backTo && backTo.startsWith("/profile/employer")) ? "求人に戻る" : "一覧に戻る"}

@@ -179,9 +179,16 @@ test('applicant cards keep per-person actions, schedule accuracy, and closed-sta
     assert.doesNotMatch(strip.textContent,/9\/26/,'holiday excluded');
     assert.ok(current.querySelector('a[href="#/work/job/1311"]'));
     assert.ok(current.querySelector('.applicant-detail__actions button'));
+    current.querySelector('.applicant-detail__scroll').scrollTop=135;
     current.querySelector('a[href="#/work/job/1311"]').click();
     await until(()=>w.location.hash==='#/work/job/1311','direct job');
-    assert.equal(w.sessionStorage.getItem('cb_jobBackTo'),'/profile/employer/applicants');
+    assert.equal(w.history.state.cbRouteReturn.from,'/profile/employer/applicants');
+    w.history.back();
+    await until(()=>w.location.hash==='#/profile/employer/applicants' && w.document.querySelector('.applicant-detail'),'same applicant restored');
+    assert.equal(button(w.document.querySelector('.applicant-detail'),'応募内容・日程').getAttribute('aria-pressed'),'true');
+    await until(()=>w.document.querySelector('.applicant-detail__scroll').scrollTop===135,'same scroll restored');
+    w.document.querySelector('[aria-label="応募者詳細を閉じる"]').click();
+    await until(()=>!w.document.querySelector('.applicant-detail'),'close clears restored state');
     assert.equal(w.document.querySelector('.applicant-detail'),null);
     assert.deepEqual(Array.from(w.qaUnexpected), []);
 

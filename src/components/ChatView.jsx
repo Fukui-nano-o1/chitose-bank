@@ -1,3 +1,4 @@
+import { goAlongPath, returnAlongPath, routeReturn } from "../lib/routeTrail";
 // チャット（分割・大物②＝最終ピース・2026-07-24）：LINE式スレッド。求人コンテキストカード・確認カード・
 // 日程案シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
 import { useState, useEffect, useRef, Fragment } from "react";
@@ -164,7 +165,7 @@ export function ChatView({ applicationId, onBack }) {
     if (!jobNumber) return;
     setDetailsOpen(false);
     try { sessionStorage.setItem("cb_jobBackTo", `/chat/${applicationId}`); } catch {}
-    window.location.hash = `/work/job/${jobNumber}`;
+    goAlongPath(`/work/job/${jobNumber}`, "会話に戻る");
   };
   const [activeAppId, setActiveAppId] = useState(applicationId);
   const activeAppIdRef = useRef(applicationId); // loadの5秒ポーリングから現役応募の状態を取り直すための鏡（2026-08-31）
@@ -628,7 +629,8 @@ export function ChatView({ applicationId, onBack }) {
   })();
   // 右スワイプで一覧へ戻る（LINEと同じ・2026-08-24たきと指示）。←と同じ行き先＝入口を増やしていない
   const pageRef = useRef(null);
-  useSwipeBack(pageRef, onBack);
+  const back = () => { if (!returnAlongPath()) onBack(); };
+  useSwipeBack(pageRef, back);
   useChatViewport(pageRef);
   const activePhase = activeStatus ? appPhaseKey({ status: activeStatus,
     terms_confirmed_worker_at: workerConfirmed, terms_confirmed_farmer_at: farmerConfirmed }) : null;
@@ -639,7 +641,7 @@ export function ChatView({ applicationId, onBack }) {
   };
   const openSchedule = () => {
     setDetailsOpen(false);
-    window.location.hash = schedulePath(isWorkerSide ? 'worker' : 'farmer', applicationId);
+    goAlongPath(schedulePath(isWorkerSide ? 'worker' : 'farmer', applicationId), '会話に戻る');
     // 戻り先はこの履歴項目にだけ付ける。別の日にマイページから開いた予定には持ち越さない。
     window.history.replaceState({ ...window.history.state, cbScheduleChat: applicationId }, '');
   };
@@ -647,7 +649,7 @@ export function ChatView({ applicationId, onBack }) {
   return (
     <div ref={pageRef} className="chat-full chat-room f-sans">
       <header className="chat-room-header">
-        <button onClick={onBack} aria-label="メッセージ一覧に戻る" className="chat-icon-button">←</button>
+        <button onClick={back} aria-label={(window.location.hash === `#/chat/${applicationId}` ? routeReturn()?.label : null) || "メッセージ一覧に戻る"} className="chat-icon-button">←</button>
         <button data-guide="chat-partner" className="chat-partner-button" onClick={openPartner}>
           <Avatar url={partner?.avatar_url} name={partner?.nickname || partnerInitials} size={36}/>
           <span><strong>{partner?.nickname || "メッセージ"}</strong><small>{chatJobNumber ? `求人 #${chatJobNumber} の会話` : "相手と仕事を確認中"}</small></span>

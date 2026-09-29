@@ -1,3 +1,4 @@
+import { goAlongPath, returnAlongPath } from "../../../lib/routeTrail";
 import { Suspense, useEffect, useState } from "react";
 import { lazyChunk } from "../../../app/chunkReload";
 import { NavIconInline } from "../../../components/NavIcons";
@@ -24,7 +25,7 @@ export function ScheduleDetail({ me, role, applicationId }) {
   const hasNotice = entry?.terms_confirmed_worker_at && entry?.terms_confirmed_farmer_at;
   const openJob = () => {
     try { sessionStorage.setItem("cb_jobBackTo", schedulePath(role, applicationId)); } catch {}
-    window.location.hash = "/work/job/" + entry.job_number;
+    goAlongPath("/work/job/" + entry.job_number, "予定の詳細に戻る");
   };
   const openApplicant = () => {
     try {
@@ -37,7 +38,7 @@ export function ScheduleDetail({ me, role, applicationId }) {
   return (
     <section className="schedule-detail f-sans" style={{ "--schedule-accent": role === "farmer" ? ROLE_GREEN : ROLE_ORANGE }} aria-labelledby="schedule-heading">
       <header className="schedule-header">
-        <button type="button" className="schedule-back" aria-label={fromChat ? "会話に戻る" : "マイページに戻る"} onClick={() => { window.location.hash = backTo; }}>‹</button>
+        <button type="button" className="schedule-back" aria-label={fromChat ? "会話に戻る" : "マイページに戻る"} onClick={() => { if (!returnAlongPath()) window.location.hash = backTo; }}>‹</button>
         <h1 id="schedule-heading">予定の詳細</h1>
       </header>
 

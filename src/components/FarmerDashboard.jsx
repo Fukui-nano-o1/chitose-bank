@@ -1,3 +1,4 @@
+import { goAlongPath, readApplicantView, rememberApplicantView, clearApplicantView } from "../lib/routeTrail";
 import { DeviceDrafts } from "./DeviceDrafts";
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -580,7 +581,12 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
     );
   };
   // 応募者タブのグリッド用（働き手の承認済みタブと同設計・2026-07-16）
-  const [sheetApplicantId, setSheetApplicantId] = useState(null); // タップした応募者のボトムシート
+  const [sheetApplicantId, setSheetApplicantId] = useState(() => readApplicantView(me?.id)?.id || null); // タップした応募者のボトムシート
+  useEffect(() => {
+    const restore = () => setSheetApplicantId(readApplicantView(me?.id)?.id || null);
+    window.addEventListener('popstate', restore);
+    return () => window.removeEventListener('popstate', restore);
+  }, [me?.id]);
   // 採用の最終確認「応募者ページで詳しく見る」からの合図（2026-09-01）：既にこのページに居る時は
   // URLが変わらず着地のローダー（cb_openApplicantId）が走らないため、イベントでその場で開く
   useEffect(() => {
@@ -804,7 +810,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
     const actionButtons = (() => {
                 const phase = appPhaseKey(a);
                 const chatBtn = (
-                  <button onClick={()=>{ window.location.hash="/chat/"+a.id; }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}><NavIconInline name="chats" size={13} style={{ verticalAlign:"-2px" }} />チャットを開く</button>
+                  <button onClick={()=>{ goAlongPath("/chat/"+a.id, "応募者詳細に戻る"); }} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#fff", color:"#00A86B", border:"1px solid #00A86B", borderRadius:10, cursor:"pointer" }}><NavIconInline name="chats" size={13} style={{ verticalAlign:"-2px" }} />チャットを開く</button>
                 );
                 if (phase === "applied") {
                   // 4択（承認・見送り・保留・対応済み）＝督促メールの文面と同じ選択肢を画面にも置く。
@@ -922,12 +928,15 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
     return <ApplicantDetailSheet key={a.id} name={wp?.nickname || "応募者"}
       jobTitle={`${[info.crop, info.task].filter(Boolean).join(" ") || "求人"} #${a.job_number}`}
       status={appRibbonLabel(a)} description={APP_PHASE_DESC[appPhaseKey(a)]}
-      onClose={() => setSheetApplicantId(null)} actions={actionButtons}
+      onClose={() => { clearApplicantView(); setSheetApplicantId(null); }} actions={actionButtons}
+      initialView={readApplicantView(me?.id)?.id === a.id ? readApplicantView(me?.id) : null}
+      onRemember={(tab, top) => rememberApplicantView(me?.id, a.id, tab, top)}
       profile={<><ApplicantProfile profile={wp} trust={workerTrust[a.worker_id]} />
         <MyReviewsOfWorker workerId={a.worker_id} /></>}
       application={<>
-        <a className="applicant-detail__job" href={`#/work/job/${a.job_number}`} onClick={() => {
-          try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {}
+        <a className="applicant-detail__job" href={`#/work/job/${a.job_number}`} onClick={event => {
+          event.preventDefault();
+          goAlongPath(`/work/job/${a.job_number}`, "応募者詳細に戻る");
           setSheetApplicantId(null);
         }}>{[info.crop, info.task].filter(Boolean).join(" ") || "求人"} →<span>求人 #{a.job_number}・仕事の内容を確認</span></a>
         <p className="applicant-profile__note">応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
