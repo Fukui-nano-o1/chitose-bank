@@ -25,3 +25,21 @@ export function makeErrorThrottle() {
     return { ok: true, last };
   };
 }
+
+// 中身の見えない「Script error.」（2026-09-29）：別のオリジンのスクリプト（ブラウザ拡張・Brave の
+// Shields・Instagram等のアプリ内ブラウザが注入するスクリプト）で起きたエラーは、ブラウザが詳細を
+// 隠して message="Script error." / filename="" / lineno=0 / error=null だけを渡す。
+// このサイトは外部ドメインのスクリプトを1本も読まない（全部同一オリジンのバンドル）ので、
+// この型は【必ず】このサイトのコードの外で起きたもの＝記録しても原因調査の材料にならず、
+// 未解決のエラーとして運営に届き続けるだけ（2026-09-28＝18,200行・09-29＝Brave iPhone 2件）。
+// ★同一オリジンで起きたエラーは必ず文言・行番号・スタックが付くので、この判定に当たらない。
+// ★将来 CDN 等から <script> を読む時は crossorigin="anonymous"＋CORS を付けること。付けないと
+//   そのスクリプトの本物の不具合もここで捨てられる（この関数のコメントと lib/errorCatalog の辞書を直す）。
+export function isOpaqueScriptError(err) {
+  if (!err) return false;
+  const message = String(err.message ?? "").trim().toLowerCase();
+  if (message !== "script error." && message !== "script error") return false;
+  if (err.stack) return false;                     // スタックがある＝中身が見えている
+  if (err.filename) return false;                  // ファイル名がある＝同一オリジン
+  return true;
+}

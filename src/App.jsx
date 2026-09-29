@@ -766,7 +766,9 @@ export default function App(){
   },[me?.id]);
   useEffect(() => {
     const onError = (event) => {
-      logAppError({ source: "window.onerror", component: "global", action: "runtime_error", error: event.error || { message: event.message }, userId: me?.id || null });
+      // event.error が無い時は filename／lineno も渡す＝外部スクリプト起因の「Script error.」
+      // （filename空・lineno 0）を logAppError 側で見分けて記録しないため（2026-09-29）
+      logAppError({ source: "window.onerror", component: "global", action: "runtime_error", error: event.error || { message: event.message, filename: event.filename, lineno: event.lineno }, userId: me?.id || null });
     };
     const onUnhandled = (event) => {
       logAppError({ source: "unhandledrejection", component: "global", action: "promise_rejection", error: event.reason, userId: me?.id || null });

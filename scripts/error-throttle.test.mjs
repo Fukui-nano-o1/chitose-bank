@@ -51,3 +51,27 @@ test('空・null の文言でも落ちない', () => {
   for (let i = 0; i < MAX_PER_MESSAGE; i++) admit(undefined);
   assert.equal(admit('').ok, false);
 });
+
+// ── 中身の見えない「Script error.」は記録しない（2026-09-29） ──
+import { isOpaqueScriptError } from '../src/app/diagnostics/errorThrottle.js';
+
+test('外部スクリプト起因＝message だけ・filename空・lineno 0 は捨てる', () => {
+  // window.onerror が渡す形（event.error が null の時の代役オブジェクト）
+  assert.equal(isOpaqueScriptError({ message: 'Script error.', filename: '', lineno: 0 }), true);
+  assert.equal(isOpaqueScriptError({ message: 'Script error' }), true);       // 末尾のピリオド無し（一部のブラウザ）
+  assert.equal(isOpaqueScriptError({ message: ' script error. ' }), true);   // 空白・大文字小文字のゆれ
+});
+
+test('同一オリジンのエラーは捨てない＝文言・ファイル名・スタックのどれかがある', () => {
+  assert.equal(isOpaqueScriptError({ message: 'TypeError: x is not a function' }), false);
+  assert.equal(isOpaqueScriptError({ message: 'Script error.', filename: 'https://www.chitose-bank.com/assets/index-abc.js', lineno: 12 }), false);
+  const e = new Error('Script error.');   // Error オブジェクトはスタックを持つ＝中身が見えている
+  assert.equal(isOpaqueScriptError(e), false);
+});
+
+test('空・null で落ちない', () => {
+  assert.equal(isOpaqueScriptError(null), false);
+  assert.equal(isOpaqueScriptError(undefined), false);
+  assert.equal(isOpaqueScriptError({}), false);
+  assert.equal(isOpaqueScriptError({ message: '' }), false);
+});

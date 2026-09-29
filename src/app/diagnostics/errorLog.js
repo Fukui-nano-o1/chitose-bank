@@ -4,7 +4,7 @@
 //   purge_old_app_errors が毎日掃除）。記録する項目を増やすときは台帳の改訂が要る。
 import { supabase } from "../../lib/supabase";
 import { rememberSupportFailure } from "../../lib/supportDiagnostics";
-import { makeErrorThrottle, MAX_PER_MESSAGE } from "./errorThrottle";
+import { makeErrorThrottle, MAX_PER_MESSAGE, isOpaqueScriptError } from "./errorThrottle";
 
 // 連発の間引き（2026-09-28・Script error 18,200行/15分の教訓・詳細は errorThrottle.js）。
 // rememberSupportFailure（端末内の診断メモ）は間引きの前＝手元の診断は全件見える
@@ -24,6 +24,9 @@ export function sanitizeMessage(msg = "") {
 
 export async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {}, userId = null }) {
   rememberSupportFailure({ source, action, operation, error });
+  // 中身の見えない「Script error.」（外部スクリプト起因）は app_errors に書かない（2026-09-29・
+  // 詳細は errorThrottle.js）。端末内の診断メモ（上の rememberSupportFailure）には残る
+  if (isOpaqueScriptError(error)) return;
   try {
     const message = sanitizeMessage(error?.message || String(error || ""));
     const gate = admitError(message);

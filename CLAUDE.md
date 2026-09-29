@@ -11330,3 +11330,24 @@ session_id ごとの分あたり件数を制限）が次の一手＝未実装・
 そもそも撃たない）／最後の壁＝DBのレート制限（古いJS・直叩きもここで止まる）。
 71分26,000行の事故は、再発しても最大 20件/分＝日次上限200件で頭打ちになる。
 ━━━ ここまで ━━━
+
+━━━ 2026-09-29 「Script error.」は記録しない（外部スクリプト起因＝サイトの外のエラー）━━━
+【契機】システムページの報告＝未解決2件（09-29 12:29 JST・/work/job/1242・iPhone・未ログイン）＋前日の497件。
+【調べた事実（DB）】2件の端末は【Brave（iPhone）】＝Shields がページに注入するスクリプトの型。前日の497件は
+Instagram経由（アプリ内ブラウザの注入）。どちらも別オリジンのスクリプトで起きたエラー＝ブラウザが詳細を隠し
+message="Script error." / filename="" / lineno=0 / error=null だけを渡す。このサイトは外部ドメインの
+スクリプトを1本も読まない（Leaflet・supabase-js・html2canvas は全部同一オリジンのバンドル）ので、
+この型は【必ず】サイトのコードの外で起きたもの＝記録しても原因調査の材料にならず、未解決として運営に届き続けるだけ。
+【修理（フロントのみ・DB変更なし）】
+・errorThrottle.js に isOpaqueScriptError（純関数）＝文言が Script error(.) かつ スタック無し かつ ファイル名無し。
+  同一オリジンのエラーは必ず文言・行番号・スタックのどれかを持つので当たらない
+・logAppError＝この型は app_errors に書かない（端末内の診断メモ rememberSupportFailure には残る）
+・App.jsx の window.onerror＝event.error が無い時は filename/lineno も代役オブジェクトに渡す（判定の材料）
+・errorCatalog の辞書＝「2026-09-29以降は記録しない。最終発生がそれ以前なら対応不要」に更新
+・未解決の2件は fixed に（DML）
+【★将来の注意】CDN等から <script> を読む時は crossorigin="anonymous"＋CORS を付ける。付けないと
+そのスクリプトの本物の不具合もここで捨てられる（isOpaqueScriptError のコメント参照）。
+【検証】scripts/error-throttle.test.mjs に3本追加（外部起因＝捨てる／同一オリジン3型＝捨てない／空で落ちない）。
+build 全緑（192テスト・eslint 0 error・警告18＝変更前と同数）。
+【残る限界】デプロイ前のJSを掴んだままの端末からは従来どおり届く（DBのレート制限 20件/分が壁）。
+━━━ ここまで ━━━
