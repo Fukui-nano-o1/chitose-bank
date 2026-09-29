@@ -320,7 +320,7 @@ export function ReviewStagePanel({ items, meId, onReviewed }) {
         onClose={()=>setReviewApp(null)}
         onDone={(id)=>{ setReviewApp(null); setDone(true); onReviewed(id); }} />
       {done && <DoneScreen takeover="review-done" title="評価を送りました"
-        lead="ありがとうございました。お互いの評価が揃うか、仕事の完了から3日たつと、相手に表示されます。"
+        lead="ありがとうございました。相手の提出状況にかかわらず、最終作業の終了から72時間後に公開されます。"
         primary={{ label:"完了", onClick:()=>setDone(false) }} />}
     </>
   );

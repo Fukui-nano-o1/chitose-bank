@@ -11,6 +11,7 @@ import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
 import { openPhaseInfo, openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
+import { reviewPeriod } from "../lib/reviewWindow";
 import { Avatar, AutoSkeleton, useSkeletonProbe, FlowBar, Dots } from "./ui";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { getCache, setCache } from "../lib/viewCache";
@@ -324,7 +325,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
       const [emp, apps, rev] = await Promise.all([
         fetchJobRowsForMe(nums, "job_number, employer_nickname, employer_avatar_url"),
         appIds.length
-          ? supabase.from("applications").select("id, farmer_id").in("id", appIds)
+          ? supabase.from("applications").select("id, farmer_id, review_opened_at, work_completed_at").in("id", appIds)
           : Promise.resolve({ data: [], error: null }),
         supabase.from("reviews").select("application_id").eq("reviewer_id", me.id).eq("direction", "worker_to_farmer"),
       ]);
@@ -338,6 +339,8 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
         const m = {};
         apps.data.forEach(x => { m[x.id] = x.farmer_id; });
         setFarmerIds(m); setCache("saved:farmerIds", m);
+        const timing = new Map(apps.data.map(x => [x.id, {review_opened_at:x.review_opened_at,work_completed_at:x.work_completed_at}]));
+        setRows(prev => prev?.map(row => ({...row,...timing.get(row.application_id)})));
       }
       if (!rev.error && Array.isArray(rev.data)) {
         const list = rev.data.map(x => x.application_id).filter(Boolean);
@@ -474,7 +477,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
             // ★評価がまだ残っている完了は覆わない（2026-08-23）：暗幕は pointerEvents:none so、
             //   覆うとカード下の「評価する」が押せない。雇い手の求人カード（todoAppIds が1件でもあれば
             //   暗幕を出さない）と同じ規則を働き手側にも通す
-            const pendingReview = jobCompleted && !!r.application_id && !reviewedIds.includes(r.application_id);
+            const pendingReview = jobCompleted && !!r.application_id && !reviewedIds.includes(r.application_id) && reviewPeriod(r,r).state !== 'closed';
             // ★日程が過ぎただけでは「失効」にしない（2026-09-04たきと報告「評価するボタンがタップできる。
             //   失効ラベルが貼られているのに」）：失効は【応募の状態（expired）】であって日付ではない。
             //   採用・作業中のまま日程を過ぎた応募は、まだやること（評価）が残っている＝覆わない。
@@ -601,12 +604,14 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                   let rec = null, doneText = null;
                   if (k === "completed") {
                     if (reviewed) doneText = "評価済み";
+                    else if (reviewPeriod(r,r).state === 'closed') doneText = "評価の受付終了";
                     else rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
                   } else if (isFinalWorkDone(r, r)) {
                     // ★最終日に達した「作業中」でも、評価を送ったら評価済みにする（2026-08-28たきと報告
                     //   「何度も評価するができる」＝完了は自動なので、評価後もしばらく working のまま。
                     //   この間だけボタンが残って二度目を開けてしまっていた）
                     if (reviewed) doneText = "評価済み";
+                    else if (reviewPeriod(r,r).state === 'closed') doneText = "評価の受付終了";
                     else rec = { label:"評価する", green:true, on:()=>openReview(a.id) };
                   } else if (k === "working") {
                     rec = { label:"記録する", green:false, closed: !dayReportOpen(r, r), on:()=>setDayReportApp({ id: a.id }) };

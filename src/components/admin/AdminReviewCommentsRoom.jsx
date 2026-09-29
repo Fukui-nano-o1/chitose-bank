@@ -38,7 +38,7 @@ export function AdminReviewCommentsRoom() {
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 14px 80px" }}>
       <p className="f-sans" style={{ fontSize: 12, color: "#717171", lineHeight: 1.7, margin: "0 0 14px" }}>
-        評価に書かれたコメントの一覧です。コメントは書かれた時点で公開されます（相手に見えるのは、双方の評価が揃うか完了から3日たった後）。
+        評価に書かれたコメントの一覧です。管理者は送信後から確認できます。相手への公開は最終作業の終了から72時間後です。
         不適切なものがあれば、ここで非表示にできます。
       </p>
       {items === null ? (

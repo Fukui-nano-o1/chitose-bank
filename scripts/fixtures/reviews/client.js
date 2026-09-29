@@ -1,5 +1,13 @@
 export const supabase = {
   auth:{ async getSession() { return {data:{session:{user:{id:'farmer-a'}}}}; } },
+  rpc(name) {
+    if (name !== 'review_window') throw new Error('Unexpected RPC: '+name);
+    return {abortSignal(){return this;}, then(resolve,reject) {
+      const now=Date.now();
+      return Promise.resolve(window.qaWindowError ? {error:{message:'offline'}} : {data:{ok:true,state:window.qaWindowState||'open',
+        server_now:new Date(now).toISOString(),closes_at:new Date(now+(window.qaWindowRemaining ?? 3600000)).toISOString()}}).then(resolve,reject);
+    }};
+  },
   from(table) {
     const query={table,filters:[]};
     return {
@@ -12,7 +20,7 @@ export const supabase = {
         window.qaInserts.push(JSON.parse(JSON.stringify(payload)));
         if (window.qaHoldSave) await new Promise(resolve => { window.qaReleaseSave = resolve; });
         if (window.qaThrowSave) throw new Error('offline');
-        return { error: window.qaFailSave ? { code: window.qaFailCode, message: '接続を確認してください' } : null };
+        return { error: window.qaFailSave ? { code: window.qaFailCode, message: window.qaFailMessage || '接続を確認してください' } : null };
       },
     };
   },

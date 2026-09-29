@@ -34,7 +34,7 @@ const DONE_SCREENS = [
       { icon:"hire", t:"採用は「採用する」で決めます", d:"承認は採用ではありません。話してから決めてください" },
       { icon:"hourglass", t:"作業の開始日までに決めます", d:"決めないまま開始日が来ると、応募は自動で失効します" },
     ], primaryLabel:"チャットを開く", secondary:{ label:"とじる" } } },
-  { where:"働き手の評価送信（応募状況・カレンダーの仕事の評価）", src:"WorkerApplications.jsx / StagePanels.jsx", props:{ title:"評価を送りました", lead:"ありがとうございました。お互いの評価が揃うか、仕事の完了から3日たつと、相手に表示されます。" } },
+  { where:"働き手の評価送信（応募状況・カレンダーの仕事の評価）", src:"WorkerApplications.jsx / StagePanels.jsx", props:{ title:"評価を送りました", lead:"ありがとうございました。相手の提出状況にかかわらず、最終作業の終了から72時間後に公開されます。" } },
   { where:"保険の準備の報告", src:"features/today/components/StagePanels.jsx", props:{ title:"報告しました", lead:"「労災保険」の準備ができたことを、「ブロッコリー 収穫」の相手のチャットにお知らせしました。" } },
   { where:"働き手フロー完了（構想段階の導線）", src:"App.jsx", props:{ title:"ありがとうございます", lead:"この機能は現在構想段階です。実装前に労働局・関係機関へ確認した上で、段階的に追加予定です。", note:"ログインすると実証に参加できます。" } },
 ];

@@ -15,6 +15,7 @@ import { CropIcon } from "./CropIcon";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
+import { reviewPeriod } from "../lib/reviewWindow";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
 export function WorkerApplications({ filter, me }) {
@@ -205,17 +206,17 @@ export function WorkerApplications({ filter, me }) {
   const ribbonLabel = (a) => {
     if (a.status === "completed") {
       if (a.attended === false) return "欠勤記録";
-      if (!reviewedIds.has(a.id)) return "評価待ち";
+      if (!reviewedIds.has(a.id)) return reviewPeriod(a,jobDates[a.job_number]).state === 'closed' ? "評価の受付終了" : "評価待ち";
       return "完了";
     }
     return label(a);
   };
   const ribbonColor = (a) => {
-    if (a.status === "completed") return (a.attended === false || reviewedIds.has(a.id)) ? "#9E9E9E" : "#E24B4A";
+    if (a.status === "completed") return (a.attended === false || reviewedIds.has(a.id) || reviewPeriod(a,jobDates[a.job_number]).state === 'closed') ? "#9E9E9E" : "#E24B4A";
     return a.status === "working" ? "#C77700" : "#00A86B";
   };
   // 未完了＝働き手側の手続きが残っている応募（完了して評価済み/欠勤記録済みになるまで）
-  const isAppDone = (a) => a.status === "completed" && (a.attended === false || reviewedIds.has(a.id));
+  const isAppDone = (a) => a.status === "completed" && (a.attended === false || reviewedIds.has(a.id) || reviewPeriod(a,jobDates[a.job_number]).state === 'closed');
   // 応募カード本体（返事待ちタブのリスト表示と、きょうの仕事タブのボトムシートで共用）
   const renderAppCard = (a) => {
     const c = color(a.status);
@@ -246,6 +247,8 @@ export function WorkerApplications({ filter, me }) {
                     )
                   ) : reviewedIds.has(a.id) ? (
                     <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}><NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px" }} />評価済み</p>
+                  ) : reviewPeriod(a,jobDates[a.job_number]).state === 'closed' ? (
+                    <p className="f-sans" style={{ fontSize:13,color:'#717171' }}>評価の受付は終了しました</p>
                   ) : (
                     <button onClick={()=>openReviewModal(a)} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer", marginBottom:8 }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />仕事の評価</button>
                   )
@@ -521,7 +524,7 @@ export function WorkerApplications({ filter, me }) {
     // 見出しはProfileHub側で非表示・横線(borderTop)と見出しぶんの余白はここで外す。きょうの仕事は従来どおり
     <div style={filter !== "approved" ? { marginTop:8 } : { marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {reviewDone && <DoneScreen takeover="review-done" title="評価を送りました"
-        lead="ありがとうございました。お互いの評価が揃うか、仕事の完了から3日たつと、相手に表示されます。"
+        lead="ありがとうございました。相手の提出状況にかかわらず、最終作業の終了から72時間後に公開されます。"
         primary={{ label:"完了", onClick:()=>setReviewDone(false) }} />}
       {/* ラベル「応募状況」＋説明文はページの先頭（2026-08-22たきと指示「応募状況は上に移植」
           「あなたが応募した求人の状況です。は応募状況の下に移植」）。

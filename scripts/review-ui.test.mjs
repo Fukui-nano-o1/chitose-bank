@@ -59,8 +59,9 @@ test('work review has 20 positive choices, 20 negative choices and a separate co
       w.document.querySelector('#opener').focus();
       w.eval(script);
       await until(() => ['badges','own'].includes(settings.qaMode) ? w.document.querySelector('#root').textContent.trim()
-        : settings.qaMode?.startsWith('farmer') ? w.document.body.textContent.includes('記録された問題はありません')
-          : w.document.activeElement?.id === 'work-review-title', 'initial effects');
+        : settings.qaWindowError || settings.qaWindowState ? w.document.body.textContent.includes(settings.qaWindowError ? '受付期限を確認できませんでした' : '評価の受付は終了しました')
+          : settings.qaMode?.startsWith('farmer') ? w.document.body.textContent.includes('記録された問題はありません')
+            : title(w)==='良かった点はありますか？', 'initial effects');
       return w;
     }
     await t.test('each page contains 20 choices in five groups; navigation never saves; skipped values remain null', async () => {
@@ -77,6 +78,33 @@ test('work review has 20 positive choices, 20 negative choices and a separate co
       for (const key of [...keys,'match_level','pay_status','want_again_choice']) assert.equal(payload[key],null,key);
       assert.equal(payload.direction,'worker_to_farmer');
       assert.equal(payload.traits.length,0);
+    });
+    await t.test('server deadline closes every form and a failed check can be retried without posting', async () => {
+      for (const qaMode of [undefined,'farmer-expanded']) {
+        const w=await mount({qaMode,qaWindowState:'closed'});
+        assert.equal(w.document.querySelectorAll('[aria-pressed]').length,0);
+        assert.equal(button(w.document,'送信する'),undefined);
+        assert.equal(w.qaInserts.length,0);
+        await press(w,'仕事に戻る');
+        await until(()=>!w.document.querySelector('[role="dialog"]'),'expired form closes');
+      }
+      const w=await mount({qaWindowError:true});
+      assert.equal(w.document.querySelectorAll('[aria-pressed]').length,0);
+      w.qaWindowError=false; await press(w,'もう一度確認','良かった点はありますか？');
+      assert.equal(w.document.querySelectorAll('[aria-pressed]').length,20);
+      assert.equal(w.qaInserts.length,0);
+    });
+    await t.test('a form already open at the deadline stops input and a late server rejection cannot be retried', async () => {
+      let w=await mount({qaWindowRemaining:1000});
+      await toggle(w,'求人の内容どおりだった');
+      await until(()=>title(w)==='評価の受付は終了しました','deadline elapsed');
+      assert.equal(w.document.querySelectorAll('[aria-pressed]').length,0);
+      assert.equal(button(w.document,'送信する'),undefined); assert.equal(w.qaInserts.length,0);
+      w=await mount({qaFailSave:true,qaFailMessage:'review_window_closed'});
+      await negativePage(w); await confirm(w); await press(w,'送信する');
+      await until(()=>title(w)==='評価の受付は終了しました','server deadline rejection');
+      assert.equal(button(w.document,'送信する'),undefined); assert.equal(w.qaDone.length,0);
+      assert.equal(w.qaInserts.length,1);
     });
     await t.test('new worker choices survive editing and save separate positive and private negative tags', async () => {
       const w = await mount();
@@ -128,7 +156,7 @@ test('work review has 20 positive choices, 20 negative choices and a separate co
       assert.equal(w.document.querySelectorAll('[aria-pressed="true"]').length,0);
       await toggle(w,'求人の内容どおりだった');
       w.qaSetMeId('worker-b');
-      await until(()=>w.document.querySelectorAll('[aria-pressed="true"]').length===0,'new account');
+      await until(()=>title(w)==='良かった点はありますか？' && w.document.querySelectorAll('[aria-pressed]').length===20 && w.document.querySelectorAll('[aria-pressed="true"]').length===0,'new account ready');
       await negativePage(w); await confirm(w);
       const payload=await save(w);
       assert.equal(payload.application_id,'application-b'); assert.equal(payload.reviewer_id,'worker-b');

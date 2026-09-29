@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { WORK_REVIEW_POINTS } from '../lib/workReview';
 import { useVisualViewportFit } from '../lib/visualViewportFit';
+import { REVIEW_PUBLICATION_NOTE, reviewDeadlineLabel } from '../lib/reviewWindow';
 import './WorkReviewFlow.css';
 
 const UNPAID_NOTE = '「未払い」は、未払いの申告として運営にも記録されます。運営が内容を確認し、必要に応じて双方に事実を確認します。';
 
 export function WorkReviewFlow({ answers, onAnswer, unpaid, onUnpaid, dayCount, submitting, error,
   alreadySent, onSubmit, onClose, onAlreadySent, points = WORK_REVIEW_POINTS,
-  startContent, startReady = true, startTitle = '今回の仕事を完了する', summaryContent, publicationNote }) {
+  startContent, startReady = true, startTitle = '今回の仕事を完了する', summaryContent, publicationNote, reviewWindow }) {
   const [step, setStep] = useState(startContent ? -1 : 0);
   const [notice, setNotice] = useState('');
   const shellRef = useRef(null);
@@ -39,6 +40,8 @@ export function WorkReviewFlow({ answers, onAnswer, unpaid, onUnpaid, dayCount, 
   const count = positive.length + negative.length;
   const polarity = step === 0 ? 'positive' : 'negative';
   const locked = submitting || alreadySent;
+  const windowBlocked = reviewWindow && reviewWindow.state !== 'open';
+  const windowTitle = {loading:'評価の受付を確認しています',error:'受付期限を確認できませんでした',closed:'評価の受付は終了しました',not_started:'仕事が終わってから評価できます',unavailable:'仕事の終了日時を確認できません'}[reviewWindow?.state];
   const unpaidReport = answers.paid_as_posted === 'negative' && unpaid;
 
   function toggle(point) {
@@ -68,7 +71,7 @@ export function WorkReviewFlow({ answers, onAnswer, unpaid, onUnpaid, dayCount, 
       role="dialog" aria-modal="true" aria-labelledby="work-review-title" aria-busy={submitting}
       onKeyDown={onKeyDown} onClick={event => event.stopPropagation()}>
       <header className="work-review-header">
-        {step > (startContent ? -1 : 0) ? <button type="button" className="work-review-icon" aria-label="前のページに戻る"
+        {!windowBlocked && step > (startContent ? -1 : 0) ? <button type="button" className="work-review-icon" aria-label="前のページに戻る"
           disabled={locked} onClick={() => setStep(step - 1)}><span aria-hidden="true">←</span></button> : <span />}
         <span>仕事の評価</span>
         <button type="button" className="work-review-icon" aria-label="評価を閉じる" disabled={submitting}
@@ -80,14 +83,19 @@ export function WorkReviewFlow({ answers, onAnswer, unpaid, onUnpaid, dayCount, 
           <p className="work-review-kicker">{step === -1 ? '仕事の完了' : step < 2 ? `${step + 1} / 2` : '送信前の確認'}
             {dayCount > 0 && <span> · {dayCount}日間の仕事</span>}</p>
           <h2 id="work-review-title" ref={headingRef} tabIndex={-1}>
-            {step === -1 ? startTitle : step === 0 ? '良かった点はありますか？' : step === 1 ? '悪かった点はありますか？' : 'この内容で送信しますか？'}
+            {windowBlocked ? windowTitle : step === -1 ? startTitle : step === 0 ? '良かった点はありますか？' : step === 1 ? '悪かった点はありますか？' : 'この内容で送信しますか？'}
           </h2>
-          {step === -1 ? startContent : step < 2 ? <>
+          {reviewWindow?.closes_at && <p className="work-review-privacy">入力の締切・公開：{reviewDeadlineLabel(reviewWindow.closes_at)}（日本時間）</p>}
+          {windowBlocked ? <p className="work-review-lead" role="status">{reviewWindow.state==='closed'
+            ? '最終作業の終了から72時間が経過しました。これ以降は送信できません。期限内に届いた評価は、片方だけでも保存・公開されます。悪い点は非公開です。'
+            : reviewWindow.state==='error' ? '通信を確認して、もう一度お試しください。選んだ内容は残っています。'
+              : reviewWindow.state==='loading' ? 'サーバーで入力できる期間を確認しています。'
+                : '評価は最終作業の終了から72時間だけ入力できます。'}</p> : step === -1 ? startContent : step < 2 ? <>
             <p className="work-review-lead">当てはまるものをいくつでも選べます。<br />なければ、選ばずに進めます。</p>
             <p className="work-review-privacy">{step === 0
               ? '良い点は件数にまとめて表示されます。誰が選んだかは表示されません。'
               : '悪い点は公開されません。改善・安全確認のために運営に記録されます。'}</p>
-            <div aria-label={step === 0 ? `良い点の${points.length}項目` : `悪い点の${points.length}項目`}>
+            <div role="group" aria-label={step === 0 ? `良い点の${points.length}項目` : `悪い点の${points.length}項目`}>
               {[...new Set(points.map(point => point.group))].map(group => <section className="work-review-group" key={group}>
                 <h3>{group}</h3>
                 <div className="work-review-points">
@@ -132,7 +140,8 @@ export function WorkReviewFlow({ answers, onAnswer, unpaid, onUnpaid, dayCount, 
             ))}
             {unpaidReport && <div className="work-review-unpaid"><strong>未払いとして申告します</strong><p>{UNPAID_NOTE}</p></div>}
             {!count && <p className="work-review-empty">項目を選択せずに、この仕事の評価を終了します。</p>}
-            <p className="work-review-privacy work-review-publication">{publicationNote || '良い点は、お互いの評価が揃うか、仕事の完了から3日たつと表示されます。悪い点は相手にも表示されません。'}</p>
+            {publicationNote && <p className="work-review-privacy">{publicationNote}</p>}
+            <p className="work-review-privacy work-review-publication">{REVIEW_PUBLICATION_NOTE}</p>
           </>}
           {error && <p className="work-review-error" role="alert">{error}</p>}
         </div>
@@ -141,11 +150,11 @@ export function WorkReviewFlow({ answers, onAnswer, unpaid, onUnpaid, dayCount, 
       <footer className="work-review-footer">
         <div className="work-review-progress" aria-hidden="true"><span data-complete={step >= 1} /><span data-complete={step >= 2} /></div>
         <div className="work-review-actions">
-          {step > (startContent ? -1 : 0) && !alreadySent ? <button type="button" className="work-review-link" disabled={submitting}
+          {!windowBlocked && step > (startContent ? -1 : 0) && !alreadySent ? <button type="button" className="work-review-link" disabled={submitting}
             onClick={() => setStep(step - 1)}>戻る</button> : <span className="work-review-count">{count}項目を選択</span>}
-          <button type="button" className="work-review-primary" disabled={submitting || (step === -1 && !startReady)}
-            onClick={alreadySent ? onAlreadySent : step < 2 ? () => setStep(step + 1) : onSubmit}>
-            {alreadySent ? '評価済みの仕事に戻る' : submitting ? '送信中…' : step === -1 ? '良い点へ' : step === 0 ? '悪い点へ' : step === 1 ? '内容を確認' : '送信する'}
+          <button type="button" className="work-review-primary" disabled={submitting || reviewWindow?.state==='loading' || (!windowBlocked && step === -1 && !startReady)}
+            onClick={windowBlocked ? (reviewWindow.state==='error' ? reviewWindow.refresh : onClose) : alreadySent ? onAlreadySent : step < 2 ? () => setStep(step + 1) : onSubmit}>
+            {windowBlocked ? (reviewWindow.state==='loading' ? '確認中…' : reviewWindow.state==='error' ? 'もう一度確認' : '仕事に戻る') : alreadySent ? '評価済みの仕事に戻る' : submitting ? '送信中…' : step === -1 ? '良い点へ' : step === 0 ? '悪い点へ' : step === 1 ? '内容を確認' : '送信する'}
           </button>
         </div>
       </footer>

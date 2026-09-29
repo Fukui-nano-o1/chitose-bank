@@ -5,8 +5,10 @@ import { supabase } from '../lib/supabase';
 import { fbSuccess, fbError } from '../lib/feedback';
 import { buildWorkReviewPayload } from '../lib/workReview';
 import { WorkReviewFlow } from './WorkReviewFlow';
+import { useReviewWindow } from '../hooks/useReviewWindow';
 
 function WorkerReviewForm({ app, meId, dayCount, onDone, onClose }) {
+  const reviewWindow = useReviewWindow(app.id);
   const [answers, setAnswers] = useState({});
   const [unpaid, setUnpaid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -23,7 +25,7 @@ function WorkerReviewForm({ app, meId, dayCount, onDone, onClose }) {
   }
 
   async function submit() {
-    if (busy.current || alreadySent) return;
+    if (busy.current || alreadySent || !reviewWindow.canSubmit()) return;
     busy.current = true;
     setSubmitting(true);
     setError('');
@@ -32,6 +34,7 @@ function WorkerReviewForm({ app, meId, dayCount, onDone, onClose }) {
       if (!alive.current) return;
       if (failure) {
         fbError();
+        if (reviewWindow.reject(failure.message)) return;
         if (failure.code === '23505') {
           setAlreadySent(true);
           setError('この仕事の評価はすでに送信されています。送信済みの評価は変更されません。');
@@ -55,7 +58,7 @@ function WorkerReviewForm({ app, meId, dayCount, onDone, onClose }) {
 
   return <WorkReviewFlow answers={answers} onAnswer={onAnswer} unpaid={unpaid} onUnpaid={setUnpaid}
     dayCount={dayCount} submitting={submitting} error={error} alreadySent={alreadySent}
-    onSubmit={submit} onClose={onClose} onAlreadySent={() => onDone(app.id)} />;
+    onSubmit={submit} onClose={onClose} onAlreadySent={() => onDone(app.id)} reviewWindow={reviewWindow} />;
 }
 
 export function WorkerReviewSheet(props) {

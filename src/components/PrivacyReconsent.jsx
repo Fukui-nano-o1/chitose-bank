@@ -59,11 +59,9 @@ export default function PrivacyReconsent({ authId, onAgreed, onPending, onShowPr
       <div style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:16, padding:"18px 20px", marginBottom:18 }}>
         <p style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 10px" }}>おもな改訂の内容</p>
         <ul style={{ margin:0, paddingLeft:18, fontSize:13, color:"#444", lineHeight:1.9 }}>
-          <li>取得する情報ごとに、利用目的を一覧表に明記しました。</li>
-          <li>緊急連絡先は、新規登録の氏名と電話番号を初期値として登録し、いつでも変更と削除ができます。</li>
-          <li>緊急連絡先は、採用が成立した相手方にのみ表示します。求人一覧や公開されるプロフィールには表示しません。</li>
-          <li>情報ごとの保存期間を、具体的な期間で定めました。</li>
-          <li>ご本人の請求（開示・訂正・利用停止など）の手続を定めました。</li>
+          <li>仕事の評価は、最終作業の終了から72時間だけ入力できます。</li>
+          <li>相手が提出したかにかかわらず、公開は72時間後です。片方だけの評価も保存されます。</li>
+          <li>良い点は件数に集計して表示し、悪い点や自分用のメモは相手に表示しません。</li>
         </ul>
       </div>
 

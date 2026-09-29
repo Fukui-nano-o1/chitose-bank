@@ -1,4 +1,5 @@
 import { WorkReviewFlow } from "./WorkReviewFlow";
+import { useReviewWindow } from "../hooks/useReviewWindow";
 // 最終日の評価の器（2026-08-20たきと裁定で全面再設計）。両方向で同じ器・違う設問。
 // 三層の設計：日次＝事故ログ（DayReportSheet・attendance_events）／最終日＝この画面で評価／
 //   プロフィール＝その両方から自動生成（worker_work_record・reviews_public_badges）。
@@ -94,6 +95,7 @@ export function FinalReviewSheet({
   submitting, onSubmit, onClose, accent = "#00A86B",
 }) {
   const [confirming, setConfirming] = useState(false);
+  const reviewWindow = useReviewWindow(tagDef?.points ? app?.id : null);
   useEffect(() => { setConfirming(false); }, [app?.id]);
   if (!app) return null;
   const unanswered = questions.filter(q => !q.choices.some(c => c.v === answers[q.k]));
@@ -207,7 +209,11 @@ export function FinalReviewSheet({
         for (const tag of [point.positiveTag, point.negativeTag]) {
           if (tags.includes(tag) !== (tag === next)) onToggleTag(tag);
         }
-      }} dayCount={dayCount} submitting={submitting} onSubmit={onSubmit} onClose={onClose}
+      }} dayCount={dayCount} submitting={submitting} onSubmit={async () => {
+        if (!reviewWindow.canSubmit()) return;
+        const result = await onSubmit();
+        if (result?.reason) reviewWindow.reject(result.reason);
+      }} onClose={onClose} reviewWindow={reviewWindow}
       startTitle={title} startReady={ready} summaryContent={summary} publicationNote={confirmNote}
       startContent={<>
         {intro && <p className="work-review-lead">{intro}</p>}

@@ -1,4 +1,5 @@
 import { FARMER_TRAIT_TAGS } from "../lib/reviewCatalog";
+import { reviewPeriod } from "../lib/reviewWindow";
 import { goAlongPath, readApplicantView, rememberApplicantView, clearApplicantView } from "../lib/routeTrail";
 import { DeviceDrafts } from "./DeviceDrafts";
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
@@ -304,7 +305,12 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         traits: completeTags,
         favorite: completeAnswers.want_again_choice === "yes" && completeNotifyNext,
       });
-      if (error || !data?.ok) { fbError(); alert('送信に失敗しました（何も保存されていません）：' + (data?.reason || error?.message || '不明')); setCompleteSubmitting(false); return; }
+      if (error || !data?.ok) {
+        fbError(); setCompleteSubmitting(false);
+        const reason=data?.reason || error?.message || '不明';
+        if (String(reason).includes('review_window_')) return {reason};
+        alert('送信に失敗しました（何も保存されていません）：' + reason); return;
+      }
       const favorited = !!data.favorited;
       if (favorited) {
         const wp = workerProfiles[completeModalApp.worker_id];
@@ -884,6 +890,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                 //   （DBの my_todo_items と同じ物差し＝app_work_dates の最終日）
                 if (phase === "contracted" || phase === "working") {
                   const jinfo = jobInfoMap[a.job_number];
+                  if (reviewPeriod(a, jinfo).state === 'closed') return (
+                    <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                      {chatBtn}<span style={{ flex:1, fontSize:13, color:"#717171", textAlign:"center" }}>評価の受付終了</span>
+                    </div>
+                  );
                   if (!isFinalWorkDone(a, jinfo)) return (
                     <div style={{ display:"flex", gap:8 }}>
                       {chatBtn}
@@ -899,7 +910,8 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                 }
                 // 完了（出勤あり）でまだ評価していない応募＝評価ボタンを出す（2026-07-27たきと指示）。
                 // 欠勤記録済み（attended===false）は評価の代わりので出さない。評価後はチャットだけに戻る
-                if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)) return (
+                if (phase === "completed" && a.attended !== false && !reviewedAppIds.has(a.id)
+                    && reviewPeriod(a, jobInfoMap[a.job_number]).state !== 'closed') return (
                   <div style={{ display:"flex", gap:8 }}>
                     {chatBtn}
                     <button onClick={()=>openCompleteModal(a)} className="f-sans" style={{ flex:1, padding:"11px", fontSize:13, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}><NavIconInline name="star" size={13} style={{ verticalAlign:"-2px" }} />評価する</button>
@@ -931,7 +943,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         </section>
         <ContractPartyName applicationId={a.id} showPending={false} />
         <ContractEmergencyContact applicationId={a.id} workWindow={isWorkWindowOpen(a)} />
-        {a.status === "completed" && <p>{a.attended === false ? "欠勤記録済み" : reviewedAppIds.has(a.id) ? "完了・評価済み" : "仕事完了・評価は未送信"}</p>}
+        {a.status === "completed" && <p>{a.attended === false ? "欠勤記録済み" : reviewedAppIds.has(a.id) ? "完了・評価済み" : reviewPeriod(a, info).state === 'closed' ? "仕事完了・評価の受付終了" : "仕事完了・評価は未送信"}</p>}
       </>} />;
   };
   return (
@@ -1403,7 +1415,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         <FinalReviewSheet
           app={completeModalApp}
           title="今回の仕事を完了する"
-          intro={notDone ? "送信すると、作業の完了が記録され、評価が働き手に届きます。" : "評価が働き手に届きます。"}
+          intro={notDone ? "送信すると、作業の完了と評価が記録されます。公開は最終作業の終了から72時間後です。" : "公開は最終作業の終了から72時間後です。"}
           dayCount={dayCount}
           questions={FARMER_FINAL_QUESTIONS}
           answers={completeAnswers}

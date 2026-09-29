@@ -2,7 +2,7 @@ import { detailReviewTags } from "../lib/reviewCatalog";
 // 受け取った評価（利用規約 第8条・2026-08-07たきと承認）。
 // 肯定的な選択項目（trueのみ）＋公開コメントを表示する（コメントの承認制は2026-08-23に廃止＝即時公開。
 // 運営が非表示にしたものだけ落ちる＝判定はDB側 reviews_public_badges）。
-// 公開判定（双方の評価が揃うか完了から3日）はDB側 reviews_public_badges が担保＝ここは表示のみ。
+// 公開判定（最終作業の終了から72時間）はDB側 reviews_public_badges が担保＝ここは表示のみ。
 // 個々の評価者は出さない（誰がどう評価したかは出さない＝推薦・選別の回避）。
 // ★作者側にはこの部品を出さない（自分が書いた評価は MyReviewsOfWorker でそのまま見える）。
 import { useState, useEffect } from "react";
@@ -82,7 +82,7 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, pr
   // shown.lengthでは常に非空になり「まだ評価はありません」that出せなくなる）
   const hasAny = defs.some(d => (badges[d.k] || 0) > 0) || comments.length > 0;
   const isEmpty = data !== null && !hasAny;
-  // 公開待ち＝相手はもう評価しているが、規約第8条4のゲート（双方の評価が揃うか、完了から3日）で
+  // 公開待ち＝相手はもう評価しているが、規約第8条4のゲート（最終作業の終了から72時間）で
   // まだ出せない件数。中身も誰かも出さない＝数だけ知らせて「消えた」と誤解させない（2026-08-25たきと報告）
   const waiting = (data && data.waiting) || 0;
   // 働き手宛＝農家からの評価＝緑／農家宛＝働き手からの評価＝橙（役割色の規約2026-07-22）
@@ -101,7 +101,7 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, pr
             waiting > 0 ? (
               <p className="f-sans" style={{ fontSize: 12, color: "#717171", lineHeight: 1.7, padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>
                 相手からの評価が{waiting}件届いています。<br />
-                お互いの評価が揃うか、仕事の完了から3日たつと表示されます。
+                相手の提出状況にかかわらず、最終作業の終了から72時間後に表示されます。
               </p>
             ) :
             <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>まだ評価はありません</p>
