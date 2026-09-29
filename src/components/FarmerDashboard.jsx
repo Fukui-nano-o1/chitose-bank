@@ -2,20 +2,20 @@ import { DeviceDrafts } from "./DeviceDrafts";
 // 分割3-C（2026-07-25）：App.jsxから移動。農家モードのお仕事タブ（求人一覧・応募者管理・お気に入り・完了報告）。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { getSession, fetchMyEmployerProfileFull, fetchEmployerTrustInfo, fetchMyRoster, fetchMyEmergencyContact,
-  fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchPublicJobByNumber, fetchMyJobLabel,
+  fetchWorkerCards, fetchMyFarmJobs, fetchMyFarmApplicants, fetchMyJobLabel,
   unpublishJob, deleteMyJob, approveApplication, rejectApplication, setAgreedDates, setApplicationFollowup,
   markWorkNoShow, submitFarmerFinalReviewRpc, fetchWorkerProfileForFarmer, fetchWorkerTrustInfo,
   upsertRoster, deleteRoster } from "../features/farmer/dashboard/farmerDashboardApi";
 import { openWorkerPreview, openEmployerPreview } from "../lib/previewBus";
 import { copyJobToEdit } from "../lib/copyJobFlow";
-import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, isWorkWindowOpen, scrollBelowCalendar } from "../lib/utils";
+import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_STATUSES, ROLE_GREEN, ROLE_ORANGE, appPhaseKey, appPhaseLabelNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, perkBadges, isJobEnded, workerQaItems, mapJobPublicRow, employerUnsetCount, isFinalWorkDone, appWorkDates, isWorkWindowOpen, scrollBelowCalendar, workDaysStripData } from "../lib/utils";
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { OwnJobTile, ownJobState, ownJobPhoto, OWN_JOB_GRID_CLASS } from "./OwnJobTile";
-import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
-import { DragSheet } from "./DragSheet";
+import { WorkDaysStrip } from "./WorkDaysStrip";
+import { ApplicantDetailSheet } from "./ApplicantDetailSheet";
+import { ApplicantProfile } from "./ApplicantProfile";
 import { JobCard } from "./JobCard";
-import { JobDetailBody } from "./JobDetailBody";
 import { AdminJobPreview } from "./AdminJobPreview";
 import { MyCalendar } from "./MyCalendar";
 import { SavedJobsView } from "./SavedJobsView";
@@ -588,25 +588,6 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
     window.addEventListener("cb:openApplicantSheet", f);
     return () => window.removeEventListener("cb:openApplicantSheet", f);
   }, []);
-  // シート内の求人カード→詳細面（2026-08-08たきと指示「ここも同じにしよう。アニメーションもコピー」＝
-  // ステータスページのボックスと同じ：求人タップで面全体が演出→詳細面へスライド・横スワイプで戻る）
-  const [sheetPane, setSheetPane] = useState("main");        // main | detail
-  const [sheetShowcase, setSheetShowcase] = useState(false); // 面全体の演出（cbJobShowcase）
-  const [sheetJobFull, setSheetJobFull] = useState({});      // job_number → jobs_publicのmapped行｜null(非公開)
-  useEffect(() => {
-    setSheetPane("main"); setSheetShowcase(false); // 開き直しで面と演出の残骸を持ち越さない
-    const live = dbApplicants.find(x => x.id === sheetApplicantId);
-    const jn = live?.job_number;
-    if (!jn || jn in sheetJobFull) return;
-    let dead = false;
-    (async () => {
-      try {
-        const { data } = await fetchPublicJobByNumber(jn);
-        if (!dead) setSheetJobFull(prev => ({ ...prev, [jn]: data ? mapJobPublicRow(data) : null }));
-      } catch { if (!dead) setSheetJobFull(prev => ({ ...prev, [jn]: null })); }
-    })();
-    return () => { dead = true; };
-  }, [sheetApplicantId]); // eslint-disable-line react-hooks/exhaustive-deps -- sheetJobFullは取得済み判定のみ（依存に入れると再取得ループ）
   // 採用は【その場で最終確認→OKで採用】（2026-08-28たきと指示「採用するボタンタップしたら最終確認を出して。
   // OKなら採用だ。ページ遷移するな。」）。最終確認・二重予約の警告・本名開示の明示・実行（confirm_terms）・
   // 祝いの演出は共有部品 components/HireConfirm がまとめて持つ＝採用するページ（TodayPage）と同じもの。
@@ -815,8 +796,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   const renderApplicantCard = (a) => {
     // 旧・独自のチップ配色(badgeColor)は廃止（2026-07-26）：現在地バナーが段階色APP_PHASE_COLORを使う
     const wp = workerProfiles[a.worker_id];
-    // 操作ボタン（2026-07-27たきと指示）：現在地バナーの直下とカード末尾の2箇所に同じものを置く。
-    // 上＝状態を読んだ直後にそのまま押せる／下＝プロフィールを読み終えた流れで押せる。
+    // 操作は固定フッターの1箇所。段階別の確認・保存処理は既存のものを使う。
     /* ── ボタンは段階で出し分け（2026-07-26たきと指示）：
                   応募中＝見送る／承認する → 承認後（質問未送信）＝質問を送る／チャットを開く →
                   初面接後（質問送信済み）＝質問を送る／採用する → 採用後＝チャットを開く。
@@ -937,67 +917,29 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                 );
                 return <div style={{ display:"flex", gap:8 }}>{chatBtn}</div>;
     })();
-    return (
-      <div key={a.id} style={{ border:"1px solid #EBEBEB", borderRadius:12, padding:"16px", background:"#fff" }}>
-              {/* 現在地バナー（2026-07-26たきと指示）：ステータスと説明を1つの帯にまとめる。
-                  色は段階色（APP_PHASE_COLOR）を左バーと見出しに、背景はその薄色（+"14"＝約8%不透明）。
-                  文面はAPP_PHASE_DESC＝帯・凡例・タップ説明と同じ唯一のソースので言い回しが枝分かれしない */}
-              {(() => {
-                const pk = appPhaseKey(a);
-                const c = APP_PHASE_COLOR[pk] || "#717171";
-                return (
-                  <div style={{ background: c + "14", borderLeft: "4px solid " + c, borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
-                    <p className="f-sans" style={{ fontSize:13, fontWeight:800, color:c, margin:0 }}>{appRibbonLabel(a)}</p>
-                    {APP_PHASE_DESC[pk] && (
-                      <p className="f-sans" style={{ fontSize:12, color:"#555", lineHeight:1.7, margin:"3px 0 0" }}>{APP_PHASE_DESC[pk]}</p>
-                    )}
-                  </div>
-                );
-              })()}
-              {/* バナー直下の操作ボタン（末尾と同じもの・2箇所） */}
-              <div style={{ marginBottom:12 }}>{actionButtons}</div>
-              {/* お仕事の流れ（現在地）。見送り・失効は流れが途中で終わるので出さない（バナーが理由を説明する） */}
-              {a.status !== "rejected" && a.status !== "expired" && renderEmpFlowBar(a)}
-              <div style={{ marginBottom:10 }}>
-                <WorkerTrustCard profile={wp || {}} trust={workerTrust[a.worker_id]} />
-                {/* 契約成立後のみ本名を開示（当事者間・KYC非複製・2026-07-30たきと裁定(B)） */}
-                <ContractPartyName applicationId={a.id} showPending={false} />
-                {/* 緊急連絡先＝仕事の開始から終了までの間だけ（2026-08-25たきと指示）。窓口は従来どおり1本 */}
-                <ContractEmergencyContact applicationId={a.id} workWindow={isWorkWindowOpen(a)} />
-                <MyReviewsOfWorker workerId={a.worker_id} />
-              </div>
-              {/* Q&Aはチャットと同じコメント形式（2026-08-06たきと指示）。💪希望する作業の強さも質問要素として合流 */}
-              <QaChat items={workerQaItems(wp)} style={{ marginTop:10, marginBottom:10 }} />
-              {/* 求人＝ステータスページのボックスと同じカード＋動き（2026-08-08たきと指示
-                  「ここも同じにしよう。アニメーションもコピー」）：旧・下線リンク（タップで求人プレビュー）を
-                  廃止し、wide JobCardに。タップ＝面全体の演出→シート内の詳細面へスライド（DragSheetのdetail）。
-                  jobs_publicの読み足し（sheetJobFull）が届くまで／非公開求人は手元の情報で仮の姿
-                  （報酬0円やダミーは出さない＝JobCard側でpay>0のみ表示） */}
-              {(() => {
-                const info = jobInfoMap[a.job_number] || dbActive.find(d => d.job_number === a.job_number) || dbDrafts.find(d => d.job_number === a.job_number) || {};
-                const full = sheetJobFull[a.job_number];
-                const job = full || {
-                  id: a.job_number, crop: info.crop || "", task: info.task || "", photos: info.photos || [],
-                  region: "", dateStartRaw: info.date_start || "", dateEndRaw: info.date_end || "", pay: 0,
-                };
-                return (
-                  <div style={{ margin:"0 0 8px" }}>
-                    <JobCard job={job} variant="wide" onOpen={()=>{ if (!sheetShowcase && sheetPane === "main") setSheetShowcase(true); }} />
-                  </div>
-                );
-              })()}
-              <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:0, marginBottom:8 }}>応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
-              {/* 来られる日（期間求人・すり合わせの起点・2026-07-24） */}
-              <AvailDatesChips value={a.available_dates} agreed={a.agreed_dates} />
-              {/* 働く日（確定済み・2026-07-24 追記3） */}
-              <AgreedDatesRow value={a.agreed_dates} />
-              {/* 状態メモ（進行の記録は小さく残す・操作は今日ページ） */}
-              {a.status === "completed" && (
-                <p className="f-sans" style={{ fontSize:12, fontWeight:700, color: a.attended===false ? "#E24B4A" : "#00A86B", margin:"0 0 8px" }}>{a.attended===false ? "欠勤記録済み" : <><NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px" }} />完了・評価済み</>}</p>
-              )}
-              {actionButtons}
-      </div>
-    );
+    const info = jobInfoMap[a.job_number] || dbActive.find(j => j.job_number === a.job_number) || dbDrafts.find(j => j.job_number === a.job_number) || {};
+    const schedule = workDaysStripData(a, info);
+    return <ApplicantDetailSheet key={a.id} name={wp?.nickname || "応募者"}
+      jobTitle={`${[info.crop, info.task].filter(Boolean).join(" ") || "求人"} #${a.job_number}`}
+      status={appRibbonLabel(a)} description={APP_PHASE_DESC[appPhaseKey(a)]}
+      onClose={() => setSheetApplicantId(null)} actions={actionButtons}
+      profile={<><ApplicantProfile profile={wp} trust={workerTrust[a.worker_id]} />
+        <MyReviewsOfWorker workerId={a.worker_id} /></>}
+      application={<>
+        <a className="applicant-detail__job" href={`#/work/job/${a.job_number}`} onClick={() => {
+          try { sessionStorage.setItem("cb_jobBackTo", window.location.hash.replace(/^#/, "")); } catch {}
+          setSheetApplicantId(null);
+        }}>{[info.crop, info.task].filter(Boolean).join(" ") || "求人"} →<span>求人 #{a.job_number}・仕事の内容を確認</span></a>
+        <p className="applicant-profile__note">応募日 {new Date(a.created_at).toLocaleDateString("ja-JP")}</p>
+        <section className="applicant-detail__section"><h3>日程</h3>
+          {info.work_time && <p>{info.work_time}</p>}
+          <WorkDaysStrip days={schedule.days} label={schedule.label} accent="#222" />
+          {!schedule.days.length && <p className="applicant-profile__note">日程はチャットでご確認ください。</p>}
+        </section>
+        <ContractPartyName applicationId={a.id} showPending={false} />
+        <ContractEmergencyContact applicationId={a.id} workWindow={isWorkWindowOpen(a)} />
+        {a.status === "completed" && <p>{a.attended === false ? "欠勤記録済み" : reviewedAppIds.has(a.id) ? "完了・評価済み" : "仕事完了・評価は未送信"}</p>}
+      </>} />;
   };
   return (
     // 入口(home)は余白を持たない＝働き手入口と開始位置・下端が完全一致（外側のプロフィールwrapperが32px/4pxを提供）
@@ -1384,36 +1326,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
       </>
       )}
 
-      {/* 応募者カードのボックス（アイコンタップで展開・中身は従来の応募者カード＝操作ボタン込み）。
-          枠＝ステータスページの展開ボックスと同じ規格・非表示条件（2026-08-08たきと指示
-          「ステータスページのボックスと同じ規格や枠、非表示条件にしよう」＝共有部品DragSheet）：
-          下から生える全画面シート・グラバー・✕なし。閉じる＝背景タップ／下スワイプで畳む
-          （中身最上部から指に連動・シート上端が画面中央より下で離すと閉じる） */}
+      {/* 応募者詳細：明示的な閉じるボタンと固定操作欄。求人は直接詳細へ。 */}
       {(() => {
         const live = dbApplicants.find(x => x.id === sheetApplicantId);
-        if (!live) return null;
-        // 詳細面（2026-08-08たきと指示「アニメーションもコピー」）＝ステータスページのボックスと同じ：
-        // シート内の求人カードタップ→面全体の演出→この面へスライド。横スワイプで戻る
-        const full = sheetJobFull[live.job_number];
-        const detailPane = (
-          <div>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", textAlign:"center", margin:"0 0 10px" }}>横スワイプで戻る</p>
-            {full
-              ? <JobDetailBody job={full} me={me} onBack={()=>{ setSheetPane("main"); setSheetShowcase(false); }} />
-              : <p className="f-sans" style={{ fontSize:13, color:"#999", textAlign:"center", padding:"32px 0" }}>
-                  {full === null ? "この求人の詳しい内容を表示できません（求人の記録が見つかりません）" : <>読み込み中<Dots /></>}
-                </p>}
-          </div>
-        );
-        return (
-          <DragSheet onClose={()=>setSheetApplicantId(null)}
-            pane={sheetPane} showcase={sheetShowcase}
-            onShowcaseEnd={()=>setSheetPane("detail")}
-            onPaneChange={(p)=>{ setSheetPane(p); if (p === "main") setSheetShowcase(false); }}
-            detail={detailPane}>
-            {renderApplicantCard(live)}
-          </DragSheet>
-        );
+        return live ? renderApplicantCard(live) : null;
       })()}
 
       {/* 採用の最終確認＋実行＋祝いの演出（2026-08-28）＝共有部品。採用するページ（TodayPage）と同じもの。

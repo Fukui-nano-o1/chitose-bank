@@ -152,6 +152,39 @@ test('applicant cards keep per-person actions, schedule accuracy, and closed-sta
     await until(() => w.location.hash === '#/calendar/todo/insurance', 'existing insurance page');
     assert.equal(w.sessionStorage.getItem('cb_insuranceAppId'), 'second');
 
+    // Applicant detail uses a body portal, persistent close/actions and the same date source.
+    w = mount([props(app('interview', { terms_confirmed_farmer_at:null, agreed_dates:['2026-09-25','2026-09-26','2026-09-28'] }))], {dashboard:true});
+    await until(() => card(w, 'interview'), 'detail source card');
+    const opener=[...card(w,'interview').querySelectorAll('button')].find(el=>el.textContent.startsWith('応募詳細'));
+    opener.focus(); opener.click();
+    await until(() => w.document.querySelector('.applicant-detail'), 'applicant detail');
+    const dialog=w.document.querySelector('.applicant-detail');
+    assert.equal(dialog.parentElement.parentElement,w.document.body,'portal escapes transformed dashboard');
+    assert.equal(w.document.activeElement.getAttribute('aria-label'),'応募者詳細を閉じる');
+    assert.equal([...dialog.querySelectorAll('button')].filter(el=>el.textContent.includes('採用する')).length,1,'single hire control');
+    assert.match(dialog.textContent,/応募者interview/);
+    assert.ok(button(dialog,'プロフィール'));
+    const viewport=Object.assign(new w.EventTarget(),{width:320,height:460,offsetTop:90,offsetLeft:0,scale:1.2});
+    // Mount with the resized viewport to exercise the mobile fitting hook.
+    dialog.querySelector('[aria-label="応募者詳細を閉じる"]').click();
+    await until(()=>!w.document.querySelector('.applicant-detail'),'closed');
+    assert.equal(w.document.activeElement,opener,'focus returns to source');
+    Object.defineProperty(w,'visualViewport',{value:viewport}); opener.click();
+    await until(()=>w.document.querySelector('.applicant-detail-overlay')?.style.height==='460px','visual viewport fit');
+    const current=w.document.querySelector('.applicant-detail');
+    button(current,'応募内容・日程').click();
+    await until(()=>current.textContent.includes('10:00〜12:00'),'application page');
+    const strip=current.querySelector('.applicant-detail__section');
+    assert.match(strip.textContent,/9\/25/); assert.match(strip.textContent,/9\/28/);
+    assert.doesNotMatch(strip.textContent,/9\/26/,'holiday excluded');
+    assert.ok(current.querySelector('a[href="#/work/job/1311"]'));
+    assert.ok(current.querySelector('.applicant-detail__actions button'));
+    current.querySelector('a[href="#/work/job/1311"]').click();
+    await until(()=>w.location.hash==='#/work/job/1311','direct job');
+    assert.equal(w.sessionStorage.getItem('cb_jobBackTo'),'/profile/employer/applicants');
+    assert.equal(w.document.querySelector('.applicant-detail'),null);
+    assert.deepEqual(Array.from(w.qaUnexpected), []);
+
     w = mount([], { dashboard: true, focus: 1311 });
     await until(() => w.document.querySelector('.applicant-card-empty'), 'focused job with no applicants');
     assert.match(w.document.querySelector('.applicant-card').textContent, /応募はまだありません/);

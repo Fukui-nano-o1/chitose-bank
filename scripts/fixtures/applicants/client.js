@@ -13,6 +13,8 @@ export const supabase = createClient('https://applicants-fixture.test', 'fixture
     else if (path === 'rpc/employer_trust_info') data = { ok: false };
     else if (path === 'repeat_roster') data = [];
     else if (['employer_profiles', 'emergency_contacts', 'account_holders'].includes(path)) data = null;
+    else if (path === 'reviews') data = [];
+    else if (path === 'rpc/contract_party_name') data = {ok:false,reason:'not_contracted'};
     else if (path === 'applications') {
       const id = request.searchParams.get('id')?.replace(/^eq\./, '');
       data = window.qaBundle.apps.filter(app => !id || app.id === id).map(app => ({ ...app,
