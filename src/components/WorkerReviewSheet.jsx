@@ -1,116 +1,64 @@
-// 最終日の評価（働き手→農家）。基本3問＋任意3問（2026-09-24 評価項目の追加）。
-// ★この形は2箇所から開く：①応募状況ページ（#/profile/worker/approved）②今日ページの「仕事の評価」。
-//   同じ入力が枝分かれしないよう、設問と保存はこの1部品に集約する。
-// ★対称設計にしすぎない（たきと裁定）：働き手側が測るのは人柄より【求人の信頼性】＝
-//   ①求人に書かれていた内容と実際は一致していたか ②報酬は約束どおり支払われたか ③また働きたいか。
-// ★公開自由記述は置かない（2026-08-20たきと裁定・泥沼の回避）。
-// 保存は reviews の1行だけ。真実は3択の新列（match_level/pay_status/want_again_choice）に持ち、
-//   既存 boolean（as_described/paid_as_posted/want_again）は互換の影として同時に立てる
-//   ＝公開バッジ（reviews_public_badges）と信頼カードがそのまま動く。
-// DBの壁：trg_reviews_party_consistency（当事者と向きの一致）＋trg_reviews_phase_gate
-//   （worker_to_farmer は working 以上）が最後の担保。
-// ★モジュールレベル定義を維持すること（親内定義はフォーカス消失バグの元・CLAUDE.md）。
-import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
-import { fbSuccess, fbError } from "../lib/feedback";
-import { FinalReviewSheet } from "./FinalReviewSheet";
+// 働き手→農家の評価。応募状況と今日ページが同じ入力・保存を使う。
+// 良い点5つ／悪い点5つは workReview.js が正。公開範囲は既存のDB関数が担保する。
+import { useEffect, useRef, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { fbSuccess, fbError } from '../lib/feedback';
+import { buildWorkReviewPayload } from '../lib/workReview';
+import { WorkReviewFlow } from './WorkReviewFlow';
 
-// 設問（3問・すべて3択）。k は reviews の列名と1対1。
-// ★選択肢を変える時は DBのCHECK制約（reviews_match_level_check 等）と対で直すこと
-const WORKER_FINAL_QUESTIONS = [
-  { k:"match_level", label:"求人に書かれていた内容と、実際の仕事は一致していましたか", choices:[
-    { v:"matched",  l:"一致していた" },
-    { v:"partly",   l:"一部違った" },
-    { v:"differed", l:"大きく違った" },
-  ]},
-  { k:"pay_status", label:"報酬は約束どおり支払われましたか", choices:[
-    { v:"paid",   l:"支払われた" },
-    { v:"unpaid", l:"未払い" },
-    { v:"other",  l:"その他" },
-  ]},
-  { k:"want_again_choice", label:"またこの農家の仕事をしたいですか", choices:[
-    { v:"yes",     l:"はい" },
-    { v:"neutral", l:"どちらともいえない" },
-    { v:"no",      l:"いいえ" },
-  ]},
-];
-
-// 既存の nullable boolean 列と公開集計を使う。未回答・判断できないは null
-// （否定に数えない）。農家→働き手の設問には追加しない。
-const WORKER_OPTIONAL_QUESTIONS = [
-  { k:"instructions_clear", label:"仕事の教え方や指示は分かりやすかったですか", choices:[
-    { v:"yes", l:"分かりやすかった" },
-    { v:"no", l:"分かりにくかった" },
-    { v:"unknown", l:"判断できない" },
-  ]},
-  { k:"safety_care", label:"安全に作業できるよう、配慮がありましたか", choices:[
-    { v:"yes", l:"配慮があった" },
-    { v:"no", l:"配慮が足りなかった" },
-    { v:"unknown", l:"判断できない" },
-  ]},
-  { k:"on_time", label:"仕事は約束した時間どおりに始まりましたか", choices:[
-    { v:"yes", l:"時間どおりに始まった" },
-    { v:"no", l:"時間どおりではなかった" },
-    { v:"unknown", l:"判断できない" },
-  ]},
-];
-
-// app＝{ id, farmer_id }（応募のID と 相手＝農家のauth_id）。meId＝自分のauth_id。
-// dayCount＝実働日数（分かる時だけ・客観データの見出しに出す）。
-// onDone(applicationId)＝保存できた時に親へ知らせる（一覧から消す・祝祭を出すのは親の仕事）。
-export function WorkerReviewSheet({ app, meId, dayCount, onDone, onClose }) {
+function WorkerReviewForm({ app, meId, dayCount, onDone, onClose }) {
   const [answers, setAnswers] = useState({});
+  const [unpaid, setUnpaid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // 開き直したら前回の入力を持ち越さない（別の応募の評価に前の答えが残らないように）
-  useEffect(() => { setAnswers({}); }, [app?.id]);
-  const submit = async () => {
-    if (!app || submitting) return;
-    if (WORKER_FINAL_QUESTIONS.some(q => !answers[q.k])) return;
+  const [error, setError] = useState('');
+  const [alreadySent, setAlreadySent] = useState(false);
+  const busy = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+
+  function onAnswer(key, value) {
+    setAnswers(prev => ({ ...prev, [key]: value }));
+    if (key === 'paid_as_posted' && value !== 'negative') setUnpaid(false);
+    setError('');
+  }
+
+  async function submit() {
+    if (busy.current || alreadySent) return;
+    busy.current = true;
     setSubmitting(true);
+    setError('');
     try {
-      const wc = answers.want_again_choice;
-      const { error } = await supabase.from("reviews").insert({
-        application_id: app.id, reviewer_id: meId, reviewee_id: app.farmer_id,
-        direction: "worker_to_farmer",
-        match_level: answers.match_level, pay_status: answers.pay_status, want_again_choice: wc,
-        // 互換の影（公開バッジ・信頼カードの材料）。はい→true／いいえ→false／どちらとも→null
-        as_described: answers.match_level === "matched",
-        paid_as_posted: answers.pay_status === "paid",
-        want_again: wc === "yes" ? true : wc === "no" ? false : null,
-        ...Object.fromEntries(WORKER_OPTIONAL_QUESTIONS.map(({ k }) => [
-          k, answers[k] === "yes" ? true : answers[k] === "no" ? false : null,
-        ])),
-      });
-      if (error) { fbError(); alert("評価の保存に失敗しました：" + error.message); setSubmitting(false); return; }
+      const { error: failure } = await supabase.from('reviews').insert(buildWorkReviewPayload({ app, meId, answers, unpaid }));
+      if (!alive.current) return;
+      if (failure) {
+        fbError();
+        if (failure.code === '23505') {
+          setAlreadySent(true);
+          setError('この仕事の評価はすでに送信されています。送信済みの評価は変更されません。');
+        } else {
+          setError('送信できませんでした。選んだ内容は残っています。通信を確認して、もう一度お試しください。');
+        }
+        return;
+      }
       fbSuccess();
       onDone(app.id);
-    } catch { alert("処理に失敗しました。"); }
-    setSubmitting(false);
-  };
-  if (!app) return null;
-  return (
-    <FinalReviewSheet
-      app={app}
-      title="今回の仕事のふりかえり"
-      intro="基本の3問に答えてください。教え方・安全・開始時間についても、任意で振り返れます。"
-      dayCount={dayCount}
-      questions={WORKER_FINAL_QUESTIONS}
-      optionalQuestions={WORKER_OPTIONAL_QUESTIONS}
-      answers={answers}
-      onAnswer={(k, v)=>setAnswers(prev => ({ ...prev, [k]: v }))}
-      submitting={submitting}
-      onSubmit={submit}
-      onClose={onClose}
-      confirmNote="送信すると、あとから直すことはできません。肯定的な答えだけが農園のページに表示されます（否定的な答えは公開されませんが、記録には残ります）。"
-      /* 未払いの明示（2026-08-20たきと裁定）：申告として運営にも即時に記録・通知される。
-         DB側のトリガー（trg_pay_incident_on_unpaid）が起票するので、ここは説明だけ＝黙って通報しない */
-      confirmExtra={answers.pay_status === "unpaid" ? (
-        <div style={{ padding:"9px 0" }}>
-          <p className="f-sans" style={{ fontSize:12, color:"#B54A0E", background:"#FFF6EE", border:"1px solid #F3D3B5", borderRadius:8, padding:"8px 10px", lineHeight:1.7, margin:0 }}>
-            「未払い」は、未払いの申告として運営にも記録されます。運営が内容を確認し、必要に応じて双方に事実を確認します。
-          </p>
-        </div>
-      ) : null}
-    />
-  );
+    } catch {
+      if (alive.current) {
+        fbError();
+        setError('送信できませんでした。選んだ内容は残っています。もう一度お試しください。');
+      }
+    } finally {
+      busy.current = false;
+      if (alive.current) setSubmitting(false);
+    }
+  }
+
+  return <WorkReviewFlow answers={answers} onAnswer={onAnswer} unpaid={unpaid} onUnpaid={setUnpaid}
+    dayCount={dayCount} submitting={submitting} error={error} alreadySent={alreadySent}
+    onSubmit={submit} onClose={onClose} onAlreadySent={() => onDone(app.id)} />;
+}
+
+export function WorkerReviewSheet(props) {
+  // 応募・アカウントが変わったら、ページ位置も回答も引き継がない。
+  return props.app ? <WorkerReviewForm key={`${props.meId}:${props.app.id}`} {...props} /> : null;
 }

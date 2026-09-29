@@ -11,7 +11,7 @@ import { NavIconInline } from "./NavIcons";
 
 // 方向ごとの肯定バッジ定義（falseは公開しない＝第8条2）。順序＝表示順。
 // ★入力の設問（農家→働き手＝FarmerDashboard の FARMER_FINAL_QUESTIONS＋FARMER_TRAIT_TAGS／
-//   働き手→農家＝WorkerReviewSheet の WORKER_FINAL_QUESTIONS）と、DBの reviews_public_badges の列挙と、
+//   働き手→農家＝lib/workReview の WORK_REVIEW_POINTS）と、DBの reviews_public_badges の列挙と、
 //   ここの3箇所は対で直すこと。どれか1つでも欠けると「入力できるのに誰にも表示されない」になる
 const BADGE_DEFS = {
   // 2026-08-20に3問×3択＋特記タグへ再設計。trait_*＝肯定タグの集計（否定タグは公開されない）。
@@ -28,14 +28,14 @@ const BADGE_DEFS = {
     { k: "as_described", label: "聞いていたとおり", legacy: true },
     { k: "followed_instructions", label: "指示どおり", legacy: true },
   ],
-  // 基本3問＋任意3問。再開した設問は従来の集計キーを使い、過去の回答も引き継ぐ。
+  // 良い点5つ／悪い点5つ。従来の集計キーを使い、過去の肯定回答も引き継ぐ。
   worker_to_farmer: [
     { k: "want_again", label: "また働きたい", icon:"star" },
     { k: "as_described", label: "求人のとおりだった" },
     { k: "paid_as_posted", label: "報酬は約束どおり" },
     { k: "instructions_clear", label: "教え方が分かりやすい" },
     { k: "safety_care", label: "安全に配慮" },
-    { k: "on_time", label: "時間どおりに開始" },
+    { k: "on_time", label: "時間どおりに開始", legacy: true },
   ],
 };
 
