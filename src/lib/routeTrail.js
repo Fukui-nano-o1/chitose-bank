@@ -1,3 +1,4 @@
+import { ROUTE_CHANGED } from './pushRoute.js';
 // Return through browser history instead of appending a second copy of the source page.
 export const currentPath = () => window.location.hash.replace(/^#/, '') || '/search';
 export function goAlongPath(path, label = '前の画面に戻る') {
@@ -28,4 +29,12 @@ export function rememberApplicantView(owner, id, tab, scrollTop) {
 export function clearApplicantView() {
   const state = { ...window.history.state }; delete state.cbApplicantView;
   window.history.replaceState(state, '');
+}
+
+// Job search already updates its own selected item; notify the other route listeners only.
+export function pushAlongPath(hash, label = '前の画面に戻る') {
+  const to = hash.replace(/^#/, ''), from = currentPath();
+  if (to === from) return;
+  window.history.pushState({ cbRouteReturn: { from, to, label } }, '', '#' + to);
+  window.dispatchEvent(new Event(ROUTE_CHANGED));
 }

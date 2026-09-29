@@ -1,4 +1,4 @@
-import { returnAlongPath, routeReturn } from "../lib/routeTrail";
+import { returnAlongPath, routeReturn, pushAlongPath } from "../lib/routeTrail";
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
@@ -191,7 +191,6 @@ export function JobSearchMapView({ onRegister, me }) {
   const [pastJobsTab, setPastJobsTab] = useState("all"); // すべて/公開中/終了（2026-07-23）
   const [pastJobsFocus, setPastJobsFocus] = useState(null); // タップした求人（job_number）。先頭に移動して概要を展開（2026-07-24）
   const [pastJobsCounts, setPastJobsCounts] = useState({}); // { job_number: {applied, approved, hired} }（集計値のみ）
-  const [jobBackStack, setJobBackStack] = useState([]); // 過去求人から遷移した時の「前の求人」スタック
   const openPastJobs = async (tab) => {
     // tab: "open"（公開中→から）/"ended"（実績→から）/未指定は"all"。イベントオブジェクト混入ガード付き
     setPastJobsOpen(true); setPastJobs(null); setPastJobsTab(typeof tab === "string" ? tab : "all");
@@ -576,7 +575,7 @@ export function JobSearchMapView({ onRegister, me }) {
   const [activeSlide, setActiveSlide] = useState(0);
   const [showApplyBar, setShowApplyBar] = useState(false);
   const applyPanelRef = useRef(null);
-  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setDetailTab("content"); pushRoute("#/work/job/"+job.id); };
+  const openJob = job => { setSelectedJob(job); setActiveSlide(0); setDetailTab("content"); pushAlongPath("#/work/job/"+job.id, selectedJob ? "前の求人に戻る" : "一覧に戻る"); };
 
   // ── 👀 閲覧数（2026-08-21たきと指示「❤️ボタンの左横に👀〇〇(数値)。求人をタップした総数」）──
   // 数える場所は【求人の詳細thatが開いた時】の1箇所だけ＝カードのタップも、通知やチャットからの
@@ -620,7 +619,6 @@ export function JobSearchMapView({ onRegister, me }) {
       return;
     }
     const job = mapJobPublicRow(row);
-    setJobBackStack(prev => [...prev, selectedJob]);
     setPastJobsOpen(false); setFarmIntroOpen(false);
     openJob(job);
     try { window.scrollTo(0, 0); } catch {}
@@ -1167,15 +1165,6 @@ export function JobSearchMapView({ onRegister, me }) {
         <JobTopBar />
         {(
         <button onClick={() => {
-          // 過去の求人から来た場合は前の求人詳細へ戻る（2026-07-16）
-          if (jobBackStack.length > 0) {
-            const prev = jobBackStack[jobBackStack.length - 1];
-            setJobBackStack(st => st.slice(0, -1));
-            setSelectedJob(prev); setDetailTab("content");
-            pushRoute("#/work/job/" + prev.id);
-            try { window.scrollTo(0, 0); } catch {}
-            return;
-          }
           if (returnAlongPath()) return;
           // チャット等の出どころから来た場合はそこへ戻る（2026-07-16）
           if (backTo) { setSelectedJob(null); setBackTo(null); window.location.hash = backTo; return; }
@@ -1186,8 +1175,7 @@ export function JobSearchMapView({ onRegister, me }) {
           // 同じ大きさの丸に揃えた（Airbnbの写真の上の丸ボタンと同じ）。
           // ★カレンダー（働き手＝/saved／農家＝/profile/employer/calendar）から来た時は
           //   「カレンダーに戻る」（2026-08-23たきと指示）。/profile/employer の判定より先に見る
-          aria-label={jobBackStack.length > 0 ? "前の求人に戻る"
-            : routeReturn() ? routeReturn().label
+          aria-label={routeReturn() ? routeReturn().label
             : /^\/profile\/(employer|worker)\/schedule\//.test(backTo || "") ? "予定の詳細に戻る"
             : (backTo === "/saved" || (backTo || "").startsWith("/profile/employer/calendar")) ? "カレンダーに戻る"
             : (backTo && backTo.startsWith("/profile/employer")) ? "求人に戻る" : "一覧に戻る"}
