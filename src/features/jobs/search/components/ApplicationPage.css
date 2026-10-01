@@ -1,0 +1,24 @@
+.application-page { position:fixed; inset:0; z-index:8000; background:#fff; color:#222; display:flex; flex-direction:column; height:100dvh; }
+.application-page-header { display:flex; align-items:center; gap:16px; padding:calc(16px + env(safe-area-inset-top, 0px)) 24px 16px; border-bottom:1px solid #ebebeb; flex-shrink:0; font-weight:700; }
+.application-page-header button { width:44px; height:44px; background:#fff; border:1px solid #ddd; border-radius:50%; cursor:pointer; font-size:20px; }
+.application-page-count { margin-left:auto; font-size:13px; color:#717171; font-weight:400; }
+.application-page-scroll { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.application-page-content { max-width:640px; margin:0 auto; padding:28px 24px 40px; }
+.application-page-content h1 { font-size:28px; line-height:1.3; margin:16px 0 24px; }
+.application-page-content p { font-size:17px; line-height:1.8; }
+.application-page-content .application-page-job { font-size:14px; color:#717171; margin:0; }
+.application-page-flow { display:block; width:100%; height:auto; border-radius:12px; }
+.application-page-note { background:#f7f7f7; padding:20px; border-radius:12px; }
+.application-page-content .application-page-hint { font-size:14px; color:#717171; }
+.application-page-any { width:100%; border:1px solid #ddd; background:#fff; border-radius:12px; padding:18px; font-size:16px; font-weight:700; cursor:pointer; }
+.application-page-dates { display:flex; flex-wrap:wrap; gap:10px; }
+.application-page-dates button { min-height:44px; padding:10px 16px; border:1px solid #ddd; border-radius:24px; background:#fff; color:#222; font-size:14px; cursor:pointer; }
+.application-page [aria-pressed=true] { border-color:#00a86b; background:#ecfaf4; color:#006b44; box-shadow:inset 0 0 0 1px #00a86b; }
+.application-page-footer { padding:16px 24px calc(16px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #ebebeb; flex-shrink:0; background:#fff; }
+.application-page-footer > div { max-width:640px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.application-page-footer button { min-height:48px; padding:14px 24px; font-size:16px; font-weight:700; border-radius:10px; cursor:pointer; }
+.application-page-back { background:#fff; color:#222; border:1px solid #ddd; }
+.application-page button:disabled { opacity:.5; cursor:not-allowed; }
+.application-page :focus-visible { outline:2px solid #222; outline-offset:3px; }
+body:has(.application-page) { overflow:hidden; }
+body:has(.application-page) > #root { visibility:hidden; }

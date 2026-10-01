@@ -46,7 +46,7 @@ test('real search/detail UI expires stale cached jobs offline and at the deadlin
     }, react()], build: { outDir: output, lib: { entry: path.join(root, 'scripts/fixtures/job-expiry/entry.jsx'), name: 'JobExpiryQA', formats: ['iife'], fileName: 'fixture' }, minify: false } });
     const script = await readFile(path.join(output, 'fixture.iife.js'), 'utf8');
 
-    function mount(jobs, now, hash = '#/work', signedIn = false) {
+    function mount(jobs, now, hash = '#/work', signedIn = false, storedSession = {}) {
       dom?.window.close();
       const console = new VirtualConsole();
       console.on('jsdomError', e => { if (!/CSS|navigation/.test(e.message)) errors.push(e.message); });
@@ -81,6 +81,7 @@ test('real search/detail UI expires stale cached jobs offline and at the deadlin
       }
       const scope = signedIn ? w.qaMe.id.slice(0, 8) : 'anon';
       w.localStorage.setItem(`cb_viewCache_v2_${scope}`, JSON.stringify(cache));
+      for (const [key, value] of Object.entries(storedSession)) w.sessionStorage.setItem(key, value);
       w.eval(script);
       assert.equal(w.qaMounted, true, 'actual search component committed');
       return w;
@@ -140,15 +141,83 @@ test('real search/detail UI expires stale cached jobs offline and at the deadlin
     assert.equal(w.document.querySelector('[data-guide="apply-btn"]').textContent.trim(), '募集終了');
     assert.match(w.document.body.textContent, /テスト作物201/, 'detail remains readable after its deadline');
 
+    // All entry routes show real pages; dates survive history and remounts.
+    const period = cachedJob(301, '2026-09-24', { dateEndRaw: '2026-09-27', dateEnd: '2026-09-27', holidays: ['2026-09-25'] });
+    w = mount([period], '2026-09-22T12:00:00+09:00', '#/work/job/301', true);
+    w.qaApplyMode = 'error';
+    const clickPage = text => {
+      const button = [...w.document.querySelectorAll('.application-page button')].find(b => b.textContent.trim() === text);
+      assert.ok(button && !button.disabled, `enabled ${text}`); button.click();
+    };
+    w.document.querySelector('[data-guide="apply-btn"]').click();
+    await until(() => w.location.hash.endsWith('/apply/intro') && w.document.querySelector('.application-page'), 'detail enters routed page');
+    assert.equal(w.document.querySelectorAll('.cb-box-overlay').length, 0, 'no old confirmation box');
+    clickPage('次へ'); await until(() => w.document.querySelector('.application-page h1')?.textContent === '応募前の確認', 'about route');
+    clickPage('次へ'); await until(() => w.document.querySelector('.application-page-dates'), 'date route');
+    const dayButtons = [...w.document.querySelectorAll('.application-page-dates button')];
+    assert.equal(dayButtons.length, 3, 'holiday is not offered');
+    dayButtons[2].click(); await pause(20); dayButtons[0].click(); await pause(20);
+    clickPage('次へ'); await until(() => w.document.querySelector('.application-page h1')?.textContent === '応募の最終確認', 'final confirmation');
+    assert.match(w.document.querySelector('.application-page-content').textContent, /2日/);
+    clickPage('戻る'); await until(() => w.document.querySelector('.application-page-dates'), 'same return path');
+    assert.equal(w.document.querySelectorAll('.application-page-dates [aria-pressed=true]').length, 2);
+    clickPage('次へ'); await until(() => w.document.querySelector('.application-page h1')?.textContent === '応募の最終確認', 'confirm again');
+    // A transient server failure must retain the page and choice, with retry possible.
+    const alerts = []; w.alert = message => alerts.push(message);
+    clickPage('応募する');
+    await until(() => alerts.length === 1, 'failed submission explained');
+    assert.ok(w.document.querySelector('.application-page'));
+    const requests = w.qaRequests.filter(r => r.path.endsWith('/apply_to_job'));
+    assert.equal(requests.length, 1);
+    assert.deepEqual(Array.from(requests[0].body.p_available_dates), ['2026-09-24', '2026-09-27']);
+    assert.equal(w.document.querySelector('.application-page-footer .btn-primary').disabled, false);
+    w.qaApplyMode = 'success'; clickPage('応募する');
+    await until(() => w.location.hash === '#/apply/done', 'existing success route retained');
+    assert.equal(w.qaRequests.filter(r => r.path.endsWith('/apply_to_job')).length, 2);
+
+    w = mount([period], '2026-09-22T12:00:00+09:00', '#/work/job/301/apply/dates', true);
+    await until(() => w.document.querySelector('.application-page-dates'), 'direct route works');
+    assert.equal(w.document.querySelector('.application-page-footer .btn-primary').disabled, true, 'no empty period submission');
+    clickPage('期間中いつでもOK'); await pause(20);
+    clickPage('次へ'); await until(() => w.document.querySelector('.application-page h1')?.textContent === '応募の最終確認', 'any also gets final confirmation');
+    assert.match(w.document.querySelector('.application-page-content').textContent, /期間中いつでもOK/);
+    w.qaApplyMode = 'success'; clickPage('応募する');
+    await until(() => w.location.hash === '#/apply/done', 'any submission');
+    assert.equal(w.qaRequests.find(r => r.path.endsWith('/apply_to_job')).body.p_available_dates, 'any');
+
+    const draftKey = 'cb_application_dates_v1_00000000-0000-4000-8000-000000000001_301';
+    w = mount([period], '2026-09-22T12:00:00+09:00', '#/work/job/301/apply/confirm', true, {
+      [draftKey]: JSON.stringify({ choice: 'dates', dates: ['2026-09-24', '2026-09-25', '2026-09-27'] }),
+    });
+    await until(() => w.document.querySelector('.application-page'), 'reloaded final page');
+    assert.match(w.document.querySelector('.application-page-content').textContent, /2日/, 'reload restores available dates and removes holiday');
+    clickPage('戻る'); await until(() => w.document.querySelector('.application-page-dates'), 'direct page has fallback back route');
+    assert.equal(w.document.querySelectorAll('.application-page-dates [aria-pressed=true]').length, 2);
+
+    w = mount([future], '2026-09-22T12:00:00+09:00', '#/work/job/103', true, { cb_openApply: '103' });
+    await until(() => w.document.querySelector('.application-page'), 'calendar signal enters same page');
+    assert.equal(w.sessionStorage.getItem('cb_openApply'), null);
+    clickPage('戻る'); await until(() => !w.document.querySelector('.application-page'), 'calendar page returns to same detail');
+    assert.equal(w.location.hash, '#/work/job/103');
+    assert.match(w.document.body.textContent, /テスト作物103/);
+
+    w = mount([future], '2026-09-22T12:00:00+09:00', '#/work/job/103/apply/dates', true);
+    w.qaApplyMode = 'success'; clickPage('応募する');
+    await until(() => w.location.hash === '#/apply/done', 'single day submission');
+    assert.equal(w.qaRequests.find(r => r.path.endsWith('/apply_to_job')).body.p_available_dates, null);
+
     // A worker who began confirmation before the deadline cannot keep a stale
     // submission overlay open after the job ends.
     w = mount([ending, future], '2026-09-22T09:59:59.800+09:00', '#/work/job/201', true);
     const apply = w.document.querySelector('[data-guide="apply-btn"]');
     assert.ok(apply && !apply.disabled, 'signed-in worker can begin confirmation');
     apply.click();
-    await until(() => w.document.querySelector('.cb-box-overlay .cb-notice-sheet'), 'application confirmation opened');
+    await until(() => w.document.querySelector('.application-page'), 'application page opened');
     w.qaSetNow('2026-09-22T10:00:00+09:00');
-    await until(() => !w.document.querySelector('.cb-box-overlay .cb-notice-sheet'), 'expired application confirmation removed');
+    await until(() => w.document.querySelector('.application-page-footer .btn-primary')?.disabled, 'expired application page blocks progression');
+    assert.match(w.document.querySelector('.application-page').textContent, /新規応募は現在受け付けていません/);
+    w.document.querySelector('.application-page-back').click();
+    await until(() => !w.document.querySelector('.application-page'), 'expired page can return to job');
     assert.equal(w.document.querySelector('[data-guide="apply-btn"]').disabled, true);
     assert.equal(w.qaRequests.filter(r => /(?:apply_to_job|create_pending_application)$/.test(r.path)).length, 0, 'no application mutation attempted');
 

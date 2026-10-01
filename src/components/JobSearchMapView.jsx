@@ -1,4 +1,4 @@
-import { returnAlongPath, routeReturn, pushAlongPath } from "../lib/routeTrail";
+import { returnAlongPath, routeReturn, pushAlongPath, goAlongPath } from "../lib/routeTrail";
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
 import { useState, useEffect, useRef, useMemo } from "react";
 import { setApplyReturn, clearApplyReturn } from "../lib/applyReturn";
@@ -8,7 +8,7 @@ import { isAdmin, isJobEnded, ymdLocal, isWorkDayToday, calFmtDate, payLabel, ma
 import { useJobExpiryClock } from "../hooks/useJobExpiryClock";
 import { refreshJobExpiry, visibleSearchJobs } from "../lib/jobSearchVisibility";
 import { useSheetDragClose } from "../lib/sheetDrag";
-import { pushRoute } from "../lib/pushRoute";
+import { pushRoute, ROUTE_CHANGED } from "../lib/pushRoute";
 import { copyJobToEdit } from "../lib/copyJobFlow";
 import { Avatar, Carousel, DangerItem, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
@@ -32,7 +32,8 @@ import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/Se
 import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
   JobLocationSection, JobReviewsAndHost, JobThingsToKnow,
   JobPhotoGallery, RelatedJobs, JobTopBar } from "../features/jobs/search/components/JobDetailPanel";
-import { ApplyPanel, ApplyBarPC, ApplyBarMobile, ApplyConfirmBox } from "../features/jobs/search/components/ApplyPanel";
+import { ApplyPanel, ApplyBarPC, ApplyBarMobile } from "../features/jobs/search/components/ApplyPanel";
+import { ApplicationPage, readApplicationStep } from "../features/jobs/search/components/ApplicationPage";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
@@ -49,7 +50,7 @@ import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobP
 // ★モジュール直下に置く理由：最初の描画の【前】に「いま求人詳細を開こうとしているか」を知りたいため。
 //   effect は描画の後に走るので、そこで初めて selectedJob を入れると1フレームだけ さがす一覧が見える
 //   （2026-08-25たきと報告「更新すると一瞬だけさがすページに遷移する」の原因）。
-const JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/;
+const JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance|apply\/(?:intro|about|dates|confirm)))?$/;
 const readJobHash = () => {
   try {
     const m = window.location.hash.replace(/^#\/?/, "").match(JOB_DETAIL_HASH_RE);
@@ -76,6 +77,18 @@ export function JobSearchMapView({ onRegister, me }) {
     const h = readJobHash(); if (!h) return null;
     return (readCachedJobs() || []).find(j => j.id === h.jn) || null;
   });
+  const [applicationStep, setApplicationStep] = useState(readApplicationStep);
+  useEffect(() => {
+    const onRoute = () => setApplicationStep(readApplicationStep());
+    window.addEventListener("hashchange", onRoute);
+    window.addEventListener("popstate", onRoute);
+    window.addEventListener(ROUTE_CHANGED, onRoute);
+    return () => {
+      window.removeEventListener("hashchange", onRoute);
+      window.removeEventListener("popstate", onRoute);
+      window.removeEventListener(ROUTE_CHANGED, onRoute);
+    };
+  }, []);
   const [dbJobs, setDbJobs] = useState(readCachedJobs);
   const expiryNow = useJobExpiryClock(dbJobs, storedSelectedJob);
   const selectedJob = useMemo(() => refreshJobExpiry(storedSelectedJob, expiryNow), [storedSelectedJob, expiryNow]);
@@ -827,12 +840,14 @@ export function JobSearchMapView({ onRegister, me }) {
     } catch { setApplying(false); alert("応募に失敗しました。"); }
   };
 
+  const applySubmittingRef = useRef(false);
   const handleApply = async () => {
-    if (applying || !selectedJob) return;
+    if (applySubmittingRef.current || applying || !selectedJob || !me || myApplication || myPending || isOwnJob) return;
     // 確認画面を開いたまま締切を迎えた場合も、クリック時の時刻で止める。
     if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) {
       return;
     }
+    applySubmittingRef.current = true;
     setApplying(true);
     try {
       const { data: { session } } = await getSession();
@@ -862,6 +877,7 @@ export function JobSearchMapView({ onRegister, me }) {
       }
       await doApply();
     } catch { setApplying(false); alert("応募に失敗しました。"); }
+    finally { applySubmittingRef.current = false; setApplying(false); }
   };
 
   // 応募の取消（承認前のみ・本人）
@@ -931,25 +947,17 @@ export function JobSearchMapView({ onRegister, me }) {
     // 仮応募中（第15弾）：意思は預かり済み。次の一手はプロフィールの仕上げ
     : (!myAppStatus && myPending) ? "仮応募中 → プロフィールを仕上げる"
     // 新規応募の基本ラベルは「日程の確認」（2026-08-16たきと指示「右下の応募ボタンは日程の確認に差し替え」）：
-    // タップの実体は応募の送信でなく確認ボックス（3面・最後がが日程選択と応募）を開くことので、その通りの顔にする
+    // タップで応募の確認専用ページへ進む。送信は最後のページで行う。
     : "日程の確認";
   const applyBtnStyle = (myAppStatus === "rejected" || myAppStatus === "completed") ? { background:"#EBEBEB", color:"#717171" }
     : myAppStatus === "applied" ? { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }
     : (!myAppStatus && myPending) ? { background:"#C77700" }
     : {};
-  // 2026-07-13 労働局確認済み・当事者間の直接連絡は適法（CLAUDE.md参照）
-  // 応募確認ボックス（2026-07-18）：新規応募はボタン直送信でなく、内容確認のボックスを展開してから
-  const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
-  // 3面切り替え（2026-08-16たきと指示「3つの切り替え。次へと戻るを設置」）：0=承認の流れ図／1=説明／2=日程・応募。
-  // 期間求人のみ4面目あり（2026-08-16たきと指示「いつでもOKと日程選択のどちらも最終確認をして」）：
-  // 2=日程の選択（ここでは応募しない）→3=最終確認（選んだ内容を見せて「応募する」）。単日は2が最終確認のまま
-  const [applyConfirmStep, setApplyConfirmStep] = useState(0);
-  const [applyChoice, setApplyChoice] = useState(null); // 期間求人の選択："any"（いつでもOK）／"dates"（日程選択）／null
-  const [applyImgZoom, setApplyImgZoom] = useState(false); // 承認の流れ図の大画面表示（タップで拡大・2026-08-16）
-  // 応募時の来られる日宣言（2026-07-24）：期間求人（date_end有り・単日でない）だけ、応募シートで日程を選ぶ。
-  // applyAvailRefに最終値（"any"／日付配列／null）を同期的に入れてからhandleApply＝ゲート往復でも保持できる
-  const [applyDates, setApplyDates] = useState([]); // 選択中の特定日（"YYYY-MM-DD"）
-  useEffect(() => { setApplyConfirmOpen(false); setApplyConfirmStep(0); setApplyChoice(null); setApplyImgZoom(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);
+  // All entry points use the same dedicated application route.
+  const openApplicationPage = () => {
+    if (!selectedJob) return;
+    goAlongPath(`/work/job/${selectedJob.id}/apply/intro`, "求人詳細に戻る");
+  };
   const isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw);
   // 期間内の日付を "YYYY-MM-DD" 配列で列挙（開始〜終了・両端含む）
   const periodDays = (() => {
@@ -991,7 +999,7 @@ export function JobSearchMapView({ onRegister, me }) {
     : (myAppStatus === "approved" || myAppStatus === "contracted" || myAppStatus === "working") ? (() => { window.location.hash = "/chat/" + myApplication.id; })
     : myAppStatus === "applied" ? cancelMyApplication
     : (!myAppStatus && myPending) ? (() => { window.location.hash = "/apply/pending"; })
-    : (() => { setApplyConfirmStep(0); setApplyChoice(null); setApplyConfirmOpen(true); });
+    : openApplicationPage;
   // 募集終了（2026-07-24）：設定した採用人数に達した（満員＝filled）／作業日程が過ぎた（expired）求人は
   // 応募導線（下部フッター・応募ボタン）を出さない＝新規の募集を締め切る。
   // ただし既に応募・承認・見送りの関係がある本人には、状況確認とチャット導線を残すため従来どおり表示する。
@@ -1007,8 +1015,8 @@ export function JobSearchMapView({ onRegister, me }) {
     || myAppStatus === "contracted" || myAppStatus === "working"
     || myAppStatus === "rejected" || (!myAppStatus && myPending);
   const hideApply = recruitClosed && myAppLoaded && !appHasAction;
-  // カレンダーの日程タップから来た時は、そのまま応募ボックスを開く（2026-08-23たきと指示
-  // 「日程タップで応募ボックス展開」）。合図＝sessionStorage cb_openApply（求人番号）。
+  // カレンダーの日程タップから来た時は、応募の確認ページへ進む（2026-08-23たきと指示
+  // 「日程タップから応募の確認」）。合図＝sessionStorage cb_openApply（求人番号）。
   // ★自分の応募の状態が分かるまで合図を消さない＝読み込み中に消すと開く機会を失う。
   //   応募済み・仮応募・自分の求人・締切の時は開かない（応募ボタンと同じ条件をそのまま使う）
   useEffect(() => {
@@ -1019,7 +1027,7 @@ export function JobSearchMapView({ onRegister, me }) {
     if (!myAppLoaded) return;
     try { sessionStorage.removeItem("cb_openApply"); } catch {}
     if (myAppStatus || myPending || hideApply || isOwnJob) return;
-    setApplyConfirmStep(0); setApplyChoice(null); setApplyConfirmOpen(true);
+    goAlongPath(`/work/job/${selectedJob.id}/apply/intro`, "求人詳細に戻る");
   }, [selectedJob, me, myAppLoaded, myAppStatus, myPending, hideApply, isOwnJob]);
   // 満員の2段階（2026-08-14たきと指示・JobCardの帯と同じ区別）：満員のみ＝募集終了／満員かつ終了済み＝掲載終了
   const closedLabel = selectedJob?.filled
@@ -1028,6 +1036,13 @@ export function JobSearchMapView({ onRegister, me }) {
   // 下部フッターは幅が狭いので短い言葉に差し替える（2026-07-27たきと指示）。
   // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
   const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";  // closed も期間終了も同じ短縮語
+
+  if (applicationStep !== null && selectedJob) {
+    return <ApplicationPage key={`${me?.id || "anon"}_${selectedJob.id}`} selectedJob={selectedJob}
+      step={Math.min(applicationStep, isPeriodJob ? 3 : 2)} me={me} isPeriodJob={isPeriodJob} periodDays={periodDays}
+      applying={applying} blocked={!me || recruitClosed || !!myApplication || myPending || isOwnJob} checking={!myAppLoaded || !ownLoaded}
+      handleApply={handleApply} applyAvailRef={applyAvailRef} />;
+  }
 
   return (
     <div>
@@ -1344,38 +1359,6 @@ export function JobSearchMapView({ onRegister, me }) {
               <button onClick={()=>{ setOwnMenuOpen(false); try { sessionStorage.setItem("cb_applicantsJobNo", String(selectedJob.id)); } catch {} window.location.hash = "/profile/employer/applicants"; }} className="f-sans" style={{ padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>応募者一覧を見る</button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 応募確認ボックス（2026-07-18）：応募ボタンタップで展開。承認制の説明＋下部に「戻る」「応募する」。
-          意匠はお知らせボックスの規格（左詰め・緑太縁3px・タイトルジャンプ・横線・上限30px/下限フッター+40px・本文18）。
-          cb-lock-scroll＝展開中は背後ページのスクロールを固定（2026-08-15たきと指示）＋レーンの横スワイプにタッチを奪われない（仮応募案内ボックスと同じ作法） */}
-      <ApplyConfirmBox selectedJob={selectedJob} applyConfirmOpen={applyConfirmOpen && !recruitClosed} setApplyConfirmOpen={setApplyConfirmOpen} applyConfirmStep={applyConfirmStep} setApplyConfirmStep={setApplyConfirmStep} applyChoice={applyChoice} setApplyChoice={setApplyChoice} applyDates={applyDates} setApplyDates={setApplyDates} setApplyImgZoom={setApplyImgZoom} applyAvailRef={applyAvailRef} isPeriodJob={isPeriodJob} periodDays={periodDays} applying={applying} handleApply={handleApply} />
-
-      {/* 承認の流れ図の大画面表示（2026-08-16たきと指示「承認の画像はタップで大画面に」）。
-          ★画面に収める表示（maxWidth/maxHeight）だと文字が小さく、読むにはピンチ拡大が要る。
-          このサイトのviewportはピンチでページ全体が拡大される＝閉じた後も倍率が残り「一部しか見えない」
-          事故になった（2026-08-16たきと報告）。ので 最初から読める大きさ（幅min(200vw,1200px)）で描き、
-          指でずらして見るパン方式に変更＝ピンチ不要。✕と余白タップで閉じる（画像タップでは閉じない
-          ＝ずらす操作の途中で誤って閉じないため。✕なし規約の例外・理由はこれ）。
-          ★2026-08-23：この2つが実装されていなかったのを直した＝①✕ボタンが無かった（コメントだけ先行）
-            ②56pxの余白が【画像のpadding】＝見た目は黒い余白でも実体は画像なので、stopPropagationで閉じなかった
-            （たきと報告「余白タップで閉じない」・その日の記録の図の大画面と同型なので揃えた）。余白は容器のpaddingへ */}
-      {applyImgZoom && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", animation:"fadeIn .2s ease" }}>
-          <div onClick={()=>setApplyImgZoom(false)}
-            ref={el => { if (el) { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; el.scrollTop = (el.scrollHeight - el.clientHeight) / 2; } }}
-            style={{ position:"absolute", inset:0, overflow:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", display:"flex", padding:"64px 0" }}>
-            {/* margin:auto＝小さければ中央・はみ出せば端から全部見える（flex中央寄せだと左端が切れる）。
-                aspectRatio＝読み込み前から高さが確定し、中央スクロール初期化がズレない */}
-            <img onClick={e=>e.stopPropagation()} src="/apply-approval-flow.jpg" alt="承認の流れ：応募者のプロフィールを見て、承認するか決めます"
-              width={1000} height={750} style={{ display:"block", margin:"auto", width:"min(200vw, 1200px)", maxWidth:"none", flexShrink:0, aspectRatio:"1000 / 750", height:"auto" }} />
-          </div>
-          <button onClick={()=>setApplyImgZoom(false)} aria-label="閉じる"
-            style={{ position:"absolute", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.18)", border:"none", color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <NavIcon name="close" size={18} />
-          </button>
-          <p className="f-sans" style={{ position:"absolute", left:0, right:0, bottom:"calc(14px + env(safe-area-inset-bottom, 0px))", textAlign:"center", fontSize:13, color:"rgba(255,255,255,0.85)", margin:0, pointerEvents:"none" }}>指でうごかすと全体を見られます／右上の✕で閉じます</p>
         </div>
       )}
 
