@@ -24,7 +24,9 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       registerType: 'autoUpdate',
-      injectRegister: 'script-defer', // SW登録用JSの取得でHTML解析を止めない
+      // public/registerSW.js が登録失敗を処理する。プラグインはこの既存ファイルを使い、
+      // catchのない自動生成版では上書きしない。deferでHTML解析も止めない。
+      injectRegister: 'script-defer',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'chitose-bank',

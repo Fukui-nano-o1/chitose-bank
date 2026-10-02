@@ -11,8 +11,19 @@
 // ①既知エラー辞書＝本番で実際に起きた型を、開発記録（CLAUDE.md）に基づき
 //   「何が起きたか・原因・どうするか（修理済みならその日付）」で説明する
 // ②辞書に無いものも translateError が型から日本語へ翻訳する（識別子を埋め込んで具体化）
-// matchは小文字化済みメッセージを受け取る
+// 「Rejected」だけでは原因を特定できない。登録APIと当サイトの登録スクリプトが
+// 両方あるスタックだけを対象とし、別の未処理例外を巻き込まない。
+export function isServiceWorkerRegistrationError(e = {}) {
+  const stack = e.stack || "";
+  return /serviceWorker\.register\b/i.test(stack) && /\bregisterSW\.js\b/i.test(stack);
+}
+
+// matchは小文字化済みメッセージと元の記録を受け取る
 export const KNOWN_ERRORS = [
+  { match: (_m, e) => isServiceWorkerRegistrationError(e),
+    title: "Service Workerの登録が拒否された",
+    cause: "端末・実行環境がオフライン表示やプッシュ通知に使うService Workerの登録を拒否し、旧スクリプトが失敗を処理できなかった。この記録だけでは通常画面の表示停止は確認できない。",
+    action: "2026-10-02に登録失敗を処理する修正を追加。登録できない環境では通常のオンライン表示を続ける。既存の記録は保持し、修正版の公開後も同じスタックで発生する場合は読み込まれたregisterSW.jsを確認する。" },
   { match: m => m.includes("importing a module script failed") || m.includes("dynamically imported module") || m.includes("loading chunk"),
     title: "更新直後の旧ファイル読み込み失敗",
     cause: "新しいデプロイの直後、開いたままの古い画面が、入れ替えで消えた旧ビルドのファイルを読みに行った。",
@@ -91,7 +102,7 @@ export function translateError(raw) {
 }
 export function explainError(e) {
   const low = (e.message || "").toLowerCase();
-  for (const k of KNOWN_ERRORS) if (k.match(low)) return k;
+  for (const k of KNOWN_ERRORS) if (k.match(low, e)) return k;
   return translateError(e.message || "");
 }
 // 端末の内訳（user_agentから大づかみに）
@@ -117,6 +128,7 @@ export function errorPage(e) {
 // 大分類（カテゴリ）→ 種類（部品×発生源×文言の署名）→ 個々の発生、の3階層に束ねる。
 // 同型の連発（例：デプロイ直後の読み込み失敗94件）が1枚に畳まれ、種類ごとにまとめて解決済みにできる
 export const ERROR_CATEGORIES = [
+  { k:"browser", l:"端末・ブラウザ機能", severity:"medium", desc:"追加機能を端末・実行環境が拒否した型。通常の画面表示への影響は別途確認" },
   { k:"deploy",  l:"更新の読み込み失敗", severity:"medium",  desc:"新しいデプロイの直後、開いたままの古い画面が旧ファイルを読みに行った型。再読み込みで直る（実害小）" },
   { k:"render",  l:"画面の表示エラー",   severity:"high",    desc:"画面が真っ白・表示できない型。コードの不具合の可能性が高い" },
   { k:"db",      l:"DB・権限",           severity:"high",    desc:"データベースの拒否・重複・タイムアウト" },
@@ -127,6 +139,7 @@ export const ERROR_CATEGORIES = [
 // 判定順が大事：通信・DB・メールを先に拾い、最後に発生源ベースの表示エラーで受ける
 // （Failed to fetch等はunhandledrejection経由で来るため、srcだけで判定すると表示エラーに飲まれる）
 export function errorCategoryKey(e) {
+  if (isServiceWorkerRegistrationError(e)) return "browser";
   const msg = (e.message || "").toLowerCase();
   const code = (e.error_code || "").toLowerCase();
   const src = e.source || "";

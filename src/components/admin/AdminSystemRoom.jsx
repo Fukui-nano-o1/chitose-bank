@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 // エラーの辞書・分類・グループ化は lib/errorCatalog に集約（2026-08-07・画面上部の管理者帯と共有）
-import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, buildErrorReport } from "../../lib/errorCatalog";
+import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, buildErrorReport, errorCategoryKey, ERROR_CATEGORIES } from "../../lib/errorCatalog";
 import { Dots } from "../ui";
 import { NavIconInline } from "../NavIcons";
 
@@ -119,6 +119,8 @@ export function AdminSystemRoom() {
     const res = await supabase.from("app_errors").select("stack").eq("id", g.latest.id).maybeSingle();
     const stack = (!res.error && res.data?.stack) ? res.data.stack.split("\n").slice(0, 15).join("\n") : "";
     setStackBySig(prev => ({ ...prev, [g.sig]: stack }));
+    // 一覧取得は軽いまま保ち、詳細取得後にスタックを使った説明・分類へ更新する。
+    setAppErrors(prev => prev?.map(row => row.id === g.latest.id ? { ...row, stack } : row) ?? prev);
     return stack;
   };
   const loadStack = (g) => {
@@ -146,7 +148,10 @@ export function AdminSystemRoom() {
   const copyGroup = async (g, catLabel, ex) => {
     let stack = stackBySig[g.sig];
     if (stack === undefined || stack === null) { try { stack = await fetchStack(g); } catch { stack = ""; } }
-    const text = buildErrorReport(g, catLabel, ex, stack);
+    // 初回コピーは再描画より先に進むため、この場でも取得済みスタックを反映する。
+    const latest = { ...g.latest, stack };
+    const category = ERROR_CATEGORIES.find(c => c.k === errorCategoryKey(latest));
+    const text = buildErrorReport({ ...g, latest }, category?.l || catLabel, explainError(latest) || ex, stack);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedSig(g.sig);
