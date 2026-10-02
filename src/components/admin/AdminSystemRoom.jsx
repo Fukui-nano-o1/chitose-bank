@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 // エラーの辞書・分類・グループ化は lib/errorCatalog に集約（2026-08-07・画面上部の管理者帯と共有）
-import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, buildErrorReport, errorCategoryKey, ERROR_CATEGORIES } from "../../lib/errorCatalog";
+import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, errorImpactLabel, buildErrorReport, errorCategoryKey, ERROR_CATEGORIES } from "../../lib/errorCatalog";
 import { Dots } from "../ui";
 import { NavIconInline } from "../NavIcons";
 
@@ -193,6 +193,7 @@ export function AdminSystemRoom() {
     const open = g.openIds.length;
     const isOpen = expandedSig === g.sig;
     const ex = explainError(g.latest);
+    const facts = groupFacts(g);
     return (
       <div key={g.sig} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
         {/* ヘッダーは div＋onClick（📋ボタンを入れ子にするため。button入れ子は不正HTML） */}
@@ -229,6 +230,7 @@ export function AdminSystemRoom() {
             ...(isOpen ? {} : { display:"-webkit-box", WebkitLineClamp: ex ? 1 : 2, WebkitBoxOrient:"vertical", overflow:"hidden" }),
           }}>{g.latest.message || "(メッセージなし)"}</p>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+            {facts.botN > 0 && <span className="tag" style={{ background:"#E6F7EF", color:"#1B7A54" }}>Googlebot（自動巡回）{facts.botN}件</span>}
             {g.latest.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.component}</span>}
             {g.latest.source && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.source}</span>}
             {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
@@ -241,7 +243,7 @@ export function AdminSystemRoom() {
         </div>
         {isOpen && (() => {
           // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
-          const { userN, anonN, devs, pages } = groupFacts(g);
+          const { devs, pages } = facts;
           const stackFull = stackBySig[g.sig];
           // 保存は15行（コピー用）・画面は先頭6行だけ見せる
           const stack = stackFull ? stackFull.split("\n").slice(0, 6).join("\n") : stackFull;
@@ -256,8 +258,8 @@ export function AdminSystemRoom() {
               )}
               <div className="f-sans" style={{ fontSize:11, color:"#555", lineHeight:1.9, margin:"12px 0 0" }}>
                 <p>期間：{new Date(g.first.created_at).toLocaleString("ja-JP")} 〜 {new Date(g.latest.created_at).toLocaleString("ja-JP")}</p>
-                <p>影響：ログイン利用者 {userN}人{anonN > 0 ? `・未ログインの発生 ${anonN}件` : ""}</p>
-                <p>端末：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
+                <p>影響：{errorImpactLabel(facts)}</p>
+                <p>端末・アクセス元：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
                 <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
               </div>
               <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
