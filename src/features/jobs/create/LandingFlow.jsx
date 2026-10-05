@@ -1783,20 +1783,26 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 // 掲載は利用者の明示の操作なので、比較元をDBの行に取り直して【いま画面にある内容】を1回だけ送り直す。
                 // 二度と「別の更新がある」で詰まらせない（2026-09-23・DRAFT_REQUIRES_REVIEW の根治）
                 if (saved?.state === "conflict") {
-                  if (!saved.rebased && saved.jobNumber) {
-                    // DBが行を添えて返さなかった（古い応答）時だけ、自分で取り直す
-                    const { data: row, error: rowErr } = await fetchJobByNumber(saved.jobNumber);
-                    if (!rowErr) rebaseDeviceDraft(ownerId, local.id, row && row.farmer_id === ownerId ? row : null);
+                  // 競合は利用者に押し直させず、最新DB行を基準に【いま画面にある内容】を自動で再保存する。
+                  // 最大2回。毎回DBを取り直すので、古い比較元を同じまま投げ続けるループにはしない。
+                  for (let retry = 0; retry < 2 && saved?.state === "conflict"; retry++) {
+                    const currentNumber = saved.jobNumber || readDeviceDraft(ownerId, local.id)?.jobNumber;
+                    if (currentNumber) {
+                      const { data: row, error: rowErr } = await fetchJobByNumber(currentNumber);
+                      if (rowErr) break;
+                      rebaseDeviceDraft(ownerId, local.id, row && row.farmer_id === ownerId ? row : null);
+                    } else {
+                      rebaseDeviceDraft(ownerId, local.id, null);
+                    }
+                    const st = readDeviceDraft(ownerId, local.id)?.base?.status;
+                    if (st && st !== "draft" && st !== "pending" && st !== "open") {
+                      setPublishModal(false);
+                      setDraftMsg("この求人はすでに掲載を終えています。入力内容はこの端末に残っています。「保存して終了」で下書きを残し、求人をコピーして新しい求人として掲載してください。");
+                      return;
+                    }
+                    queueDeviceDraft(ownerId, local.id);
+                    saved = await syncNow();
                   }
-                  const st = readDeviceDraft(ownerId, local.id)?.base?.status;
-                  if (st && st !== "draft" && st !== "pending" && st !== "open") {
-                    // DBの求人がもう下書きではない（掲載を終えた等）＝この求人には保存できない
-                    setPublishModal(false);
-                    setDraftMsg("この求人は掲載を終えています。内容を変えるには、コピーして新しい求人として出してください。入力はこの端末に残っています。");
-                    return;
-                  }
-                  queueDeviceDraft(ownerId, local.id);
-                  saved = await syncNow();
                 }
                 if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
                   setPublishModal(false);
@@ -1805,7 +1811,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
                     : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
                     : saved?.state === "blocked" ? "保存できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。" + (isAdmin(session.user) ? `（管理者向け：${reason}）` : "")
-                    : saved?.state === "conflict" ? "別の場所でこの求人が更新されています。入力はこの端末に残っています。もう一度「掲載する」を押すと、いま画面にある内容で保存し直します。"
+                    : saved?.state === "conflict" ? "この求人は別の場所でも更新されているため、自動で保存し直しても競合が解消できませんでした。入力内容はこの端末に残っています。「保存して終了」を押して下書きを残し、他のタブや端末でこの求人を開いている場合は閉じてから、下書きを開き直してください。"
                     : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます。");
                   return;
                 }
