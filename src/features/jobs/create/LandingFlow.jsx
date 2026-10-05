@@ -1253,7 +1253,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       <div ref={flowScrollRef} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center", ...flowScrollLock }
         : { height:"100%", overflowY:"auto", ...flowScrollLock })}>
-        <div key={step} data-step={step} className={isFarmer ? `listing-page${[0,6,11].includes(step) ? " listing-page-wide" : ""} listing-motion` : (stepAnim || "fade-in")}
+        <div key={step} data-step={step} className={isFarmer ? `listing-page${[0,6,12].includes(step) ? " listing-page-wide" : ""} listing-motion` : (stepAnim || "fade-in")}
           onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
           style={isFarmer ? undefined : { maxWidth: (step === 12 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "calc(64px + env(safe-area-inset-top, 0px)) 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "calc(56px + env(safe-area-inset-top, 0px)) 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
 
@@ -2453,7 +2453,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         onNext={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext}
         onSkipDetails={() => animateStepChange(() => setStep(12), "fwd")} onPublish={openPublish}
       />}
-      {!isFarmer && step > 0 && step < TOTAL && step !== 12 && !publishModal && (
+      {!isFarmer && step > 0 && step < TOTAL && step !== 13 && !publishModal && (
         embedded ? (
         <div style={{
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
@@ -2464,13 +2464,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {step === 1
             ? <span aria-hidden="true" />
             : <button onClick={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>}
-          {!isAutoStep && step !== 11 && (
+          {!isAutoStep && step !== 12 && (
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
               <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
                 padding:"14px 28px", fontSize:15, fontWeight:700,
                 cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
               }}>{returnToConfirm ? "確認に戻る →" : "次へ →"}</button>
-              {!returnToConfirm && step >= 7 && step <= 12 && (
+              {!returnToConfirm && step >= 7 && step <= 11 && (
                 <button onClick={() => setStep(12)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
               )}
             </div>
@@ -2493,9 +2493,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             }}>← 戻る</button>
           )}
           {/* 次へ（＋スキップ）：右下の浮遊ボックス */}
-          {!isAutoStep && step !== 11 && (
+          {!isAutoStep && step !== 12 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
-              {!returnToConfirm && step >= 7 && step <= 12 && (
+              {!returnToConfirm && step >= 7 && step <= 11 && (
                 <button onClick={() => setStep(12)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:"7px 12px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>残りをスキップして確認へ →</button>
               )}
               <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
