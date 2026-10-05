@@ -33,7 +33,7 @@ import { lfStyles } from "./lfStyles";
 import { StepPhotos } from "./components/StepPhotos";
 import { StepDescription } from "./components/StepDescription";
 import { StepWorkVideo, isValidYoutubeVideo } from "./components/StepWorkVideo";
-import { FARMER_FLOW, REVIEW_STEP_ID, COMPLETE_STEP_ID, stepIdFromNumber, stepNumber, nextStepId, previousStepId, normalizeStepId, legacyStepId } from "./flowSteps";
+import { FARMER_FLOW, REVIEW_STEP_ID, COMPLETE_STEP_ID, stepNumber, nextStepId, previousStepId, normalizeStepId, legacyStepId } from "./flowSteps";
 import { StepDanger } from "./components/StepDanger";
 import { StepWishes } from "./components/StepWishes";
 import { ListingHeader, ListingIntro, ListingDetailsIntro, ListingFooter, LISTING_STAGES, listingStage } from "./components/ListingFrame";
