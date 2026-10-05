@@ -55,7 +55,7 @@ const BADGE_DEFS = {
 // preloaded（任意・2026-08-25）：親that既に同じ内容を引いている時に渡す＝同じ往復を2回しない。
 // 求人詳細の求人者情報カードthat、上の数字（また働きたい）と下の評価欄で同じ値を使うために渡している。
 // ★渡された時はここでは引かない（数字that食い違わない）。null（読み込み中）はそのまま読み込み中として描く
-export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, preloaded }) {
+export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, preloaded, horizontal = false }) {
   const [data, setData] = useState(preloaded !== undefined ? preloaded : null); // null=読み込み中 / {ok,badges,comments,total} / {ok:false}
   useEffect(() => {
     if (preloaded !== undefined) { setData(preloaded); return; }
@@ -107,12 +107,12 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, pr
             <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>まだ評価はありません</p>
           )}
           {shown.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: comments.length > 0 ? 12 : 0 }}>
+            <div className={horizontal ? "carousel-scroll" : undefined} style={{ display: "flex", flexWrap: horizontal ? "nowrap" : "wrap", overflowX: horizontal ? "auto" : "visible", WebkitOverflowScrolling: horizontal ? "touch" : undefined, scrollSnapType: horizontal ? "x proximity" : undefined, gap: 8, paddingBottom: horizontal ? 6 : 0, marginBottom: comments.length > 0 ? 12 : 0 }}>
               {shown.map(d => {
                 const n = badges[d.k] || 0;
                 // 0件は控えめな見た目（届いた評価と見分けがつくように）
                 return (
-                  <span key={d.k} className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: n > 0 ? "#222" : "#B0B0B0", background: n > 0 ? "#F0F7F4" : "#FAFAFA", border: "1px solid " + (n > 0 ? "#CDE9DD" : "#EBEBEB"), borderRadius: 20, padding: "4px 11px" }}>
+                  <span key={d.k} className="f-sans" style={{ flex: horizontal ? "0 0 auto" : undefined, scrollSnapAlign: horizontal ? "start" : undefined, whiteSpace: horizontal ? "nowrap" : undefined, fontSize: 12, fontWeight: 600, color: n > 0 ? "#222" : "#B0B0B0", background: n > 0 ? "#F0F7F4" : "#FAFAFA", border: "1px solid " + (n > 0 ? "#CDE9DD" : "#EBEBEB"), borderRadius: 20, padding: "7px 12px" }}>
                     {d.icon && <NavIconInline name={d.icon} size={12} />}{d.label} <b style={{ color: n > 0 ? AC : "#C4C4C4" }}>{n}</b>
                   </span>
                 );
