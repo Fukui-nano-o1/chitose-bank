@@ -97,7 +97,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(button(w,'次へ').disabled,false);
     button(w,'次へ').click();
     await until(() => w.document.querySelector('[data-step="6"]'), 'continue drafting without wage lookup');
-    w=await mount({url:'https://ui.test/#/work/new/11',storage:snapshot(w),offline:true});
+    w=await mount({url:'https://ui.test/#/work/new/12',storage:snapshot(w),offline:true});
     await until(() => /最低賃金を確認できませんでした/.test(w.document.body.textContent), 'offline draft review');
     assert.equal(button(w,'掲載する').disabled,true);
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
@@ -120,7 +120,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       w.document.querySelector('input[type="checkbox"]').click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
       button(w,'同意して掲載する').click();await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
     };
-    const copied={...w.qaJob,status:'draft',draft_step:11,date_start:null,date_end:null,date_label:null,holidays:[]};
+    const copied={...w.qaJob,status:'draft',draft_step:12,date_start:null,date_end:null,date_label:null,holidays:[]};
     w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:copied,
       session:{cb_editJobPrefill:JSON.stringify(copied),cb_editJobPresetDates:JSON.stringify({job_number:42,date_start:'2026-12-01',date_end:null,holidays:[]})}});
     await until(() => /12\/1/.test(w.document.body.textContent), 'preset date shown from the calendar copy');
@@ -130,7 +130,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaSyncExpected.date_start,null); // 比較元はDBの行のまま（ここが旧バグ）
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
     // ── 衝突が一度返っても、比較元を取り直して いまの内容 で送り直し、掲載が完了する（利用者に生の符号を見せない）
-    w=await mount({url:'https://ui.test/?case=new#/work/new/11',offline:false});
+    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaConflictOnce=true;
     await publish();
     assert.equal(w.qaJob.status,'open');
