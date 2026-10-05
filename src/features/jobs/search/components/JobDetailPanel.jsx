@@ -821,8 +821,10 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
             );
           })}
           {hasVideo && (
-            <div className="job-photo-slide" style={{ flexShrink:0, width:"100%", height:392, background:"#000", scrollSnapAlign:"start", overflow:"hidden" }}>
-              <JobWorkVideo job={job} compact />
+            <div className="job-photo-slide" style={{ position:"relative", flexShrink:0, width:"100%", height:392, background:"#000", scrollSnapAlign:"start", overflow:"hidden" }}>
+              <div style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}>
+                <JobWorkVideo job={job} compact />
+              </div>
             </div>
           )}
         </Carousel>
