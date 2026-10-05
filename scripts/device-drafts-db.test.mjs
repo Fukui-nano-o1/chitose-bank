@@ -11,7 +11,7 @@ const jobId = '00000000-0000-4000-8000-000000000003';
 test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job checks, and consent version checks', async () => {
   const db = new PGlite();
   try {
-    const types = { headcount: 'integer', draft_step: 'integer', lat: 'numeric', lng: 'numeric', geo_radius_m: 'integer',
+    const types = { headcount: 'integer', draft_step: 'integer', draft_step_id: 'text', lat: 'numeric', lng: 'numeric', geo_radius_m: 'integer',
       date_start: 'date', date_end: 'date', holidays: 'jsonb', perks: 'jsonb', danger_places: 'jsonb', danger_tasks: 'jsonb', photos: 'jsonb',
       beginner_ok: 'boolean', instant_approve_repeat: 'boolean', experienced_preferred: 'boolean',
       work_video_job_consent: 'boolean', work_video_related_consent: 'boolean', work_video_consent_at: 'timestamptz' };
