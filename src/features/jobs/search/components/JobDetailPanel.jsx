@@ -718,7 +718,8 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
     return () => { clearTimeout(t); window.removeEventListener("touchstart", stop, true); window.removeEventListener("wheel", stop, true); };
   }, [expanded, startAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const photos = Array.isArray(job.photos) ? job.photos : [];
-  if (photos.length === 0) return (
+  const hasVideo = !!job?.workVideoUrl;
+  if (photos.length === 0 && !hasVideo) return (
     <div ref={fallbackRef} style={{ marginBottom:20 }}>
       <JobPhotoFallback url={employer?.avatar_url || job.employerAvatar} name={employer?.nickname || job.employerName || "？"} />
     </div>
@@ -731,8 +732,9 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
     if (sc) sc.scrollTop = 0; else window.scrollTo(0, 0);
   };
   const grid = photos.slice(0, 5);
-  // ループ用クローン：[最後, ...本物, 最初]。初期位置とジャンプはhandlePhotoScroll側
-  const slides = photosLooped ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
+  // 動画付き求人は「写真…→動画」を終端にするためループしない。動画なしは従来ループを維持。
+  const effectiveLoop = photosLooped && !hasVideo;
+  const slides = effectiveLoop ? [photos[photos.length - 1], ...photos, photos[0]] : photos;
   if (expanded) return (
     // ── 写真が縦に全部並ぶ状態（旧・全画面の一覧をその場に置いた形）── .job-photo-expanded＝CSSの目印：
     //    写真を留めない（.job-hero の sticky を外す）・紙を重ねない・浮遊ボタンと上部のバーを隠す（帯の✕が出口）
@@ -772,7 +774,7 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
   return (
     <div ref={rootRef} style={{ marginBottom:20 }}>
       {/* ── PC：モザイク格子（枚数で組み方が変わる＝クラスは m-1〜m-5・CSSはappStyles） ── */}
-      <div className={`job-photo-mosaic m-${Math.min(grid.length, 5)}`}>
+      {photos.length > 0 && <div className={`job-photo-mosaic m-${Math.min(grid.length, 5)}`}>
         {grid.map((p, i) => (
           <PhotoCell key={i} photo={p} onOpen={()=>open(i)} alt={`写真 ${i + 1} 枚目を開く`}
             className={"m-cell" + (i === 0 && grid.length >= 3 ? " m-main" : "")} />
@@ -785,7 +787,7 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
                    fontSize:13, fontWeight:700, color:"#222", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.15)" }}>
           <NavIcon name="image" size={14} />すべての写真を表示
         </button>
-      </div>
+      </div>}
 
       {/* ── スマホ：全幅の横スワイプ（1枚ずつ）＋右下に「n / N」。タップでその場で縦に全部並ぶ ── */}
       <div className="job-photo-carousel" style={{ position:"relative" }}>
@@ -802,7 +804,7 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
             const src = typeof photo === "string" ? photo : photo?.url;
             const cap = typeof photo === "string" ? "" : photo?.caption;
             // クローンを除いた本物の番号（先頭のクローンがあれば1つずれる）
-            const realIdx = photosLooped ? (i === 0 ? photos.length - 1 : (i === slides.length - 1 ? 0 : i - 1)) : i;
+            const realIdx = effectiveLoop ? (i === 0 ? photos.length - 1 : (i === slides.length - 1 ? 0 : i - 1)) : i;
             return (
               <div key={i} onClick={()=>open(realIdx)} role="button" tabIndex={0} className="cb-photo-tile job-photo-slide"
                 onKeyDown={e=>{ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(realIdx); } }}
@@ -818,11 +820,16 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
               </div>
             );
           })}
+          {hasVideo && (
+            <div className="job-photo-slide" style={{ flexShrink:0, width:"100%", height:392, background:"#000", scrollSnapAlign:"start", overflow:"hidden" }}>
+              <JobWorkVideo job={job} compact />
+            </div>
+          )}
         </Carousel>
-        {photos.length > 1 && (
+        {(photos.length + (hasVideo ? 1 : 0)) > 1 && (
           <span className="f-sans" aria-hidden="true" style={{ position:"absolute", right:14, bottom:14, zIndex:2, pointerEvents:"none",
             background:"rgba(34,34,34,0.72)", color:"#fff", fontSize:12, fontWeight:600, borderRadius:6, padding:"4px 10px", letterSpacing:"0.04em" }}>
-            {Math.min(activeSlide + 1, photos.length)} / {photos.length}
+            {Math.min(activeSlide + 1, photos.length + (hasVideo ? 1 : 0))} / {photos.length + (hasVideo ? 1 : 0)}
           </span>
         )}
       </div>
