@@ -8,7 +8,7 @@ export const JOB_DRAFT_FIELDS = ["crop", "task", "zip", "prefecture", "city", "t
   "work_time", "break_time", "nearest_station", "commute_time", "job_exp", "beginner_ok", "instant_approve_repeat",
   "perks", "experienced_preferred", "notes", "belongings", "cautions", "overtime_policy", "overtime_detail",
   "place_change_scope", "task_change_scope", "danger_places", "danger_tasks", "photos",
-  "work_video_url", "work_video_job_consent", "work_video_related_consent", "work_video_consent_at", "work_video_consent_version", "draft_step",
+  "work_video_url", "work_video_job_consent", "work_video_related_consent", "work_video_consent_at", "work_video_consent_version", "draft_step", "draft_step_id",
   "lat", "lng", "geo_radius_m", "geocoded_from"];
 export function jobDraftPatch(payload) {
   return Object.fromEntries(JOB_DRAFT_FIELDS.filter(k => Object.hasOwn(payload, k)).map(k => [k, payload[k]]));
