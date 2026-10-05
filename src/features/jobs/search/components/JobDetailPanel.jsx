@@ -483,7 +483,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
           ★総数が2件以上あるのに0の項目が並ぶと否定的な評価が読み取れる＝利用規約 第8条2との緊張。
             戻すときはこのpropを外すだけ（1語）。他の画面（プロフィールの評価面）は従来どおり0を出さない */}
       {me
-        ? <ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems preloaded={reviews} horizontal />
+        ? <div className="job-review-horizontal"><ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems preloaded={reviews} horizontal /></div>
         : <p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>ログインすると、この求人者への評価を見られます</p>}
     </AirSection>
 
