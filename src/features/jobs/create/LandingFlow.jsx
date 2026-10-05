@@ -33,6 +33,7 @@ import { lfStyles } from "./lfStyles";
 import { StepPhotos } from "./components/StepPhotos";
 import { StepDescription } from "./components/StepDescription";
 import { StepWorkVideo, isValidYoutubeVideo } from "./components/StepWorkVideo";
+import { FARMER_FLOW, REVIEW_STEP_ID, COMPLETE_STEP_ID, stepIdFromNumber, stepNumber, nextStepId, previousStepId, normalizeStepId, legacyStepId } from "./flowSteps";
 import { StepDanger } from "./components/StepDanger";
 import { StepWishes } from "./components/StepWishes";
 import { ListingHeader, ListingIntro, ListingDetailsIntro, ListingFooter, LISTING_STAGES, listingStage } from "./components/ListingFrame";
@@ -65,14 +66,10 @@ const isWorkplaceRoute = () => /^#\/?work\/(?:new\/3|edit\/\d+)\/workplace$/.tes
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
-// 2026-10-05 作業動画ページ追加前の下書き互換。
-// 旧9=危険、10=希望、11=確認。新規フローでは動画を9に挿入したため、旧9以降は+1して再開する。
-// 動画項目を持つ行/端末下書きは新フローで保存済みなので変換しない。
-function resumeListingStep(oldStep, hasVideoFields = false) {
-  const n = Number(oldStep);
-  if (!Number.isFinite(n)) return 1;
-  if (hasVideoFields) return Math.max(1, Math.min(n, 12));
-  return n >= 9 && n <= 11 ? n + 1 : Math.max(1, Math.min(n, 12));
+// 旧数字stepは互換入力としてだけ読む。内部の農家フローは不変IDを正とする。
+function resolveFarmerStepId(value, fallback = "crop") {
+  if (typeof value === "string" && FARMER_FLOW.includes(value)) return value;
+  return legacyStepId(value) || fallback;
 }
 
 export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSaved, onSkip, onLogin, onPublished, onWorkerDone, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
@@ -126,7 +123,12 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
   // 初期値が0（入口）だと、jobsを読み終えるまで「はじめから」の画面が見えてしまう。
   // 実際のstepは読み込み後に draft_step で上書きされる（copy_jobも draft_step=11 で作る）
-  const [step, setStep] = useState(isWorkplaceRoute() ? 3 : (initialStep && initialStep >= 1 && initialStep <= 12) ? initialStep : (_devJump?.step ?? (_draftInit ? resumeListingStep(_draftInit.farmerStep ?? 1, Object.hasOwn(_draftInit, "workVideoUrl")) : (_editJobNumber ? 12 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
+  const initialFarmerStepId = isWorkplaceRoute() ? "workplace"
+    : resolveFarmerStepId(initialStep || _devJump?.stepId || _draftInit?.farmerStepId || (_editJobNumber ? "review" : "crop"));
+  const [farmerStepId, setFarmerStepId] = useState(initialFarmerStepId);
+  // 数字stepは既存worker UIと移行中の表示互換だけに残す。農家の遷移・保存の正は farmerStepId。
+  const [step, setStep] = useState(isWorkplaceRoute() ? 3 : role === "farmer" || _editJobNumber || initialRole === "farmer" ? (stepNumber(initialFarmerStepId) || 1) : (initialStep || _devJump?.step || 0));
+  const setFarmerStep = (id) => { const clean = normalizeStepId(id); setFarmerStepId(clean); setStep(stepNumber(clean) || 1); }; // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
@@ -537,8 +539,14 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       stepAnimBusy.current = false;
     }, 400);
   };
-  const goNext = () => animateStepChange(() => setStep(s => s + 1), "fwd");
-  const goBack = () => animateStepChange(() => { if (step <= 1) { setStep(0); } else setStep(s => s - 1); }, "back");
+  const goNext = () => animateStepChange(() => {
+    if (isFarmer) { const id = nextStepId(farmerStepId); if (id) setFarmerStep(id); }
+    else setStep(s => s + 1);
+  }, "fwd");
+  const goBack = () => animateStepChange(() => {
+    if (isFarmer) { const id = previousStepId(farmerStepId); if (id) setFarmerStep(id); else setStep(0); }
+    else if (step <= 1) setStep(0); else setStep(s => s - 1);
+  }, "back");
   // 全stepスワイプ移動（2026-07-16）：左スワイプ=次へ（バリデーション尊重）／右スワイプ=戻る。
   // 掲載(step11→)と完了(step12)からは進めない。step1の戻りはスワイプでも不可（戻るボタン削除と整合）
   const flowSwipe = useRef(null);
@@ -547,12 +555,12 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
   useEffect(() => {
-    if (step === 12) setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
-    if (step === 13) fbCelebrate(); // 完了ページ到達＝祝祭の音と振動（2026-08-06・画面は既存の完了ページのまま）
-  }, [step]);
+    if (isFarmer && farmerStepId === REVIEW_STEP_ID) setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
+    if (isFarmer && farmerStepId === COMPLETE_STEP_ID) fbCelebrate(); // 完了ページ到達＝祝祭の音と振動（2026-08-06・画面は既存の完了ページのまま）
+  }, [step, farmerStepId]);
 
   useEffect(() => {
-    if (onStepChange && role === "farmer" && step >= 1 && step <= 12 && !isWorkplaceRoute()) onStepChange(step);
+    if (onStepChange && role === "farmer" && farmerStepId !== COMPLETE_STEP_ID && !isWorkplaceRoute()) onStepChange(farmerStepId);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [draftJobNumber, setDraftJobNumber] = useState(_deviceInit?.jobNumber ?? _editJobNumber ?? _draftInit?.job_number ?? null);
@@ -586,7 +594,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     const syncPage = () => {
       const open = isWorkplaceRoute();
       setPlacePageOpen(open);
-      if (open) setStep(3);
+      if (open) setFarmerStep("workplace");
     };
     window.addEventListener("hashchange", syncPage);
     return () => window.removeEventListener("hashchange", syncPage);
@@ -675,7 +683,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         setShowTask2(dangerHasSecond(dt));
         setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
         setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
-        setStep(isWorkplaceRoute() ? 3 : data.draft_step != null ? data.draft_step : 12);
+        { const restoredId = isWorkplaceRoute() ? "workplace" : normalizeStepId(data.draft_step_id || legacyStepId(data.draft_step), "review"); setFarmerStep(restoredId); }
   };
 
   // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
@@ -790,7 +798,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const saveDraft = (payloadOverride) => {
     if (completedRef.current || !deviceReadyRef.current || localRouteMissing) return null;
     const draft = {
-        role: "farmer", farmerStep: step, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
+        role: "farmer", farmerStep: step, farmerStepId, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
         farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
         farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr, jobPhotos,
         farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
@@ -896,6 +904,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       danger_tasks:    jobDangerTasks,
       photos:          jobPhotos,
       draft_step:      step,
+      draft_step_id: farmerStepId,
       status:          statusVal,
       lat:             geo ? geo.lat : null,
       lng:             geo ? geo.lng : null,
@@ -1107,11 +1116,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // 縦スクロール優先
     if (dx < 0) {
       if (step === 12 || step === 13 || step >= TOTAL || !canGoNext) return;
-      if (returnToConfirm) { setStep(12); setReturnToConfirm(false); return; }
+      if (returnToConfirm) { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); return; }
       goNext();
     } else {
       if (step <= 1 || step === 13 || step >= TOTAL) return;
-      if (returnToConfirm) { setStep(12); setReturnToConfirm(false); return; }
+      if (returnToConfirm) { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); return; }
       goBack();
     }
   };
@@ -1123,21 +1132,21 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // step はその項目を入力するページ＝案内するだけでなく、その欄へ実際に送るために持たせている。
   const getPublishMissingFields = () => {
     const checks = [
-      ["作物",                   !!farmerCrop,                        1],
-      ["作業",                   !!farmerTask,                        2],
-      ["郵便番号",                !!farmerZip.trim(),                  3],
-      ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref),     3],
+      ["作物",                   !!farmerCrop,                        "crop"],
+      ["作業",                   !!farmerTask,                        "task"],
+      ["郵便番号",                !!farmerZip.trim(),                  "workplace"],
+      ["都道府県（徳島県）",        isAllowedPrefecture(farmerPref),     "workplace"],
       ["市区町村",                !!farmerCity.trim(),                 3],
       ["町域（実在する住所）",       !!farmerTown.trim() && townCheck !== "notfound", 3],
-      ["番地・建物名",             isValidStreetAddress(farmerAddr),    3],
-      ["作業日程（開始日）",       !!jobDateStart,                      4],
-      ["採用人数",                Number.isInteger(Number(jobCount)) && Number(jobCount) > 0,                4],
+      ["番地・建物名",             isValidStreetAddress(farmerAddr),    "workplace"],
+      ["作業日程（開始日）",       !!jobDateStart,                      "schedule"],
+      ["採用人数",                Number.isInteger(Number(jobCount)) && Number(jobCount) > 0,                "schedule"],
       // 勤務時間：終了が開始以前だと、DB側の job_scheduled_minutes が null を返して掲載が止まる。
       // かつ日給の最賃判定（validateMinWage）も workHours>0 のときしか働かないため、ここで先に止める
-      ["勤務時間（開始〜終了）",    workHours > 0,                       5],
-      ["日給（最低賃金以上）", !!dailyWageInput && !dailyViolation,      5],
-      ["休憩時間",                breakTime !== "",                    5],
-      ["時間外労働",              overtimeOk,                          5],
+      ["勤務時間（開始〜終了）",    workHours > 0,                       "terms"],
+      ["日給（最低賃金以上）", !!dailyWageInput && !dailyViolation,      "terms"],
+      ["休憩時間",                breakTime !== "",                    "terms"],
+      ["時間外労働",              overtimeOk,                          "terms"],
     ];
     // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
     // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
@@ -1158,7 +1167,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     const target = missing.find(m => m.step != null);
     if (!target) return;
     setReturnToConfirm(true);
-    setStep(target.step);
+    setFarmerStep(target.step);
   };
   const openPublish = () => {
     if (localOnly) {
@@ -1820,7 +1829,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   emitConfirmedRefresh(REFRESH_JOBS);
                   finishMeasurement("success");
                   if (typeof onPublished === "function") onPublished(true, _jn, { edited: true });
-                  else { setPublishedOpen(true); setStep(13); }
+                  else { setPublishedOpen(true); setFarmerStep(COMPLETE_STEP_ID); }
                   return;
                 }
                 let publishedNow = true;
@@ -1873,7 +1882,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 // 「公開の準備が整いしだい」側に分岐（2026-08-14）
                 finishMeasurement("success");
                 if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
-                else { setPublishedOpen(publishedNow); setStep(13); }
+                else { setPublishedOpen(publishedNow); setFarmerStep(COMPLETE_STEP_ID); }
               } catch (e) {
                 // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
                 setPublishModal(false);
@@ -1933,7 +1942,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             };
             // 本人（ログイン中）は番地・評価を見られる。未ログインの下書き（localOnly）は訪問者と同じ見え方
             const previewMe = ownerId ? { id: ownerId } : null;
-            const goStep = (n) => () => { setReturnToConfirm(true); setStep(n); };
+            const goStep = (id) => () => { setReturnToConfirm(true); setFarmerStep(id); };
             const editBtn = (label, go) => (
               <button key={label} type="button" onClick={go} className="f-sans"
                 style={{ background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>{label}</button>
@@ -1954,13 +1963,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え＋長押しドラッグ。先頭が求人カードのカバー */}
                     {jobPhotos.length > 1 && <LFPhotoReorderStrip photos={jobPhotos} setPhotos={setJobPhotos} />}
                     {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", margin:"8px 0 0" }}>写真は後から登録できます。いまは求人者のアイコンが表紙になります。</p>}
-                    {editRow([editBtn("写真を編集", goStep(7))])}
+                    {editRow([editBtn("写真を編集", goStep("photos"))])}
                   </div>
                 );
                 case "求人タイトル・募集タグ": return (
                   <div key={label}>
                     {node}
-                    {editRow([editBtn("作物", goStep(1)), editBtn("作業", goStep(2)), editBtn("集合場所", goStep(3)), editBtn("日程・人数", goStep(4)), editBtn("勤務時間・報酬", goStep(5)), editBtn("募集の希望", goStep(10))], "編集：")}
+                    {editRow([editBtn("作物", goStep("crop")), editBtn("作業", goStep("task")), editBtn("集合場所", goStep("workplace")), editBtn("日程・人数", goStep("schedule")), editBtn("勤務時間・報酬", goStep("terms")), editBtn("募集の希望", goStep("danger"))], "編集：")}
                     {/* 農園プロフィール未入力＝募集主の行が出ない。タップで入力ボックスを展開（2026-07-16の入口を維持） */}
                     {!(confEmployer && confEmployer.nickname) && (
                       <div onClick={()=>{ rememberFlowScroll(); setConfProfileOpen(true); }} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginTop:16, cursor:"pointer" }}>
@@ -1977,7 +1986,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 case "作業内容": return (
                   <div key={label}>
                     {(jobDescription && jobDescription.trim()) ? node : <ConfEmptySection title="作業内容">未設定</ConfEmptySection>}
-                    {editRow([editBtn("作業内容を編集", goStep(8))])}
+                    {editRow([editBtn("作業内容を編集", goStep("description"))])}
                   </div>
                 );
                 case "待遇": return (
@@ -1989,16 +1998,16 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 case "報酬・勤務条件・日程": return (
                   <div key={label}>
                     {jobDateStart ? node : <ConfEmptySection title="作業日程">未設定</ConfEmptySection>}
-                    {editRow([editBtn("日程を編集", goStep(4))])}
+                    {editRow([editBtn("日程を編集", goStep("schedule"))])}
                   </div>
                 );
                 case "場所・地図": return (
-                  <div key={label}>{node}{editRow([editBtn("集合場所を編集", goStep(3))])}</div>
+                  <div key={label}>{node}{editRow([editBtn("集合場所を編集", goStep("workplace"))])}</div>
                 );
                 case "持ち物・備考・危険箇所・保険": return (
                   <div key={label}>
                     {node}
-                    {editRow([editBtn("持ち物・備考", goStep(10)), editBtn("時間外労働", goStep(5)), editBtn("危険箇所", goStep(9))], "編集：", true)}
+                    {editRow([editBtn("持ち物・備考", goStep("danger")), editBtn("時間外労働", goStep("terms")), editBtn("危険箇所", goStep("work_video"))], "編集：", true)}
                   </div>
                 );
                 default: return node;
@@ -2029,7 +2038,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
                     <span className="f-sans" style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.5, marginTop:2 }}>{payTermsLine(CURRENT_PAY_POLICY)}</span>
                   </div>
-                  {editBtn("編集", goStep(5))}
+                  {editBtn("編集", goStep("terms"))}
                 </div>
               </div>
 
@@ -2459,9 +2468,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
         publishDisabled={!localOnly && unknownWage}
         hidden={sheetOpen || photoCaptionsOpen || !!recruitBox}
-        onBack={step === 0 ? closeListing : returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack}
-        onNext={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext}
-        onSkipDetails={() => animateStepChange(() => setStep(12), "fwd")} onPublish={openPublish}
+        onBack={step === 0 ? closeListing : returnToConfirm ? () => { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); } : goBack}
+        onNext={returnToConfirm ? () => { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); } : goNext}
+        onSkipDetails={() => animateStepChange(() => setFarmerStep(REVIEW_STEP_ID), "fwd")} onPublish={openPublish}
       />}
       {!isFarmer && step > 0 && step < TOTAL && step !== 13 && !publishModal && (
         embedded ? (
@@ -2473,15 +2482,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {/* step1は戻る先が説明ページしかないため戻るボタンなし（2026-07-16）。spanはspace-betweenの左詰め維持用 */}
           {step === 1
             ? <span aria-hidden="true" />
-            : <button onClick={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>}
+            : <button onClick={returnToConfirm ? () => { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); } : goBack} className="f-sans" style={{ background:"none", border:"none", fontSize:15, color:"#222", cursor:"pointer", padding:"8px 0" }}>← 戻る</button>}
           {!isAutoStep && step !== 12 && (
             <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
-              <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
+              <button onClick={canGoNext ? (returnToConfirm ? () => { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
                 padding:"14px 28px", fontSize:15, fontWeight:700,
                 cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
               }}>{returnToConfirm ? "確認に戻る →" : "次へ →"}</button>
               {!returnToConfirm && step >= 7 && step <= 11 && (
-                <button onClick={() => setStep(12)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
+                <button onClick={() => setFarmerStep(REVIEW_STEP_ID)} className="f-sans" style={{ background:"none", border:"none", fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:0 }}>残りをスキップして確認へ →</button>
               )}
             </div>
           )}
@@ -2495,7 +2504,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         ) : (<>
           {/* ← 戻る：左下の浮遊ボックス（step1は非表示） */}
           {step !== 1 && (
-            <button onClick={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack} className="f-sans" style={{
+            <button onClick={returnToConfirm ? () => { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); } : goBack} className="f-sans" style={{
               position:"fixed", left:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60,
               display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20,
               fontSize:14, fontWeight:600, color:"#222", cursor:"pointer", padding:"12px 18px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
@@ -2506,9 +2515,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {!isAutoStep && step !== 12 && (
             <div style={{ position:"fixed", right:12, bottom:"calc(16px + env(safe-area-inset-bottom, 0px))", zIndex:60, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
               {!returnToConfirm && step >= 7 && step <= 11 && (
-                <button onClick={() => setStep(12)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:"7px 12px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>残りをスキップして確認へ →</button>
+                <button onClick={() => setFarmerStep(REVIEW_STEP_ID)} className="f-sans" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:12, color:"#717171", textDecoration:"underline", cursor:"pointer", padding:"7px 12px", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" }}>残りをスキップして確認へ →</button>
               )}
-              <button onClick={canGoNext ? (returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
+              <button onClick={canGoNext ? (returnToConfirm ? () => { setFarmerStep(REVIEW_STEP_ID); setReturnToConfirm(false); } : goNext) : undefined} className="btn-primary" style={{
                 padding:"14px 28px", fontSize:15, fontWeight:700, borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.18)",
                 cursor: canGoNext ? "pointer" : "not-allowed", opacity: canGoNext ? 1 : 0.5,
               }}>{returnToConfirm ? "確認に戻る →" : "次へ →"}</button>
