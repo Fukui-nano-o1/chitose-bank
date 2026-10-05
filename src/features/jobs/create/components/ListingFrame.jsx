@@ -7,7 +7,7 @@ export const LISTING_STAGES = [
 ];
 
 export function listingStage(step) {
-  return step >= 11 ? 2 : step >= 6 ? 1 : 0;
+  return step >= 12 ? 2 : step >= 6 ? 1 : 0;
 }
 
 export function ListingHeader({ step, saving, busy, onSave, onExit }) {
@@ -66,7 +66,7 @@ export function ListingDetailsIntro({ crop, task, region, dates, wage }) {
 
 export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, publishDisabled = false, onBack, onNext, onSkipDetails, onPublish, hidden }) {
   const stage = listingStage(step);
-  const progress = [Math.min(step / 6, 1), Math.max(0, Math.min((step - 6) / 5, 1)), step >= 11 ? 0.5 : 0];
+  const progress = [Math.min(step / 6, 1), Math.max(0, Math.min((step - 6) / 6, 1)), step >= 12 ? 0.5 : 0];
   return (
     <footer className="listing-footer" hidden={hidden}>
       <ol className="listing-progress" aria-label="求人掲載の進捗">
@@ -80,13 +80,13 @@ export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm,
       <div className="listing-footer-actions">
         <button type="button" className="listing-back" onClick={onBack} disabled={busy}>{step === 0 ? "閉じる" : returnToConfirm ? "確認に戻る" : "戻る"}</button>
         <div className="listing-forward">
-          {!returnToConfirm && step >= 6 && step <= 10 && (
+          {!returnToConfirm && step >= 6 && step <= 11 && (
             <button type="button" className="listing-skip" onClick={onSkipDetails} disabled={busy}>あとで追加</button>
           )}
-          <button type="button" className={`listing-next${step === 11 ? " listing-publish" : ""}`}
-            onClick={step === 11 ? onPublish : onNext}
-            disabled={busy || (step === 11 ? publishDisabled : !canNext)} data-guide="flow-next">
-            {uploading ? "アップロード中…" : step === 0 ? "はじめる" : step === 11 ? (editingOpen ? "変更を保存" : "掲載する") : returnToConfirm ? "確認に戻る" : step === 10 ? "確認へ" : "次へ"}
+          <button type="button" className={`listing-next${step === 12 ? " listing-publish" : ""}`}
+            onClick={step === 12 ? onPublish : onNext}
+            disabled={busy || (step === 12 ? publishDisabled : !canNext)} data-guide="flow-next">
+            {uploading ? "アップロード中…" : step === 0 ? "はじめる" : step === 12 ? (editingOpen ? "変更を保存" : "掲載する") : returnToConfirm ? "確認に戻る" : step === 11 ? "確認へ" : "次へ"}
           </button>
         </div>
       </div>
