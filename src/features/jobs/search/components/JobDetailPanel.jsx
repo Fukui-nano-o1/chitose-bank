@@ -324,6 +324,31 @@ export function JobLocationSection({ job, me }) {
 //   法定・安全の明示so、タップしないと読めない形にしない（赤ちゃん前提とも整合）。
 // 中身は移設＝仕事のきまり（旧・経験持ち物備考の表＋支払条件）／安全への注意（旧・危険箇所）／
 // 保険の準備（旧・地図の下の保険カード）。表示の項目・値の出し方は一切変えていない
+export function JobWorkVideo({ job, compact = false }) {
+  const raw = String(job?.workVideoUrl || "").trim();
+  let id = "";
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") id = u.pathname.split("/").filter(Boolean)[0] || "";
+    else if (host === "youtube.com" || host === "m.youtube.com") {
+      id = u.pathname === "/watch" ? (u.searchParams.get("v") || "") : (u.pathname.match(/^\/(?:shorts|embed)\/([^/?#]+)/)?.[1] || "");
+    }
+  } catch {}
+  if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) return null;
+  // autoplayはブラウザ規制に従いミュート。playsinlineでiPhoneでもページ内再生を維持。
+  const src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0`;
+  return (
+    <div style={{ margin: compact ? 0 : "0 0 28px" }}>
+      {!compact && <h3 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 14px" }}>作業動画</h3>}
+      <div style={{ position:"relative", width:"100%", aspectRatio:"16 / 9", overflow:"hidden", borderRadius: compact ? 0 : 12, background:"#000" }}>
+        <iframe title="作業動画" src={src} loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
+          style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:0 }} />
+      </div>
+    </div>
+  );
+}
+
 export function JobThingsToKnow({ job, onPhoto }) {
   const hasDanger = (job.dangerPlaces && job.dangerPlaces.length > 0) || (job.dangerTasks && job.dangerTasks.length > 0);
   const sub = { fontSize:15, fontWeight:700, color:"#222", margin:"0 0 10px" };
