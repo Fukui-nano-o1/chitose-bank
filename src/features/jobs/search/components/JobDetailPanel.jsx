@@ -325,6 +325,8 @@ export function JobLocationSection({ job, me }) {
 // 中身は移設＝仕事のきまり（旧・経験持ち物備考の表＋支払条件）／安全への注意（旧・危険箇所）／
 // 保険の準備（旧・地図の下の保険カード）。表示の項目・値の出し方は一切変えていない
 export function JobWorkVideo({ job, compact = false }) {
+  const frameRef = useRef(null);
+  const [soundOn, setSoundOn] = useState(false);
   const raw = String(job?.workVideoUrl || "").trim();
   let id = "";
   try {
@@ -336,14 +338,29 @@ export function JobWorkVideo({ job, compact = false }) {
     }
   } catch {}
   if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) return null;
-  // autoplayはブラウザ規制に従いミュート。playsinlineでiPhoneでもページ内再生を維持。
-  const src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0`;
+  // 自動再生はミュートで開始。利用者の明示タップ後だけYouTube Player APIへunMute/playVideoを送る。
+  const src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
+  const enableSound = () => {
+    const win = frameRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(JSON.stringify({ event:"command", func:"unMute", args:[] }), "*");
+    win.postMessage(JSON.stringify({ event:"command", func:"setVolume", args:[100] }), "*");
+    win.postMessage(JSON.stringify({ event:"command", func:"playVideo", args:[] }), "*");
+    setSoundOn(true);
+  };
   return (
     <div style={{ margin: compact ? 0 : "0 0 28px", width:"100%", height: compact ? "100%" : "auto" }}>
       {!compact && <h3 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 14px" }}>作業動画</h3>}
       <div style={{ position:"relative", width:"100%", height: compact ? "100%" : "auto", aspectRatio: compact ? "auto" : "16 / 9", overflow:"hidden", borderRadius: compact ? 0 : 12, background:"#000" }}>
-        <iframe title="作業動画" src={src} loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
+        <iframe ref={frameRef} title="作業動画" src={src} loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
           style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:0 }} />
+        {!soundOn && <button type="button" onClick={enableSound} className="f-sans"
+          aria-label="タップして音声を再生"
+          style={{ position:"absolute", left:"50%", bottom:18, transform:"translateX(-50%)", zIndex:3, border:0, borderRadius:999,
+            padding:"10px 16px", background:"rgba(0,0,0,.72)", color:"#fff", fontSize:13, fontWeight:700, whiteSpace:"nowrap",
+            cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,.25)" }}>
+          🔊 タップして音声を再生
+        </button>}
       </div>
     </div>
   );
