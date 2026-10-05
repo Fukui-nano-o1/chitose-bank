@@ -821,7 +821,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       return draft;
     } catch (error) {
       setDraftMsg(error.message === "DEVICE_DRAFT_CHANGED"
-        ? "別のタブでもこの下書きが変更されています。この画面の内容はまだ保存できていません。"
+        ? "保存済みの下書きと、この画面の入力内容に差があります。入力内容は消えていません。いったん「保存して終了」し、下書きを開き直してください。"
         : "この端末に保存できません。画面を閉じずに、ブラウザーの空き容量をご確認ください。");
       return null;
     }
@@ -1811,7 +1811,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
                     : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
                     : saved?.state === "blocked" ? "保存できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。" + (isAdmin(session.user) ? `（管理者向け：${reason}）` : "")
-                    : saved?.state === "conflict" ? "この求人は別の場所でも更新されているため、自動で保存し直しても競合が解消できませんでした。入力内容はこの端末に残っています。「保存して終了」を押して下書きを残し、他のタブや端末でこの求人を開いている場合は閉じてから、下書きを開き直してください。"
+                    : saved?.state === "conflict" ? "保存済みの求人と、この画面の入力内容に差があり、自動で保存し直しても一致を確認できませんでした。入力内容はこの端末に残っています。「保存して終了」を押してから下書きを開き直してください。別のタブや端末で同じ求人を編集している場合は、その画面を閉じてから開き直してください。"
                     : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます。");
                   return;
                 }
