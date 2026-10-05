@@ -13,7 +13,8 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
   try {
     const types = { headcount: 'integer', draft_step: 'integer', lat: 'numeric', lng: 'numeric', geo_radius_m: 'integer',
       date_start: 'date', date_end: 'date', holidays: 'jsonb', perks: 'jsonb', danger_places: 'jsonb', danger_tasks: 'jsonb', photos: 'jsonb',
-      beginner_ok: 'boolean', instant_approve_repeat: 'boolean', experienced_preferred: 'boolean' };
+      beginner_ok: 'boolean', instant_approve_repeat: 'boolean', experienced_preferred: 'boolean',
+      work_video_job_consent: 'boolean', work_video_related_consent: 'boolean', work_video_consent_at: 'timestamptz' };
     await db.exec(`
       create role anon; create role authenticated;
       create schema auth;
@@ -48,6 +49,8 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     await db.exec(await readFile(new URL('../supabase/migrations/20260919114602_resumable_job_drafts.sql', import.meta.url), 'utf8'));
     // 2026-09-23 conflict に現在の行を添える（本番と同じ順で上書き適用）
     await db.exec(await readFile(new URL('../supabase/migrations/20260923070439_sync_conflict_returns_row.sql', import.meta.url), 'utf8'));
+    // 2026-10-05 作業動画列を同期許可リストへ追加（本番適用済みmigration）。
+    await db.exec(await readFile(new URL('../supabase/migrations/20261005050122_allow_job_work_video_in_sync.sql', import.meta.url), 'utf8'));
     const login = async uid => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]); await db.exec('set role authenticated'); };
     const call = async (name, expected, patch, id = jobId) => (await db.query(`select public.${name}($1,$2,$3,$4) as result`,[owner,id,expected,patch])).rows[0].result;
     const consent = async v => (await db.query('select public.save_my_privacy_consent($1,$2) as result',[owner,v])).rows[0].result;
