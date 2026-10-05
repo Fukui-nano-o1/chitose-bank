@@ -30,7 +30,7 @@ import { calcMaxPay, pickDateRange, normalizeDateRange, jobInDateRange, dateRang
 import { readStoredSearch, readStoredDateRange, writeStoredSearch } from "../features/jobs/search/filters/searchFilterStorage";
 import { SearchFab, SearchFilterPanel } from "../features/jobs/search/filters/SearchFilterPanel";
 import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
-  JobLocationSection, JobReviewsAndHost, JobThingsToKnow,
+  JobLocationSection, JobReviewsAndHost, JobThingsToKnow, JobWorkVideo,
   JobPhotoGallery, RelatedJobs, JobTopBar } from "../features/jobs/search/components/JobDetailPanel";
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile } from "../features/jobs/search/components/ApplyPanel";
 import { ApplicationPage, readApplicationStep } from "../features/jobs/search/components/ApplicationPage";
@@ -1308,6 +1308,9 @@ export function JobSearchMapView({ onRegister, me }) {
 
           {/* 知っておくこと＝きまり（持ち物・備考・時間外・支払条件ほか）／危険箇所／保険 */}
           <JobThingsToKnow job={selectedJob} onPhoto={setDangerLightbox} />
+
+          {/* 作業動画＝知っておくことの直下 */}
+          {selectedJob.workVideoUrl && <JobWorkVideo job={selectedJob} />}
 
           <RelatedJobs currentJob={selectedJob} jobList={jobList} savedIds={savedIds} canLike={canLike} onToggleSave={toggleSave} viewCounts={viewCounts} />
 
