@@ -107,7 +107,7 @@ export function ReceivedReviews({ userId, direction, jobNumber, showAllItems, pr
             <p className="f-sans" style={{ fontSize: 12, color: "#999", padding: showAllItems ? "0 0 8px" : "12px 0", margin: 0 }}>まだ評価はありません</p>
           )}
           {shown.length > 0 && (
-            <div className={horizontal ? "carousel-scroll" : undefined} style={{ display: "flex", flexWrap: horizontal ? "nowrap" : "wrap", overflowX: horizontal ? "auto" : "visible", WebkitOverflowScrolling: horizontal ? "touch" : undefined, scrollSnapType: horizontal ? "x proximity" : undefined, gap: 8, paddingBottom: horizontal ? 6 : 0, marginBottom: comments.length > 0 ? 12 : 0 }}>
+            <div className={horizontal ? "carousel-scroll" : undefined} style={horizontal ? { display:"grid", gridAutoFlow:"column", gridTemplateRows:"repeat(4, auto)", gridAutoColumns:"max-content", overflowX:"auto", overflowY:"hidden", WebkitOverflowScrolling:"touch", scrollSnapType:"x proximity", gap:8, paddingBottom:6, marginBottom: comments.length > 0 ? 12 : 0 } : { display:"flex", flexWrap:"wrap", gap:8, marginBottom: comments.length > 0 ? 12 : 0 }}>
               {shown.map(d => {
                 const n = badges[d.k] || 0;
                 // 0件は控えめな見た目（届いた評価と見分けがつくように）
