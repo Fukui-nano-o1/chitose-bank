@@ -65,6 +65,16 @@ const isWorkplaceRoute = () => /^#\/?work\/(?:new\/3|edit\/\d+)\/workplace$/.tes
 
 // ── LandingFlow ──────────────────────────────────────────────
 // 表示条件：{!me && showLanding && <LandingFlow .../>} — 未ログイン訪問者に表示
+// 2026-10-05 作業動画ページ追加前の下書き互換。
+// 旧9=危険、10=希望、11=確認。新規フローでは動画を9に挿入したため、旧9以降は+1して再開する。
+// 動画項目を持つ行/端末下書きは新フローで保存済みなので変換しない。
+function resumeListingStep(oldStep, hasVideoFields = false) {
+  const n = Number(oldStep);
+  if (!Number.isFinite(n)) return 1;
+  if (hasVideoFields) return Math.max(1, Math.min(n, 12));
+  return n >= 9 && n <= 11 ? n + 1 : Math.max(1, Math.min(n, 12));
+}
+
 export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSaved, onSkip, onLogin, onPublished, onWorkerDone, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
 
@@ -116,7 +126,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 編集・コピー（#/work/edit/{n}）は確認ページ(11)から始める（2026-08-03）。
   // 初期値が0（入口）だと、jobsを読み終えるまで「はじめから」の画面が見えてしまう。
   // 実際のstepは読み込み後に draft_step で上書きされる（copy_jobも draft_step=11 で作る）
-  const [step, setStep] = useState(isWorkplaceRoute() ? 3 : (initialStep && initialStep >= 1 && initialStep <= 12) ? initialStep : (_devJump?.step ?? (_draftInit ? (_draftInit.farmerStep ?? 1) : (_editJobNumber ? 12 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
+  const [step, setStep] = useState(isWorkplaceRoute() ? 3 : (initialStep && initialStep >= 1 && initialStep <= 12) ? initialStep : (_devJump?.step ?? (_draftInit ? resumeListingStep(_draftInit.farmerStep ?? 1, Object.hasOwn(_draftInit, "workVideoUrl")) : (_editJobNumber ? 12 : 0)))); // URL(#/work/new/{step})最優先→devJump→draft→編集は11→0
 
   // 農家 state（draft がある場合は復元値を初期値に使う）
   const d = _draftInit || {};
