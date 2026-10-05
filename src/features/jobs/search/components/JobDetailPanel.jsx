@@ -339,9 +339,9 @@ export function JobWorkVideo({ job, compact = false }) {
   // autoplayはブラウザ規制に従いミュート。playsinlineでiPhoneでもページ内再生を維持。
   const src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1&playsinline=1&rel=0`;
   return (
-    <div style={{ margin: compact ? 0 : "0 0 28px" }}>
+    <div style={{ margin: compact ? 0 : "0 0 28px", width:"100%", height: compact ? "100%" : "auto" }}>
       {!compact && <h3 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 14px" }}>作業動画</h3>}
-      <div style={{ position:"relative", width:"100%", aspectRatio:"16 / 9", overflow:"hidden", borderRadius: compact ? 0 : 12, background:"#000" }}>
+      <div style={{ position:"relative", width:"100%", height: compact ? "100%" : "auto", aspectRatio: compact ? "auto" : "16 / 9", overflow:"hidden", borderRadius: compact ? 0 : 12, background:"#000" }}>
         <iframe title="作業動画" src={src} loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
           style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:0 }} />
       </div>
