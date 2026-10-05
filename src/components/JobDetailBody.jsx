@@ -26,7 +26,7 @@ import { supabase } from "../lib/supabase";
 import { MaskedAddress, MaskedText } from "./ui";
 import { JobQuestions, ContentQTabs, ContentQSwipeArea } from "./JobQuestions";
 import { JobPhotoGallery, JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities,
-  JobScheduleSection, JobReviewsAndHost, JobLocationSection, JobThingsToKnow } from "../features/jobs/search/components/JobDetailPanel";
+  JobScheduleSection, JobReviewsAndHost, JobLocationSection, JobThingsToKnow, JobWorkVideo } from "../features/jobs/search/components/JobDetailPanel";
 
 // employer／trust（任意・2026-09-19）＝親が既に持っている募集主の材料を渡す口（求人作成フローの
 //   掲載前の確認＝まだ求人番号の無い下書きでは job_employer_profile を引けないため）。渡された時は引かない。
@@ -138,6 +138,9 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: emp
 
       {/* 知っておくこと＝きまり（持ち物・備考・時間外・支払条件ほか）／危険箇所／保険（掲載時凍結の snapshot のみ） */}
       {wrap("持ち物・備考・危険箇所・保険", <JobThingsToKnow job={job} onPhoto={setDangerLightbox} />)}
+
+      {/* 作業動画＝知っておくことの直下。求人内掲載への同意済みURLだけjobs_publicから届く。 */}
+      {job.workVideoUrl && wrap("作業動画", <JobWorkVideo job={job} />)}
     </>
   );
   return (
