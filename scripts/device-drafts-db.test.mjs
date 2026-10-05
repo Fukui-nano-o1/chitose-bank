@@ -11,7 +11,7 @@ const jobId = '00000000-0000-4000-8000-000000000003';
 test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job checks, and consent version checks', async () => {
   const db = new PGlite();
   try {
-    const types = { headcount: 'integer', draft_step: 'integer', draft_step_id: 'text', lat: 'numeric', lng: 'numeric', geo_radius_m: 'integer',
+    const types = { headcount: 'integer', draft_step: 'integer', lat: 'numeric', lng: 'numeric', geo_radius_m: 'integer',
       date_start: 'date', date_end: 'date', holidays: 'jsonb', perks: 'jsonb', danger_places: 'jsonb', danger_tasks: 'jsonb', photos: 'jsonb',
       beginner_ok: 'boolean', instant_approve_repeat: 'boolean', experienced_preferred: 'boolean',
       work_video_job_consent: 'boolean', work_video_related_consent: 'boolean', work_video_consent_at: 'timestamptz' };
@@ -51,9 +51,6 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     await db.exec(await readFile(new URL('../supabase/migrations/20260923070439_sync_conflict_returns_row.sql', import.meta.url), 'utf8'));
     // 2026-10-05 作業動画列を同期許可リストへ追加（本番適用済みmigration）。
     await db.exec(await readFile(new URL('../supabase/migrations/20261005050122_allow_job_work_video_in_sync.sql', import.meta.url), 'utf8'));
-    // stable step ID 列と同期許可（本番と同じ順）。
-    await db.exec(await readFile(new URL('../supabase/migrations/20261005060000_add_stable_job_draft_step_id.sql', import.meta.url), 'utf8'));
-    await db.exec(await readFile(new URL('../supabase/migrations/20261005061500_allow_stable_draft_step_id_in_sync.sql', import.meta.url), 'utf8'));
     const login = async uid => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]); await db.exec('set role authenticated'); };
     const call = async (name, expected, patch, id = jobId) => (await db.query(`select public.${name}($1,$2,$3,$4) as result`,[owner,id,expected,patch])).rows[0].result;
     const consent = async v => (await db.query('select public.save_my_privacy_consent($1,$2) as result',[owner,v])).rows[0].result;
