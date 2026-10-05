@@ -1919,6 +1919,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               lat: confGeo?.lat ?? null, lng: confGeo?.lng ?? null, radius: confGeo?.radius ?? null,
               count: jobCount ? `${jobCount}名` : "", headcount: Number(jobCount) || null,
               photos: jobPhotos,
+              workVideoUrl: workVideoUrl.trim() && workVideoJobConsent ? workVideoUrl.trim() : "",
               recruiterName: confEmployer?.recruiter_name || "", recruiterAddress: confEmployer?.recruiter_address || "", recruiterContact: confEmployer?.recruiter_contact || "",
               nearestStation: nearestStation || "", workTime: workHours > 0 ? workTimeLabel : "",
               breakTime: breakTime || "", commuteTime: commuteTime || "",
