@@ -256,6 +256,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [jobPhotos, setJobPhotos] = useState(normalizePhotos(d.jobPhotos)); // 旧形式draft対策（真っ白バグ・2026-07-16）
   // 写真の並び替えは LFPhotoReorderStrip（モジュールレベル・◀▶＋長押しドラッグ）に移動（2026-08-03）
   const [jobDescription, setJobDescription] = useState(d.jobDescription ?? "");
+  // 作業動画（MVP）：掲載フローではYouTube URLと利用同意だけを扱う。
+  // 表示側への埋め込みは次段階。URLが空なら同意値も保存しない。
+  const [workVideoUrl, setWorkVideoUrl] = useState(d.workVideoUrl ?? "");
+  const [workVideoJobConsent, setWorkVideoJobConsent] = useState(!!d.workVideoJobConsent);
+  const [workVideoRelatedConsent, setWorkVideoRelatedConsent] = useState(!!d.workVideoRelatedConsent);
+  const [workVideoConsentAt, setWorkVideoConsentAt] = useState(d.workVideoConsentAt ?? null);
+  const [workVideoConsentVersion, setWorkVideoConsentVersion] = useState(d.workVideoConsentVersion ?? null);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [photoCaptionsOpen, setPhotoCaptionsOpen] = useState(false); // step8「写真ごとに説明」ポップアップ（2026-07-16）
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -636,6 +643,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         setJobPerks(data.perks || null);
         setExperiencedPreferred(!!data.experienced_preferred);
         setJobDescription(data.notes ?? "");
+        setWorkVideoUrl(data.work_video_url ?? "");
+        setWorkVideoJobConsent(!!data.work_video_job_consent);
+        setWorkVideoRelatedConsent(!!data.work_video_related_consent);
+        setWorkVideoConsentAt(data.work_video_consent_at ?? null);
+        setWorkVideoConsentVersion(data.work_video_consent_version ?? null);
         setJobNotes(data.belongings ?? "");
         setJobCautions(data.cautions ?? "");
         setOvertimePolicy(data.overtime_policy ?? "");
@@ -774,7 +786,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         farmerWanted, farmerPayType, payTiming, payMethod,
         startHour, startMinute, endHour, endMinute,
         jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
-        jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
+        jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
+        workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
+        beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
         jobDateStart: jobDateStart?.toISOString() ?? null,
         jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
         jobHolidays,
@@ -854,6 +868,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       perks:           jobPerks,
       experienced_preferred: experiencedPreferred,
       notes:           jobDescription,
+      work_video_url: workVideoUrl.trim() || null,
+      work_video_job_consent: workVideoUrl.trim() ? workVideoJobConsent : null,
+      work_video_related_consent: workVideoUrl.trim() ? workVideoRelatedConsent : null,
+      work_video_consent_at: workVideoUrl.trim() && workVideoJobConsent ? (workVideoConsentAt || new Date().toISOString()) : null,
+      work_video_consent_version: workVideoUrl.trim() && workVideoJobConsent ? (workVideoConsentVersion || "2026-10-05-v1") : null,
       belongings:      jobNotes,
       cautions:        jobCautions,
       // 「あり」以外を選んだら目安は保存しない（選び直しの残骸を残さない・受動喫煙と同じ作法）
@@ -1015,7 +1034,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       jobPhotos, farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText, farmerWanted, farmerPayType, payTiming, payMethod,
       startHour, startMinute, endHour, endMinute, jobCount, breakTime, commuteTime, nearestStation,
       jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput, jobExp, jobTemplate, jobNotes, jobCautions,
-      overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription, beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
+      overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
+      workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
+      beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
       jobDateStart, jobDateEnd, jobHolidays, editJobLoading]);
 
   // step遷移時にスクロール位置をトップへリセット（前ページの途中位置が引き継がれるのを防ぐ）
@@ -1651,7 +1672,12 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {isFarmer && step === 7 && <StepPhotos jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
 
           {/* ── 農家 step8: 作業説明文 ── */}
-          {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef} />}
+          {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef}
+            workVideoUrl={workVideoUrl} setWorkVideoUrl={setWorkVideoUrl}
+            workVideoJobConsent={workVideoJobConsent} setWorkVideoJobConsent={setWorkVideoJobConsent}
+            workVideoRelatedConsent={workVideoRelatedConsent} setWorkVideoRelatedConsent={setWorkVideoRelatedConsent}
+            workVideoConsentAt={workVideoConsentAt} setWorkVideoConsentAt={setWorkVideoConsentAt}
+            workVideoConsentVersion={workVideoConsentVersion} setWorkVideoConsentVersion={setWorkVideoConsentVersion} />}
 
           {/* ── 農家 step10: 危険箇所 ── */}
           {isFarmer && step === 9 && <StepDanger jobDangerPlaces={jobDangerPlaces} setJobDangerPlaces={setJobDangerPlaces} jobDangerTasks={jobDangerTasks} setJobDangerTasks={setJobDangerTasks} showPlace2={showPlace2} setShowPlace2={setShowPlace2} showTask2={showTask2} setShowTask2={setShowTask2} />}
