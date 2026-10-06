@@ -132,7 +132,7 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
             自分の段階を語る場ので、求人側の「掲載終了（満員）」は要らない（自分が採用された求人に
             掲載終了と出て読み違える）。一覧・さがす等では従来どおり出す＝既定は表示 */}
       {!hideEndLabel && (job.filled || job.expired || job.closed) && (
-        <div style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
+        <div className="job-card-end-label" style={{ position:"absolute", top:0, left:0, right:0, height:photoHeight, borderRadius:photoRadius, background:"rgba(0,0,0,0.34)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1, pointerEvents:"none" }}>
           <span className="f-sans" style={{ background:"rgba(30,30,30,0.88)", color:"#fff", fontSize: isList?14:12, fontWeight:800, letterSpacing:".04em", padding:"7px 18px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>
             {/* 満員の2段階（2026-08-14たきと指示）：満員でまだ期間中＝募集終了（満員）／
                 満員かつ終了済み（closed or 期間経過）＝掲載終了（満員） */}
@@ -156,25 +156,25 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
           行の並びはAirbnbのカードの写し＝太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。
           ★#No.は必ず読める（flexShrink:0・題名側を…で省略）＝No.検索と対 */}
       <div className="job-card-summary" style={{ padding: isList ? "10px 4px 0" : "8px 2px 0" }}>
-        <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+        <div className="job-card-heading" style={{ display:"flex", alignItems:"baseline", gap:6 }}>
           <p className="f-sans" style={{ fontSize: isList?15:14, fontWeight:700, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
           <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
         </div>
         {job.region && (
-          <p className="f-sans" style={{ fontSize: isList?13:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.region}</p>
+          <p className="f-sans job-card-region" style={{ fontSize: isList?13:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.region}</p>
         )}
         {job.dateStartRaw && (
-          <p className="f-sans" style={{ fontSize: isList?13:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          <p className="f-sans job-card-dates" style={{ fontSize: isList?13:12, color:"#717171", margin:"2px 0 0", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
             {dateRangeLabel(job.dateStartRaw, job.dateEndRaw)}
           </p>
         )}
         {/* 報酬が取れていない行（非公開求人フォールバック等）は0円を出さない（ダミー禁止・憲法3条）。
             金額はAirbnbの価格行の写し＝黒の太字（旧＝緑） */}
         {job.pay > 0 && (
-          <p className="f-mono" style={{ fontSize: isList?15:14, fontWeight:800, color:"#222", margin:"5px 0 0" }}>{payLabel(job)}</p>
+          <p className="f-mono job-card-pay" style={{ fontSize: isList?15:14, fontWeight:800, color:"#222", margin:"5px 0 0" }}>{payLabel(job)}</p>
         )}
         {(job.beginnerOk || job.experiencedPreferred || job.instantApproveRepeat) && (
-          <div style={{ display:"flex", gap:4, marginTop:6, flexWrap:"wrap" }}>
+          <div className="job-card-conditions" style={{ display:"flex", gap:4, marginTop:6, flexWrap:"wrap" }}>
             {job.beginnerOk && <span className="f-sans" style={{ fontSize: isList?11:10, fontWeight:700, color:"#00A86B", background:"#E6F7EF", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="sparkle" size={isList?11:10} style={{ verticalAlign:"-1.5px", marginRight:3 }} />初心者大歓迎</span>}
             {job.experiencedPreferred && <span className="f-sans" style={{ fontSize: isList?11:10, fontWeight:700, color:"#1A56C5", background:"#E8F0FE", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="medal" size={isList?11:10} style={{ verticalAlign:"-1.5px", marginRight:3 }} />経験者優遇</span>}
             {job.instantApproveRepeat && <span className="f-sans" style={{ fontSize: isList?11:10, fontWeight:700, color:"#8A6D1D", background:"#FFF8E7", padding:"2px 8px", borderRadius:20 }}><NavIconInline name="repeat" size={isList?11:10} style={{ verticalAlign:"-1.5px", marginRight:3 }} />リピート即決</span>}

@@ -33,8 +33,13 @@ try {
         try {
           await page.goto('https://ui.test/fixture');await page.addScriptTag({content:bundle});
           await page.addStyleTag({content:(await page.evaluate(()=>window.qaCSS))+'\n'+css});
-          for(const [i,kind] of ['multiple','single','no-photo','no-video','invalid','hourly','no-pay','closed'].entries()) {
+          for(const [i,kind] of ['multiple','single','no-photo','no-video','invalid','hourly','no-pay','closed','single-filled','long','no-region','no-date'].entries()) {
             const job={id:9600+i,variant:'list',videoPlacement:'below',crop:'ブロッコリー',task:'収穫',region:'徳島県吉野川市',dateStartRaw:'2026-11-01',dateEndRaw:'2026-11-03',pay:kind==='no-pay'?0:kind==='hourly'?1250:10000,payType:kind==='hourly'?'hourly':'daily',photos:kind==='no-photo'?[]:kind==='single'?['/one.jpg']:['/one.jpg','/two.jpg'],workVideoUrl:kind==='no-video'?'':kind==='invalid'?'https://example.com/video':'https://youtu.be/aKydtOXW8mI',beginnerOk:true,experiencedPreferred:true,instantApproveRepeat:true,closed:kind==='closed'};
+            if(kind==='single-filled'){job.photos=['/one.jpg'];job.filled=true;}
+            if(kind==='long'){job.region='徳島県吉野川市山川町の長い地域名も表示する確認';job.task='収穫・調整・出荷準備';job.pay=1250000;}
+            if(kind==='no-region')job.region='';
+            if(kind==='no-date')job.dateStartRaw='';
+            job.isNew=kind==='single';
             console.log(JSON.stringify({engine,width,kind}));
             await page.evaluate(j=>{window.scrollTo(0,0);window.qaLikes=0;window.qaOpened=0;window.qaRender([j]);},job);
             const card=page.locator('.job-card-photo-summary');await card.waitFor();
@@ -46,11 +51,29 @@ try {
             assert.ok(within(geometry.summary,geometry.cover),'entire summary is inside the photo');
             for(const text of geometry.text)assert.ok(within(text,geometry.cover),'every text row is inside the photo');
             assert.equal(geometry.color,'rgb(255, 255, 255)');
+            const layout=await card.evaluate(el=>{
+              const box=n=>{if(!n)return null;const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};
+              const summary=el.querySelector('.job-card-summary');
+              return {summary:box(summary),heading:box(el.querySelector('.job-card-heading')),region:box(el.querySelector('.job-card-region')),dates:box(el.querySelector('.job-card-dates')),pay:box(el.querySelector('.job-card-pay')),conditions:box(el.querySelector('.job-card-conditions')),heart:box(el.querySelector('[aria-label="いいね"]')),end:box(el.querySelector('.job-card-end-label')),background:getComputedStyle(summary).backgroundImage,display:getComputedStyle(summary).display};
+            });
+            assert.equal(layout.display,'grid');
+            assert.ok(layout.summary.height>=219,'summary is spread over the photo height');
+            assert.ok(layout.heading.y-layout.summary.y<70,'title stays in the upper region');
+            if(layout.region&&layout.dates){assert.ok(layout.dates.x>layout.region.x,'location and dates use opposite sides');assert.ok(layout.region.y>=layout.heading.y+layout.heading.height,'facts follow the title');}
+            if(layout.pay){assert.ok(layout.pay.y>layout.heading.y+layout.heading.height,'pay is separated from the title');assert.ok(layout.pay.x+layout.pay.width>=layout.summary.x+layout.summary.width-15,'pay uses the right side');}
+            const alphas=[...layout.background.matchAll(/rgba\([^)]*,\s*([\d.]+)\)/g)].map(m=>Number(m[1]));
+            assert.ok(alphas.length>=2&&Math.max(...alphas)<=.28,'large-area black shading is at most 28 percent');
+            const overlap=(a,b)=>a&&b&&Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)>.5&&Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y)>.5;
+            const fields=[layout.heading,layout.region,layout.dates,layout.pay,layout.conditions].filter(Boolean);
+            for(let a=0;a<fields.length;a++)for(let b=a+1;b<fields.length;b++)assert.equal(overlap(fields[a],fields[b]),false,'distributed text fields never overlap');
+            for(const field of fields){assert.equal(!!overlap(field,layout.heart),false,'text avoids the like control');assert.equal(!!overlap(field,layout.end),false,'closed label remains separate');}
+            assert.equal(!!layout.region,!!job.region);assert.equal(!!layout.dates,!!job.dateStartRaw);
+            geometry.distribution=layout;
             assert.equal(await card.locator('.job-card-summary').count(),1,'no duplicated summary outside card');
-            if(job.pay>0)assert.equal(await card.locator('.job-card-summary .f-mono').textContent(),kind==='hourly'?'時給1,250円':'日給10,000円');
+            if(job.pay>0)assert.equal(await card.locator('.job-card-summary .f-mono').textContent(),kind==='hourly'?'時給1,250円':kind==='long'?'日給1,250,000円':'日給10,000円');
             else assert.equal(await card.locator('.job-card-summary .f-mono').count(),0,'missing pay is not invented');
             assert.equal(await page.locator('iframe').count(),0,'video is not loaded on render');
-            if(!job.closed){await card.locator('[aria-label="いいね"]').click();assert.equal(await page.evaluate(()=>window.qaLikes),1);assert.equal(await page.evaluate(()=>window.qaOpened),0);}
+            if(!job.closed&&!job.filled){await card.locator('[aria-label="いいね"]').click();assert.equal(await page.evaluate(()=>window.qaLikes),1);assert.equal(await page.evaluate(()=>window.qaOpened),0);}
             if(job.photos.length>1){
               await card.locator('[aria-label="次の画像・動画"]').click();
               await page.waitForFunction(()=>{const s=document.querySelector('.job-card-photo-summary .job-card-media-scroll');return Math.abs(s.scrollLeft-s.clientWidth)<1;});
