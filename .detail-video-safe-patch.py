@@ -28,4 +28,11 @@ b = '// A player must not be enlarged into the status/navigation area by photo p
 assert s.count(a) == 1
 s = s.replace(a, b)
 p.write_text(s)
+# Browser fixtures must declare their encoding, just like the production page.
+test_file = Path('scripts/job-work-video-layout.mjs')
+test_source = test_file.read_text()
+assert "contentType:'text/html'," in test_source
+test_source = test_source.replace("contentType:'text/html',", "contentType:'text/html; charset=utf-8',")
+test_source = test_source.replace("const page=await context.newPage();const errors=[];", "console.log(JSON.stringify({engine,mode,viewport:size}));\n        const page=await context.newPage();const errors=[];")
+test_file.write_text(test_source)
 print('Scoped detail/review video safe-area fix applied. Search cards, photos, DB and listing inputs unchanged.')
