@@ -25,7 +25,9 @@ jobs:
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit > /tmp/search-card-browser-install.log 2>&1
       - name: Verify search card layout and controls
-        run: node scripts/search-card-video-layout.mjs
+        run: |
+          set -o pipefail
+          node scripts/search-card-video-layout.mjs 2>&1 | tee /tmp/search-card-browser.log
       - name: Verify existing detail video safe areas
         run: node scripts/job-work-video-layout.mjs
       - name: Commit verified source to isolated branch
@@ -46,6 +48,9 @@ jobs:
           name: search-card-video-verification
           path: |
             /tmp/search-card-build.log
+            /tmp/search-card-browser.log
+            /tmp/search-card-debug.json
+            /tmp/search-card-debug.png
             /tmp/search-card-video-layout.json
             /tmp/search-card-video-mobile.png
             /tmp/search-card-verified.patch

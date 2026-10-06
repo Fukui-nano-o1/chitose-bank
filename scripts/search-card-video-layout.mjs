@@ -9,6 +9,14 @@ import {chromium,webkit} from 'playwright';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const temp=await mkdtemp(path.join(root,'.search-card-qa-'));
 const results=[];
+// Read related rectangles in the same browser frame. Separate remote calls can
+// straddle scroll anchoring or font layout after a card replaces the previous one.
+const geometry=page=>page.evaluate(()=>{
+  const card=document.querySelector('.job-card-with-video > [data-guide="job-card"]');
+  const below=document.querySelector('.job-card-video-below');
+  const box=el=>el?.getBoundingClientRect().toJSON();
+  return {upper:box(card),before:box(below?.querySelector('.job-card-media-scroll')),player:box(below?.querySelector('iframe')),scrollY:window.scrollY};
+});
 try{
   const entry=path.join(temp,'entry.jsx');
   await writeFile(entry,"import {CSS} from '../src/appStyles'; import '../scripts/fixtures/job-video/entry.jsx'; window.qaCSS=CSS;");
@@ -33,51 +41,57 @@ try{
         await page.goto('https://ui.test/fixture');await page.addScriptTag({content:bundle});
         await page.addStyleTag({content:(await page.evaluate(()=>window.qaCSS))+'\n'+componentCSS});
         for(const [i,kind]of ['multiple','single','no-photo','no-video','invalid','closed'].entries()){
-          const job={id:9400+i,variant:'list',videoPlacement:'below',priority:true,crop:'ブロッコリー',task:'収穫',region:'徳島県吉野川市',dateStartRaw:'2026-11-01',pay:10000,views:8,beginnerOk:true,photos:kind==='no-photo'?[]:kind==='single'?['/one.jpg']:['/one.jpg','/two.jpg'],workVideoUrl:kind==='no-video'?'':kind==='invalid'?'https://youtube.com.evil.test/watch?v=aKydtOXW8mI':'https://youtu.be/aKydtOXW8mI',closed:kind==='closed'};
-          await page.evaluate(j=>{window.scrollTo(0,0);window.qaRender([j]);},job);
-          await page.locator(`[href="#/work/job/${job.id}"]`).first().waitFor();
-          assert.equal(await page.locator('iframe').count(),0,'no iframe before explicit play');
-          const valid=kind!=='no-video'&&kind!=='invalid';
-          assert.equal(await page.locator('.job-card-video-below').count(),valid?1:0);
-          if(valid){
-            const shell=page.locator('.job-card-with-video');
-            const card=shell.locator(':scope > [data-guide="job-card"]');
-            const below=page.locator('.job-card-video-below');
-            assert.equal(await card.locator('[data-media-type="youtube"]').count(),0);
-            assert.equal(await below.locator('[data-media-type="photo"]').count(),0);
-            assert.equal(await shell.locator('.job-card-media-types').count(),0);
-            assert.ok((await card.textContent()).includes(job.region));
-            assert.ok((await card.textContent()).includes('10,000'));
-            const before=await below.locator('.job-card-media-scroll').boundingBox();
-            const upper=await card.boundingBox();
-            assert.ok(before.y>=upper.y+upper.height+11,'video starts below all card text');
-            assert.ok(Math.abs(before.width-upper.width)<1,'video matches card width');
-            assert.ok(Math.abs(before.height-Math.max(200,before.width*9/16))<1,'responsive 16:9 frame, minimum height 200');
-            assert.equal(await card.locator('[aria-label="いいね"]').count(),job.closed?0:1);
-            if(!job.closed){await card.locator('[aria-label="いいね"]').click();assert.equal(await page.evaluate(()=>window.qaOpened),0);}
-            await below.locator('.job-video-facade').click();
-            await below.locator('iframe').waitFor();
-            await page.frameLocator('.job-card-video-below iframe').locator('#settings').click();
-            assert.equal(await page.frameLocator('.job-card-video-below iframe').locator('#settings').textContent(),'opened');
-            assert.equal(await page.evaluate(()=>window.qaOpened),0,'video controls do not open a job');
-            const player=await below.locator('iframe').boundingBox();
-            const photoCard=await card.boundingBox();
-            assert.ok(player.y>=photoCard.y+photoCard.height+11,'loaded player remains below card');
-            assert.ok(Math.abs(player.height-before.height)<1,'loading player does not shift the layout');
-            assert.equal(await below.locator('.job-video-facade').count(),0);
-            if(engine==='chromium'&&width===390&&kind==='multiple'){
-              await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'/tmp/search-card-video-mobile.png',fullPage:true});
+          console.log(JSON.stringify({engine,width,kind}));
+          try{
+            const job={id:9400+i,variant:'list',videoPlacement:'below',priority:true,crop:'ブロッコリー',task:'収穫',region:'徳島県吉野川市',dateStartRaw:'2026-11-01',pay:10000,views:8,beginnerOk:true,photos:kind==='no-photo'?[]:kind==='single'?['/one.jpg']:['/one.jpg','/two.jpg'],workVideoUrl:kind==='no-video'?'':kind==='invalid'?'https://youtube.com.evil.test/watch?v=aKydtOXW8mI':'https://youtu.be/aKydtOXW8mI',closed:kind==='closed'};
+            await page.evaluate(j=>{window.scrollTo(0,0);window.qaRender([j]);},job);
+            await page.locator(`[href="#/work/job/${job.id}"]`).first().waitFor();
+            await page.evaluate(()=>document.fonts.ready);
+            assert.equal(await page.locator('iframe').count(),0,'no iframe before explicit play');
+            const valid=kind!=='no-video'&&kind!=='invalid';
+            assert.equal(await page.locator('.job-card-video-below').count(),valid?1:0);
+            if(valid){
+              const shell=page.locator('.job-card-with-video');
+              const card=shell.locator(':scope > [data-guide="job-card"]');
+              const below=page.locator('.job-card-video-below');
+              assert.equal(await card.locator('[data-media-type="youtube"]').count(),0);
+              assert.equal(await below.locator('[data-media-type="photo"]').count(),0);
+              assert.equal(await shell.locator('.job-card-media-types').count(),0);
+              assert.ok((await card.textContent()).includes(job.region));
+              assert.ok((await card.textContent()).includes('10,000'));
+              const {before,upper}=await geometry(page);
+              assert.ok(before.y>=upper.y+upper.height+11,'video starts below all card text: '+JSON.stringify({before,upper}));
+              assert.ok(Math.abs(before.width-upper.width)<1,'video matches card width');
+              assert.ok(Math.abs(before.height-Math.max(200,before.width*9/16))<1,'responsive 16:9 frame, minimum height 200');
+              assert.equal(await card.locator('[aria-label="いいね"]').count(),job.closed?0:1);
+              if(!job.closed){await card.locator('[aria-label="いいね"]').click();assert.equal(await page.evaluate(()=>window.qaOpened),0);}
+              await below.locator('.job-video-facade').click();
+              await below.locator('iframe').waitFor();
+              await page.frameLocator('.job-card-video-below iframe').locator('#settings').click();
+              assert.equal(await page.frameLocator('.job-card-video-below iframe').locator('#settings').textContent(),'opened');
+              assert.equal(await page.evaluate(()=>window.qaOpened),0,'video controls do not open a job');
+              const {player,upper:photoCard}=await geometry(page);
+              assert.ok(player.y>=photoCard.y+photoCard.height+11,'loaded player remains below card');
+              assert.ok(Math.abs(player.height-before.height)<1,'loading player does not shift the layout');
+              assert.equal(await below.locator('.job-video-facade').count(),0);
+              if(engine==='chromium'&&width===390&&kind==='multiple'){
+                await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'/tmp/search-card-video-mobile.png',fullPage:true});
+              }
+              if(job.photos.length>1){
+                await card.locator('[aria-label="次の画像・動画"]').click();
+                await page.waitForFunction(()=>{const el=document.querySelector('.job-card-with-video > [data-guide="job-card"] .job-card-media-scroll');return Math.abs(el.scrollLeft-el.clientWidth)<1;});
+                assert.match(await card.locator('[aria-live]').textContent(),/写真2.*2\/2/);
+              }
             }
-            if(job.photos.length>1){
-              const strip=card.locator('.job-card-media-scroll');
-              await card.locator('[aria-label="次の画像・動画"]').click();
-              await page.waitForFunction(()=>{const el=document.querySelector('.job-card-with-video > [data-guide="job-card"] .job-card-media-scroll');return Math.abs(el.scrollLeft-el.clientWidth)<1;});
-              assert.match(await card.locator('[aria-live]').textContent(),/写真2.*2\/2/);
-            }
+            assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal overflow');
+            assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>window.qaCalls.length),0);
+            results.push({engine,width,kind,passed:true});
+          }catch(error){
+            const debug={engine,width,kind,geometry:await geometry(page),message:error.message,results};
+            await writeFile('/tmp/search-card-debug.json',JSON.stringify(debug,null,2));
+            await page.screenshot({path:'/tmp/search-card-debug.png',fullPage:true});
+            throw error;
           }
-          assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal overflow');
-          assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>window.qaCalls.length),0);
-          results.push({engine,width,kind,passed:true});
         }
         // Related cards still use their original mixed gallery and dimensions.
         await page.evaluate(()=>window.qaRender([{id:9499,variant:'related',crop:'野菜',task:'収穫',photos:['/one.jpg','/two.jpg'],workVideoUrl:'https://youtu.be/aKydtOXW8mI'}]));
