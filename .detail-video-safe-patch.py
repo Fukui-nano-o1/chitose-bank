@@ -36,5 +36,17 @@ test_source = test_source.replace("contentType:'text/html',", "contentType:'text
 assert '<!doctype html>' in test_source
 test_source = test_source.replace('<!doctype html>', '<!doctype html><meta charset="utf-8">')
 test_source = test_source.replace("const page=await context.newPage();const errors=[];", "console.log(JSON.stringify({engine,mode,viewport:size}));\n        const page=await context.newPage();const errors=[];")
+a = "await page.frameLocator('.job-photo-carousel iframe').locator('#settings').click();"
+b = """// Lazy frames inside a scrollable review are loaded when brought into view.
+          await player.scrollIntoViewIfNeeded();
+          try {
+            await page.frameLocator('.job-photo-carousel iframe').locator('#settings').click({timeout:10000});
+          } catch(error) {
+            await page.screenshot({path:'/tmp/detail-video-safe-mobile.png'});
+            await writeFile('/tmp/detail-video-safe-results.json',JSON.stringify({result:'failed',engine,mode,viewport:size,frame:await player.boundingBox(),slide:await gallery.locator('.job-work-video-slide').boundingBox(),scroll:await strip.evaluate(el=>({x:el.scrollLeft,width:el.clientWidth})),frames:page.frames().map(f=>f.url()),message:error.message,completed:result},null,2));
+            throw error;
+          }"""
+assert test_source.count(a) == 1
+test_source = test_source.replace(a,b)
 test_file.write_text(test_source)
 print('Scoped detail/review video safe-area fix applied. Search cards, photos, DB and listing inputs unchanged.')
