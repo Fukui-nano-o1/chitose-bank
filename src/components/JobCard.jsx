@@ -2,8 +2,9 @@
 // ★Airbnbの型（2026-08-31たきと指示「求人カードの要素もパクれ」）：
 //   写真は素のまま（角丸・左上に白いバッジ・右上に♥）。文字は写真に【重ねない】＝下に4行：
 //   太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。related/wide の
-//   黒グラデのオーバーレイは廃止＝全variantが同じ型（サイズだけ違う）。
+//   2026-10-06: さがす(videoPlacement="below")のみ写真内に文面を表示。他の面は従来配置。
 import { useState } from "react";
+import "./jobCardPhotoSummary.css";
 import { youtubeVideoId } from "../lib/youtube";
 import { JobVideoCard, JobVideoCardMedia } from "./JobVideoCard";
 import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
@@ -31,7 +32,7 @@ export const JOB_CARD_PHOTO_H = 220;
 //   渡さない／0以下なら何も出さない＝呼び出し元は無変更（数字thatゼロの求人に0を出さない・憲法3条）
 export function JobCard(props) {
   const videoId = youtubeVideoId(props.job?.workVideoUrl);
-  // Search keeps the same photo/summary card as related jobs, with video below it.
+  // Search places its summary on the photograph; any YouTube stays below the card.
   const videoBelow = props.videoPlacement === "below" && !!videoId;
   const galleryVideoId = videoBelow ? "" : videoId;
   const images = (Array.isArray(props.job?.photos) ? props.job.photos : []).filter(photo => photoThumb(photo));
@@ -57,7 +58,7 @@ export function JobCard(props) {
   </div>;
 }
 
-function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false, hideMedia = false, attachedVideo = false }) {
+function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false, hideMedia = false, attachedVideo = false, videoPlacement }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
@@ -83,6 +84,7 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
   return (
     <a
       data-guide={hideMedia ? undefined : "job-card"}
+      className={hideMedia ? "job-card-summary-link" : videoPlacement === "below" ? "job-card-photo-summary" : undefined}
       href={"#/work/job/" + job.id}
       target={onOpen ? undefined : "_blank"}
       rel="noopener noreferrer"
@@ -139,11 +141,11 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
         </div>
       )}
       {topSrc ? (
-        <img loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
+        <img className="job-card-cover" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
       ) : (
         /* 写真が無い求人は求人者のアイコンを大きく出す（2026-07-30たきと指示・詳細/確認ページと同じ扱い）。
            アイコン未設定なら Avatar が名前の頭文字の丸を出し、名前も無ければ作物の絵文字に落とす */
-        <div onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, ...photoAnim }}>
+        <div className="job-card-cover" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, borderRadius:photoRadius, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:48, ...photoAnim }}>
           {(job.employerAvatar || job.employerName)
             ? <Avatar url={job.employerAvatar} name={job.employerName || "？"} size={isList ? 112 : 88} />
             : <CropIcon crop={job.crop} size={48} />}
@@ -153,7 +155,7 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
       {/* 概要＝写真の下（Airbnbの型・2026-08-31）：どのvariantも重ねない。
           行の並びはAirbnbのカードの写し＝太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。
           ★#No.は必ず読める（flexShrink:0・題名側を…で省略）＝No.検索と対 */}
-      <div style={{ padding: isList ? "10px 4px 0" : "8px 2px 0" }}>
+      <div className="job-card-summary" style={{ padding: isList ? "10px 4px 0" : "8px 2px 0" }}>
         <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
           <p className="f-sans" style={{ fontSize: isList?15:14, fontWeight:700, color:"#222", margin:0, flex:"1 1 auto", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.crop} {job.task}</p>
           <span className="f-sans" style={{ fontSize:11, color:"#B0B0B0", flexShrink:0, whiteSpace:"nowrap" }}>#{job.id}</span>
