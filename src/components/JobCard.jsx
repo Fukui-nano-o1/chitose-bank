@@ -4,6 +4,8 @@
 //   太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。related/wide の
 //   黒グラデのオーバーレイは廃止＝全variantが同じ型（サイズだけ違う）。
 import { useState } from "react";
+import { youtubeVideoId } from "../lib/youtube";
+import { JobVideoCard } from "./JobVideoCard";
 import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
 import { Avatar } from "./ui";
 import { CropIcon } from "./CropIcon";
@@ -27,7 +29,14 @@ export const JOB_CARD_PHOTO_H = 220;
 //   ページの展開ボックス）専用。既定は従来どおり表示ので、渡していない呼び出し元は無変更
 // views（任意・2026-08-21たきと指示）：この求人thatタップされた総数。❤️の左横に 👀N で出す。
 //   渡さない／0以下なら何も出さない＝呼び出し元は無変更（数字thatゼロの求人に0を出さない・憲法3条）
-export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false }) {
+export function JobCard(props) {
+  const videoId = props.videoPreview && props.variant === "list" ? youtubeVideoId(props.job?.workVideoUrl) : "";
+  if (videoId) return <JobVideoCard key={`${props.job.id}:${videoId}`} {...props} videoId={videoId} height={JOB_CARD_PHOTO_H}
+    summary={<StaticJobCard {...props} hideMedia />} />;
+  return <StaticJobCard {...props} />;
+}
+
+function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false, hideMedia = false }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
@@ -52,13 +61,14 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
     : { display:"block", flexShrink:0, ...JOB_CARD_RELATED_SIZE, padding:0, textAlign:"left", cursor:"pointer", textDecoration:"none", background:"transparent", position:"relative" };
   return (
     <a
-      data-guide="job-card"
+      data-guide={hideMedia ? undefined : "job-card"}
       href={"#/work/job/" + job.id}
       target={onOpen ? undefined : "_blank"}
       rel="noopener noreferrer"
       style={cardStyle}
       onClick={onOpen ? (e) => { e.preventDefault(); popPhoto(); onOpen(); } : popPhoto}
     >
+      {!hideMedia && <>
       {/* 👀 閲覧数（2026-08-21たきと指示）：❤️の左横。❤️thatが出ない求人（終了中・いいね不可の面）では
           その場所（右端）に寄る＝どちらの場合も写真の右上に1つの群れとして収まる。
           数字は job_view_counts の集計＝誰that見たかは持たない。0件のうちは出さない（ダミー禁止・憲法3条） */}
@@ -118,6 +128,7 @@ export function JobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabe
             : <CropIcon crop={job.crop} size={48} />}
         </div>
       )}
+      </>}
       {/* 概要＝写真の下（Airbnbの型・2026-08-31）：どのvariantも重ねない。
           行の並びはAirbnbのカードの写し＝太字の題名（＋#No.）／グレーの場所／グレーの日付／太字の金額。
           ★#No.は必ず読める（flexShrink:0・題名側を…で省略）＝No.検索と対 */}

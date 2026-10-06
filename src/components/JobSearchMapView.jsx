@@ -1099,7 +1099,7 @@ export function JobSearchMapView({ onRegister, me }) {
             </div>
           )}
           {filteredList.map((job, index) => (
-            <JobCard key={job.id} job={job} variant="list" priority={index === 0} saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} views={viewCounts[job.id]} />
+            <JobCard key={job.id} job={job} variant="list" videoPreview priority={index === 0} saved={savedIds.has(job.id)} onToggleSave={canLike(job) ? toggleSave : undefined} views={viewCounts[job.id]} />
           ))}
         </div>
       </div>
