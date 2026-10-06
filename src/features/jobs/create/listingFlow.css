@@ -119,3 +119,42 @@
 }
 @media (max-width:360px) { .listing-header { padding-left:16px; padding-right:16px; } .job-listing-flow .listing-page { padding-left:16px; padding-right:16px; } .listing-footer-actions { padding-left:16px; padding-right:16px; } }
 @media (prefers-reduced-motion:reduce) { .listing-motion { animation:none; } .listing-progress-track > span, .listing-next { transition:none; } }
+
+/* 掲載前の確認も求人詳細と同じ JobPhotoGallery の寸法で表示する。
+   確認ページだけの max-width:870px と左右余白による縮小を解除する。
+   step番号ではなく、実際に求人プレビューを描いているページに限定する。 */
+.job-listing-flow .listing-scroll:has(.job-detail-boxed) { scrollbar-gutter:auto; }
+.job-listing-flow .listing-page:has(.job-detail-boxed) {
+  max-width:1200px;
+  padding-left:24px;
+  padding-right:24px;
+  --job-review-gutter:24px;
+}
+.job-listing-flow .listing-page > div:has(> .job-detail-boxed) {
+  width:100%;
+  max-width:none !important;
+}
+@media (max-width:759px) {
+  .job-listing-flow .listing-page:has(.job-detail-boxed) {
+    padding-left:12px;
+    padding-right:12px;
+    --job-review-gutter:12px;
+  }
+  /* 求人本文は余白を残し、写真・動画の横送りと写真なしの表紙だけを画面幅に広げる。 */
+  .job-listing-flow .job-detail-boxed .job-photo-carousel,
+  .job-listing-flow .job-detail-boxed .job-photo-fallback {
+    width:calc(100% + var(--job-review-gutter) * 2);
+    margin-left:calc(0px - var(--job-review-gutter));
+    margin-right:calc(0px - var(--job-review-gutter));
+  }
+  /* 公開ページと確認ページで同じ高さを使う。写真・動画・表紙を別々に計算しない。
+     80svh + 32px は現行求人詳細の表紙寸法。通常のボックス詳細には適用しない。 */
+  .job-detail-body-mobile .job-hero .job-photo-slide,
+  .job-detail-body-mobile .job-hero .job-photo-fallback,
+  .job-listing-flow .job-detail-boxed .job-photo-slide,
+  .job-listing-flow .job-detail-boxed .job-photo-fallback {
+    height:calc(80vh + 32px) !important;
+    height:calc(80svh + 32px) !important;
+    border-radius:0 !important;
+  }
+}
