@@ -54,21 +54,28 @@ try {
             const layout=await card.evaluate(el=>{
               const box=n=>{if(!n)return null;const r=n.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};
               const summary=el.querySelector('.job-card-summary');
-              return {summary:box(summary),heading:box(el.querySelector('.job-card-heading')),region:box(el.querySelector('.job-card-region')),dates:box(el.querySelector('.job-card-dates')),pay:box(el.querySelector('.job-card-pay')),conditions:box(el.querySelector('.job-card-conditions')),heart:box(el.querySelector('[aria-label="いいね"]')),end:box(el.querySelector('.job-card-end-label')),background:getComputedStyle(summary).backgroundImage,display:getComputedStyle(summary).display};
+              return {cover:box(el.querySelector(".job-card-media-scroll")||el.querySelector(".job-card-cover")),summary:box(summary),heading:box(el.querySelector('.job-card-heading')),region:box(el.querySelector('.job-card-region')),dates:box(el.querySelector('.job-card-dates')),pay:box(el.querySelector('.job-card-pay')),conditions:box(el.querySelector('.job-card-conditions')),heart:box(el.querySelector('[aria-label="いいね"]')),end:box(el.querySelector('.job-card-end-label')),background:getComputedStyle(summary).backgroundImage,display:getComputedStyle(summary).display};
             });
-            assert.equal(layout.display,'grid');
-            assert.ok(layout.summary.height>=219,'summary is spread over the photo height');
-            assert.ok(layout.heading.y-layout.summary.y<70,'title stays in the upper region');
-            if(layout.region&&layout.dates){assert.ok(layout.dates.x>layout.region.x,'location and dates use opposite sides');assert.ok(layout.region.y>=layout.heading.y+layout.heading.height,'facts follow the title');}
-            if(layout.pay){assert.ok(layout.pay.y>layout.heading.y+layout.heading.height,'pay is separated from the title');assert.ok(layout.pay.x+layout.pay.width>=layout.summary.x+layout.summary.width-15,'pay uses the right side');}
+            assert.equal(layout.display,'block','distributed grid is removed');
+            assert.ok(Math.abs(layout.summary.y+layout.summary.height-layout.cover.y-layout.cover.height)<1,'summary is bottom-aligned inside the photograph: '+JSON.stringify(layout));
+            const rows=[layout.heading,layout.region,layout.dates,layout.pay,layout.conditions].filter(Boolean);
+            for(let row=1;row<rows.length;row++){
+              assert.ok(rows[row].y>=rows[row-1].y+rows[row-1].height-.5,'text is grouped in consecutive vertical rows');
+              assert.ok(Math.abs(rows[row].x-layout.heading.x)<1,'all summary rows share the original left alignment');
+            }
+            assert.ok(layout.heading.y>=layout.cover.y+31,'title has space above it instead of occupying the photo top');
+            if(layout.conditions)assert.ok(Math.abs(layout.conditions.y+layout.conditions.height-layout.summary.y-layout.summary.height+14)<1,'conditions finish at the bottom padding');
             const alphas=[...layout.background.matchAll(/rgba\([^)]*,\s*([\d.]+)\)/g)].map(m=>Number(m[1]));
-            assert.ok(alphas.length>=2&&Math.max(...alphas)<=.28,'large-area black shading is at most 28 percent');
+            assert.equal(alphas.length,5,'the backdrop uses five gradual stops');
+            assert.equal(alphas[0],0,'the upper edge is transparent');
+            for(let stop=1;stop<alphas.length;stop++)assert.ok(alphas[stop]>alphas[stop-1],'black becomes progressively darker toward the bottom');
+            assert.ok(alphas.at(-1)>=.55&&alphas.at(-1)<=.60,'the darkest edge is capped at 60 percent, not the old 90 percent');
             const overlap=(a,b)=>a&&b&&Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x)>.5&&Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y)>.5;
             const fields=[layout.heading,layout.region,layout.dates,layout.pay,layout.conditions].filter(Boolean);
-            for(let a=0;a<fields.length;a++)for(let b=a+1;b<fields.length;b++)assert.equal(overlap(fields[a],fields[b]),false,'distributed text fields never overlap');
+            for(let a=0;a<fields.length;a++)for(let b=a+1;b<fields.length;b++)assert.equal(overlap(fields[a],fields[b]),false,'grouped text fields never overlap');
             for(const field of fields){assert.equal(!!overlap(field,layout.heart),false,'text avoids the like control');assert.equal(!!overlap(field,layout.end),false,'closed label remains separate');}
             assert.equal(!!layout.region,!!job.region);assert.equal(!!layout.dates,!!job.dateStartRaw);
-            geometry.distribution=layout;
+            geometry.bottomSummary=layout;
             assert.equal(await card.locator('.job-card-summary').count(),1,'no duplicated summary outside card');
             if(job.pay>0)assert.equal(await card.locator('.job-card-summary .f-mono').textContent(),kind==='hourly'?'時給1,250円':kind==='long'?'日給1,250,000円':'日給10,000円');
             else assert.equal(await card.locator('.job-card-summary .f-mono').count(),0,'missing pay is not invented');
