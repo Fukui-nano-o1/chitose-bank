@@ -1,3 +1,4 @@
+import "./jobWorkVideo.css";
 // 求人詳細の表示部品（第2次構造改革2026-08-18で JobSearchMapView.jsx から分離）。
 // ★ここは【表示だけ】：job（＝job）を受け取って描くのみ。
 //   state の所有・URL/hash の制御・応募の判断は一切持たない（親＝JobSearchMapView が持つ）。
@@ -330,9 +331,9 @@ export function JobWorkVideo({ job, compact = false }) {
   if (!id) return null;
   // Keep muted autoplay on detail pages. Sound is controlled by YouTube's native controls.
   return (
-    <div style={{ margin: compact ? 0 : "0 0 28px", width:"100%", height: compact ? "100%" : "auto" }}>
+    <div className={compact ? "job-work-video job-work-video--gallery" : "job-work-video"} style={{ margin: compact ? 0 : "0 0 28px", width:"100%", height: compact ? "100%" : "auto" }}>
       {!compact && <h3 className="f-sans" style={{ fontSize:20, fontWeight:700, color:"#222", margin:"0 0 14px" }}>作業動画</h3>}
-      <div style={{ position:"relative", width:"100%", height: compact ? "100%" : "auto", aspectRatio: compact ? "auto" : "16 / 9", overflow:"hidden", borderRadius: compact ? 0 : 12, background:"#000" }}>
+      <div className="job-work-video-frame" style={{ position:"relative", width:"100%", height:"auto", aspectRatio:"16 / 9", overflow:"hidden", borderRadius: compact ? 0 : 12, background:"#000" }}>
         <iframe title="作業動画" src={youtubeEmbedUrl(id, { muted: true })} loading="lazy"
           allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"
           style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:0 }} />
@@ -682,7 +683,8 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
   // 縦に並んだ状態では器が無い（null）＝寄せない
   const fallbackRef = useRef(null);
   const stretchTargetRef = useRef(null);
-  stretchTargetRef.current = () => stretch ? ((scrollerRef && scrollerRef.current) || fallbackRef.current) : null;
+  // A player must not be enlarged into the status/navigation area by photo pull-to-stretch.
+  stretchTargetRef.current = () => stretch && !youtubeVideoId(job?.workVideoUrl) ? ((scrollerRef && scrollerRef.current) || fallbackRef.current) : null;
   useHeroStretch(stretchTargetRef);
   // 求人が変わったら元の形に戻す
   useEffect(() => { setExpanded(false); }, [job?.id]);
@@ -782,7 +784,7 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
       </div>}
 
       {/* ── スマホ：全幅の横スワイプ（1枚ずつ）＋右下に「n / N」。タップでその場で縦に全部並ぶ ── */}
-      <div className="job-photo-carousel" style={{ position:"relative" }}>
+      <div className={hasVideo ? "job-photo-carousel job-photo-carousel--has-video" : "job-photo-carousel"} style={{ position:"relative" }}>
         <Carousel
           className="carousel-scroll"
           /* 写真は画面いっぱい＝‹ › を外へはみ出させると画面の端で半分に切れる（2026-09-01）。
@@ -813,7 +815,7 @@ export function JobPhotoGallery({ job, employer, photosLooped, activeSlide, scro
             );
           })}
           {hasVideo && (
-            <div className="job-photo-slide" style={{ position:"relative", flexShrink:0, width:"100%", height:392, background:"#000", scrollSnapAlign:"start", overflow:"hidden" }}>
+            <div className="job-photo-slide job-work-video-slide" style={{ position:"relative", flexShrink:0, width:"100%", height:392, background:"#000", scrollSnapAlign:"start", overflow:"hidden" }}>
               <div style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}>
                 <JobWorkVideo job={job} compact />
               </div>

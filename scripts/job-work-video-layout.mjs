@@ -43,11 +43,12 @@ try {
       const sizes=[{width:320,height:568,top:20,bottom:0},{width:390,height:844,top:59,bottom:34},{width:430,height:932,top:59,bottom:34},{width:740,height:390,top:0,bottom:21,left:44,right:44}];
       for (const size of sizes) for (const mode of ['detail','review','boxed','inline','photo']) {
         const context=await browser.newContext({viewport:{width:size.width,height:size.height},hasTouch:true,isMobile:true});
+        console.log(JSON.stringify({engine,mode,viewport:size}));
         const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
         await page.route('**/*',route=>{
           const u=new URL(route.request().url());
-          if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:`<!doctype html><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><div id='root'></div><script>window.qaMode=${JSON.stringify(mode)};window.qaCalls=[];</script>`});
-          if(u.hostname==='www.youtube-nocookie.com')return route.fulfill({contentType:'text/html',body:'<!doctype html><style>body{margin:0;background:#111;color:white}button{position:absolute;top:8px;right:8px}</style><button id="settings" onclick="this.textContent=\'設定を開いた\'">設定</button>'});
+          if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html; charset=utf-8',body:`<!doctype html><meta charset="utf-8"><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><div id='root'></div><script>window.qaMode=${JSON.stringify(mode)};window.qaCalls=[];</script>`});
+          if(u.hostname==='www.youtube-nocookie.com')return route.fulfill({contentType:'text/html; charset=utf-8',body:'<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#111;color:white}button{position:absolute;top:8px;right:8px}</style><button id="settings" onclick="this.textContent=\'設定を開いた\'">設定</button>'});
           if(/\.jpg$/.test(u.pathname))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#b5cdb9"/></svg>'});
           return route.abort();
         });
@@ -82,7 +83,15 @@ try {
           for(const arrow of await gallery.locator('.cb-carousel-arrow').all()){
             const ab=await arrow.boundingBox();if(ab)assert.equal(intersect(frame,ab),0,'carousel arrows cannot overlay YouTube');
           }
-          await page.frameLocator('.job-photo-carousel iframe').locator('#settings').click();
+          // Lazy frames inside a scrollable review are loaded when brought into view.
+          await player.scrollIntoViewIfNeeded();
+          try {
+            await page.frameLocator('.job-photo-carousel iframe').locator('#settings').click({timeout:10000});
+          } catch(error) {
+            await page.screenshot({path:'/tmp/detail-video-safe-mobile.png'});
+            await writeFile('/tmp/detail-video-safe-results.json',JSON.stringify({result:'failed',engine,mode,viewport:size,frame:await player.boundingBox(),slide:await gallery.locator('.job-work-video-slide').boundingBox(),scroll:await strip.evaluate(el=>({x:el.scrollLeft,width:el.clientWidth})),frames:page.frames().map(f=>f.url()),message:error.message,completed:result},null,2));
+            throw error;
+          }
           assert.equal(await page.frameLocator('.job-photo-carousel iframe').locator('#settings').textContent(),'設定を開いた','top-right player control is clickable');
           assert.equal(await gallery.locator('.job-work-video--gallery button').count(),0,'no custom sound/control overlay');
           if(engine==='chromium'&&mode==='detail'&&size.width===390)await page.screenshot({path:'/tmp/detail-video-safe-mobile.png'});
