@@ -5,27 +5,32 @@ import { NavIcon } from './NavIcons';
 
 const PLAY_EVENT = 'cb:job-card-video-play';
 const controlStyle = { border: '1px solid #ddd', borderRadius: 8, background: '#fff', color: '#222', minWidth: 44, minHeight: 44, font: 'inherit', fontSize: 13, padding: '8px 12px', cursor: 'pointer' };
+const stopPropagation = event => event.stopPropagation();
 
-// Search-list-only media. The poster exists instead of, not on top of, the YouTube player.
-// https://web.dev/articles/embed-best-practices#use_click-to-load_to_enhance_facades
-export function JobVideoCardMedia({ videoId, photos = [], title, height = 220, priority = false }) {
+// Shared by all JobCard variants, including jobs without a video.
+// The poster replaces the iframe until an explicit play action (web.dev click-to-load).
+export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 220, priority = false, href, onOpen }) {
   const instance = useId();
   const scroller = useRef(null);
   const root = useRef(null);
+  const gesture = useRef(null);
+  const suppressClickUntil = useRef(0);
+  const currentIndex = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [active, setActive] = useState(0);
   const [posterFailed, setPosterFailed] = useState(false);
   const images = (Array.isArray(photos) ? photos : []).filter(photo => photoThumb(photo));
-  const count = images.length + 1;
+  const hasVideo = !!videoId;
+  const count = images.length + (hasVideo ? 1 : 0);
 
   useEffect(() => {
+    if (!hasVideo) return;
     const stop = () => setPlaying(false);
     const otherStarted = event => { if (event.detail !== instance) stop(); };
     const hidden = () => { if (document.hidden) stop(); };
     window.addEventListener(PLAY_EVENT, otherStarted);
     window.addEventListener('hashchange', stop);
     document.addEventListener('visibilitychange', hidden);
-    // Do not leave an offscreen card playing or downloading in the background.
     const observer = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
       if (entries.some(entry => !entry.isIntersecting)) stop();
     }, { threshold: 0 }) : null;
@@ -36,33 +41,88 @@ export function JobVideoCardMedia({ videoId, photos = [], title, height = 220, p
       window.removeEventListener('hashchange', stop);
       document.removeEventListener('visibilitychange', hidden);
     };
-  }, [instance]);
+  }, [hasVideo, instance]);
 
-  const start = event => {
-    event.preventDefault();
+  // Rotation/resizing keeps the selected media aligned rather than showing two halves.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || typeof ResizeObserver !== 'function') return;
+    const observer = new ResizeObserver(() => { el.scrollLeft = currentIndex.current * el.clientWidth; });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const startGesture = event => {
     event.stopPropagation();
+    const point = event.touches?.[0] || event;
+    gesture.current = { x: point.clientX, y: point.clientY, moved: false };
+    suppressClickUntil.current = 0;
+  };
+  const trackGesture = event => {
+    if (!gesture.current) return;
+    const point = event.touches?.[0] || event;
+    const dx = Math.abs(point.clientX - gesture.current.x);
+    const dy = Math.abs(point.clientY - gesture.current.y);
+    if (Math.max(dx, dy) > 8) {
+      gesture.current.moved = true;
+      suppressClickUntil.current = Date.now() + 500;
+    }
+    if (dx > dy) event.stopPropagation();
+  };
+  const endGesture = event => {
+    event.stopPropagation();
+    if (gesture.current?.moved) suppressClickUntil.current = Date.now() + 500;
+    gesture.current = null;
+  };
+  const guardClick = event => {
+    if (Date.now() < suppressClickUntil.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressClickUntil.current = 0;
+    }
+  };
+  const start = event => {
+    event.preventDefault(); event.stopPropagation();
     window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: instance }));
     setPlaying(true);
   };
-  const move = index => {
+  const move = (index, event) => {
+    event?.preventDefault(); event?.stopPropagation();
     const next = Math.max(0, Math.min(index, count - 1));
-    if (next !== 0) setPlaying(false);
+    if (!hasVideo || next !== 0) setPlaying(false);
+    currentIndex.current = next;
     setActive(next);
-    scroller.current?.scrollTo({ left: next * scroller.current.clientWidth, behavior: 'auto' });
+    const el = scroller.current;
+    if (el) el.scrollTo({ left: next * el.clientWidth, behavior: 'auto' });
   };
   const onScroll = event => {
     const el = event.currentTarget;
     if (!el.clientWidth) return;
     const index = Math.max(0, Math.min(Math.round(el.scrollLeft / el.clientWidth), count - 1));
+    currentIndex.current = index;
     setActive(index);
-    if (index !== 0) setPlaying(false);
+    if (!hasVideo || index !== 0) setPlaying(false);
   };
+  const photoOpen = event => {
+    event.stopPropagation();
+    if (onOpen) { event.preventDefault(); onOpen(); }
+  };
+  const mediaLabel = hasVideo && active === 0 ? 'YouTube' : `写真${active + 1 - (hasVideo ? 1 : 0)}`;
 
   return <div ref={root} className="job-card-video-media">
     <div ref={scroller} onScroll={onScroll} className="carousel-scroll job-card-media-scroll"
-      aria-label="作業動画と求人写真"
-      style={{ display: 'flex', width: '100%', height, overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch', borderRadius: 16 }}>
-      <div style={{ flex: '0 0 100%', minWidth: 0, height, scrollSnapAlign: 'start', background: '#111', position: 'relative' }}>
+      role="region" tabIndex={count > 1 ? 0 : -1} aria-roledescription="カルーセル"
+      aria-label={hasVideo ? 'YouTubeと求人写真' : '求人写真'}
+      onPointerDown={startGesture} onPointerMove={trackGesture} onPointerUp={endGesture} onPointerCancel={endGesture}
+      onTouchStart={startGesture} onTouchMove={trackGesture} onTouchEnd={endGesture} onTouchCancel={endGesture}
+      onClickCapture={guardClick}
+      onKeyDown={event => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'ArrowRight') move(active + 1, event);
+        if (event.key === 'ArrowLeft') move(active - 1, event);
+      }}
+      style={{ display: 'flex', width: '100%', minWidth: 0, height, overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', overscrollBehaviorX: 'contain', touchAction: 'pan-x pan-y pinch-zoom', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', borderRadius: 16 }}>
+      {hasVideo && <div data-media-type="youtube" style={{ flex: '0 0 100%', minWidth: 0, height, scrollSnapAlign: 'start', background: '#111', position: 'relative' }}>
         {playing && active === 0 ? <iframe
           title={`作業動画：${title}`} src={youtubeEmbedUrl(videoId)}
           allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
@@ -72,7 +132,7 @@ export function JobVideoCardMedia({ videoId, photos = [], title, height = 220, p
           : <button type="button" className="job-video-facade" onClick={start} aria-label="作業動画を再生"
             style={{ display: 'block', position: 'relative', width: '100%', height: '100%', padding: 0, border: 0, color: '#fff', background: '#222', cursor: 'pointer' }}>
             {!posterFailed && <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt={`${title}の作業動画`}
-              loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined}
+              draggable={false} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined}
               onError={() => setPosterFailed(true)}
               style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />}
             <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -82,32 +142,46 @@ export function JobVideoCardMedia({ videoId, photos = [], title, height = 220, p
               </span>
             </span>
           </button>}
-      </div>
-      {images.map((photo, index) => <div key={index} style={{ flex: '0 0 100%', minWidth: 0, height, scrollSnapAlign: 'start', background: '#f7f7f7' }}>
+      </div>}
+      {images.map((photo, index) => <a key={index} data-media-type="photo" className="job-card-photo-link"
+        href={href} target={onOpen ? undefined : '_blank'} rel="noopener noreferrer" onClick={photoOpen}
+        aria-label={`求人を開く：${title}（写真${index + 1}）`}
+        tabIndex={active === index + (hasVideo ? 1 : 0) ? 0 : -1}
+        draggable={false}
+        style={{ display: 'block', flex: '0 0 100%', minWidth: 0, height, scrollSnapAlign: 'start', background: '#f7f7f7' }}>
         <img src={photoThumb(photo)} alt={typeof photo === 'string' ? `求人写真 ${index + 1}` : photo.caption || `求人写真 ${index + 1}`}
-          loading="lazy" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
-      </div>)}
+          draggable={false} loading={!hasVideo && index === 0 && priority ? 'eager' : 'lazy'}
+          fetchPriority={!hasVideo && index === 0 && priority ? 'high' : undefined}
+          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+      </a>)}
     </div>
-    {/* Controls stay outside the iframe, leaving YouTube branding, ads and controls unobscured. */}
-    <div className="f-sans job-card-media-controls" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 6, minHeight: 44 }}>
+    {/* Controls never cover the YouTube player. Both media types remain discoverable. */}
+    {hasVideo && images.length > 0 && <div className="job-card-media-types" style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+      <button type="button" onClick={event => move(0, event)} aria-pressed={active === 0}
+        style={{ ...controlStyle, flex: 1, background: active === 0 ? '#f1f5f3' : '#fff' }}>YouTube</button>
+      <button type="button" onClick={event => move(active > 0 ? active : 1, event)} aria-pressed={active > 0}
+        style={{ ...controlStyle, flex: 1, background: active > 0 ? '#f1f5f3' : '#fff' }}>写真（{images.length}枚）</button>
+    </div>}
+    {(count > 1 || hasVideo) && <div className="f-sans job-card-media-controls" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6, minHeight: 44 }}>
       {count > 1 && <>
-        <button type="button" onClick={() => move(active - 1)} disabled={active === 0} aria-label="前の画像・動画" style={{ ...controlStyle, opacity: active === 0 ? .4 : 1 }}>‹</button>
-        <span aria-live="polite" style={{ color: '#717171', fontSize: 12 }}>{active === 0 ? '動画' : `写真${active}`} · {active + 1}/{count}</span>
-        <button type="button" onClick={() => move(active + 1)} disabled={active === count - 1} aria-label="次の画像・動画" style={{ ...controlStyle, opacity: active === count - 1 ? .4 : 1 }}>›</button>
+        <button type="button" onClick={event => move(active - 1, event)} disabled={active === 0} aria-label="前の画像・動画" style={{ ...controlStyle, opacity: active === 0 ? .4 : 1 }}>‹</button>
+        <span aria-live="polite" style={{ color: '#717171', fontSize: 12 }}>{mediaLabel} · {active + 1}/{count}</span>
+        <button type="button" onClick={event => move(active + 1, event)} disabled={active === count - 1} aria-label="次の画像・動画" style={{ ...controlStyle, opacity: active === count - 1 ? .4 : 1 }}>›</button>
       </>}
-      <a href={`https://www.youtube.com/watch?v=${videoId}`} target="_blank" rel="noopener noreferrer"
-        style={{ marginLeft: 'auto', color: '#717171', fontSize: 12, textDecoration: 'underline', textUnderlineOffset: 3, padding: '10px 0' }}>YouTubeで開く</a>
-    </div>
+      {hasVideo && <a href={`https://www.youtube.com/watch?v=${videoId}`} target="_blank" rel="noopener noreferrer" onClick={stopPropagation}
+        style={{ marginLeft: 'auto', color: '#717171', fontSize: 12, textDecoration: 'underline', textUnderlineOffset: 3, padding: '10px 0' }}>YouTubeで開く</a>}
+    </div>}
   </div>;
 }
 
-// Only the media differs. Summary/link rendering stays in the existing JobCard implementation.
-export function JobVideoCard({ job, videoId, saved, onToggleSave, views, priority, summary, height = 220, hideEndLabel }) {
+// All variants retain their original outer width and the existing summary/link rendering.
+export function JobVideoCard({ job, videoId = '', saved, onToggleSave, onOpen, views, priority, summary, height = 220, hideEndLabel, cardStyle }) {
   const ended = job.filled || job.expired || job.closed;
   const endLabel = job.filled ? (job.closed || job.expired ? '掲載終了（満員）' : '募集終了（満員）') : job.closed ? '募集終了' : '募集期間終了';
-  return <article data-guide="job-card" className="job-video-card" style={{ width: '100%', minWidth: 0, textAlign: 'left' }}>
+  return <article data-guide="job-card" className={`job-media-card${videoId ? ' job-video-card' : ' job-photo-card'}`}
+    style={{ ...cardStyle, minWidth: 0, textAlign: 'left', cursor: 'default' }}>
     <div className="f-sans" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minHeight: 44, marginBottom: 6 }}>
-      <span style={{ fontSize: 12, color: '#717171' }}>作業動画</span>
+      <span style={{ fontSize: 12, color: '#717171' }}>{videoId ? '作業動画' : '求人写真'}</span>
       {job.isNew && !ended && <span style={{ fontSize: 12, fontWeight: 700 }}>新着</span>}
       {!hideEndLabel && ended && <span style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>{endLabel}</span>}
       <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -119,7 +193,8 @@ export function JobVideoCard({ job, videoId, saved, onToggleSave, views, priorit
         </button>}
       </span>
     </div>
-    <JobVideoCardMedia key={videoId} videoId={videoId} photos={job.photos} title={`${job.crop} ${job.task}`} height={height} priority={priority} />
+    <JobVideoCardMedia videoId={videoId} photos={job.photos} title={`${job.crop} ${job.task}`} height={height} priority={priority}
+      href={`#/work/job/${job.id}`} onOpen={onOpen} />
     {summary}
   </article>;
 }

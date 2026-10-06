@@ -1,0 +1,50 @@
+name: All job card media verification
+on:
+  push:
+    branches: [fix/all-card-media-20261006]
+    paths: ['.all-card-media-patch.py', 'src/components/JobVideoCard.jsx', 'scripts/all-card-media-browser.mjs', '.github/workflows/all-card-media-verify.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply scoped source and regression updates
+        run: python3 .all-card-media-patch.py
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test real shared job cards
+        run: node --test scripts/job-video-facade.test.mjs
+      - name: Full production build with all checks
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/all-card-media-build.log
+      - name: Install browser for layout and touch checks
+        run: npx playwright install --with-deps chromium
+      - name: Check real layout and touch scrolling
+        run: node scripts/all-card-media-browser.mjs
+      - name: Commit tested source on isolated branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .all-card-media-patch.py .github/workflows/all-card-media-verify.yml
+          git add src/components/JobCard.jsx src/components/JobVideoCard.jsx src/components/JobSearchMapView.jsx scripts/fixtures/job-video/entry.jsx scripts/job-video-facade.test.mjs scripts/all-card-media-browser.mjs
+          git commit -m 'Unify swipeable photos and YouTube across job card variants'
+          git push origin HEAD:fix/all-card-media-20261006
+      - name: Keep verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-card-media-verification
+          path: |
+            /tmp/all-card-media-build.log
+            /tmp/all-card-media-browser.json
+            /tmp/all-card-media-mobile.png
+          if-no-files-found: ignore
+          retention-days: 3
