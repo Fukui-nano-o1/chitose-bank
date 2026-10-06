@@ -30,8 +30,16 @@ export const JOB_CARD_PHOTO_H = 220;
 // views（任意・2026-08-21たきと指示）：この求人thatタップされた総数。❤️の左横に 👀N で出す。
 //   渡さない／0以下なら何も出さない＝呼び出し元は無変更（数字thatゼロの求人に0を出さない・憲法3条）
 export function JobCard(props) {
-  const videoId = props.videoPreview && props.variant === "list" ? youtubeVideoId(props.job?.workVideoUrl) : "";
-  if (videoId) return <JobVideoCard key={`${props.job.id}:${videoId}`} {...props} videoId={videoId} height={JOB_CARD_PHOTO_H}
+  const videoId = youtubeVideoId(props.job?.workVideoUrl);
+  const images = (Array.isArray(props.job?.photos) ? props.job.photos : []).filter(photo => photoThumb(photo));
+  const cardStyle = props.variant === "list"
+    ? { display:"block", width:"100%", marginBottom:22, position:"relative" }
+    : props.variant === "wide"
+    ? { display:"block", width:"100%", position:"relative" }
+    : { display:"block", flexShrink:0, ...JOB_CARD_RELATED_SIZE, position:"relative" };
+  // Every variant shares the same carousel. A single photo needs no empty extra slides.
+  if (videoId || images.length > 1) return <JobVideoCard key={JSON.stringify([props.job.id, videoId, images.map(photoThumb)])}
+    {...props} videoId={videoId} height={JOB_CARD_PHOTO_H} cardStyle={cardStyle}
     summary={<StaticJobCard {...props} hideMedia />} />;
   return <StaticJobCard {...props} />;
 }
@@ -65,7 +73,7 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
       href={"#/work/job/" + job.id}
       target={onOpen ? undefined : "_blank"}
       rel="noopener noreferrer"
-      style={cardStyle}
+      style={hideMedia ? { ...cardStyle, width:"100%", maxWidth:"none", marginBottom:0 } : cardStyle}
       onClick={onOpen ? (e) => { e.preventDefault(); popPhoto(); onOpen(); } : popPhoto}
     >
       {!hideMedia && <>
