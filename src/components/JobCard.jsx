@@ -5,7 +5,7 @@
 //   黒グラデのオーバーレイは廃止＝全variantが同じ型（サイズだけ違う）。
 import { useState } from "react";
 import { youtubeVideoId } from "../lib/youtube";
-import { JobVideoCard } from "./JobVideoCard";
+import { JobVideoCard, JobVideoCardMedia } from "./JobVideoCard";
 import { payLabel, dateRangeLabel, photoThumb } from "../lib/utils";
 import { Avatar } from "./ui";
 import { CropIcon } from "./CropIcon";
@@ -31,20 +31,33 @@ export const JOB_CARD_PHOTO_H = 220;
 //   渡さない／0以下なら何も出さない＝呼び出し元は無変更（数字thatゼロの求人に0を出さない・憲法3条）
 export function JobCard(props) {
   const videoId = youtubeVideoId(props.job?.workVideoUrl);
+  // Search keeps the same photo/summary card as related jobs, with video below it.
+  const videoBelow = props.videoPlacement === "below" && !!videoId;
+  const galleryVideoId = videoBelow ? "" : videoId;
   const images = (Array.isArray(props.job?.photos) ? props.job.photos : []).filter(photo => photoThumb(photo));
   const cardStyle = props.variant === "list"
     ? { display:"block", width:"100%", marginBottom:22, position:"relative" }
     : props.variant === "wide"
     ? { display:"block", width:"100%", position:"relative" }
     : { display:"block", flexShrink:0, ...JOB_CARD_RELATED_SIZE, position:"relative" };
-  // Every variant shares the same carousel. A single photo needs no empty extra slides.
-  if (videoId || images.length > 1) return <JobVideoCard key={JSON.stringify([props.job.id, videoId, images.map(photoThumb)])}
-    {...props} videoId={videoId} height={JOB_CARD_PHOTO_H} cardStyle={cardStyle}
-    summary={<StaticJobCard {...props} hideMedia />} />;
-  return <StaticJobCard {...props} />;
+  // Reuse the existing card and its real job object, including save/open actions.
+  const nestedStyle = videoBelow ? { ...cardStyle, width:"100%", maxWidth:"none", marginBottom:0 } : cardStyle;
+  const card = galleryVideoId || images.length > 1
+    ? <JobVideoCard key={JSON.stringify([props.job.id, galleryVideoId, images.map(photoThumb)])}
+        {...props} videoId={galleryVideoId} height={JOB_CARD_PHOTO_H} cardStyle={nestedStyle}
+        summary={<StaticJobCard {...props} hideMedia />} />
+    : <StaticJobCard {...props} attachedVideo={videoBelow} />;
+  if (!videoBelow) return card;
+  return <div className="job-card-with-video" style={{ ...cardStyle, minWidth:0 }}>
+    {card}
+    <div className="job-card-video-below" style={{ marginTop:12 }}>
+      <JobVideoCardMedia key={`${props.job.id}:${videoId}`} videoId={videoId}
+        title={`${props.job.crop} ${props.job.task}`} standalone />
+    </div>
+  </div>;
 }
 
-function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false, hideMedia = false }) {
+function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel, views, priority = false, hideMedia = false, attachedVideo = false }) {
   const isList = variant === "list";
   const isWide = variant === "wide";
   // タップポップ（2026-08-07たきと指示）：タップの瞬間、写真が少し拡大して元に戻る。
@@ -73,7 +86,7 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
       href={"#/work/job/" + job.id}
       target={onOpen ? undefined : "_blank"}
       rel="noopener noreferrer"
-      style={hideMedia ? { ...cardStyle, width:"100%", maxWidth:"none", marginBottom:0 } : cardStyle}
+      style={hideMedia || attachedVideo ? { ...cardStyle, width:"100%", maxWidth:"none", marginBottom:0 } : cardStyle}
       onClick={onOpen ? (e) => { e.preventDefault(); popPhoto(); onOpen(); } : popPhoto}
     >
       {!hideMedia && <>
