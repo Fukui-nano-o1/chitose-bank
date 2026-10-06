@@ -9,7 +9,7 @@ const stopPropagation = event => event.stopPropagation();
 
 // Shared by all JobCard variants, including jobs without a video.
 // The poster replaces the iframe until an explicit play action (web.dev click-to-load).
-export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 220, priority = false, href, onOpen }) {
+export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 220, priority = false, href, onOpen, standalone = false }) {
   const instance = useId();
   const scroller = useRef(null);
   const root = useRef(null);
@@ -22,6 +22,8 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
   const images = (Array.isArray(photos) ? photos : []).filter(photo => photoThumb(photo));
   const hasVideo = !!videoId;
   const count = images.length + (hasVideo ? 1 : 0);
+  // A standalone player is responsive, with the YouTube minimum control height.
+  const standaloneVideo = standalone && hasVideo && images.length === 0;
 
   useEffect(() => {
     if (!hasVideo) return;
@@ -112,7 +114,7 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
   return <div ref={root} className="job-card-video-media">
     <div ref={scroller} onScroll={onScroll} className="carousel-scroll job-card-media-scroll"
       role="region" tabIndex={count > 1 ? 0 : -1} aria-roledescription="カルーセル"
-      aria-label={hasVideo ? 'YouTubeと求人写真' : '求人写真'}
+      aria-label={hasVideo ? (images.length ? 'YouTubeと求人写真' : 'YouTube作業動画') : '求人写真'}
       onPointerDown={startGesture} onPointerMove={trackGesture} onPointerUp={endGesture} onPointerCancel={endGesture}
       onTouchStart={startGesture} onTouchMove={trackGesture} onTouchEnd={endGesture} onTouchCancel={endGesture}
       onClickCapture={guardClick}
@@ -121,16 +123,16 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
         if (event.key === 'ArrowRight') move(active + 1, event);
         if (event.key === 'ArrowLeft') move(active - 1, event);
       }}
-      style={{ display: 'flex', width: '100%', minWidth: 0, height, overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', overscrollBehaviorX: 'contain', touchAction: 'pan-x pan-y pinch-zoom', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', borderRadius: 16 }}>
-      {hasVideo && <div data-media-type="youtube" style={{ flex: '0 0 100%', minWidth: 0, height, scrollSnapAlign: 'start', background: '#111', position: 'relative' }}>
+      style={{ display: 'flex', width: '100%', minWidth: 0, height: standaloneVideo ? 'auto' : height, aspectRatio: standaloneVideo ? '16 / 9' : undefined, minHeight: standaloneVideo ? 200 : undefined, overflowX: 'auto', overflowY: 'hidden', scrollSnapType: 'x mandatory', overscrollBehaviorX: 'contain', touchAction: 'pan-x pan-y pinch-zoom', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', borderRadius: 16 }}>
+      {hasVideo && <div data-media-type="youtube" style={{ flex: '0 0 100%', minWidth: 0, height: standaloneVideo ? 'auto' : height, scrollSnapAlign: 'start', background: '#111', position: 'relative' }}>
         {playing && active === 0 ? <iframe
           title={`作業動画：${title}`} src={youtubeEmbedUrl(videoId)}
           allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={event => event.currentTarget.focus({ preventScroll: true })}
-          style={{ display: 'block', width: '100%', height: '100%', border: 0 }} />
+          style={{ display: 'block', position: standaloneVideo ? 'absolute' : undefined, inset: standaloneVideo ? 0 : undefined, width: '100%', height: '100%', border: 0 }} />
           : <button type="button" className="job-video-facade" onClick={start} aria-label="作業動画を再生"
-            style={{ display: 'block', position: 'relative', width: '100%', height: '100%', padding: 0, border: 0, color: '#fff', background: '#222', cursor: 'pointer' }}>
+            style={{ display: 'block', position: standaloneVideo ? 'absolute' : 'relative', inset: standaloneVideo ? 0 : undefined, width: '100%', height: '100%', padding: 0, border: 0, color: '#fff', background: '#222', cursor: 'pointer' }}>
             {!posterFailed && <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt={`${title}の作業動画`}
               draggable={false} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined}
               onError={() => setPosterFailed(true)}
