@@ -1,0 +1,42 @@
+/* YouTube controls must stay inside the safe area, not fill the photo cover.
+   WebKit: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
+   YouTube: https://developers.google.com/youtube/terms/required-minimum-functionality
+   Only the detail/review gallery uses these classes; list-card media is unchanged. */
+.job-work-video--gallery {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-sizing:border-box;
+  padding:16px 12px 80px;
+  padding-left:max(12px, env(safe-area-inset-left, 0px));
+  padding-right:max(12px, env(safe-area-inset-right, 0px));
+}
+.job-work-video--gallery > .job-work-video-frame {
+  flex:0 1 auto;
+  min-width:0;
+  min-height:200px;
+  max-height:100%;
+}
+/* The surrounding slide keeps the photo layout stable during horizontal swipes.
+   The actual player is shorter and centered in it, without scaling or cropping. */
+.job-work-video-slide { min-height:296px; }
+/* Keep carousel arrows below the player, not over YouTube's controls/content. */
+.job-photo-carousel--has-video .cb-carousel-arrow {
+  top:auto !important;
+  bottom:44px;
+  transform:none !important;
+}
+@media (max-width:759px) {
+  /* The public page starts at the display edge. Reserve its navigation row as
+     well as the device's status bar/notch. In a review sheet the header already
+     reserves the top inset, so it retains the normal gallery padding above. */
+  .job-hero .job-work-video--gallery {
+    padding-top:76px;
+    padding-top:calc(76px + env(safe-area-inset-top, 0px));
+    padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+  .job-hero .job-work-video-slide {
+    min-height:356px;
+    min-height:calc(356px + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+  }
+}
