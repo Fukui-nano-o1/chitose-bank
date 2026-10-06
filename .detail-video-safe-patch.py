@@ -33,6 +33,8 @@ test_file = Path('scripts/job-work-video-layout.mjs')
 test_source = test_file.read_text()
 assert "contentType:'text/html'," in test_source
 test_source = test_source.replace("contentType:'text/html',", "contentType:'text/html; charset=utf-8',")
+assert '<!doctype html>' in test_source
+test_source = test_source.replace('<!doctype html>', '<!doctype html><meta charset="utf-8">')
 test_source = test_source.replace("const page=await context.newPage();const errors=[];", "console.log(JSON.stringify({engine,mode,viewport:size}));\n        const page=await context.newPage();const errors=[];")
 test_file.write_text(test_source)
 print('Scoped detail/review video safe-area fix applied. Search cards, photos, DB and listing inputs unchanged.')
