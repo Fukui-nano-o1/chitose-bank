@@ -16,7 +16,19 @@ jobs:
           node-version: 22
           cache: npm
       - name: Apply scoped source and regression updates
-        run: python3 .all-card-media-patch.py
+        run: |
+          python3 .all-card-media-patch.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/job-video-facade.test.mjs')
+          s = p.read_text()
+          assert s.count("relatedCard.querySelector('a:last-child')") == 1
+          p.write_text(s.replace("relatedCard.querySelector('a:last-child')", "relatedCard.querySelector(':scope > a')"))
+          p = Path('scripts/fixtures/job-video/entry.jsx')
+          s = p.read_text()
+          assert s.count('variant={job.variant || "list"}') == 1
+          p.write_text(s.replace('variant={job.variant || "list"}', 'variant={Object.hasOwn(job, "variant") ? job.variant : "list"}'))
+          PY
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Test real shared job cards
