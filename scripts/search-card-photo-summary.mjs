@@ -77,7 +77,9 @@ try {
               assert.equal(await below.locator('.job-card-summary').count(),0,'nothing overlays the player');
             }
             if(engine==='chromium'&&width===390&&kind==='multiple'){
-              await page.evaluate(()=>window.qaRender([{...window.qaJobs?.[0],...{id:job.id}}]));
+              await page.evaluate(()=>{window.dispatchEvent(new Event("hashchange"));window.scrollTo(0,0);});
+              await page.waitForFunction(()=>!document.querySelector("iframe"));
+              await page.screenshot({path:"/tmp/photo-summary-mobile.png",fullPage:true});
             }
             assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no page overflow');
             assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>window.qaCalls.length),0,'no database changes');

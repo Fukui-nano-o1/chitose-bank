@@ -177,12 +177,12 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
 }
 
 // All variants retain their original outer width and the existing summary/link rendering.
-export function JobVideoCard({ job, videoId = '', saved, onToggleSave, onOpen, views, priority, summary, height = 220, hideEndLabel, cardStyle }) {
+export function JobVideoCard({ job, videoId = '', saved, onToggleSave, onOpen, views, priority, summary, height = 220, hideEndLabel, cardStyle, videoPlacement }) {
   const ended = job.filled || job.expired || job.closed;
   const endLabel = job.filled ? (job.closed || job.expired ? '掲載終了（満員）' : '募集終了（満員）') : job.closed ? '募集終了' : '募集期間終了';
-  return <article data-guide="job-card" className={`job-media-card${videoId ? ' job-video-card' : ' job-photo-card'}`}
+  return <article data-guide="job-card" className={`job-media-card${videoId ? ' job-video-card' : ' job-photo-card'}${videoPlacement === 'below' && !videoId ? ' job-card-photo-summary' : ''}`}
     style={{ ...cardStyle, minWidth: 0, textAlign: 'left', cursor: 'default' }}>
-    <div className="f-sans" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minHeight: 44, marginBottom: 6 }}>
+    <div className="f-sans job-card-media-header" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, minHeight: 44, marginBottom: 6 }}>
       <span style={{ fontSize: 12, color: '#717171' }}>{videoId ? '作業動画' : '求人写真'}</span>
       {job.isNew && !ended && <span style={{ fontSize: 12, fontWeight: 700 }}>新着</span>}
       {!hideEndLabel && ended && <span style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>{endLabel}</span>}
