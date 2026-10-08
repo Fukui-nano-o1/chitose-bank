@@ -276,13 +276,13 @@ const STEPS = [
         <div style={{ textAlign:"right" }}><LFNext /></div>
       </div>
     ) },
-  { ch:"求人をつくる", name:"作物", url:"#/work/new/1", act:"作物を選ぶ。一覧は50種類＋「その他」で自由入力。選ぶと緑の枠が付く。",
+  { ch:"求人をつくる", name:"作物", url:"#/work/new/1", act:"科ごとに作物を選ぶ。一覧は50種類＋「その他」で自由入力。選ぶと緑の枠が付く。",
     body: () => (
       <LFPage>
         <h2 className="f-sans" style={lfStyles.stepTitle}>作物を選んでください</h2>
         <p className="f-sans" style={lfStyles.subtitle}>募集する求人の作物を選びます。一覧にない場合は「その他」から入力できます。</p>
         {/* 本番の部品そのもの＝作物の並び・アイコン・選択の色が本番と必ず一致する */}
-        <LFCropGrid options={CROP_OPTIONS} value="ブロッコリー" onSelect={noop} otherText="" onOtherChange={noop} otherPlaceholder="作物名を入力（例：ブロッコリー）" />
+        <LFCropGrid options={CROP_OPTIONS} grouped value="ブロッコリー" onSelect={noop} otherText="" onOtherChange={noop} otherPlaceholder="作物名を入力（例：ブロッコリー）" />
       </LFPage>
     ) },
   { ch:"求人をつくる", name:"作業", url:"#/work/new/2", act:"作業内容を選ぶ。作物と同じカード格子。",

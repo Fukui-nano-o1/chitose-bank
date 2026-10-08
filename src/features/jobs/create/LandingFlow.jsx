@@ -1299,9 +1299,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {/* ── FARMER FLOW ── */}
           {isFarmer && step === 1 && (<>
             <h2 className="f-sans" style={lfStyles.stepTitle}>どの作物の仕事ですか？</h2>
-            <p className="f-sans" style={lfStyles.subtitle}>あてはまる作物を1つ選んでください。</p>
+            <p className="f-sans" style={lfStyles.subtitle}>科ごとに分けています。作物を1つ選んでください。</p>
             <LFCropGrid
               options={CROP_OPTIONS}
+              grouped
               value={farmerCropPill}
               onSelect={v => {
                 if (v === "__other__") { setFarmerCropPill("__other__"); }

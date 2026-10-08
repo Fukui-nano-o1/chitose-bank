@@ -453,8 +453,19 @@ export function LFCardBtn({ selected, onClick, children }) {
 // noIcon＝絵を出さず文字だけのカードにする（2026-08-09たきと指示「作業カードにアイコンは必要ない」）。
 //   作業（収穫・準備…）は作物と違って絵で見分ける必要がなく、CropIconの既定の🌱が全カードに並んでいた。
 //   作物グリッドは従来どおり絵つき＝呼び出し側で切り替える
-export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder, noIcon }) {
+export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange, otherPlaceholder, noIcon, grouped = false }) {
   const isOther = value === "__other__";
+  // 科別の表示は作物ページだけで有効にする。元の options の順序・選択値は変更しない。
+  const optionGroups = new Map();
+  for (const option of options) {
+    const label = grouped ? option.group || "その他の作物" : "";
+    if (!optionGroups.has(label)) optionGroups.set(label, []);
+    optionGroups.get(label).push(option);
+  }
+  const groupTitleStyle = {
+    gridColumn:"1 / -1", margin:"16px 0 0", fontSize:18, fontWeight:650,
+    lineHeight:1.5, color:"#222",
+  };
   // 絵つきのカード（作物）は絵と名前をカードの中央に置く（2026-08-22たきと指示・あわせて絵を28→56の2倍に）。
   // 絵なしのカード（作業・noIcon）は文字だけので従来の左寄せのまま。
   const centered = !noIcon;
@@ -472,17 +483,23 @@ export function LFCropGrid({ options, value, onSelect, otherText, onOtherChange,
     <div style={{ marginBottom:8 }}>
       {/* minmax(0, 1fr)＝1fr のままだと列は min-content より縮まず、狭い画面で3列が親からはみ出す */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3, minmax(0, 1fr))", gap:12 }}>
-        {options.map(c => {
-          const sel = value === c.name;
-          return (
-            <button key={c.name} type="button" aria-pressed={sel} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
-              {/* 絵文字が無い作物は既製アイコン（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
-              {/* 上限56pxで、カードが狭いときは列幅に合わせて縮む（縦横比は保つ） */}
-              {!noIcon && <CropIcon crop={c.name} size={56} style={{ maxWidth:"100%", height:"auto" }} />}
-              <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>{c.name}</span>
-            </button>
-          );
-        })}
+        {[...optionGroups].map(([label, groupOptions], groupIndex) => (
+          <Fragment key={label}>
+            {label && <h3 className="f-sans" style={{ ...groupTitleStyle, margin:groupIndex === 0 ? 0 : groupTitleStyle.margin }}>{label}</h3>}
+            {groupOptions.map(c => {
+              const sel = value === c.name;
+              return (
+                <button key={c.name} type="button" aria-pressed={sel} onClick={() => onSelect(c.name)} className="f-sans crop-card" style={cardStyle(sel)}>
+                  {/* 絵文字が無い作物は既製アイコン（2026-08-08・アイコン重複の解消）。CropIconが出し分ける */}
+                  {/* 上限56pxで、カードが狭いときは列幅に合わせて縮む（縦横比は保つ） */}
+                  {!noIcon && <CropIcon crop={c.name} size={56} style={{ maxWidth:"100%", height:"auto" }} />}
+                  <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: sel ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>{c.name}</span>
+                </button>
+              );
+            })}
+          </Fragment>
+        ))}
+        {grouped && <h3 className="f-sans" style={groupTitleStyle}>一覧にない作物</h3>}
         <button type="button" aria-pressed={isOther} onClick={() => onSelect("__other__")} className="f-sans crop-card" style={cardStyle(isOther)}>
           {!noIcon && <span style={{ display:"flex", color:"#717171" }}><NavIcon name="edit" size={52} /></span>}
           <span className="f-sans" style={{ fontSize:14, fontWeight:600, color: isOther ? "#00A86B" : "#222", textAlign: centered ? "center" : "left" }}>その他</span>
