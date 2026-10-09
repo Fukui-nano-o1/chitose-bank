@@ -1095,7 +1095,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 住所の実在チェック（2026-09-27）：町域まで見つからない住所は入力エラー＝「次へ」も掲載も止める。
   // 通信で確かめられない時（"error"）は止めない（フェイルオープン）
   const townCheck = useTownCheck(farmerPref, farmerCity, farmerTown);
-  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&townCheck!=="notfound"&&isValidStreetAddress(farmerAddr), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (unknownWage || !dailyViolation) && breakTime !== "" && overtimeOk), true, true, true, (!workVideoUrl.trim() || (isValidYoutubeVideo(workVideoUrl) && workVideoJobConsent)), true, true, true];
+  const farmerCanNext = [true, !!farmerCrop, !!farmerTask, !!farmerZip.trim()&&isAllowedPrefecture(farmerPref)&&!!farmerCity.trim()&&!!farmerTown.trim()&&townCheck!=="notfound"&&isValidStreetAddress(farmerAddr), !!jobDateStart && Number.isInteger(Number(jobCount)) && Number(jobCount) > 0, farmerPurpose !== "post" || (workHours > 0 && !!dailyWageInput && (!unknownWage && !dailyViolation && !minWageLoading) && breakTime !== "" && overtimeOk), true, true, true, (!workVideoUrl.trim() || (isValidYoutubeVideo(workVideoUrl) && workVideoJobConsent)), true, true, true];
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[step] ?? true) : isWorker ? (workerCanNext[step] ?? true) : true;
 
