@@ -336,6 +336,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 「変更なし」に倒すので掲載は止めない（既定＝働き手に最も有利な約束の側）
   const [placeChangeScope, setPlaceChangeScope] = useState(d.placeChangeScope ?? "変更なし");
   const [taskChangeScope,  setTaskChangeScope]  = useState(d.taskChangeScope ?? "変更なし");
+  const [taskScopePageOpen, setTaskScopePageOpen] = useState(false);
+  const [taskScopeDraft, setTaskScopeDraft] = useState(taskChangeScope);
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
   // 掲載前の必須ガード（2026-07-24〜）：未入力のまま掲載に進ませない（終了求人コピー・編集の受け皿）。
   // 判定の中身は getPublishMissingFields（下）に集約し、openPublish もそこで定義している
@@ -1199,6 +1201,20 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       </main>
     </div>
   );
+  if (isFarmer && taskScopePageOpen) return (
+    <div className={`job-listing-flow f-sans${embedded ? " listing-embedded" : ""}`} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
+      <ListingHeader step={2} onExit={() => setTaskScopePageOpen(false)} />
+      <main className="listing-page" style={{ padding:"32px 24px", maxWidth:560, margin:"0 auto" }}>
+        <h2 className="f-sans" style={lfStyles.stepTitle}>作業の変更の範囲</h2>
+        <p className="f-sans" style={lfStyles.subtitle}>期間の途中で、選んだ作業から変更する可能性がある範囲を選んでください。</p>
+        <LFPillSelect options={TASK_CHANGE_OPTIONS} value={taskScopeDraft} onSelect={setTaskScopeDraft} />
+        <div style={{ display:"flex", gap:12, marginTop:24 }}>
+          <button type="button" className="listing-back" onClick={() => setTaskScopePageOpen(false)}>戻る</button>
+          <button type="button" className="listing-next" onClick={() => { setTaskChangeScope(taskScopeDraft); setTaskScopePageOpen(false); }}>保存して戻る</button>
+        </div>
+      </main>
+    </div>
+  );
   if (isFarmer && placePageOpen) return (
     <div className={`job-listing-flow f-sans${embedded ? " listing-embedded" : ""}`} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
       <WorkplacePage draftOnly={localOnly} initialAddress={prevAddress || { zip: farmerZip, prefecture: farmerPref, city: farmerCity, town: farmerTown, address: farmerAddr }}
@@ -1329,13 +1345,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               onOtherChange={setFarmerTaskText}
               otherPlaceholder="作業名を入力（例：畝立て、マルチ張り）"
             />
-            {/* 作業の変更の範囲（2026-08-21・労基則の明示事項「従事すべき業務の変更の範囲」）。
-                未選択のまま掲載してもDBトリガーが「変更なし」に倒す＝ここで足止めしない */}
-            <div style={{ marginTop:18 }}>
-              <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>作業の変更の範囲</label>
-              <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 8px", lineHeight:1.7 }}>期間の途中で、上で選んだ作業から変わる可能性がある範囲です。「変更なし」なら求人の作業だけをお願いすることになります。</p>
-              <LFPillSelect options={TASK_CHANGE_OPTIONS} value={taskChangeScope} onSelect={setTaskChangeScope} />
-            </div>
+            <button type="button" className="listing-workplace-card" onClick={() => { setTaskScopeDraft(taskChangeScope); setTaskScopePageOpen(true); }}>
+              <NavIcon name="clipboard" size={32} />
+              <span className="listing-workplace-copy"><strong>作業の変更の範囲</strong><span>{taskChangeScope || "変更なし"}</span></span>
+              <span className="listing-workplace-arrow" aria-hidden="true">›</span>
+            </button>
           </>)}
 
           {isFarmer && step === 3 && (<>
