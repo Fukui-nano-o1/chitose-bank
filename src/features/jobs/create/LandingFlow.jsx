@@ -338,6 +338,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [taskChangeScope,  setTaskChangeScope]  = useState(d.taskChangeScope ?? "変更なし");
   const [taskScopePageOpen, setTaskScopePageOpen] = useState(false);
   const [taskScopeDraft, setTaskScopeDraft] = useState(taskChangeScope);
+  const [placeScopePageOpen, setPlaceScopePageOpen] = useState(false);
+  const [placeScopeDraft, setPlaceScopeDraft] = useState(placeChangeScope);
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
   // 掲載前の必須ガード（2026-07-24〜）：未入力のまま掲載に進ませない（終了求人コピー・編集の受け皿）。
   // 判定の中身は getPublishMissingFields（下）に集約し、openPublish もそこで定義している
@@ -1201,6 +1203,20 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       </main>
     </div>
   );
+  if (isFarmer && placeScopePageOpen) return (
+    <div className={`job-listing-flow f-sans${embedded ? " listing-embedded" : ""}`} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
+      <ListingHeader step={3} onExit={() => setPlaceScopePageOpen(false)} />
+      <main className="listing-page" style={{ padding:"32px 24px", maxWidth:560, margin:"0 auto" }}>
+        <h2 className="f-sans" style={lfStyles.stepTitle}>場所の変更の範囲</h2>
+        <p className="f-sans" style={lfStyles.subtitle}>期間の途中で、集合場所から変更する可能性がある範囲を選んでください。</p>
+        <LFPillSelect options={PLACE_CHANGE_OPTIONS} value={placeScopeDraft} onSelect={setPlaceScopeDraft} />
+        <div style={{ display:"flex", gap:12, marginTop:24 }}>
+          <button type="button" className="listing-back" onClick={() => setPlaceScopePageOpen(false)}>戻る</button>
+          <button type="button" className="listing-next" onClick={() => { setPlaceChangeScope(placeScopeDraft); setPlaceScopePageOpen(false); }}>保存して戻る</button>
+        </div>
+      </main>
+    </div>
+  );
   if (isFarmer && taskScopePageOpen) return (
     <div className={`job-listing-flow f-sans${embedded ? " listing-embedded" : ""}`} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
       <ListingHeader step={2} onExit={() => setTaskScopePageOpen(false)} />
@@ -1486,13 +1502,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     </select>
                   </div>
                 </div>
-                {/* 場所の変更の範囲（2026-08-21・労基則の明示事項「就業の場所の変更の範囲」）。
-                    未選択のまま掲載してもDBトリガーが「変更なし」に倒す＝ここで足止めしない */}
-                <div style={{ marginBottom:4 }}>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>場所の変更の範囲</label>
-                  <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"0 0 8px", lineHeight:1.7 }}>期間の途中で、働く場所が上の住所から変わる可能性がある範囲です。「変更なし」ならこの場所だけで働くことになります。</p>
-                  <LFPillSelect options={PLACE_CHANGE_OPTIONS} value={placeChangeScope} onSelect={setPlaceChangeScope} />
-                </div>
+                <button type="button" className="listing-workplace-card" onClick={() => { setPlaceScopeDraft(placeChangeScope); setPlaceScopePageOpen(true); }}>
+                  <NavIcon name="pin" size={32} />
+                  <span className="listing-workplace-copy"><strong>場所の変更の範囲</strong><span>{placeChangeScope || "変更なし"}</span></span>
+                  <span className="listing-workplace-arrow" aria-hidden="true">›</span>
+                </button>
               </div>
             </LFWizCard>
             {/* LFPrivacyNote は削除（2026-08-08）：内容は上の「集合場所の公開範囲とは？」に統合 */}
