@@ -3,6 +3,7 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { useState, useEffect, useRef } from "react";
+import { WorkTimeClock } from "./components/WorkTimeClock";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
@@ -1607,30 +1608,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間と日給を決めましょう</h2>
             <p className="f-sans" style={lfStyles.subtitle}>働く時間と報酬を、応募する前にわかるように。</p>
             <LFWizCard>
-              {/* 4. 勤務時間（input type=time・iPhoneタイマー型） */}
-              {(() => {
-                const timeStyle = { height:48, borderRadius:12, border:"1px solid #EBEBEB", background:"#FFFFFF", color:"#222222", fontSize:16, fontWeight:700, textAlign:"center", padding:"0 10px", outline:"none", cursor:"pointer" };
-                const rowStyle = { display:"flex", alignItems:"center", justifyContent:"center", gap:10, flexWrap:"wrap", marginTop:12 };
-                const toTime = (h, m) => `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-                const fromTime = (val, setH, setM) => {
-                  if (!val) return;
-                  const [h, m] = val.split(":");
-                  setH(String(Number(h)));
-                  setM(m);
-                };
-                return (
-                  <div style={{ marginBottom:14 }}>
-                    <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>勤務時間</label>
-                    <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:0 }}>開始時間と終了時間を選んでください。</p>
-                    <div style={rowStyle}>
-                      <input type="time" aria-label="勤務開始時間" value={toTime(startHour, startMinute)} onChange={e => fromTime(e.target.value, setStartHour, setStartMinute)} style={timeStyle} />
-                      <span style={{ margin:"0 6px", color:"#717171", fontWeight:700, fontSize:16 }}>〜</span>
-                      <input type="time" aria-label="勤務終了時間" value={toTime(endHour, endMinute)} onChange={e => fromTime(e.target.value, setEndHour, setEndMinute)} style={timeStyle} />
-                    </div>
-                    <p className="f-sans" style={{ fontSize:14, color:"#00A86B", marginTop:8, textAlign:"center" }}>→ {workTimeLabel}</p>
-                  </div>
-                );
-              })()}
+              <WorkTimeClock startHour={startHour} startMinute={startMinute} endHour={endHour} endMinute={endMinute}
+                onStart={(h,m) => { setStartHour(h); setStartMinute(m); }}
+                onEnd={(h,m) => { setEndHour(h); setEndMinute(m); }} />
               {/* 時間外労働（2026-08-03たきと指示「必須。勤務時間設定の下に」）：
                   所定の勤務時間を超える労働の有無は労働条件の明示事項ので必須（farmerCanNext[5]でも判定）。
                   「あり」のときは目安の時間も必須＝有無だけでなく「どれくらいか」まで明記させる。

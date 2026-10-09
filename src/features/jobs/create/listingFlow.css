@@ -158,3 +158,5 @@
     border-radius:0 !important;
   }
 }
+
+.listing-clock{display:flex;flex-direction:column;gap:16px;color:#222}.listing-clock p{color:#717171;margin:0}.listing-clock-times{display:grid;grid-template-columns:1fr 1fr;gap:12px}.listing-clock-times button{border:1px solid #ddd;border-radius:12px;padding:14px;background:#fff;text-align:left;min-width:0}.listing-clock-times button[aria-pressed=true]{border:2px solid #222;background:#f7f7f7}.listing-clock-times small{display:block;color:#717171}.listing-clock-times b{display:block;font-size:23px;font-variant-numeric:tabular-nums}.listing-clock-modes{display:flex;gap:8px;flex-wrap:wrap}.listing-clock-modes button{border:1px solid #ddd;border-radius:20px;padding:9px 16px;background:#fff}.listing-clock-modes button[aria-pressed=true]{border:2px solid #222}.listing-clock-face{width:min(100%,300px);align-self:center;touch-action:none;user-select:none;cursor:grab}.listing-clock-exact{display:flex;justify-content:space-between;align-items:center;gap:12px}.listing-clock-exact input{font-size:16px;max-width:160px}.listing-clock-summary{text-align:center;font-weight:700;color:#222!important}
