@@ -1611,59 +1611,32 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               <WorkTimeClock startHour={startHour} startMinute={startMinute} endHour={endHour} endMinute={endMinute}
                 onStart={(h,m) => { setStartHour(h); setStartMinute(m); }}
                 onEnd={(h,m) => { setEndHour(h); setEndMinute(m); }} />
-              {/* 時間外労働（2026-08-03たきと指示「必須。勤務時間設定の下に」）：
-                  所定の勤務時間を超える労働の有無は労働条件の明示事項ので必須（farmerCanNext[5]でも判定）。
-                  「あり」のときは目安の時間も必須＝有無だけでなく「どれくらいか」まで明記させる。
-                  説明はタイトル横の？をタップで展開（2026-08-07たきと指示・常時表示をやめ画面を軽く） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>
-                  時間外労働
-                  <button type="button" onClick={() => setOvertimeInfoOpen(v => !v)} aria-label="時間外労働の説明"
-                    style={{ marginLeft:6, width:18, height:18, borderRadius:"50%", border:"1px solid " + (overtimeInfoOpen ? "#00A86B" : "#C8C8C8"), background: overtimeInfoOpen ? "#00A86B" : "#fff", color: overtimeInfoOpen ? "#fff" : "#999", fontSize:11, fontWeight:700, lineHeight:1, cursor:"pointer", padding:0, verticalAlign:"middle" }}>？</button>
-                </label>
-                {overtimeInfoOpen && (
-                  <p className="f-sans" style={{ fontSize:13, color:"#0B6B4F", background:"#F0F7F4", border:"1px solid #CDE9DD", borderRadius:8, padding:"8px 10px", margin:"0 0 8px", lineHeight:1.7 }}>
-                    上の勤務時間を超えて作業をお願いすることがあるかどうかです。働き手がその日の予定を立てるために見ています。
-                  </p>
-                )}
-                <LFPillSelect options={OVERTIME_OPTIONS} value={overtimePolicy} onSelect={setOvertimePolicy} />
-                {overtimePolicy === "あり" && (<>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", margin:"8px 0 6px" }}>どれくらいの時間ですか</label>
-                  <input value={overtimeDetail} onChange={e => setOvertimeDetail(e.target.value)} placeholder="例：繁忙期は1日30分〜1時間程度" maxLength={100} className="field f-sans" style={{ fontSize:16 }} />
-                </>)}
-                {!overtimePolicy && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:6 }}>時間外労働の有無を選んでください</p>}
-                {overtimePolicy === "あり" && !overtimeDetail.trim() && <p className="f-sans" style={{ fontSize:14, color:"#F5A623", marginTop:6 }}>どれくらいの時間かを入力してください</p>}
-              </div>
-
-              {/* 5-b. 休憩時間（グループ2予定） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>休憩時間</label>
-                <select aria-label="休憩時間" value={breakTime} onChange={e => setBreakTime(e.target.value)} className="field f-sans" style={{ fontSize:14, maxWidth:160 }}>
-                  <option value="">選択してください</option>
-                  <option value="なし">なし</option>
-                  {/* 5分刻み（2026-07-16）。値は従来と同じ「N分」形式＝既存データ（30分/60分等）とそのまま互換 */}
-                  {Array.from({ length: 24 }, (_, i) => (i + 1) * 5).map(m => (
-                    <option key={m} value={`${m}分`}>{m}分</option>
-                  ))}
-                </select>
-              </div>
-              {/* 6. 報酬 */}
-              <div style={{ marginBottom:6 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>報酬</label>
-              </div>
-              {/* 時給欄は削除（2026-07-16・日給に一本化）。変数hourlyWageInput・保存経路・最賃チェックは
-                  既存下書きの復元と表示のため温存（UIのみ撤去） */}
-              <div style={{ marginBottom:14 }}>
-                <label className="f-sans" style={{ fontSize:12, color:"#222", display:"block", marginBottom:6 }}>日給 <span style={{ fontSize:11, color:"#B0B0B0" }}>（円）</span></label>
-                <div className="listing-pay-input"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\d]/g, ""))} placeholder="9000" className="field f-mono" /><span>円 / 日</span></div>
-                <p className="f-sans" style={{ fontSize:14, color:"#717171", margin:"0 0 16px", textAlign:"center" }}>各作業日の終了後に、現金で支払います。</p>
-                {workHours <= 0 && <p role="alert" style={{ fontSize:14, color:"#E24B4A" }}>終了時間は開始時間より後に設定してください。</p>}
+              <section className="listing-condition-section">
+                <div className="listing-condition-heading"><h3>時間外労働</h3><button type="button" className="listing-condition-help" aria-expanded={overtimeInfoOpen} onClick={() => setOvertimeInfoOpen(v => !v)}>説明を見る</button></div>
+                {overtimeInfoOpen && <p className="listing-condition-note">設定した勤務時間を超えて作業をお願いする可能性があるかを選びます。</p>}
+                <div className="listing-condition-choices" role="group" aria-label="時間外労働の有無">
+                  {OVERTIME_OPTIONS.map(option => <button type="button" key={option} aria-pressed={overtimePolicy === option} onClick={() => setOvertimePolicy(option)}>{option}<span aria-hidden="true" className="listing-condition-radio" /></button>)}
+                </div>
+                {overtimePolicy === "あり" && <label className="listing-condition-field">時間外労働の目安<input value={overtimeDetail} onChange={e => setOvertimeDetail(e.target.value)} placeholder="例：繁忙期は1日30分〜1時間程度" maxLength={100} /></label>}
+                {!overtimePolicy && <p className="listing-condition-warning">時間外労働の有無を選んでください。</p>}
+                {overtimePolicy === "あり" && !overtimeDetail.trim() && <p className="listing-condition-warning">目安の時間を入力してください。</p>}
+              </section>
+              <section className="listing-condition-section">
+                <h3>休憩時間</h3>
+                <label className="listing-condition-field">休憩時間を選択<select aria-label="休憩時間" value={breakTime} onChange={e => setBreakTime(e.target.value)}>
+                  <option value="">選択してください</option><option value="なし">なし</option>
+                  {Array.from({length:24},(_,i)=>(i+1)*5).map(m=><option key={m} value={`${m}分`}>{m}分</option>)}
+                </select></label>
+              </section>
+              <section className="listing-condition-section">
+                <h3>報酬</h3>
+                <label className="listing-condition-field">日給（円）<div className="listing-condition-pay"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\\d]/g,""))} placeholder="9000" /><span>円 / 日</span></div></label>
+                <p className="listing-condition-note">各作業日の終了後に、現金で支払います。</p>
+                {workHours <= 0 && <p role="alert" className="listing-condition-error">終了時間は開始時間より後に設定してください。</p>}
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
-                {dailyViolation && !unknownWage && (
-                  <p className="f-sans" style={{ fontSize:14, color:"#E24B4A", marginTop:6 }}>{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>
-                )}
+                {dailyViolation && !unknownWage && <p role="alert" className="listing-condition-error">{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>}
                 {wageLookupNotice}
-              </div>
+              </section>
               {/* 支払いタイミング・支払方法の入力UIは封印中（解禁禁止・2026-08-02確認）。
                   支払条件は固定ポリシー（各作業日の作業終了後・現金手渡し）として掲載申請時に
                   jobsへ確定保存される（trg_job_publish_snapshot）。下の選択肢のうち
