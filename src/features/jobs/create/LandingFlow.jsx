@@ -3,7 +3,6 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { useState, useEffect, useRef } from "react";
-import { WorkTimeClock } from "./components/WorkTimeClock";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
@@ -1608,9 +1607,14 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             <h2 className="f-sans" style={lfStyles.stepTitle}>勤務時間と日給を決めましょう</h2>
             <p className="f-sans" style={lfStyles.subtitle}>働く時間と報酬を、応募する前にわかるように。</p>
             <LFWizCard>
-              <WorkTimeClock startHour={startHour} startMinute={startMinute} endHour={endHour} endMinute={endMinute}
-                onStart={(h,m) => { setStartHour(h); setStartMinute(m); }}
-                onEnd={(h,m) => { setEndHour(h); setEndMinute(m); }} />
+              <section className="listing-condition-section">
+                <h3>勤務時間</h3>
+                <div className="listing-work-time-fields">
+                  <label>開始時間<input type="time" aria-label="勤務開始時間" value={`${String(startHour).padStart(2,"0")}:${String(startMinute).padStart(2,"0")}`} onChange={e => { const [h,m] = e.target.value.split(":"); if(h && m !== undefined){setStartHour(String(Number(h)));setStartMinute(m);} }} /></label>
+                  <label>終了時間<input type="time" aria-label="勤務終了時間" value={`${String(endHour).padStart(2,"0")}:${String(endMinute).padStart(2,"0")}`} onChange={e => { const [h,m] = e.target.value.split(":"); if(h && m !== undefined){setEndHour(String(Number(h)));setEndMinute(m);} }} /></label>
+                </div>
+                <p className="listing-condition-note">{workTimeLabel}</p>
+              </section>
               <section className="listing-condition-section">
                 <div className="listing-condition-heading"><h3>時間外労働</h3><button type="button" className="listing-condition-help" aria-expanded={overtimeInfoOpen} onClick={() => setOvertimeInfoOpen(v => !v)}>説明を見る</button></div>
                 {overtimeInfoOpen && <p className="listing-condition-note">設定した勤務時間を超えて作業をお願いする可能性があるかを選びます。</p>}
