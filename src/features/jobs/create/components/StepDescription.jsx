@@ -2,12 +2,17 @@
 import { lfStyles } from "../lfStyles";
 import { LFWizCard } from "../../../../components/ui";
 import { photoThumb } from "../../../../lib/utils";
+import { NavIcon } from "../../../../components/NavIcons";
 
 export function StepDescription({ jobDescription, setJobDescription, jobPhotos, setJobPhotos, selectedPhotoIndex, setSelectedPhotoIndex, photoCaptionsOpen, setPhotoCaptionsOpen, captionTextareaRef }) {
   return (<>
     <h2 className="f-sans" style={lfStyles.stepTitle}>どんな一日になるか、伝えましょう</h2>
     <p className="f-sans" style={lfStyles.subtitle}>作業の流れや、初めての人に伝えておきたいことを書けます（任意）。</p>
-    {jobPhotos.length > 0 && <button onClick={()=>setPhotoCaptionsOpen(true)} className="f-sans" style={{ display:"inline-flex", alignItems:"center", gap:6, background:"none", border:"none", padding:0, margin:"-8px 0 16px", fontSize:14, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>写真の説明 →</button>}
+    {jobPhotos.length > 0 && <button type="button" className="listing-workplace-card" aria-expanded={photoCaptionsOpen} onClick={() => setPhotoCaptionsOpen(true)}>
+      <NavIcon name="image" size={32} />
+      <span className="listing-workplace-copy"><strong>写真の説明</strong><span>{jobPhotos.length}枚の写真に、それぞれ説明を追加できます。</span></span>
+      <svg className="listing-workplace-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+    </button>}
     <LFWizCard>
       <textarea aria-label="作業の説明" value={jobDescription} onChange={e => setJobDescription(e.target.value)}
         placeholder="例：ブロッコリーの収穫と箱詰めをお願いします。畑は平坦で、初めての方でも当日にコツをお教えします。10時と15時に休憩があります。" maxLength={1000}
