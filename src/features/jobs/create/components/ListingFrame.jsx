@@ -1,4 +1,5 @@
 import { NavIcon } from "../../../../components/NavIcons";
+import "../listingControls.css";
 
 export const LISTING_STAGES = [
   { title: "基本情報", description: "作物・作業・場所と、日程・勤務条件を決めます。", icon: "edit" },
@@ -11,12 +12,16 @@ export function listingStage(step) {
 }
 
 export function ListingHeader({ step, saving, busy, onSave, onExit }) {
+  // 子ページには保存処理を渡さない場合がある。動かない「保存」を表示しない。
+  const canSave = step !== 0 && typeof onSave === "function";
+  const onAction = canSave ? onSave : onExit;
+  const actionLabel = canSave ? (saving ? "保存中…" : "保存して終了") : step === 0 ? "終了" : "閉じる";
   return (
     <header className="listing-header">
       <span className="listing-brand">chitose-bank</span>
       <span className="listing-header-title">求人の掲載</span>
-      <button type="button" className="listing-save" onClick={step === 0 ? onExit : onSave} disabled={busy}>
-        {saving ? "保存中…" : step === 0 ? "終了" : "保存して終了"}
+      <button type="button" className="listing-save" onClick={onAction} disabled={busy || typeof onAction !== "function"}>
+        {actionLabel}
       </button>
     </header>
   );

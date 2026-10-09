@@ -1,0 +1,131 @@
+/* 掲載フロー内だけに適用する共通トークンと操作部品（2026-10-09）。
+   元のページ別レイアウトと公開求人のギャラリー寸法は変更しない。 */
+.job-listing-flow {
+  --listing-ink:#222;
+  --listing-surface:#f7f7f7;
+  --listing-line:#ddd;
+  --listing-gutter:48px;
+  --listing-page-gutter:24px;
+  --listing-page-top:36px;
+  --listing-action-top:16px;
+  --listing-action-bottom:20px;
+  --listing-action-gap:16px;
+}
+.job-listing-flow button { font-family:inherit; -webkit-tap-highlight-color:transparent; }
+.job-listing-flow .listing-save { color:var(--listing-ink); -webkit-appearance:none; appearance:none; }
+/* 通常ステップと選択編集ページで、操作バーの左右位置・高さを共用する。 */
+.job-listing-flow .listing-footer-actions,
+.job-listing-flow > main.listing-page:has(> .lf-pill-select) > div:has(> .listing-next) {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:var(--listing-action-gap);
+  padding:var(--listing-action-top) var(--listing-gutter) calc(var(--listing-action-bottom) + env(safe-area-inset-bottom, 0px));
+}
+@media (max-width:700px) {
+  .job-listing-flow {
+    --listing-gutter:24px;
+    --listing-page-top:24px;
+    --listing-action-top:12px;
+    --listing-action-bottom:14px;
+    --listing-action-gap:12px;
+  }
+}
+@media (max-width:360px) {
+  .job-listing-flow { --listing-gutter:16px; --listing-page-gutter:16px; }
+}
+
+/* 掲載フローの選択部品は、作物カードと同じ黒枠＋淡いグレーに統一する。
+   aria-pressed が状態の唯一の入力。プロフィール等、フロー外の役割色は変えない。 */
+.job-listing-flow .lf-pill-option {
+  color:var(--listing-ink) !important;
+  border-color:var(--listing-line) !important;
+  background:#fff !important;
+  min-height:44px;
+  line-height:1.5;
+  transition:border-color .15s ease, background .15s ease;
+}
+.job-listing-flow .lf-pill-option[aria-pressed="true"] {
+  border-color:var(--listing-ink) !important;
+  background:var(--listing-surface) !important;
+}
+/* 単独の選択編集ページも、共通の本文幅・余白・下部操作バーを使う。
+   mainを直接描く既存の子ページに限定し、確認画面や住所フォームには適用しない。 */
+.job-listing-flow > main.listing-page:has(> .lf-pill-select) {
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  max-width:640px !important;
+  padding:var(--listing-page-top) var(--listing-page-gutter) calc(112px + env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom, 0px));
+}
+.job-listing-flow > main.listing-page > .lf-pill-select {
+  display:grid !important;
+  grid-template-columns:minmax(0, 1fr);
+  gap:12px !important;
+  margin:0 !important;
+}
+.job-listing-flow > main.listing-page > .lf-pill-select > .lf-pill-option {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  width:100%;
+  min-width:0;
+  min-height:88px;
+  padding:22px 20px !important;
+  box-sizing:border-box;
+  border:1px solid var(--listing-line) !important;
+  border-radius:12px !important;
+  text-align:left;
+  font-size:16px !important;
+  font-weight:600;
+  overflow-wrap:anywhere;
+}
+.job-listing-flow > main.listing-page > .lf-pill-select > .lf-pill-option::after {
+  content:"";
+  box-sizing:border-box;
+  flex:0 0 22px;
+  height:22px;
+  border:1px solid #b0b0b0;
+  border-radius:50%;
+  background:#fff;
+}
+.job-listing-flow > main.listing-page > .lf-pill-select > .lf-pill-option[aria-pressed="true"] {
+  border-color:var(--listing-ink) !important;
+  box-shadow:inset 0 0 0 1px var(--listing-ink);
+}
+.job-listing-flow > main.listing-page > .lf-pill-select > .lf-pill-option[aria-pressed="true"]::after {
+  border:7px solid var(--listing-ink);
+}
+.job-listing-flow > main.listing-page:has(> .lf-pill-select) > div:has(> .listing-next) {
+  position:fixed;
+  inset-inline:0;
+  bottom:0;
+  z-index:3;
+  margin:0 !important;
+  gap:var(--listing-action-gap) !important;
+  border-top:1px solid #ebebeb;
+  background:#fff;
+  box-sizing:border-box;
+}
+/* 埋め込み表示は外側の画面へ固定バーを飛び出させない。 */
+.job-listing-flow.listing-embedded > main.listing-page:has(> .lf-pill-select) {
+  display:flex;
+  flex-direction:column;
+  overflow:visible;
+  padding-bottom:0 !important;
+}
+.job-listing-flow.listing-embedded > main.listing-page:has(> .lf-pill-select) > div:has(> .listing-next) {
+  position:sticky;
+  margin-top:auto !important;
+  padding-inline:0;
+  padding-top:24px;
+}
+@media (hover:hover) {
+  .job-listing-flow .lf-pill-option:hover { border-color:var(--listing-ink) !important; background:var(--listing-surface) !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .job-listing-flow .lf-pill-option { transition:none; }
+}
