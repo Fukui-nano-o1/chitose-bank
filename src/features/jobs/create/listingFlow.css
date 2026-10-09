@@ -180,3 +180,11 @@
 .job-listing-flow .listing-work-time-fields input[type="time"]{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none;padding:10px 8px;font-size:16px}
 .job-listing-flow .listing-work-time-fields input[type="time"]::-webkit-date-and-time-value{min-width:0;text-align:left}
 @media(max-width:420px){.job-listing-flow .listing-work-time-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* iPhoneのネイティブ時刻入力は最小幅を持つため、スマホでは常に縦一列にする。 */
+@media (max-width:700px){
+  .job-listing-flow .listing-page[data-step="5"] .listing-work-time-fields,
+  .job-listing-flow .listing-work-time-fields{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:18px;width:100%;max-width:100%;}
+  .job-listing-flow .listing-work-time-fields label{width:100%;min-width:0;max-width:100%;overflow:visible;}
+  .job-listing-flow .listing-work-time-fields input[type="time"]{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+}
