@@ -338,7 +338,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [taskChangeScope,  setTaskChangeScope]  = useState(d.taskChangeScope ?? "変更なし");
   const [taskScopePageOpen, setTaskScopePageOpen] = useState(false);
   const [taskScopeDraft, setTaskScopeDraft] = useState(taskChangeScope);
-  const [agricultureWorkAcknowledged, setAgricultureWorkAcknowledged] = useState(false);
   const [placeScopePageOpen, setPlaceScopePageOpen] = useState(false);
   const [placeScopeDraft, setPlaceScopeDraft] = useState(placeChangeScope);
   const [overtimeInfoOpen,  setOvertimeInfoOpen]  = useState(false); // タイトル横「？」の説明展開（UI一時state・保存しない）
@@ -1143,7 +1142,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       ["日給（最低賃金以上）", !!dailyWageInput && !unknownWage && !minWageLoading && !dailyViolation,      5],
       ["休憩時間",                breakTime !== "",                    5],
       ["時間外労働",              overtimeOk,                          5],
-      ["農業関連作業であることの同意", agricultureWorkAcknowledged, 5],
     ];
     // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
     // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
@@ -1642,13 +1640,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
                 {dailyViolation && !unknownWage && <p role="alert" className="listing-condition-error">{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>}
                 {wageLookupNotice}
-              </section>
-              <section className="listing-condition-section">
-                <h3>農業関連の作業であることの確認</h3>
-                <p className="listing-condition-note">Chitose-bankでは農業に関連する作業の求人を掲載できます。募集内容が農業に関連する作業であることを確認してください。</p>
-                <p className="listing-condition-note">運営が求人内容を確認し、対象外の求人には修正・掲載停止などの対応を行う場合があります。</p>
-                <label className="listing-condition-field"><span><input type="checkbox" checked={agricultureWorkAcknowledged} onChange={e=>setAgricultureWorkAcknowledged(e.target.checked)} /> 掲載する求人が農業に関連する作業であることに同意します</span></label>
-                <p className="listing-condition-warning">地域別最低賃金のチェックは引き続き適用されます。</p>
               </section>
               {/* 支払いタイミング・支払方法の入力UIは封印中（解禁禁止・2026-08-02確認）。
                   支払条件は固定ポリシー（各作業日の作業終了後・現金手渡し）として掲載申請時に
