@@ -173,3 +173,10 @@
 .job-listing-flow .listing-page[data-step="5"] .listing-condition-field>select,.job-listing-flow .listing-page[data-step="5"] .listing-condition-field>input{width:100%;max-width:none!important;box-sizing:border-box}
 .job-listing-flow .listing-page[data-step="5"] .listing-condition-pay input{width:100%;max-width:none;min-width:0}
 @media(max-width:360px){.job-listing-flow .listing-page[data-step="5"] .listing-work-time-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* iOS Safari: native time control intrinsic width must not expand grid columns */
+.job-listing-flow .listing-work-time-fields{width:100%;max-width:100%;min-width:0;grid-template-columns:repeat(2,minmax(0,1fr));box-sizing:border-box}
+.job-listing-flow .listing-work-time-fields label{min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box}
+.job-listing-flow .listing-work-time-fields input[type="time"]{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none;padding:10px 8px;font-size:16px}
+.job-listing-flow .listing-work-time-fields input[type="time"]::-webkit-date-and-time-value{min-width:0;text-align:left}
+@media(max-width:420px){.job-listing-flow .listing-work-time-fields{grid-template-columns:minmax(0,1fr)}}
