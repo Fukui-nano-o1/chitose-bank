@@ -17,7 +17,7 @@ export function StepDescription({ jobDescription, setJobDescription, jobPhotos, 
       <svg className="listing-workplace-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
     </button>}
     <button type="button" className="listing-workplace-card" aria-expanded={videoPageOpen} onClick={() => setVideoPageOpen(true)}>
-      <NavIcon name="video" size={32} />
+      <NavIcon name="image" size={32} />
       <span className="listing-workplace-copy"><strong>YouTube動画</strong><span>{workVideoUrl?.trim() ? "登録済みの動画を確認・編集" : "YouTubeのリンクを追加できます（任意）。"}</span></span>
       <svg className="listing-workplace-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
     </button>
