@@ -1669,7 +1669,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {isFarmer && step === 7 && <StepPhotos jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
 
           {/* ── 農家 step8: 作業説明文 ── */}
-          {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef} />}
+          {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef} workVideoUrl={workVideoUrl} setWorkVideoUrl={setWorkVideoUrl} workVideoJobConsent={workVideoJobConsent} setWorkVideoJobConsent={setWorkVideoJobConsent} workVideoRelatedConsent={workVideoRelatedConsent} setWorkVideoRelatedConsent={setWorkVideoRelatedConsent} setWorkVideoConsentAt={setWorkVideoConsentAt} setWorkVideoConsentVersion={setWorkVideoConsentVersion} />}
 
           {/* ── 農家 step9: 作業動画（独立ページ・任意） ── */}
           {isFarmer && step === 9 && <StepWorkVideo url={workVideoUrl} setUrl={setWorkVideoUrl}
