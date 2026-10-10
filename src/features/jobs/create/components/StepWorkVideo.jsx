@@ -17,7 +17,7 @@ export function youtubeVideoId(raw) {
 }
 export const isValidYoutubeVideo = raw => /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoId(raw));
 
-export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedConsent, setRelatedConsent, setConsentAt, setConsentVersion }) {
+export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedConsent, setRelatedConsent, setConsentAt, setConsentVersion, compact = false }) {
   const clean = url.trim();
   const valid = !clean || isValidYoutubeVideo(clean);
   const onUrl = value => {
@@ -34,8 +34,8 @@ export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedC
     }
   };
   return (<>
-    <h2 className="f-sans" style={lfStyles.stepTitle}>作業動画を追加しますか？</h2>
-    <p className="f-sans" style={lfStyles.subtitle}>働き手が仕事をイメージできる動画を追加できます。YouTube動画に対応しています（任意）。</p>
+    {!compact && <h2 className="f-sans" style={lfStyles.stepTitle}>作業動画を追加しますか？</h2>}
+    {!compact && <p className="f-sans" style={lfStyles.subtitle}>働き手が仕事をイメージできる動画を追加できます。YouTube動画に対応しています（任意）。</p>}
     <LFWizCard>
       <label className="f-sans" htmlFor="work-video-url" style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>YouTube URL</label>
       <input id="work-video-url" type="url" inputMode="url" value={url} onChange={e=>onUrl(e.target.value)}
