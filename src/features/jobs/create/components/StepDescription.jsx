@@ -3,8 +3,9 @@ import { lfStyles } from "../lfStyles";
 import { LFWizCard } from "../../../../components/ui";
 import { photoThumb } from "../../../../lib/utils";
 import { NavIcon } from "../../../../components/NavIcons";
+import { StepWorkVideo } from "./StepWorkVideo";
 
-export function StepDescription({ jobDescription, setJobDescription, jobPhotos, setJobPhotos, selectedPhotoIndex, setSelectedPhotoIndex, photoCaptionsOpen, setPhotoCaptionsOpen, captionTextareaRef }) {
+export function StepDescription({ jobDescription, setJobDescription, jobPhotos, setJobPhotos, selectedPhotoIndex, setSelectedPhotoIndex, photoCaptionsOpen, setPhotoCaptionsOpen, captionTextareaRef, workVideoUrl, setWorkVideoUrl, workVideoJobConsent, setWorkVideoJobConsent, workVideoRelatedConsent, setWorkVideoRelatedConsent, setWorkVideoConsentAt, setWorkVideoConsentVersion }) {
   return (<>
     <h2 className="f-sans" style={lfStyles.stepTitle}>どんな一日になるか、伝えましょう</h2>
     <p className="f-sans" style={lfStyles.subtitle}>作業の流れや、初めての人に伝えておきたいことを書けます（任意）。</p>
@@ -19,6 +20,12 @@ export function StepDescription({ jobDescription, setJobDescription, jobPhotos, 
         style={{ background:"#fff", color:"#222", width:"100%", minHeight:200, padding:"16px", fontSize:15, lineHeight:1.8, border:"1px solid #E5E5E5", borderRadius:14, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }} />
       <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginTop:8, textAlign:"right" }}>{jobDescription.length} / 1000</p>
     </LFWizCard>
+
+    <section className="listing-condition-section">
+      <h3>YouTube動画</h3>
+      <p className="listing-condition-note">仕事の様子を動画で伝えられます（任意）。</p>
+      <StepWorkVideo url={workVideoUrl} setUrl={setWorkVideoUrl} jobConsent={workVideoJobConsent} setJobConsent={setWorkVideoJobConsent} relatedConsent={workVideoRelatedConsent} setRelatedConsent={setWorkVideoRelatedConsent} setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} compact />
+    </section>
 
     {photoCaptionsOpen && jobPhotos.length > 0 && (
       <div className="listing-caption-page" role="region" aria-label="写真の説明ページ">
