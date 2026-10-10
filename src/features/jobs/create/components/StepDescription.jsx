@@ -21,21 +21,24 @@ export function StepDescription({ jobDescription, setJobDescription, jobPhotos, 
     </LFWizCard>
 
     {photoCaptionsOpen && jobPhotos.length > 0 && (
-      <div className="cb-lock-scroll" onClick={()=>setPhotoCaptionsOpen(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} style={{ position:"fixed", inset:0, zIndex:700, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-        <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}><p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}>写真の説明</p></div>
-          <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y", padding:16 }}>
-            <p className="f-sans" style={{ fontSize:14, color:"#717171", marginBottom:14 }}>写真を横にスワイプして、それぞれに一言添えられます。</p>
-            <div onScroll={e => { const w = e.currentTarget.clientWidth; if (w > 0) setSelectedPhotoIndex(Math.max(0, Math.min(jobPhotos.length - 1, Math.round(e.currentTarget.scrollLeft / w)))); }}
-              style={{ display:"flex", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", borderRadius:14, touchAction:"pan-x pan-y", overscrollBehaviorX:"contain", transform:"translateZ(0)", marginBottom:8 }}>
-              {jobPhotos.map((p, i) => <img loading="lazy" key={i} src={photoThumb(p)} alt={`写真${i+1}`} style={{ flexShrink:0, width:"100%", height:200, objectFit:"cover", borderRadius:14, scrollSnapAlign:"start" }} />)}
-            </div>
-            <div style={{ display:"flex", justifyContent:"center", gap:6, marginBottom:10 }}>{jobPhotos.map((_, i) => <span key={i} style={{ fontSize:10, color: i === selectedPhotoIndex ? "#00A86B" : "#D0D0D0" }}>{i === selectedPhotoIndex ? "●" : "○"}</span>)}</div>
-            <textarea ref={captionTextareaRef} value={jobPhotos[selectedPhotoIndex]?.caption ?? ""} onChange={e => setJobPhotos(prev => prev.map((p, i) => i === selectedPhotoIndex ? { ...p, caption: e.target.value } : p))}
-              placeholder="この写真について一言（例：収穫するブロッコリー畑です）" maxLength={100}
-              style={{ width:"100%", minHeight:80, padding:"14px", fontSize:14, lineHeight:1.6, background:"#fff", color:"#222", border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }} />
+      <div className="listing-caption-page" role="region" aria-label="写真の説明ページ">
+        <header className="listing-caption-header">
+          <button type="button" onClick={() => setPhotoCaptionsOpen(false)} aria-label="説明ページに戻る">‹ 戻る</button>
+          <strong>写真の説明</strong>
+          <span aria-hidden="true" />
+        </header>
+        <main className="listing-caption-content">
+          <h2>写真ごとに説明を追加</h2>
+          <p>写真を横にスワイプして、1枚ずつ説明を入力できます。</p>
+          <div className="listing-caption-gallery" onScroll={e => {const w=e.currentTarget.clientWidth;if(w>0)setSelectedPhotoIndex(Math.max(0,Math.min(jobPhotos.length-1,Math.round(e.currentTarget.scrollLeft/w))));}}>
+            {jobPhotos.map((photo,i)=><img key={photo.url || i} src={photoThumb(photo)} alt={`写真${i+1}`} loading="lazy" />)}
           </div>
-        </div>
+          <p className="listing-caption-counter">{selectedPhotoIndex+1} / {jobPhotos.length}</p>
+          <label className="listing-caption-label" htmlFor="listing-caption-input">この写真の説明</label>
+          <textarea id="listing-caption-input" ref={captionTextareaRef} value={jobPhotos[selectedPhotoIndex]?.caption ?? ""} onChange={e=>setJobPhotos(prev=>prev.map((photo,i)=>i===selectedPhotoIndex?{...photo,caption:e.target.value}:photo))} placeholder="例：収穫するブロッコリー畑です" maxLength={100} />
+          <p className="listing-caption-counter">{(jobPhotos[selectedPhotoIndex]?.caption ?? "").length} / 100文字</p>
+        </main>
+        <footer className="listing-caption-footer"><button type="button" onClick={()=>setPhotoCaptionsOpen(false)}>保存して戻る</button></footer>
       </div>
     )}
   </>);
