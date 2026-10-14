@@ -782,6 +782,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMsg, setDraftMsg] = useState("");
+  const [publishIssue, setPublishIssue] = useState("");
   const [draftBarFull, setDraftBarFull] = useState(false);
   const [draftOverlay, setDraftOverlay] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
@@ -1158,13 +1159,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 足りない欄を伝えて、その欄のページへ送る（案内だけで終わらせない）。戻り先は確認ページ。
   // プロフィール由来の項目（step=null）しか無い時は案内だけ＝フロー内に行き先が無い
   const goToMissingField = (missing) => {
-    alert("掲載前に以下の項目を入力してください：\n" + missing.map(m => "・" + m.label).join("\n"));
+    setPublishIssue("掲載前に確認が必要です：" + missing.map(m => m.label).join("、"));
     const target = missing.find(m => m.step != null);
     if (!target) return;
     setReturnToConfirm(true);
     setStep(target.step);
   };
   const openPublish = () => {
+    setPublishIssue("");
+    try {
     if (localOnly) {
       handleTopSave();
       setDraftMsg("同意の送信完了後に掲載できます。入力を続けたり、保存して終了したりできます。");
@@ -1177,6 +1180,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     if (nonRecruiter.length > 0) { goToMissingField(missing); return; }
     rememberFlowScroll();
     setPublishModal(true);
+    } catch (error) {
+      setPublishIssue("掲載前の確認を開始できませんでした。下書きを保存し、再度お試しください。");
+      console.error("listing publish preflight failed", error);
+    }
   };
 
   // 掲載の入口は確認を挟まず閉じる。入力中はヘッダーの「保存して終了」で保存する。
@@ -2481,6 +2488,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {isFarmer && step === 12 && (
             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
               <button onClick={() => handleTopSave({ exit: true })} disabled={draftSaving} className="f-sans" style={{ padding:"14px 20px", fontSize:15, fontWeight:700, background:"#fff", border:"1px solid #DDD", borderRadius:12, color:"#222", cursor:"pointer" }}>{draftSaving ? <>保存中<Dots /></> : "保存"}</button>
+              {publishIssue && <p role="alert" style={{color:"#B42318",fontSize:13,maxWidth:280,margin:0}}>{publishIssue}</p>}
               <button onClick={openPublish} className="btn-primary" style={{ padding:"14px 28px", fontSize:15, fontWeight:700 }}>{editingOpen ? "変更を保存" : "掲載する"}</button>
             </div>
           )}
