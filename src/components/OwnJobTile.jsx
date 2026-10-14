@@ -6,6 +6,8 @@
 // ★コードは写せない（プロプライエタリ）＝写したのは構成と見た目の言語（NavIcon・TimeTree・WNと同じ判断）。
 // ★本番（FarmerDashboard）と見本帳（AdminFarmerPagesRoom）が同じ部品を使う＝見本帳の写経を増やさない。
 import { Avatar } from "./ui";
+import { useJobCardPress } from "../hooks/useJobCardPress.js";
+import "./OwnJobActions.css";
 import { NavIcon } from "./NavIcons";
 import { isJobEnded, isJobUnpublished, photoThumb } from "../lib/utils";
 
@@ -25,15 +27,18 @@ export function ownJobState(d) {
 // title＝作物 作業（無ければ「無題の求人」）／sub＝場所・日程の1行／jobNumber＝#No.（必ず読める）
 // state＝ownJobState の返り値／photo＝サムネのURL（無ければ求人者のアイコン）
 // badge＝右上の小さなバッジ（未回答の質問「?N」など）。onOpen＝カードのタップ
-export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, avatarName, badge, onOpen, dataGuide, actionLabel, actionHint, justSaved }) {
+export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, avatarName, badge, onOpen, dataGuide, actionLabel, actionHint, justSaved, selected = false, onActions }) {
+  const press = useJobCardPress(onActions);
   return (
-    <div role="button" tabIndex={0} onClick={onOpen} data-guide={dataGuide}
+    <div className="cb-own-job-tile" data-own-job-number={jobNumber} data-selected={selected ? "true" : "false"}>
+    <div {...press} role="button" tabIndex={0} onClick={onOpen} data-guide={dataGuide} data-job-card-main
+      aria-expanded={onActions ? selected : undefined} aria-controls={selected ? "own-job-actions" : undefined}
       aria-label={actionLabel ? `${title} #${jobNumber}：${actionLabel}` : undefined}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen && onOpen(); } }}
-      className="cb-btn-press" style={{ cursor: "pointer", minWidth: 0 }}>
-      <div style={{ position: "relative", aspectRatio: "20 / 19", borderRadius: 12, overflow: "hidden", background: "#F0F0F0" }}>
+      onKeyDown={e => { if (press.onKeyDown(e)) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen && onOpen(); } }}
+      className="cb-btn-press" style={{ cursor: "pointer", minWidth: 0, touchAction: onActions ? "pan-y pinch-zoom" : undefined, userSelect: onActions ? "none" : undefined, WebkitUserSelect: onActions ? "none" : undefined, WebkitTouchCallout: onActions ? "none" : undefined }}>
+      <div className="cb-own-job-photo" style={{ position: "relative", aspectRatio: "20 / 19", borderRadius: 12, overflow: "hidden", background: "#F0F0F0" }}>
         {photo ? (
-          <img src={photo} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <img src={photo} alt="" draggable={false} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         ) : (
           // 写真が無い求人＝求人者（自分）のアイコン（2026-08-31）。ダミーの写真は置かない
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#C8C8C8" }}>
@@ -49,6 +54,7 @@ export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, ava
           </span>
         )}
         {badge}
+        {selected && <span className="cb-own-job-selected" aria-hidden="true">選択中</span>}
       </div>
       <div style={{ marginTop: 10, minWidth: 0 }}>
         <div className="f-sans" style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
@@ -60,6 +66,12 @@ export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, ava
         {actionHint && <p className="f-sans" style={{ margin:"8px 0 0", fontSize:12, lineHeight:1.6, color:"#717171" }}>{actionHint}</p>}
         {actionLabel && <span className="f-sans" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", minHeight:44, marginTop:8, fontSize:14, fontWeight:700, color:"#222", borderTop:"1px solid #EBEBEB" }}>{actionLabel}<span aria-hidden="true">→</span></span>}
       </div>
+    </div>
+    {onActions && <button type="button" className="cb-own-job-more" style={{ top: badge ? 48 : 10 }}
+      aria-label={`求人 #${jobNumber} の操作を開く`} aria-expanded={selected} aria-controls={selected ? "own-job-actions" : undefined}
+      onClick={event => { event.stopPropagation(); onActions(event.currentTarget); }}>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="19" cy="12" r="1.7" /></svg>
+    </button>}
     </div>
   );
 }
