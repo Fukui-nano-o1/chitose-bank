@@ -2,6 +2,7 @@
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { productAnalytics } from "../../../lib/productAnalytics";
+import { logAppError } from "../../../app/diagnostics/errorLog";
 import { useState, useEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
@@ -1712,6 +1713,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             const handleSaveJob = async () => {
               if (jobSaving) return;
               setPublishIssue("");
+              const reportPublishFailure = (phase, reason = "unknown", error = null) => {
+                const safePhase = ["profile_read","draft_sync","publish_rpc","unexpected"].includes(phase) ? phase : "unexpected";
+                const code = String(error?.code || reason || "unknown").slice(0,80).replace(/[^a-zA-Z0-9_-]/g, "_");
+                void logAppError({
+                  component: "ListingFlow", page: "listing_publish", action: "publish",
+                  operation: safePhase, error: { message: "求人掲載失敗: " + safePhase + " / " + code, code },
+                  metadata: { phase: safePhase, reason_code: code },
+                });
+              };
               if (localOnly || !ownerId) { handleTopSave(); return; }
               const missing = getPublishMissingFields();
               // 募集者の項目【だけ】が欠けている時はここで止めない＝この直後のrecruitBox
@@ -1734,6 +1744,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 {
                   const { data: ep0, error: recruiterError } = await fetchEmployerRecruiterInfo(session.user.id);
                   if (recruiterError) {
+                    reportPublishFailure("profile_read", "profile_read_failed", recruiterError);
                     handleTopSave(); setPublishModal(false);
                     setDraftMsg("下書きはこの端末に保存しました。掲載に必要な情報を確認できませんでした。通信復旧後に、もう一度掲載してください。");
                     return;
@@ -1799,7 +1810,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   }
                 }
                 if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
-                  const reason = saved?.reason || "";
+                  const reason = saved?.reason || "sync_unconfirmed";
+                  reportPublishFailure("draft_sync", reason);
                   const failureMessage = (
                     saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
                     : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
@@ -1834,6 +1846,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     if (!check.error && check.data?.status === "open") pub = { data: { ok: true } };
                   }
                   if (pub.error || !pub.data?.ok) {
+                    reportPublishFailure("publish_rpc", pub.data?.reason || pub.error?.code || "publish_rejected", pub.error);
                     setPublishIssue("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") + "。求人は保存されています。");
                     return;
                   }
@@ -1875,6 +1888,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
                 else { setPublishedOpen(publishedNow); setStep(13); }
               } catch (e) {
+                reportPublishFailure("unexpected", e?.code || "exception", e);
                 // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
                 setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
                   + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
