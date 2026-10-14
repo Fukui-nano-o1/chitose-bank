@@ -1,0 +1,68 @@
+name: Verify listing card actions
+on:
+  push:
+    branches: [codex/listing-card-actions-20261014]
+permissions:
+  contents: write
+concurrency:
+  group: listing-card-actions-20261014
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply scoped changes to the inspected main commit
+        shell: bash
+        run: |
+          cp scripts/apply-own-job-actions.py /tmp/apply-own-job-actions.py
+          tar -cf /tmp/listing-assets.tar src/lib/ownJobActions.js src/hooks/useJobCardPress.js src/hooks/useOwnJobSelection.js src/components/OwnJobActionBar.jsx src/components/OwnJobActions.css scripts/own-job-actions.test.mjs scripts/own-job-actions.browser.mjs
+          git checkout --detach 07ad5634fdd1361cea12297fdff65b4598dd627b
+          tar -xf /tmp/listing-assets.tar
+          python /tmp/apply-own-job-actions.py
+          mkdir -p artifacts
+          git diff --check
+          git diff > artifacts/listing-actions.diff
+      - run: npm ci
+      - name: Critical regression suite, ESLint and production build
+        shell: bash
+        run: npm run build 2>&1 | tee artifacts/build.log
+      - name: Install isolated browser test engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Mobile-sized Chromium and WebKit interaction checks
+        shell: bash
+        run: node scripts/own-job-actions.browser.mjs 2>&1 | tee artifacts/browser.log
+      - name: Record verification and publish only the verified code branch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          entry = '\n## 2026-10-14 掲載カードの長押し操作\n\n- 常設の操作モードを撤去。450msの長押し、カードの操作ボタン、キーボードから1求人だけを選択する方式へ変更。\n- 選択対象を名前と番号で明示。下部ナビの上に再開・編集・コピー・削除・非公開を状態別に表示。\n- 10px超の移動・スクロール・pointercancelで長押しを中止。長押し後のクリック、対象の持ち越し、多重実行を防止。\n- 既存のコピー経路・本人限定API・削除制限・最終確認を維持。DB・認証・環境変数は変更なし。\n- 検証: 追加16件を含むcriticalテスト、ESLint、本番ビルド、390px幅のChromium/WebKit操作テストを実行。実機iPhoneは未確認。\n\n'
+          p = Path('PROGRESS.md')
+          s = p.read_text()
+          first, sep, rest = s.partition('\n')
+          p.write_text(first + sep + entry + rest)
+          Path('docs/listing-card-actions-2026-10-14.md').write_text('# 掲載カードの操作仕様\n\n確認日: 2026-10-14\n\n通常のタップは下書きの再開・掲載済み求人の閲覧を維持します。450msの長押し、右上の操作ボタン、Shift+F10で1件を選択します。選択中は黒枠と選択中ラベルが付き、下部ナビの上の白いアクションバーに求人名・番号を表示します。\n\n未掲載の下書きは再開・コピー・削除、公開中は編集・コピー・非公開、終了した掲載済み求人はコピーのみです。実行時にも現在の行と状態を確認し、対象番号を固定します。削除・非公開の確認にも求人番号を表示します。\n\n外側のタップ・閉じる・Escape・タブ切替・画面遷移・対象の消失で選択を解除します。スクロールは阻害せず、10px超の移動で長押しを取り消します。通信中の重複操作は禁止し、エラー時は結果不明を明示します。\n\n検証: `npm run build` と `node scripts/own-job-actions.browser.mjs`。ブラウザ試験は架空データだけを用い、外部通信を遮断しています。iPhone実機と本番の実求人を削除する試験は行っていません。\n')
+          PY
+          git add src/components/FarmerDashboard.jsx src/components/OwnJobTile.jsx src/lib/ownJobActions.js src/hooks/useJobCardPress.js src/hooks/useOwnJobSelection.js src/components/OwnJobActionBar.jsx src/components/OwnJobActions.css scripts/own-job-actions.test.mjs scripts/own-job-actions.browser.mjs package.json PROGRESS.md docs/listing-card-actions-2026-10-14.md
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Scope listing actions to one long-pressed job card'
+          git push origin HEAD:refs/heads/codex/listing-card-actions-verified-20261014
+          echo "Verified commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: listing-card-actions-verification
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: warn
