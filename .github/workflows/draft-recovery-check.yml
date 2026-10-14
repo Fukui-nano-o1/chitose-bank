@@ -1,0 +1,35 @@
+name: Draft recovery checks
+on:
+  push:
+    branches: [fix/draft-recovery-stage3-20261014]
+  pull_request:
+    paths:
+      - src/lib/deviceDrafts.js
+      - src/lib/offlineSync.js
+      - src/lib/jobDraftProtocol.js
+      - scripts/*draft*.mjs
+      - scripts/fixtures/current-draft-sync-contract.sql
+      - .github/workflows/draft-recovery-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: draft-recovery-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Critical regressions, lint and production bundle (no production credentials)
+        run: npm run build
