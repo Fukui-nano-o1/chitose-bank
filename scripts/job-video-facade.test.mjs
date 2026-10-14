@@ -199,7 +199,9 @@ test('real job cards: facade loads on tap only, native controls, preserved photo
       assert.equal(below.querySelector('.job-video-facade'),null,'native controls have no facade overlay');
       const photos=card.querySelector('.job-card-media-scroll');
       Object.defineProperty(photos,'clientWidth',{value:300});
-      card.querySelector('[aria-label="次の画像・動画"]').click();
+      assert.equal(card.querySelector('.job-card-media-controls'),null,'search has no external arrows or visible photo counter');
+      assert.equal(card.querySelector('[aria-label="次の画像・動画"]'),null);
+      photos.dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
       await until(()=>photos.scrollLeft===300,'search photo carousel still advances');
       assert.match(card.querySelector('[aria-live]').textContent,/写真2.*2\/2/);
       assert.equal(w.qaOpened,opened);

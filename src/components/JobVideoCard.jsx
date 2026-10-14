@@ -9,7 +9,7 @@ const stopPropagation = event => event.stopPropagation();
 
 // Shared by all JobCard variants, including jobs without a video.
 // The poster replaces the iframe until an explicit play action (web.dev click-to-load).
-export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 220, priority = false, href, onOpen, standalone = false }) {
+export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 220, priority = false, href, onOpen, standalone = false, swipeOnly = false }) {
   const instance = useId();
   const scroller = useRef(null);
   const root = useRef(null);
@@ -157,6 +157,8 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
           style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
       </a>)}
     </div>
+    {/* Search photos use native swipe and keyboard navigation, without a visible counter/control row. */}
+    {swipeOnly && count > 1 && <span className="job-card-media-status" role="status" aria-live="polite" aria-atomic="true">{mediaLabel} · {active + 1}/{count}</span>}
     {/* Controls never cover the YouTube player. Both media types remain discoverable. */}
     {hasVideo && images.length > 0 && <div className="job-card-media-types" style={{ display: 'flex', gap: 6, marginTop: 6 }}>
       <button type="button" onClick={event => move(0, event)} aria-pressed={active === 0}
@@ -164,7 +166,7 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
       <button type="button" onClick={event => move(active > 0 ? active : 1, event)} aria-pressed={active > 0}
         style={{ ...controlStyle, flex: 1, background: active > 0 ? '#f1f5f3' : '#fff' }}>写真（{images.length}枚）</button>
     </div>}
-    {(count > 1 || hasVideo) && <div className="f-sans job-card-media-controls" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6, minHeight: 44 }}>
+    {!swipeOnly && (count > 1 || hasVideo) && <div className="f-sans job-card-media-controls" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 6, minHeight: 44 }}>
       {count > 1 && <>
         <button type="button" onClick={event => move(active - 1, event)} disabled={active === 0} aria-label="前の画像・動画" style={{ ...controlStyle, opacity: active === 0 ? .4 : 1 }}>‹</button>
         <span aria-live="polite" style={{ color: '#717171', fontSize: 12 }}>{mediaLabel} · {active + 1}/{count}</span>
@@ -196,7 +198,7 @@ export function JobVideoCard({ job, videoId = '', saved, onToggleSave, onOpen, v
       </span>
     </div>
     <JobVideoCardMedia videoId={videoId} photos={job.photos} title={`${job.crop} ${job.task}`} height={height} priority={priority}
-      href={`#/work/job/${job.id}`} onOpen={onOpen} />
+      href={`#/work/job/${job.id}`} onOpen={onOpen} swipeOnly={videoPlacement === "below" && !videoId} />
     {summary}
   </article>;
 }

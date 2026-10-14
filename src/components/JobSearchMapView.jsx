@@ -369,8 +369,8 @@ export function JobSearchMapView({ onRegister, me }) {
     const el = laneRootRef.current; if (!el) return;
     const onStart = (ev) => {
       // オーバーレイ（シート類=.cb-lock-scroll・全画面の検索パネル=.cb-search-overlay）内で
-      // 始まったタッチは奪わない（パネル操作中に背後のレーンが切り替わる事故の防止）
-      if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll, .cb-search-overlay")) { laneGestureRef.current = null; return; }
+      // 始まったタッチと写真カルーセルは奪わない。親のnative listenerはReactのstopPropagationより先に走る。
+      if (ev.target && ev.target.closest && ev.target.closest(".cb-lock-scroll, .cb-search-overlay, .job-card-media-scroll")) { laneGestureRef.current = null; return; }
       const t = ev.touches[0]; if (t) laneGestureRef.current = { x: t.clientX, y: t.clientY, lock: null };
     };
     const onMove = (ev) => {
@@ -1060,7 +1060,7 @@ export function JobSearchMapView({ onRegister, me }) {
            条件を満たさない人にはタブ自体が出ない＝従来どおり求人一覧のまま（1レーンなら非表示） ── */}
       {/* ── スワイプ容器（2026-08-07たきと指示・指連動でレーン切替）。タブは容器内・アニメの外＝動かない。
            1レーンの人もrootは張るがタッチ判定がlaneDualRefで眠る＝従来どおり無反応 ── */}
-      <div ref={laneRootRef} style={{ overflowX:"hidden", touchAction:"pan-y" }}>
+      <div ref={laneRootRef} style={{ overflowX:"hidden", touchAction:"pan-x pan-y pinch-zoom" }}>
       <SearchLaneTabs value={lane} onChange={switchLane}
         lanes={showConsignLane ? [{ k:"jobs", label:"求人" }, { k:"consign", label:"委託" }] : [{ k:"jobs", label:"求人" }]} />
       {/* ドラッグ追従はlaneContentRefへのtransform直書き（再レンダーなし）。切替成立時はkey更新でスライドイン再生 */}
