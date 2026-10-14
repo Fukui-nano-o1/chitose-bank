@@ -81,13 +81,39 @@ try {
       assert.equal(await bar.getAttribute('aria-label'), '求人 #202 の操作', 'switch exactly one selected job');
       assert.equal(await page.locator('[data-selected="true"]').count(), 1);
       await page.evaluate(() => document.body.classList.add('cb-scroll-hide'));
-      const geometry = await page.evaluate(() => ({ bottom: document.getElementById('own-job-actions').getBoundingClientRect().bottom, nav: document.querySelector('.app-header-mobile').getBoundingClientRect().top, width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
-      assert.ok(geometry.bottom <= geometry.nav, 'action bar must sit above navigation');
-      assert.ok(geometry.scrollWidth <= geometry.width, 'no horizontal overflow');
+      await page.waitForTimeout(350); // Allow the entry animation to finish before checking painted visibility.
+      const geometry = await page.evaluate(() => {
+        const element = document.getElementById('own-job-actions');
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const button = element.querySelector('[data-job-action="copy"]');
+        const target = button.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, barWidth: rect.width, barHeight: rect.height,
+          nav: document.querySelector('.app-header-mobile').getBoundingClientRect().top,
+          width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
+          display: style.display, opacity: Number(style.opacity), visibility: style.visibility,
+          position: style.position, transform: style.transform, pointerEvents: style.pointerEvents,
+          hit: button.contains(document.elementFromPoint(target.x + target.width / 2, target.y + target.height / 2)),
+          body: document.body.className };
+      });
+      console.log(name + ' action bar visibility: ' + JSON.stringify(geometry));
       await page.screenshot({ path: 'artifacts/listing-actions-' + name + '.png' });
+      assert.ok(geometry.bottom <= geometry.nav && geometry.top >= 0, 'action bar must sit above navigation inside the viewport');
+      assert.ok(geometry.barWidth > 250 && geometry.barHeight > 80, 'action bar must have a visible box');
+      assert.ok(geometry.scrollWidth <= geometry.width, 'no horizontal overflow');
+      assert.equal(geometry.opacity, 1, 'selected actions must be opaque');
+      assert.equal(geometry.visibility, 'visible');
+      assert.notEqual(geometry.display, 'none');
+      assert.notEqual(geometry.pointerEvents, 'none');
+      assert.equal(geometry.hit, true, 'visible action button must receive actual pointer input');
       await page.evaluate(() => { const button = document.querySelector('[data-job-action="copy"]'); button.click(); button.click(); });
       await bar.waitFor({ state: 'detached' });
       assert.deepEqual(await page.evaluate(() => window.__actions), [{ kind: 'copy', number: 202 }], 'double click runs once for selected job only');
+      await more(202).click();
+      await page.evaluate(() => document.body.classList.add('cb-scroll-hide'));
+      await bar.locator('[data-job-action="copy"]').click();
+      await bar.waitFor({ state: 'detached' });
+      assert.deepEqual(await page.evaluate(() => window.__actions), [{ kind: 'copy', number: 202 }, { kind: 'copy', number: 202 }], 'real pointer click works even after navigation auto-hide');
       await page.evaluate(() => document.body.classList.remove('cb-scroll-hide'));
       await main(101).dispatchEvent('pointerdown', { pointerId: 3, pointerType: 'touch', button: 0, isPrimary: true, clientX: 30, clientY: 150 });
       await main(101).dispatchEvent('pointermove', { pointerId: 3, pointerType: 'touch', button: 0, isPrimary: true, clientX: 30, clientY: 185 });
@@ -108,7 +134,7 @@ try {
       await page.evaluate(() => window.__changeScope());
       await bar.waitFor({ state: 'detached' });
       assert.deepEqual(errors, [], 'no browser runtime errors');
-      console.log(name + ': normal tap, hold, selected-target switch, copy/delete isolation, double-submit guard, scroll cancel, keyboard dismissal, tab invalidation and geometry passed');
+      console.log(name + ': normal tap, hold, selected-target switch, copy/delete isolation, double-submit guard, scroll cancel, keyboard dismissal, tab invalidation, painted visibility, hit testing and geometry passed');
     } finally { await browser.close(); }
   }
 } finally {
