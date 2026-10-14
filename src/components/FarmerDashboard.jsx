@@ -15,6 +15,8 @@ import { isAdmin, ymdLocal, calFmtDate, daysBetweenYmd, payLabel, CHAT_ELIGIBLE_
 import { useSheetDragClose } from "../lib/sheetDrag";
 import { Avatar, AutoSkeleton, useSkeletonProbe, useSkeletonProbeOn, Dots, VineCorner, QaChat } from "./ui";
 import { OwnJobTile, ownJobState, ownJobPhoto, OWN_JOB_GRID_CLASS } from "./OwnJobTile";
+import { OwnJobActionBar } from "./OwnJobActionBar";
+import { useOwnJobSelection } from "../hooks/useOwnJobSelection.js";
 import { WorkDaysStrip } from "./WorkDaysStrip";
 import { ApplicantDetailSheet } from "./ApplicantDetailSheet";
 import { ApplicantProfile } from "./ApplicantProfile";
@@ -442,81 +444,52 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   };
   // 求人カードタップ→確認ページと同型の全画面プレビュー（AdminJobPreviewのownerViewモード流用）
   const [previewJob, setPreviewJob] = useState(null); // { num: job_number, draft: bool（trueなら編集再開ボタンを出す） }
-  // ── 求人の操作ピル（2026-08-07たきと指示・同日改定「各役割タップ→求人を直接タップする。
-  //    削除と非公開だけが最終確認」）──
-  // ピルのタップ＝モード選択（もう一度タップで取消）。その状態で一覧の求人カードを直接タップすると実行。
-  // 選択シートは廃止（対象は画面のカードそのものを指させる＝赤ちゃん前提の直接操作）。
-  // 最終確認（confirm）は削除・非公開のみ。再開・コピーはカードタップで即実行
-  const [armedAction, setArmedAction] = useState(null); // 'resume'|'copy'|'delete'|'unpublish'
-  const ARMED_LABEL = { resume:"再開", edit:"編集", copy:"コピー", delete:"削除", unpublish:"非公開" };
+  // Operations keep the existing owner-scoped APIs; the selected target is captured before execution.
   const runJobAction = async (kind, num) => {
-    if (kind === "resume") { onResume(num); return; }
+    if (kind === "resume") { onResume(num); return true; }
     // 編集（公開中）＝一時非公開にせず編集フローへ（2026-09-11）。応募が届いている求人はフローが開いた時点で
     // 止めてコピーへ誘導し、保存はDBの update_my_open_job が壁（本人・open・進行中の応募なし）を持つ
-    if (kind === "edit") { onResume(num); return; }
+    if (kind === "edit") { onResume(num); return true; }
     if (kind === "unpublish") {
       // 一時非公開：open→draftへ（unpublish_job RPC・本人限定）。最終確認あり（たきと指定）。
       // 再掲載は作成中→再開→掲載＝そのまま公開（2026-08-14 承認プロセスの削除。旧「審査を通る」は誤り）。
       // 例外＝運営から修正のお願いが届いている求人だけ、再掲載が運営確認に落ちる（migration 20260814093042）。
       // その状態の農家には赤帯で別途知らせているので、この確認文には書かない（普通の一時非公開の話を短く伝える）
       // ★応募中・面接中は見送りになる（migration 20260808004900・採用済みは不変）＝確認文に明記
-      if (!confirm("この求人を一時非公開にしますか？（さがすに表示されなくなります。作業が始まっていない応募（応募中・面接中・採用済み）は見送りになります。あとから再掲載できます）")) return;
+      if (!confirm(`求人 #${num} を一時非公開にしますか？（さがすに表示されなくなります。作業が始まっていない応募（応募中・面接中・採用済み）は見送りになります。あとから再掲載できます）`)) return false;
       const { data, error } = await unpublishJob(num);
-      if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return; }
+      if (error || !data?.ok) { alert("一時非公開にできませんでした：" + (data?.reason || error?.message || "不明")); return false; }
       // 公開中タブに「一時非公開」帯で残す（2026-07-16たきと指定）。opened_atは掲載歴の印としてそのまま
       const markUnpublished = prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d);
       setDbDrafts(markUnpublished);
       setDbActive(markUnpublished);
       setDbExpired(markUnpublished);
       emitConfirmedRefresh([REFRESH_JOBS, REFRESH_APPLICATIONS]);
-      return;
+      return true;
     }
     if (kind === "delete") {
       // 削除は下書きのみ（タップ側で判定済み＋DBの trg_block_delete_past_job が二重の壁）。最終確認あり（不可逆）
-      if (!confirm("この求人（下書き）を削除しますか？元に戻せません")) return;
+      if (!confirm(`求人 #${num}（下書き）を削除しますか？元に戻せません`)) return false;
       const { error } = await deleteMyJob(num, me.id);
-      if (error) { alert("削除に失敗しました：" + error.message); return; }
+      if (error) { alert("削除に失敗しました：" + error.message); return false; }
       setDbDrafts(prev => prev.filter(d => d.job_number !== num));
       setDbActive(prev => prev.filter(d => d.job_number !== num));
       setDbExpired(prev => prev.filter(d => d.job_number !== num));
       if (num === savedDraftJobNumber) onDismissDraftSaved?.();
       emitConfirmedRefresh(REFRESH_JOBS);
-      return;
+      return true;
     }
     if (kind === "copy") {
       // 唯一のレール（lib/copyJobFlow・2026-08-29）：多重実行の錠前つき。
       // 失敗の案内・sessionStorage受け渡し・編集フローへの遷移もレール側が担う
-      await copyJobToEdit(num);
+      return (await copyJobToEdit(num))?.ok === true;
     }
   };
-  // ピルのタップ＝モードの入/切。対象が1件も無い時はモードに入らず理由を案内
-  const armJobAction = (kind) => {
-    if (armedAction === kind) { setArmedAction(null); return; }
-    const jobs = kind === "resume" ? dbDrafts.filter(d => d.status === "draft")
-      : kind === "copy" ? [...dbDrafts, ...dbActive, ...dbExpired]
-      : kind === "unpublish" || kind === "edit" ? dbActive.filter(d => d.status === "open")
-      : dbDrafts.filter(d => d.status === "draft" && !d.opened_at);
-    if (jobs.length === 0) {
-      alert(kind === "delete" ? "削除できる下書きがありません（一度でも掲載した求人・応募のある求人は削除できません）"
-        : kind === "unpublish" ? "非公開にできる公開中の求人がありません"
-        : kind === "edit" ? "編集できる公開中の求人がありません"
-        : kind === "resume" ? "作成中の求人がありません" : "コピーできる求人がありません");
-      return;
-    }
-    setArmedAction(kind);
-  };
-  // モード中に求人カードをタップ→その求人に実行（適さないカードは理由を出してモード維持）
-  const handleArmedCardTap = (d) => {
-    const kind = armedAction;
-    if (kind === "resume" && d.status !== "draft") { alert("再開できるのは作成中の下書きだけです"); return; }
-    if (kind === "delete" && !(d.status === "draft" && !d.opened_at)) { alert("削除できるのは一度も掲載していない下書きだけです"); return; }
-    if (kind === "unpublish" && d.status !== "open") { alert("非公開にできるのは公開中の求人だけです"); return; }
-    if (kind === "edit" && d.status !== "open") { alert("編集できるのは公開中の求人だけです（作成中は「再開」から）"); return; }
-    setArmedAction(null);
-    runJobAction(kind, d.job_number);
-  };
-  // ペイン切替（作成中⇄公開中）でモード解除：3つ目のピルが削除⇄非公開に入れ替わるため持ち越さない
-  useEffect(() => { setArmedAction(null); }, [jobTab]);
+  const { selectedJob, actions: selectedJobActions, busy: jobActionBusy, error: jobActionError,
+    selectJob, clearSelection, runSelectedAction } = useOwnJobSelection({
+    rows: jobTab === "draft" ? dbDrafts : jobTab === "active" ? dbActive : jobTab === "expired" ? dbExpired : [],
+    scope: jobTab, ownerId: me?.id, enabled: isOwnJobsTab, isEnded: isJobEnded, runAction: runJobAction,
+  });
   // 「公開間近」（＝掲載申請済み・公開の準備中）のカードをタップした時の説明ボックス（2026-08-07たきと指示）。
   // 詳細も求人者プロフィールも見せず、説明だけを展開する＝「審査されている」感を出さない
   const [nearPublishInfo, setNearPublishInfo] = useState(false);
@@ -526,7 +499,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   // 部品は components/OwnJobTile（見本帳と共用）。写真の左上に状態のピル（作成中／公開間近／掲載中／
   // 満員／一時非公開／終了＝求人の行から導く）、下に題名＋#No.、灰色の1行（場所・日程）。
   // 旧・JobCard（さがすの客側のカード）＋StatusRibbon の重ね（2026-08-23）は廃止＝ホスト側のカードは別物。
-  // 下書きはカードから直接再開。公開中は従来のプレビュー、操作モード中は選んだ操作を実行。
+  // 通常タップは従来どおり。長押しは1件の選択だけを行い、操作は専用バーから実行する。
   const OWN_JOB_FILTERS = [
     { k:"draft",   l:"作成中", h:"/profile/employer/drafts" },
     { k:"active",  l:"公開中", h:"/profile/employer/active" },
@@ -547,15 +520,19 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
     const unpublishedDraft = resume && !d.opened_at;
     return (
       <OwnJobTile key={d.job_number} title={title} sub={sub} jobNumber={d.job_number} state={unpublishedDraft ? { label:"下書き", dot:"#F5A623" } : ownJobState(d)}
-        actionLabel={armedAction ? ARMED_LABEL[armedAction] : resume ? "続きを入力" : undefined}
+        actionLabel={resume ? "続きを入力" : undefined}
+        selected={selectedJob?.job_number === d.job_number}
+        onActions={origin => selectJob(d.job_number, origin)}
         actionHint={resume ? isJobEnded(d) ? "日程を見直して、掲載を続けましょう。" : "保存したところから再開できます。" : undefined}
         justSaved={d.job_number === savedDraftJobNumber}
         // 写真の無い求人は求人者（＝自分）のアイコン（2026-08-31）。my_farm_jobs は求人者の列を返さないので自分のプロフィールから
         photo={ownJobPhoto(d)} avatarUrl={empMini?.avatar_url || ""} avatarName={empMini?.nickname || me?.name || ""}
-        onOpen={() => armedAction ? handleArmedCardTap(d)  // モード中はカード直接タップ＝実行（2026-08-07）
-          : nearPublish ? setNearPublishInfo(true)          // 公開間近は詳細も求人者も見せず説明ボックス
-          : resume ? onResume(d.job_number)
-          : setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at })}
+        onOpen={() => {
+          if (selectedJob) { clearSelection(); return; }
+          if (nearPublish) setNearPublishInfo(true);
+          else if (resume) onResume(d.job_number);
+          else setPreviewJob({ num: d.job_number, draft: d.status === "draft", open: d.status === "open", published: !!d.opened_at });
+        }}
         badge={qn > 0 ? (
           // ❓バッジのタップ＝その求人の質問タブへ直行（2026-07-27たきと指示）。カードのタップとは別動作（stopPropagation）。
           // 公開中でない求人では詳細が開けない＝カードのタップに任せる（バッジは表示のみ）
@@ -1136,7 +1113,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
             </button>
           ); })}
         </div>
-        {jobTab === "draft" && dbDrafts.length > 0 && <p className="f-sans" style={{ margin:"0 0 18px", fontSize:14, lineHeight:1.7, color:"#717171" }}>下書きを選ぶと、保存したところから再開できます。</p>}
+        {jobTab === "draft" && dbDrafts.length > 0 && <p className="f-sans" style={{ margin:"0 0 18px", fontSize:14, lineHeight:1.7, color:"#717171" }}>タップで再開、長押しでコピー・削除などの操作ができます。</p>}
         {jobsError && <div className="f-sans" role="alert" style={{ padding:"16px 0", fontSize:14 }}><p>{jobsError}</p><button type="button" className="cb-draft-resume f-sans" onClick={()=>setJobsRetry(n=>n+1)}>もう一度読み込む</button></div>}
         {draftsLoading ? (
           /* 「読み込み中...」の文字でなく、前回この面が実際に描いた形の仮配置を並べる（2026-07-27たきと指示） */
@@ -1464,46 +1441,11 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         <AdminJobPreview jobNumber={previewJob.num} ownerView onClose={()=>setPreviewJob(null)} />
       )}
 
-      {/* ── 求人の操作ピル（2026-08-07たきと指示・同日改定「各役割タップ→求人を直接タップする。
-           削除と非公開だけが最終確認」）──
-           求人一覧ページ（作成中⇄公開中）に常設。位置は浮遊☰の真横・同じ高さ（CSS .cb-job-action-fabs）。
-           ピルのタップ＝モード選択（点灯・もう一度で取消）→一覧の求人カードを直接タップで実行。
-           最終確認は削除・非公開のみ（runJobAction内のconfirm）。再開・コピーは即実行。
-           3つ目のピルはペインで切替：作成中＝削除／公開中＝非公開（key切替でcbPillSwapアニメ）。
-           削除の対象は下書き（一度も掲載していない）のみ＝DBの trg_block_delete_past_job と二重の壁 */}
-      {isOwnJobsTab && (<>
-        {/* モード中の案内バブル：画面中央に配置（2026-08-07たきと指示。ピル行の左端anchorだと右にはみ出していた）。
-            pointer-events:none＝下のカードのタップを妨げない */}
-        {armedAction && (
-          <div className="cb-job-action-hint">
-            <div className="f-sans" style={{ background:"#222", color:"#fff", fontSize:12, fontWeight:700, padding:"9px 13px", borderRadius:10, whiteSpace:"nowrap", boxShadow:"0 2px 10px rgba(0,0,0,.3)", animation:"cbPillSwap .2s ease" }}>
-              {ARMED_LABEL[armedAction]}する求人をタップ（もう一度ピルで取消）
-            </div>
-          </div>
-        )}
-        <div className="cb-job-action-fabs">
-          {/* 下書きの再開は各カードに表示。公開中の編集は従来の操作を残す。 */}
-          {jobTab === "active" && (
-            <button key="edit" onClick={()=>armJobAction("edit")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, background:"#00A86B", color:"#fff", border:"none", borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
-              boxShadow: armedAction === "edit" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.18)", opacity: (!armedAction || armedAction === "edit") ? 1 : 0.45 }}>編集</button>
-          )}
-          <button onClick={()=>armJobAction("copy")} className="f-sans" style={{ padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
-            background: armedAction === "copy" ? "#00A86B" : "#fff", color: armedAction === "copy" ? "#fff" : "#00A86B", border:"1.5px solid #00A86B",
-            boxShadow: armedAction === "copy" ? "0 0 0 3px rgba(0,168,107,.35), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "copy") ? 1 : 0.45 }}>コピー</button>
-          {jobTab === "active" ? (
-            <button key="unpublish" onClick={()=>armJobAction("unpublish")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
-              background: armedAction === "unpublish" ? "#C77700" : "#fff", color: armedAction === "unpublish" ? "#fff" : "#C77700", border:"1.5px solid #FFB020",
-              boxShadow: armedAction === "unpublish" ? "0 0 0 3px rgba(199,119,0,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "unpublish") ? 1 : 0.45 }}>非公開</button>
-          ) : jobTab === "draft" ? (
-            <button key="delete" onClick={()=>armJobAction("delete")} className="f-sans" style={{ animation:"cbPillSwap .28s ease", padding:"12px 16px", fontSize:13, fontWeight:800, borderRadius:24, cursor:"pointer", whiteSpace:"nowrap",
-              background: armedAction === "delete" ? "#E24B4A" : "#fff", color: armedAction === "delete" ? "#fff" : "#E24B4A", border:"1.5px solid #E24B4A",
-              boxShadow: armedAction === "delete" ? "0 0 0 3px rgba(226,75,74,.3), 0 4px 12px rgba(0,0,0,.18)" : "0 4px 12px rgba(0,0,0,.15)", opacity: (!armedAction || armedAction === "delete") ? 1 : 0.45 }}>削除</button>
-          ) : (
-            /* 終了の絞り込み＝削除も非公開もできない（過去の求人は消さない・2026-08-05）＝枠だけ空けて詰めない */
-            <span aria-hidden="true" className="f-sans" style={{ visibility:"hidden", pointerEvents:"none", padding:"12px 16px", fontSize:13, fontWeight:800, border:"none", borderRadius:24, whiteSpace:"nowrap" }}>削除</span>
-          )}
-        </div>
-      </>)}
+      {/* The action bar is scoped to one currently visible job, never a global action mode. */}
+      {isOwnJobsTab && selectedJob && (
+        <OwnJobActionBar key={selectedJob.job_number} job={selectedJob} actions={selectedJobActions}
+          busy={jobActionBusy} error={jobActionError} onAction={runSelectedAction} onClose={clearSelection} />
+      )}
 
       {/* 「公開間近」の説明ボックス（2026-08-07たきと指示）：掲載申請済み求人のタップで開く。
           求人の詳細も求人者プロフィールも見せず、状態の説明だけを展開する＝「審査されている」感を出さない。

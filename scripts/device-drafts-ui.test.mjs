@@ -114,11 +114,13 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
     // ── 2026-09-23 根治の回帰：カレンダーの「この日にコピー」→ 掲載。離した日は画面にだけ入り、
     //    端末の比較元(base)はDBの行のまま＝同期が conflict で詰まらない（DRAFT_REQUIRES_REVIEW が出ない）
-    const publish = async () => {
+    const publish = async ({expectConflict = false} = {}) => {
       await until(() => !button(w,'掲載する').disabled, 'publish ready');
       button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
       w.document.querySelector('input[type="checkbox"]').click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
-      button(w,'同意して掲載する').click();await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
+      button(w,'同意して掲載する').click();
+      if (expectConflict) await until(() => w.qaDrafts.listDeviceDrafts(owner).some(d => d.state === 'conflict') && /保存競合/.test(w.document.body.textContent), 'conflicting publication blocked');
+      else await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
     };
     const copied={...w.qaJob,status:'draft',draft_step:12,date_start:null,date_end:null,date_label:null,holidays:[]};
     w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:copied,
@@ -129,16 +131,19 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaJob.date_start,'2026-12-01'); // 離した日は保存で入る
     assert.equal(w.qaSyncExpected.date_start,null); // 比較元はDBの行のまま（ここが旧バグ）
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
-    // ── 衝突が一度返っても、比較元を取り直して いまの内容 で送り直し、掲載が完了する（利用者に生の符号を見せない）
+    // 2026-10-14: main already blocks unsafe rebases. Never restore the old overwrite behavior to satisfy this test.
     w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaConflictOnce=true;
-    await publish();
-    assert.equal(w.qaJob.status,'open');
-    assert.equal(w.qaJob.notes,'最初の入力'); // 画面の内容が勝つ（別タブの保存 で上書きされない）
-    assert.equal(w.qaSyncExpected.notes,'別のタブの保存'); // 取り直した比較元で送っている
-    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,2);
-    assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
-    assert.ok(!/DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
+    await publish({expectConflict:true});
+    assert.equal(w.qaJob.status,'draft');
+    assert.equal(w.qaJob.notes,'別のタブの保存');
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,1);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    const retained = w.qaDrafts.listDeviceDrafts(owner);
+    assert.equal(retained.length,1);
+    assert.equal(retained[0].state,'conflict');
+    assert.equal(retained[0].form.jobDescription,'最初の入力');
+    assert.ok(!/掲載完了|DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
     assert.deepEqual(errors,[]);
   } catch (error) {
     console.error(`Browser errors: ${JSON.stringify(errors)}\nScreen: ${dom?.window.document.body.textContent}\nRequests: ${JSON.stringify(dom?.window.qaCalls?.map(r=>r.path))}`);
