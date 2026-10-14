@@ -1713,6 +1713,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             const handleSaveJob = async () => {
               if (jobSaving) return;
               setPublishIssue("");
+              const classifyDraftSyncFailure = (saved, syncOutcome) => {
+                const reason = String(saved?.reason || "").toLowerCase();
+                if (saved?.state === "conflict" || reason === "conflict") return "conflict";
+                if (["consent_required","consent_required_version"].includes(reason) || syncOutcome?.consentRequired) return "consent";
+                if (syncOutcome?.authRequired || ["not_logged_in","jwt_expired","42501","pgrst301"].includes(reason)) return "authentication";
+                if (syncOutcome?.retry || globalThis.navigator?.onLine === false || ["pgrst000","57014","timeout","network_error"].includes(reason)) return "communication";
+                if (saved?.state === "blocked" || reason) return "database_rejection";
+                return "unconfirmed";
+              };
               const reportPublishFailure = (phase, reason = "unknown", error = null) => {
                 const safePhase = ["profile_read","draft_sync","publish_rpc","unexpected"].includes(phase) ? phase : "unexpected";
                 const code = String(error?.code || reason || "unknown").slice(0,80).replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -1773,10 +1782,12 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 const local = saveDraft(payload);
                 if (!local) return;
                 // 応答不明の古い保存があれば先に照合し、その後に今の内容を送る。
+                let lastSyncOutcome = null;
                 const syncNow = async () => {
                   for (let attempt = 0; attempt < 3; attempt++) {
                     const beforeToken = readDeviceDraft(ownerId, local.id)?.pending?.token;
-                    await syncJobDeviceDrafts(ownerId);
+                    const syncOutcome = await syncJobDeviceDrafts(ownerId);
+                    lastSyncOutcome = syncOutcome;
                     const latest = readDeviceDraft(ownerId, local.id);
                     if (!latest?.pending || latest.state !== "pending" || latest.pending.token === beforeToken) break;
                   }
@@ -1811,7 +1822,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 }
                 if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
                   const reason = saved?.reason || "sync_unconfirmed";
-                  reportPublishFailure("draft_sync", reason);
+                  const failureCategory = classifyDraftSyncFailure(saved, lastSyncOutcome);
+                  reportPublishFailure("draft_sync", failureCategory + "_" + reason);
                   const failureMessage = (
                     saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
                     : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
@@ -1819,7 +1831,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     : saved?.state === "conflict" ? "保存済みの求人と、この画面の入力内容に差があり、自動で保存し直しても一致を確認できませんでした。入力内容はこの端末に残っています。「保存して終了」を押してから下書きを開き直してください。別のタブや端末で同じ求人を編集している場合は、その画面を閉じてから開き直してください。"
                     : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます.");
                   setDraftMsg(failureMessage);
-                  setPublishIssue(failureMessage);
+                  setPublishIssue("同期失敗の分類：" + ({ conflict:"保存競合",consent:"同意未完了",authentication:"認証",communication:"通信",database_rejection:"DB拒否",unconfirmed:"応答未確定" }[failureCategory] || "不明") + "。 " + failureMessage);
                   return;
                 }
                 deviceDraftRef.current = saved;
