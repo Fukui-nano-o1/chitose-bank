@@ -19,13 +19,34 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Prepare final visual verification on the tested source tree
+      - name: Integrate only the listing UI onto the concurrently updated main
+        shell: bash
         run: |
-          cp scripts/own-job-actions.browser.mjs /tmp/own-job-actions.browser.mjs
-          git checkout --detach 633c7eee8068961f4ac55b620abd085b85b0bdbe
-          cp /tmp/own-job-actions.browser.mjs scripts/own-job-actions.browser.mjs
+          git checkout --detach c11b89a82913f574645142169c1da7f4e492cda3
+          git diff 07ad5634fdd1361cea12297fdff65b4598dd627b 651c6f8973a55a64cce32a49d38bfae138249aff -- PROGRESS.md docs/listing-card-actions-2026-10-14.md scripts/own-job-actions.browser.mjs scripts/own-job-actions.test.mjs src/components/FarmerDashboard.jsx src/components/OwnJobActionBar.jsx src/components/OwnJobActions.css src/components/OwnJobTile.jsx src/hooks/useJobCardPress.js src/hooks/useOwnJobSelection.js src/lib/ownJobActions.js > /tmp/listing-ui.patch
+          git apply --check /tmp/listing-ui.patch
+          git apply /tmp/listing-ui.patch
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path('package.json')
+          s = p.read_text()
+          old = json.loads(s)['scripts']['test:critical']
+          assert 'scripts/own-job-actions.test.mjs' not in old
+          assert s.count(json.dumps(old)) == 1
+          p.write_text(s.replace(json.dumps(old), json.dumps(old + ' scripts/own-job-actions.test.mjs'), 1))
+          p = Path('PROGRESS.md')
+          s = p.read_text()
+          s = s.replace('- 変更前のmainで既存の保存競合テスト失敗を再現。安全な再同期を要求する現行コードは変更せず、テストを「競合時は公開せず双方の入力を保持」に修正。', '- 並行反映された保存復旧の修正（c11b89a）を保持して統合。保存処理・保存競合テストは最新mainをそのまま採用し、この変更では触れていない。', 1)
+          p.write_text(s)
+          p = Path('docs/listing-card-actions-2026-10-14.md')
+          s = p.read_text().replace('既存の保存競合テストは変更前のmainでも失敗することを確認し、危険な自動上書きを期待しない検証に更新しました。保存処理そのものには変更を加えていません。', '並行反映された保存復旧の修正（c11b89a）を保持して統合し、保存処理と保存競合テストは最新mainをそのまま採用しています。')
+          p.write_text(s)
+          PY
           mkdir -p artifacts
           git diff --check
+          git diff > artifacts/listing-actions.diff
+          test "$(git hash-object scripts/device-drafts-ui.test.mjs)" = "$(git rev-parse HEAD:scripts/device-drafts-ui.test.mjs)"
       - run: npm ci
       - name: Critical regression suite, ESLint and production build
         shell: bash
@@ -35,14 +56,15 @@ jobs:
       - name: Check painted visibility and actual pointer targeting in both mobile engines
         shell: bash
         run: node scripts/own-job-actions.browser.mjs 2>&1 | tee artifacts/browser.log
-      - name: Publish verified source without the temporary workflow
+      - name: Publish verified integration without the temporary workflow
         run: |
-          git add scripts/own-job-actions.browser.mjs
+          git add PROGRESS.md docs/listing-card-actions-2026-10-14.md package.json scripts/own-job-actions.browser.mjs scripts/own-job-actions.test.mjs src/components/FarmerDashboard.jsx src/components/OwnJobActionBar.jsx src/components/OwnJobActions.css src/components/OwnJobTile.jsx src/hooks/useJobCardPress.js src/hooks/useOwnJobSelection.js src/lib/ownJobActions.js
           git diff --cached --check
+          git diff --cached --stat
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Verify painted listing actions and pointer targeting'
-          git push origin HEAD:refs/heads/codex/listing-card-actions-verified2-20261014
+          git commit -m 'Add single-listing long-press actions while preserving draft recovery updates'
+          git push origin HEAD:refs/heads/codex/listing-card-actions-verified3-20261014
           echo "Verified commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
