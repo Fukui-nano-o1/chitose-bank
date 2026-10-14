@@ -75,15 +75,18 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
         return route.continue();
       });
       await context.routeWebSocket('**/*', socket => socket.close());
-      const page = await context.newPage();
-      page.on('pageerror', error => scriptErrors.push(error.name + ': ' + error.message.slice(0,180)));
-      page.on('response', response => { const url = new URL(response.url()); if (url.origin === origin && /\.(?:js|css)$/.test(url.pathname) && response.status() >= 400) assetErrors.push({ path: url.pathname, status: response.status() }); });
       const probes = [];
       for (const hash of ['/', '/work/new/12']) {
-        const response = await page.goto(origin + '/?verification=stage4-' + encodeURIComponent(hash) + '#' + hash, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        assert.equal(response?.status(), 200);
-        await page.waitForFunction(() => { const root = document.querySelector('#root'); return root?.querySelector('button,a,input') && root.textContent.trim().length > 20; }, null, { timeout: 20000 });
-        probes.push(await page.evaluate(() => ({ hash: location.hash, rootRendered: !!document.querySelector('#root')?.children.length, buttons: document.querySelectorAll('#root button').length, viewport: innerWidth, scrollWidth: document.documentElement.scrollWidth })));
+        // Each probe has its own page so an earlier hash redirect cannot interrupt the next navigation.
+        const page = await context.newPage();
+        page.on('pageerror', error => scriptErrors.push(error.name + ': ' + error.message.slice(0,180)));
+        page.on('response', response => { const url = new URL(response.url()); if (url.origin === origin && /\.(?:js|css)$/.test(url.pathname) && response.status() >= 400) assetErrors.push({ path: url.pathname, status: response.status() }); });
+        try {
+          const response = await page.goto(origin + '/?verification=stage4-' + encodeURIComponent(hash) + '#' + hash, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          assert.equal(response?.status(), 200);
+          await page.waitForFunction(() => { const root = document.querySelector('#root'); return root?.querySelector('button,a,input') && root.textContent.trim().length > 20; }, null, { timeout: 20000 });
+          probes.push(await page.evaluate(() => ({ hash: location.hash, rootRendered: !!document.querySelector('#root')?.children.length, buttons: document.querySelectorAll('#root button').length, viewport: innerWidth, scrollWidth: document.documentElement.scrollWidth })));
+        } finally { await page.close(); }
       }
       assert.deepEqual(scriptErrors, []);
       assert.deepEqual(assetErrors, []);
