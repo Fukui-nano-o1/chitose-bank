@@ -19,7 +19,7 @@ async function get(path) {
   return { text: await response.text(), url, type: response.headers.get('content-type') || '' };
 }
 function imports(text, base) {
-  return [...text.matchAll(/["']([^"'\s]+\.js)["']/g)].map(match => {
+  return [...text.matchAll(/["'`]([^"'`\s]+\.js)["'`]/g)].map(match => {
     const value = match[1];
     return new URL(value.startsWith('assets/') ? '/' + value : value, base);
   }).filter(url => url.origin === origin && url.pathname.startsWith('/assets/'));
@@ -46,7 +46,13 @@ test('active production bundles include the complete comparison snapshot and con
     source += asset.text;
     assets.push({ path: url.pathname, sha256: createHash('sha256').update(asset.text).digest('hex') });
   }
-  assert.match(source, /Object\.hasOwn\([^)]*,["']draft_step_id["']\)[\s\S]{0,120}draft_step_id/, 'Server step ID is included only when actually present in the comparison');
+  const snapshotPattern = /Object\.hasOwn\([^)]*,["'`]draft_step_id["'`]\)[\s\S]{0,120}draft_step_id/;
+  // The production minifier may emit any JavaScript string delimiter.
+  for (const quote of ['"', "'", '`']) {
+    assert.ok(snapshotPattern.test('Object.hasOwn(row,' + quote + 'draft_step_id' + quote + ')?{draft_step_id:row.draft_step_id}:{}'));
+  }
+  assert.equal(snapshotPattern.test('return {...patch(row),status:row.status}'), false);
+  assert.ok(snapshotPattern.test(source), 'Server step ID is included only when actually present in the comparison');
   assert.match(source, /conflictContext/, 'Original conflict evidence survives retries');
   assert.match(source, /wrong_identity/, 'Responses cannot change the job or owner');
   await note({ checkedAt: stamp, check: 'live-assets', result: 'pass', assets, productionWrites: 0 });
