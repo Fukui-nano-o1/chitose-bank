@@ -70,6 +70,17 @@ edit('scripts/search-photo-swipe.browser.mjs',
 edit('scripts/search-photo-swipe.browser.mjs',
      "await strip(101).focus();await page.keyboard.press('Home');",
      "await strip(101).focus();")
+# Search intentionally opens a new tab; verify that existing contract rather than changing it.
+edit('scripts/search-photo-swipe.browser.mjs',
+     '''      const r=await strip(101).boundingBox();await page.touchscreen.tap(r.x+r.width*.5,r.y+r.height*.45);
+      await page.waitForURL(/#\\/work\\/job\\/101/);''',
+     '''      const r=await strip(101).boundingBox();
+      const popup=page.waitForEvent('popup');
+      await page.touchscreen.tap(r.x+r.width*.5,r.y+r.height*.45);
+      const detail=await popup;
+      await detail.waitForURL(/#\\/work\\/job\\/101/,{waitUntil:'commit'});
+      assert.equal(new URL(page.url()).hash,'#/work','normal tap preserves the existing new-tab contract');
+      await detail.close();''')
 
 p = Path('docs/search-photo-swipe-2026-10-14.md')
 p.write_text('''# さがすページの写真スワイプ
