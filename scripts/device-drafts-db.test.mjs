@@ -51,6 +51,7 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     await db.exec(await readFile(new URL('../supabase/migrations/20260923070439_sync_conflict_returns_row.sql', import.meta.url), 'utf8'));
     // 2026-10-05 作業動画列を同期許可リストへ追加（本番適用済みmigration）。
     await db.exec(await readFile(new URL('../supabase/migrations/20261005050122_allow_job_work_video_in_sync.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('./fixtures/current-draft-sync-contract.sql', import.meta.url), 'utf8'));
     const login = async uid => { await db.exec('reset role'); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]); await db.exec('set role authenticated'); };
     const call = async (name, expected, patch, id = jobId) => (await db.query(`select public.${name}($1,$2,$3,$4) as result`,[owner,id,expected,patch])).rows[0].result;
     const consent = async v => (await db.query('select public.save_my_privacy_consent($1,$2) as result',[owner,v])).rows[0].result;
@@ -63,8 +64,24 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     const retry = await call('sync_my_job_draft',null,{notes:'first'});
     assert.equal(retry.row.job_number,first.row.job_number);
     assert.equal((await db.query('select count(*)::int as n from public.jobs')).rows[0].n,1);
+    // 本番と同じ比較契約で、欠落列が偽の競合を起こすことと修正を直接検証する。
+    assert.equal(Object.hasOwn(first.row,'draft_step_id'),true);
+    for (const name of ['sync_my_job_draft','sync_my_open_job']) {
+      const def = (await db.query('select pg_get_functiondef(($1)::regprocedure) as definition', [`public.${name}(uuid,uuid,jsonb,jsonb)`])).rows[0].definition;
+      assert.match(def, /'draft_step_id'/);
+    }
+    const legacyBase = jobDraftBase(first.row); delete legacyBase.draft_step_id;
+    const falseConflict = await call('sync_my_job_draft',legacyBase,{notes:'second'});
+    assert.equal(falseConflict.reason,'conflict');
+    assert.equal(falseConflict.row.notes,'first');
     const updated = await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'second'});
     assert.equal(updated.ok,true);
+    for (let attempt=0; attempt<5; attempt++) {
+      const duplicate = await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'second'});
+      assert.equal(duplicate.ok,true); assert.equal(duplicate.row.id,jobId);
+    }
+    assert.equal((await db.query('select count(*)::int as n from public.jobs')).rows[0].n,1);
+
     const stale = await call('sync_my_job_draft',jobDraftBase(first.row),{notes:'stale overwrite'});
     assert.equal(stale.reason,'conflict');
     assert.equal(stale.row.notes,'second'); // 衝突には本人の現在の行を添える＝端末が比較元を取り直せる

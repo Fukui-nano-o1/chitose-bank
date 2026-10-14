@@ -2,32 +2,9 @@ import { listDeviceDrafts, settleDeviceDraft, readPendingConsent, clearPendingCo
 import { savePrivacyConsent } from "./privacyConsent.js";
 import { rpcOutageKind } from "./rpcOutage.js";
 
-// DBの比較に使うのは編集可能な列と状態。運営・凍結列はクライアントから書き換えない。
-export const JOB_DRAFT_FIELDS = ["crop", "task", "zip", "prefecture", "city", "town", "address",
-  "date_label", "date_start", "date_end", "holidays", "headcount", "pay_type", "hourly_wage", "daily_wage",
-  "work_time", "break_time", "nearest_station", "commute_time", "job_exp", "beginner_ok", "instant_approve_repeat",
-  "perks", "experienced_preferred", "notes", "belongings", "cautions", "overtime_policy", "overtime_detail",
-  "place_change_scope", "task_change_scope", "danger_places", "danger_tasks", "photos",
-  "work_video_url", "work_video_job_consent", "work_video_related_consent", "work_video_consent_at", "work_video_consent_version", "draft_step",
-  "lat", "lng", "geo_radius_m", "geocoded_from"];
-export function jobDraftPatch(payload) {
-  return Object.fromEntries(JOB_DRAFT_FIELDS.filter(k => Object.hasOwn(payload, k)).map(k => [k, payload[k]]));
-}
-export function jobDraftBase(row) { return row ? { ...jobDraftPatch(row), status: row.status } : null; }
-// 3-way conflict check: do not overwrite a field changed by another editor.
-export function safeDraftRebase(base, remote, payload) {
-  if (!remote || !base || base.id !== remote.id || base.farmer_id !== remote.farmer_id) return { safe: false, reason: "missing_base_or_remote" };
-  if (!["draft","pending"].includes(remote.status)) return { safe: false, reason: "not_editable" };
-  const changed = [];
-  for (const key of JOB_DRAFT_FIELDS) {
-    if (!Object.hasOwn(payload || {}, key)) continue;
-    const before = JSON.stringify(base[key] ?? null);
-    const now = JSON.stringify(remote[key] ?? null);
-    const proposed = JSON.stringify(payload[key] ?? null);
-    if (before !== now && now !== proposed) changed.push(key);
-  }
-  return { safe: changed.length === 0, reason: changed.length ? "overlapping_edits" : "safe", fields: changed };
-}
+import { jobDraftPatch, jobDraftBase } from "./jobDraftProtocol.js";
+export { JOB_DRAFT_FIELDS, jobDraftPatch, jobDraftBase, safeDraftRebase } from "./jobDraftProtocol.js";
+
 export const retryable = result => !!rpcOutageKind(result.error, result.status) || result.status === 429;
 
 // 1ページ内は1本。複数タブ/応答紛失はDB側の同一ID・行ロック・内容照合で安全に扱う。

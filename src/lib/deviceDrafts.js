@@ -1,3 +1,5 @@
+import { safeDraftRebase, draftPayloadMatches } from "./jobDraftProtocol.js";
+
 // 端末上の作業記録。アカウント・作業ごとに分離し、送信内容は押した時点で固定する。
 export const DEVICE_DRAFT_EVENT = "cb:device-drafts";
 const PREFIX = "cb:device-draft:v1:";
@@ -44,17 +46,26 @@ export function saveDeviceDraft(record, form, payload) {
   const next = { ...(current || record), form: copy(form), payload: copy(payload),
     revision: crypto.randomUUID(), savedAt: Date.now() };
   // 失敗（blocked/conflict）は終端ではない＝新しい入力があれば「未送信の入力」に戻す。
-  // conflict は settle の時点で比較元(base)をDBの行に取り直してあるので、次の明示の操作（掲載する／保存）で
-  // いまの内容を送り直せる（2026-09-23・DRAFT_REQUIRES_REVIEW で詰まる型の根治）
+  // 競合の元スナップショットはconflictContextに保持し、入力を直しても上書き防止を維持する。
   if (next.state === "blocked" || next.state === "conflict") { next.state = "local"; next.pending = null; delete next.next; delete next.reason; delete next.rebased; }
   if (!next.pending && next.state === "synced") next.state = "local";
   return write(key(next.owner, next.id), next);
 }
-// 送信を予約する。conflict/blocked の記録でも例外にしない（利用者の明示の操作＝いまの内容で送り直す）。
-// ★失敗した古い送信内容（pending/next）は捨てる＝同じ比較元でもう一度ぶつけて同じ失敗を繰り返さない
+// 送信を予約する。通信の再送は同じ求人ID・同じリビジョンで行う。
+// 競合が安全に解消できない場合は、入力を保持したまま送信を予約しない。
 export function queueDeviceDraft(owner, id) {
   const record = readDeviceDraft(owner, id);
   if (!record?.payload) throw new Error("DEVICE_SAVE_FAILED");
+  if (record.conflictContext && !record.pending) {
+    const { remote, known } = record.conflictContext;
+    const check = conflictCheck(record, remote, known);
+    if (!check.safe) {
+      record.state = "conflict"; record.reason = "conflict"; record.conflictReason = check.reason;
+      return write(key(owner, id), record);
+    }
+    record.base = remote;
+    record.jobNumber = remote.job_number;
+  }
   if (["conflict", "blocked"].includes(record.state)) { record.pending = null; delete record.next; delete record.reason; delete record.rebased; }
   if (record.pending?.token === record.revision || record.next?.token === record.revision) return record;
   // 応答不明の送信内容を置き換えない。先の結果確認後、次に保存した内容を送る。
@@ -65,14 +76,39 @@ export function queueDeviceDraft(owner, id) {
   record.state = "pending";
   return write(key(owner, id), record);
 }
-// 比較元(base)をDBの行に取り直す（行が無ければ「新規」に戻す＝同じUUIDで作り直せる）。
-// 送信中（pending）の記録には触らない＝応答が来た時の照合を壊さない
+// 競合の比較元は成功するまで保持する。押し直しや別項目の入力で安全検査を外さない。
+function conflictCheck(record, remote, known = true) {
+  const base = record.conflictContext ? record.conflictContext.base : record.base;
+  if (!known || !remote) return { safe: false, reason: "missing_remote" };
+  if (remote.id !== record.jobId || remote.farmer_id !== record.owner) return { safe: false, reason: "wrong_identity" };
+  if (!["draft", "pending"].includes(remote.status)) return { safe: false, reason: "not_editable" };
+  if (!base) return { safe: draftPayloadMatches(remote, record.payload), reason: "unconfirmed_base" };
+  return safeDraftRebase(base, remote, record.payload);
+}
+function rememberConflict(record, remote, known = true) {
+  const base = record.conflictContext ? record.conflictContext.base
+    : record.pending && Object.hasOwn(record.pending, "base") ? record.pending.base : record.base;
+  const own = remote && remote.id === record.jobId && remote.farmer_id === record.owner;
+  record.conflictContext = { base, remote: own ? remote : null, known: known && (remote === null || !!own) };
+  record.state = "conflict";
+  record.reason = "conflict";
+  record.pending = null; delete record.next; delete record.rebased;
+}
+// 最新行を取得できても、他の変更を上書きする比較元の差し替えは許可しない。
 export function rebaseDeviceDraft(owner, id, row) {
   const record = readDeviceDraft(owner, id);
   if (!record || record.state === "pending") return record;
-  record.base = row || null;
-  record.jobId = row?.id || record.jobId;
-  record.jobNumber = row?.job_number || null;
+  // 新規・未送信の下書きに限り、行が存在しない状態を維持できる。
+  if (!row && !record.base && !record.conflictContext && !record.jobNumber) return record;
+  const check = conflictCheck(record, row);
+  if (!check.safe) {
+    rememberConflict(record, row);
+    record.conflictReason = check.reason;
+    return write(key(owner, id), record);
+  }
+  if (record.conflictContext) record.conflictContext.remote = row;
+  record.base = row;
+  record.jobNumber = row.job_number;
   record.pending = null; delete record.next; delete record.reason; delete record.rebased;
   record.state = "local";
   return write(key(owner, id), record);
@@ -80,7 +116,11 @@ export function rebaseDeviceDraft(owner, id, row) {
 export function settleDeviceDraft(owner, id, token, result) {
   const record = readDeviceDraft(owner, id);
   if (record?.pending?.token !== token) return record;
+  if (result.ok && (!result.row || result.row.id !== record.jobId || result.row.farmer_id !== owner)) {
+    result = { ok: false, reason: "response_mismatch" };
+  }
   if (result.ok) {
+    delete record.conflictContext; delete record.conflictReason;
     record.base = result.row;
     record.jobId = result.row.id;
     record.jobNumber = result.row.job_number;
@@ -89,18 +129,14 @@ export function settleDeviceDraft(owner, id, token, result) {
     record.state = record.pending ? "pending" : record.revision === token ? "synced" : "local";
     delete record.reason; delete record.rebased;
   } else {
-    // 失敗した送信内容は捨てる（自動では再送しない）。入力(form/payload)はこの端末に残る。
-    record.state = result.reason === "conflict" ? "conflict" : "blocked";
-    record.reason = result.reason || "save_failed";
-    record.pending = null; delete record.next;
-    // conflict でDBが現在の行を添えて返した時は比較元を取り直す（行が無い＝削除済みなら新規に戻す）。
-    // これで次の明示の操作（掲載する／保存）が、いまの内容で保存し直せる
-    if (result.reason === "conflict" && Object.hasOwn(result, "row")) {
-      const row = result.row && result.row.farmer_id === owner ? result.row : null;
-      record.base = row;
-      record.jobId = row?.id || record.jobId;
-      record.jobNumber = row?.job_number || null;
-      record.rebased = true;
+    // 競合元は保存するが、新しい比較元として無条件に採用しない。
+    // 応答紛失は同期側でpendingを維持し、ここには明確な拒否だけが届く。
+    if (result.reason === "conflict") {
+      rememberConflict(record, result.row, Object.hasOwn(result, "row"));
+      if (record.conflictContext.remote) record.jobNumber = record.conflictContext.remote.job_number;
+    } else {
+      record.state = "blocked"; record.reason = result.reason || "save_failed";
+      record.pending = null; delete record.next; delete record.rebased;
     }
   }
   return write(key(owner, id), record);

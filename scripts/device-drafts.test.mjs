@@ -80,44 +80,45 @@ test('another tab cannot overwrite a newer local form; conflict retains input an
   assert.equal(stuck.state, 'conflict');
   assert.equal(stuck.pending, null); // 失敗した送信内容は自動では再送しない
   assert.equal(stuck.form.jobDescription, '別タブの入力');
-  // 利用者の明示の操作（掲載する／保存）は例外にならず、いまの内容で送り直せる（旧: DRAFT_REQUIRES_REVIEW で詰まった）
+  // 比較する現在行がないまま再試行しても、上書きを推測で許可しない。
   const requeued = queueDeviceDraft(owner, current.id);
-  assert.equal(requeued.state, 'pending');
-  assert.equal(requeued.pending.payload.notes, '別タブの入力');
+  assert.equal(requeued.state, 'conflict');
+  assert.equal(requeued.pending, null);
+  assert.equal(requeued.payload.notes, '別タブの入力');
 });
-test('conflict with the current row rebases the device draft so an explicit resend uses the DB row as its expected value', async () => {
+test('conflict retains both snapshots; repeated explicit retries cannot overwrite unknown remote edits', async () => {
   const d = draft(); queueDeviceDraft(owner, d.id);
   const dbRow = { ...row(d), notes: 'DB側で変わった内容', job_number: 77 };
   const f = client(r => {
     if (r.path.endsWith('/account_holders')) return [{ agreed_privacy_version: version }];
-    if (r.body.p_expected === null) return { ok: false, reason: 'conflict', row: dbRow };
-    assert.deepEqual(r.body.p_expected.notes, 'DB側で変わった内容'); // 取り直した比較元で送っている
-    return { ok: true, row: { ...dbRow, notes: r.body.p_patch.notes } };
+    return { ok: false, reason: 'conflict', row: dbRow };
   });
   await syncDeviceWork(f.db, owner, version);
   let current = readDeviceDraft(owner, d.id);
   assert.equal(current.state, 'conflict');
-  assert.equal(current.rebased, true);
   assert.equal(current.jobNumber, 77);
-  assert.deepEqual(current.base, dbRow);
-  assert.equal(current.form.jobDescription, '入力中'); // 入力は消えない
+  assert.equal(current.base, null); // 元の比較元を失わない
+  assert.deepEqual(current.conflictContext.remote, dbRow);
+  assert.equal(current.form.jobDescription, '入力中');
   queueDeviceDraft(owner, d.id);
   await syncDeviceWork(f.db, owner, version);
   current = readDeviceDraft(owner, d.id);
-  assert.equal(current.state, 'synced');
-  assert.equal(current.base.notes, '入力中');
-  // 削除済み（row:null）の衝突は「新規」に戻る＝同じUUIDで作り直せる
+  assert.equal(current.state, 'conflict');
+  assert.equal(f.calls.filter(r => r.path.endsWith('/sync_my_job_draft')).length, 1);
+  assert.equal(current.payload.notes, '入力中');
+  // 行が無いという競合を、勝手に新規作成へ変換しない。
   const gone = draft(); queueDeviceDraft(owner, gone.id);
   settleDeviceDraft(owner, gone.id, gone.revision, { ok: false, reason: 'conflict', row: null });
-  const fresh = readDeviceDraft(owner, gone.id);
-  assert.equal(fresh.base, null); assert.equal(fresh.jobNumber, null); assert.equal(fresh.jobId, gone.jobId);
-  // 他人の行は比較元にしない（RLS外の行が紛れても取り込まない）
+  assert.equal(queueDeviceDraft(owner, gone.id).state, 'conflict');
+  assert.equal(readDeviceDraft(owner, gone.id).jobId, gone.jobId);
+  // 他人の行は比較元にも端末の診断情報にも保存しない。
   const foreign = draft(); queueDeviceDraft(owner, foreign.id);
   settleDeviceDraft(owner, foreign.id, foreign.revision, { ok: false, reason: 'conflict', row: { ...row(foreign), farmer_id: other } });
-  assert.equal(readDeviceDraft(owner, foreign.id).base, null);
-  // 新しい入力があれば conflict は「未送信の入力」に戻る（一覧の警告を残さない）
+  assert.equal(readDeviceDraft(owner, foreign.id).conflictContext.remote, null);
   const edited = saveDeviceDraft(readDeviceDraft(owner, foreign.id), { jobDescription: '直した' }, { notes: '直した' });
   assert.equal(edited.state, 'local');
+  assert.equal(queueDeviceDraft(owner, foreign.id).state, 'conflict');
+  assert.equal(readDeviceDraft(owner, foreign.id).form.jobDescription, '直した');
 });
 test('lost response leaves a durable request; reopening retries the same job ID and succeeds only after confirmation', async () => {
   const d = draft(); queueDeviceDraft(owner, d.id);
