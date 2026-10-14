@@ -62,6 +62,15 @@ edit('scripts/job-video-facade.test.mjs',
       photos.dispatchEvent(new w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
       await until(()=>photos.scrollLeft===300,'search photo carousel still advances');''')
 
+# Browser scrollTo changes geometry before the scroll event updates React state.
+# Await both the snapped position and active slide before sending the next key.
+edit('scripts/search-photo-swipe.browser.mjs',
+     'return el && Math.abs(el.scrollLeft-el.clientWidth*index)<2;',
+     'return el && Math.abs(el.scrollLeft-el.clientWidth*index)<2 && el.querySelectorAll(\'[data-media-type="photo"]\')[index]?.tabIndex===0;')
+edit('scripts/search-photo-swipe.browser.mjs',
+     "await strip(101).focus();await page.keyboard.press('Home');",
+     "await strip(101).focus();")
+
 p = Path('docs/search-photo-swipe-2026-10-14.md')
 p.write_text('''# さがすページの写真スワイプ
 
