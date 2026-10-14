@@ -81,3 +81,18 @@ article.job-card-photo-summary > .job-card-summary-link:focus-visible {
   outline-offset:-3px;
   border-radius:0 0 16px 16px;
 }
+
+/* Search photo count is assistive text only, never an extra row below the card. */
+.job-card-media-status {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0, 0, 0, 0);
+  clip-path:inset(50%);
+  white-space:nowrap;
+  border:0;
+}
+.job-card-media-scroll::-webkit-scrollbar { display:none; }
