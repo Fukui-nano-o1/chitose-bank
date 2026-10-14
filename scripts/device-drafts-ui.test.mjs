@@ -112,32 +112,57 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaJob.status,'open');
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
-    // ── 2026-09-23 根治の回帰：カレンダーの「この日にコピー」→ 掲載。離した日は画面にだけ入り、
-    //    端末の比較元(base)はDBの行のまま＝同期が conflict で詰まらない（DRAFT_REQUIRES_REVIEW が出ない）
-    const publish = async () => {
+    const startPublish = async () => {
       await until(() => !button(w,'掲載する').disabled, 'publish ready');
       button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
       w.document.querySelector('input[type="checkbox"]').click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
-      button(w,'同意して掲載する').click();await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
+      button(w,'同意して掲載する').click();
     };
+    const publish = async () => { await startPublish(); await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed'); };
+    // カレンダーのコピー日程は入力にだけ入り、比較元はDBの行を維持する。
     const copied={...w.qaJob,status:'draft',draft_step:12,date_start:null,date_end:null,date_label:null,holidays:[]};
     w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:copied,
       session:{cb_editJobPrefill:JSON.stringify(copied),cb_editJobPresetDates:JSON.stringify({job_number:42,date_start:'2026-12-01',date_end:null,holidays:[]})}});
     await until(() => /12\/1/.test(w.document.body.textContent), 'preset date shown from the calendar copy');
     await publish();
     assert.equal(w.qaJob.status,'open');
-    assert.equal(w.qaJob.date_start,'2026-12-01'); // 離した日は保存で入る
-    assert.equal(w.qaSyncExpected.date_start,null); // 比較元はDBの行のまま（ここが旧バグ）
+    assert.equal(w.qaJob.date_start,'2026-12-01');
+    assert.equal(w.qaSyncExpected.date_start,null);
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
-    // ── 衝突が一度返っても、比較元を取り直して いまの内容 で送り直し、掲載が完了する（利用者に生の符号を見せない）
-    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
-    w.qaConflictOnce=true;
+    // 入力内容は同じで、比較用の列が追加された旧キャッシュは安全に再照合して掲載できる。
+    const legacy={...w.qaJob,status:'draft',draft_step:12};delete legacy.draft_step_id;
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:legacy,
+      session:{cb_editJobPrefill:JSON.stringify(legacy)}});
+    w.qaConflictOnce='metadata';
     await publish();
     assert.equal(w.qaJob.status,'open');
-    assert.equal(w.qaJob.notes,'最初の入力'); // 画面の内容が勝つ（別タブの保存 で上書きされない）
-    assert.equal(w.qaSyncExpected.notes,'別のタブの保存'); // 取り直した比較元で送っている
+    assert.equal(w.qaJob.notes,legacy.notes);
+    assert.equal(w.qaSyncExpected.draft_step_id,'description');
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,2);
-    assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
+    // 別タブの本文変更は上書きしない。失敗理由・通知・入力保持と押し直しを実際のUIで検査。
+    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
+    w.qaConflictOnce=true;
+    await startPublish();
+    await until(() => /同期失敗の分類：保存競合/.test(w.document.body.textContent), 'real conflict is visible');
+    await until(() => !button(w,'同意して掲載する').disabled, 'failed attempt is not stuck saving');
+    const retained=w.qaDrafts.listDeviceDrafts(owner)[0];
+    assert.equal(retained.form.jobDescription,'最初の入力');
+    assert.equal(retained.state,'conflict');
+    assert.equal(w.qaJob.notes,'別のタブの保存');
+    assert.equal(w.qaJob.status,'draft');
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    assert.ok(w.qaCalls.some(r=>r.path==='app_errors' && r.body?.component==='ListingFlow' && r.body?.operation==='draft_sync'));
+    for(let retry=0;retry<2;retry++) {
+      const profileReads=w.qaCalls.filter(r=>r.path==='employer_profiles').length;
+      button(w,'同意して掲載する').click();
+      await until(() => w.qaCalls.filter(r=>r.path==='employer_profiles').length>profileReads, 'explicit retry started');
+      await until(() => !button(w,'同意して掲載する').disabled, 'explicit retry completed safely');
+    }
+    assert.equal(w.qaJob.notes,'別のタブの保存');
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,1);
+    assert.equal(w.qaDrafts.readDeviceDraft(owner,retained.id).payload.notes,'最初の入力');
     assert.ok(!/DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
     assert.deepEqual(errors,[]);
   } catch (error) {
