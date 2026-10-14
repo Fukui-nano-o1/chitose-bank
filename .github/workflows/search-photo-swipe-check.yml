@@ -27,6 +27,31 @@ jobs:
           test -z "$(git status --porcelain)"
           cp /tmp/search-photo-swipe.browser.mjs scripts/search-photo-swipe.browser.mjs
           python /tmp/apply-search-photo-swipe.py
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/search-photo-swipe.browser.mjs')
+          s=p.read_text()
+          old="import { JobSearchMapView } from './src/components/JobSearchMapView.jsx';"
+          assert s.count(old)==1
+          s=s.replace(old,old+"\nimport { setCache } from './src/lib/viewCache.js';",1)
+          old="createRoot(document.getElementById('root')).render("
+          assert s.count(old)==1
+          s=s.replace(old,"Object.entries(cache).forEach(([key,value])=>setCache(key,value));\n"+old,1)
+          s=s.replace("const errors=[]; page.on('pageerror',e=>errors.push(e.message));", "const errors=[]; page.on('pageerror',e=>{errors.push(e.message);console.error(name+' page error: '+e.message);});")
+          s=s.replace("new TouchEvent(type,{bubbles:true,cancelable:true,touches:type==='touchend'?[]:[new Touch({identifier:42,target:el,clientX:x,clientY:y})],changedTouches:[new Touch({identifier:42,target:el,clientX:x,clientY:y})]})", "Object.assign(new Event(type,{bubbles:true,cancelable:true}),{touches:type==='touchend'?[]:[{identifier:42,target:el,clientX:x,clientY:y}],changedTouches:[{identifier:42,target:el,clientX:x,clientY:y}]})")
+          old='    } finally {await browser.close();}'
+          assert s.count(old)==1
+          s=s.replace(old,"""    } finally {
+                for (const context of browser.contexts()) for (const page of context.pages()) {
+                  try {
+                    await page.screenshot({path:'artifacts/search-photo-'+name+'-last.png'});
+                    console.log(name+' final state',await page.evaluate(()=>({url:location.href,scrollY,body:document.body.innerText.slice(0,1000),strips:[...document.querySelectorAll('.job-card-media-scroll')].map(el=>({x:el.scrollLeft,w:el.clientWidth,h:el.clientHeight,sw:el.scrollWidth}))})));
+                  } catch {}
+                }
+                await browser.close();
+              }""",1)
+          p.write_text(s)
+          PY
           mkdir -p artifacts
           git diff --check
           git diff > artifacts/search-photo-swipe.diff
