@@ -1711,6 +1711,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             // jobs INSERT用ペイロードはトップレベルに移設（saveDraftToSupabaseからも参照するため）
             const handleSaveJob = async () => {
               if (jobSaving) return;
+              setPublishIssue("");
               if (localOnly || !ownerId) { handleTopSave(); return; }
               const missing = getPublishMissingFields();
               // 募集者の項目【だけ】が欠けている時はここで止めない＝この直後のrecruitBox
@@ -1798,14 +1799,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   }
                 }
                 if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
-                  setPublishModal(false);
                   const reason = saved?.reason || "";
-                  setDraftMsg(
+                  const failureMessage = (
                     saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
                     : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
                     : saved?.state === "blocked" ? "保存できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。" + (isAdmin(session.user) ? `（管理者向け：${reason}）` : "")
                     : saved?.state === "conflict" ? "保存済みの求人と、この画面の入力内容に差があり、自動で保存し直しても一致を確認できませんでした。入力内容はこの端末に残っています。「保存して終了」を押してから下書きを開き直してください。別のタブや端末で同じ求人を編集している場合は、その画面を閉じてから開き直してください。"
-                    : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます。");
+                    : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます.");
+                  setDraftMsg(failureMessage);
+                  setPublishIssue(failureMessage);
                   return;
                 }
                 deviceDraftRef.current = saved;
@@ -1832,8 +1834,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     if (!check.error && check.data?.status === "open") pub = { data: { ok: true } };
                   }
                   if (pub.error || !pub.data?.ok) {
-                    alert("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") +
-                      "\n求人は保存されています。時間をおいて、もう一度「掲載する」をお試しください。");
+                    setPublishIssue("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") + "。求人は保存されています。");
                     return;
                   }
                   // 修正のお願い中の求人だけは運営の確認を経て公開（2026-08-14・pending:true）
@@ -1875,9 +1876,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 else { setPublishedOpen(publishedNow); setStep(13); }
               } catch (e) {
                 // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
-                setPublishModal(false);
                 setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
                   + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
+                setPublishIssue("掲載処理が失敗しました。入力は保持されています。もう一度お試しください。");
               } finally {
                 finishMeasurement("failure");
                 setJobSaving(false);
@@ -2181,6 +2182,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                       </div>
                     {/* 下部の固定ボタン（待遇の変更ボックスと同じ規格）。まとめて1つの確認チェックはボタンの直上 */}
                     <div style={{ padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
+                      {publishIssue && <p role="alert" style={{fontSize:14,color:"#B42318",lineHeight:1.6,padding:"10px 12px",background:"#FFF1F0",borderRadius:10,margin:"0 0 10px"}}>{publishIssue}</p>}
                       <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"2px 0 8px", cursor:"pointer" }}>
                         <input
                           type="checkbox"
