@@ -1,0 +1,56 @@
+name: Verify search photo swipes
+on:
+  push:
+    branches: [codex/search-photo-swipe-20261014]
+permissions:
+  contents: write
+concurrency:
+  group: search-photo-swipe-20261014
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply scoped change without publishing the temporary workflow
+        run: |
+          cp scripts/apply-search-photo-swipe.py /tmp/apply-search-photo-swipe.py
+          cp scripts/search-photo-swipe.browser.mjs /tmp/search-photo-swipe.browser.mjs
+          git checkout --detach 59be5bba26b0199bf328ebd3c4724c107c88c9d6
+          test -z "$(git status --porcelain)"
+          cp /tmp/search-photo-swipe.browser.mjs scripts/search-photo-swipe.browser.mjs
+          python /tmp/apply-search-photo-swipe.py
+          mkdir -p artifacts
+          git diff --check
+          git diff > artifacts/search-photo-swipe.diff
+      - run: npm ci
+      - name: Critical tests, lint and production build
+        shell: bash
+        run: npm run build 2>&1 | tee artifacts/build.log
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Native gestures in the real search component
+        shell: bash
+        run: node scripts/search-photo-swipe.browser.mjs 2>&1 | tee artifacts/browser.log
+      - name: Commit only verified source and regression tests
+        run: |
+          git add src/components/JobSearchMapView.jsx src/components/JobVideoCard.jsx src/components/jobCardPhotoSummary.css scripts/job-video-facade.test.mjs scripts/search-photo-swipe.browser.mjs docs/search-photo-swipe-2026-10-14.md PROGRESS.md
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Restore search card photo swipes and remove external photo controls'
+          git push origin HEAD:refs/heads/codex/search-photo-swipe-verified-20261014
+          echo "Verified commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: search-photo-swipe-verification
+          path: artifacts/
+          retention-days: 7
