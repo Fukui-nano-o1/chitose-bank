@@ -14,6 +14,20 @@ export function jobDraftPatch(payload) {
   return Object.fromEntries(JOB_DRAFT_FIELDS.filter(k => Object.hasOwn(payload, k)).map(k => [k, payload[k]]));
 }
 export function jobDraftBase(row) { return row ? { ...jobDraftPatch(row), status: row.status } : null; }
+// 3-way conflict check: do not overwrite a field changed by another editor.
+export function safeDraftRebase(base, remote, payload) {
+  if (!remote || !base || base.id !== remote.id || base.farmer_id !== remote.farmer_id) return { safe: false, reason: "missing_base_or_remote" };
+  if (!["draft","pending"].includes(remote.status)) return { safe: false, reason: "not_editable" };
+  const changed = [];
+  for (const key of JOB_DRAFT_FIELDS) {
+    if (!Object.hasOwn(payload || {}, key)) continue;
+    const before = JSON.stringify(base[key] ?? null);
+    const now = JSON.stringify(remote[key] ?? null);
+    const proposed = JSON.stringify(payload[key] ?? null);
+    if (before !== now && now !== proposed) changed.push(key);
+  }
+  return { safe: changed.length === 0, reason: changed.length ? "overlapping_edits" : "safe", fields: changed };
+}
 export const retryable = result => !!rpcOutageKind(result.error, result.status) || result.status === 429;
 
 // 1ページ内は1本。複数タブ/応答紛失はDB側の同一ID・行ロック・内容照合で安全に扱う。
