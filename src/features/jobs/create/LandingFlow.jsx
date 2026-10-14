@@ -3,6 +3,7 @@
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { logAppError } from "../../../app/diagnostics/errorLog";
+import { safeDraftRebase } from "../../../lib/offlineSync";
 import { useState, useEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
@@ -1781,6 +1782,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 const payload = buildJobPayload(session.user.id, "draft", await geocodeTown(farmerPref, farmerCity, farmerTown));
                 const local = saveDraft(payload);
                 if (!local) return;
+                const originalBase = local.base;
                 // 応答不明の古い保存があれば先に照合し、その後に今の内容を送る。
                 let lastSyncOutcome = null;
                 const syncNow = async () => {
@@ -1803,12 +1805,20 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   // 最大2回。毎回DBを取り直すので、古い比較元を同じまま投げ続けるループにはしない。
                   for (let retry = 0; retry < 2 && saved?.state === "conflict"; retry++) {
                     const currentNumber = saved.jobNumber || readDeviceDraft(ownerId, local.id)?.jobNumber;
-                    if (currentNumber) {
-                      const { data: row, error: rowErr } = await fetchJobByNumber(currentNumber);
-                      if (rowErr) break;
-                      rebaseDeviceDraft(ownerId, local.id, row && row.farmer_id === ownerId ? row : null);
-                    } else {
+                    if (!currentNumber) {
+                      // A previously existing job must never silently become a new listing.
+                      if (originalBase) break;
                       rebaseDeviceDraft(ownerId, local.id, null);
+                    } else {
+                      const { data: row, error: rowErr } = await fetchJobByNumber(currentNumber);
+                      if (rowErr || !row || row.farmer_id !== ownerId) break;
+                      const check = safeDraftRebase(originalBase, row, payload);
+                      if (!check.safe) {
+                        reportPublishFailure("draft_sync", "conflict_" + check.reason);
+                        setPublishIssue("別の保存で変更された項目があります。上書きを防ぐため掲載を停止しました。下書きを保存して開き直し、内容を確認してください。");
+                        break;
+                      }
+                      rebaseDeviceDraft(ownerId, local.id, row);
                     }
                     const st = readDeviceDraft(ownerId, local.id)?.base?.status;
                     if (st && st !== "draft" && st !== "pending" && st !== "open") {
