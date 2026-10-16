@@ -63,9 +63,12 @@ export const updateJob = (payload, jobNumber, farmerId) =>
 export const insertJob = (payload) =>
   supabase.from("jobs").insert(payload).select("job_number").single();
 
-// 掲載＝即公開（一般農家はpending保存→このRPCでopen。第三者公開の可否はDBトリガーが判定）
-export const publishMyJob = (jobNumber) =>
-  supabase.rpc("publish_my_job", { p_job_number: jobNumber }).retry(false);
+// 掲載と確認記録はDB内で一緒に確定する。再試行でも同じ操作ID・内容を使う。
+export const publishMyJobWithCheck = (operation) =>
+  supabase.rpc("publish_my_job_with_check", {
+    p_request_id: operation.requestId, p_job_id: operation.jobId, p_expected: operation.expected,
+    p_items: operation.items, p_agreed_at: operation.agreedAt,
+  }).retry(false);
 
 // 公開中の求人を掲載したまま編集（2026-09-11）＝本人・open・進行中の応募なし の3つの壁をDB側が持つ1窓口。
 // 許可した列だけ更新し、掲載時の検査と凍結（最賃・時間外・受動喫煙・募集主情報・待遇・保険）を open→open でも走らせる
@@ -76,10 +79,6 @@ export const updateMyOpenJob = (jobNumber, patch) =>
 export const countLiveApplications = (jobNumber) =>
   supabase.from("applications").select("id", { count: "exact", head: true })
     .eq("job_number", jobNumber).in("status", ["applied","approved","meeting","interview","contracted","working"]);
-
-// 掲載前の確認の記録（追記のみの台帳・行動記録の憲法）
-export const insertJobPublishCheck = (row) =>
-  supabase.from("job_publish_checks").insert(row);
 
 // ── 写真のアップロード ───────────────────────────────────
 // lib/image.js の uploadJobPhoto に supabase を渡すだけの通し口（第3引数の既定は {} ので
