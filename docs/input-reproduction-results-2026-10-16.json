@@ -1,0 +1,116 @@
+{
+  "warning": "These are reproduced defects, NOT product passes. Handler-level mocks; no real network or production writes.",
+  "cases": 22,
+  "results": [
+    {
+      "id": "A00",
+      "name": "legacy sync-farmer handler writes using admin client without authentication",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A01/A02",
+      "name": "employer: upload-failure",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A01/A02",
+      "name": "employer: db-failure",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A01/A02",
+      "name": "employer: delete-db-failure",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A01/A02",
+      "name": "worker: upload-failure",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A01/A02",
+      "name": "worker: db-failure",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A01/A02",
+      "name": "worker: delete-db-failure",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A02",
+      "name": "avatar helper mistakes an old surviving file for this upload success",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A05",
+      "name": "job photo retry after lost response creates two objects",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A10",
+      "name": "failed unlike deletes the visible row without rollback",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A09",
+      "name": "lost attendance response then retry inserts two records",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A08",
+      "name": "registration committed with lost response is stuck at duplicate on retry",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A03",
+      "name": "two worker profile editors silently overwrite a different field",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A04",
+      "name": "failed initial worker read permits saving blanks over existing data",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A04",
+      "name": "WorkerExperiencePage: failed read followed by save erases stored selections",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A04",
+      "name": "InsurancePrepBox: failed read followed by save erases stored selections",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A06",
+      "name": "two concurrent danger uploads exceed the two-photo display limit",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A14",
+      "name": "null work time changes to default hours on load/save",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A12",
+      "name": "help image delete: DB rejection leaves its URL pointing at a removed object",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A11",
+      "name": "consignment reports success while canonical phone remains unsaved",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A07/A16",
+      "name": "real copy_job SQL duplicates retries and drops newer input columns",
+      "result": "DEFECT_REPRODUCED"
+    },
+    {
+      "id": "A15",
+      "name": "terms confirmation succeeds while the automatic chat message fails silently",
+      "result": "DEFECT_REPRODUCED"
+    }
+  ]
+}

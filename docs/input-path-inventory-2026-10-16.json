@@ -1,0 +1,3120 @@
+{
+  "sourceFiles": 219,
+  "controls": [
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 120,
+      "tag": "input"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 121,
+      "tag": "select"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 122,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 123,
+      "tag": "input"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 124,
+      "tag": "input"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 125,
+      "tag": "input"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 133,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/app/diagnostics/FeedbackModal.jsx",
+      "line": 152,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 180,
+      "tag": "input"
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 362,
+      "tag": "input"
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 281,
+      "tag": "select"
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 285,
+      "tag": "select"
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 289,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 153,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 158,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 162,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 171,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 181,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 191,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 207,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 216,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 220,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 239,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/AdminChat.jsx",
+      "line": 245,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/AdminJobPreview.jsx",
+      "line": 389,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/BelongingTags.jsx",
+      "line": 79,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/ChatList.jsx",
+      "line": 275,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 866,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 892,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/DayReportSheet.jsx",
+      "line": 200,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/EmergencyContactBox.jsx",
+      "line": 105,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmergencyContactBox.jsx",
+      "line": 119,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 664,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 684,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 688,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 711,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 722,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 725,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 729,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 743,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 751,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 760,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 772,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 780,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 788,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 798,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 813,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 866,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 876,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 898,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 915,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 937,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/FarmerDashboard.jsx",
+      "line": 1411,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/FarmerDashboard.jsx",
+      "line": 1551,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/InsurancePrepBox.jsx",
+      "line": 96,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/JobQuestions.jsx",
+      "line": 260,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/JobQuestions.jsx",
+      "line": 279,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1383,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1393,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1601,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1605,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1609,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 289,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 295,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 321,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 337,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 401,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 407,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 160,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 192,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 229,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 248,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 81,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/VisitAndInsurance.jsx",
+      "line": 76,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/WorkReviewFlow.jsx",
+      "line": 117,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 686,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/WorkerExperiencePage.jsx",
+      "line": 34,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/WorkerExperiencePage.jsx",
+      "line": 36,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/WorkerExperiencePage.jsx",
+      "line": 40,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 644,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 655,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 660,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 808,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 889,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/admin/AdminAnalyticsRoom.jsx",
+      "line": 26,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/admin/AdminReportsRoom.jsx",
+      "line": 163,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/admin/AdminReportsRoom.jsx",
+      "line": 164,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/admin/AdminReportsRoom.jsx",
+      "line": 279,
+      "tag": "select"
+    },
+    {
+      "file": "src/components/admin/AdminReportsRoom.jsx",
+      "line": 282,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/admin/AdminReportsRoom.jsx",
+      "line": 283,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/admin/AdminSupportThread.jsx",
+      "line": 95,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 438,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 838,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/admin/FarmTimelessRoom.jsx",
+      "line": 438,
+      "tag": "input"
+    },
+    {
+      "file": "src/components/admin/FarmTimelessRoom.jsx",
+      "line": 439,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/components/uiPrimitives.jsx",
+      "line": 509,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 672,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 674,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 782,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 799,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 819,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 836,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1424,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1426,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1616,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1629,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1667,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1668,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1669,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1670,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1672,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1714,
+      "tag": "select"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 1721,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 74,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 80,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 87,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 91,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 95,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 107,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/components/ConsignLendPane.jsx",
+      "line": 59,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 314,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 320,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 322,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 324,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 342,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 364,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1350,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1379,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1388,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1397,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1407,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1446,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1448,
+      "tag": "select"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1478,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1566,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1567,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1577,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1583,
+      "tag": "select"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 1590,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2035,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2053,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2158,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2234,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2238,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2271,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2276,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2281,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 2398,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDanger.jsx",
+      "line": 19,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDanger.jsx",
+      "line": 20,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDanger.jsx",
+      "line": 33,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDanger.jsx",
+      "line": 63,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDanger.jsx",
+      "line": 64,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDanger.jsx",
+      "line": 77,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDescription.jsx",
+      "line": 25,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepDescription.jsx",
+      "line": 60,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepPhotos.jsx",
+      "line": 164,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepPhotos.jsx",
+      "line": 175,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepWishes.jsx",
+      "line": 23,
+      "tag": "textarea"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepWorkVideo.jsx",
+      "line": 41,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepWorkVideo.jsx",
+      "line": 52,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/StepWorkVideo.jsx",
+      "line": 58,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/WorkTimeClock.jsx",
+      "line": 35,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/WorkplacePage.jsx",
+      "line": 130,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/WorkplacePage.jsx",
+      "line": 135,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/WorkplacePage.jsx",
+      "line": 138,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/WorkplacePage.jsx",
+      "line": 140,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/create/components/WorkplacePage.jsx",
+      "line": 142,
+      "tag": "input"
+    },
+    {
+      "file": "src/features/jobs/search/filters/SearchFilterPanel.jsx",
+      "line": 65,
+      "tag": "input"
+    }
+  ],
+  "operations": [
+    {
+      "file": "api/auth/verify-otp.js",
+      "line": 65,
+      "kind": "auth",
+      "method": "verifyOtp",
+      "target": "authClient.auth"
+    },
+    {
+      "file": "api/auth/verify-otp.js",
+      "line": 94,
+      "kind": "database",
+      "method": "upsert",
+      "target": "'farmers'"
+    },
+    {
+      "file": "api/auth/verify-otp.js",
+      "line": 107,
+      "kind": "database",
+      "method": "insert",
+      "target": "'auth_logs'"
+    },
+    {
+      "file": "api/sync-farmer.js",
+      "line": 52,
+      "kind": "database",
+      "method": "upsert",
+      "target": "'farmers'"
+    },
+    {
+      "file": "api/sync-farmer.js",
+      "line": 69,
+      "kind": "database",
+      "method": "insert",
+      "target": "'auth_logs'"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 156,
+      "kind": "device",
+      "method": "set",
+      "target": "window.storage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 306,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 317,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 391,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_nav_badges\""
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 450,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"page_events\""
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 608,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 609,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 697,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_nav_badges\""
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 703,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_working_jobs\""
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 953,
+      "kind": "device",
+      "method": "delete",
+      "target": "window.storage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 995,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'is_account_moderated'"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1000,
+      "kind": "auth",
+      "method": "signOut",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1144,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_unread_message_counts\""
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1286,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1338,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1343,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'job_exists'"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1345,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1352,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1389,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1407,
+      "kind": "database",
+      "method": "update",
+      "target": "\"notifications\""
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1439,
+      "kind": "auth",
+      "method": "signOut",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1468,
+      "kind": "database",
+      "method": "insert",
+      "target": "'farmers'"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1479,
+      "kind": "database",
+      "method": "update",
+      "target": "'dests'"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1483,
+      "kind": "database",
+      "method": "delete",
+      "target": "'dests'"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1686,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1887,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 1963,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/App.jsx",
+      "line": 2054,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/app/chunkReload.jsx",
+      "line": 31,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/app/diagnostics/errorLog.js",
+      "line": 16,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/app/diagnostics/errorLog.js",
+      "line": 37,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 159,
+      "kind": "storage",
+      "method": "upload",
+      "target": "\"help-images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 163,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"help_images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 250,
+      "kind": "storage",
+      "method": "upload",
+      "target": "\"help-images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 254,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"help_images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 264,
+      "kind": "storage",
+      "method": "remove",
+      "target": "\"help-images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 265,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"help_images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 291,
+      "kind": "storage",
+      "method": "upload",
+      "target": "\"help-images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 294,
+      "kind": "storage",
+      "method": "remove",
+      "target": "\"help-images\""
+    },
+    {
+      "file": "src/app/help/HelpCenter.jsx",
+      "line": 297,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"help_images\""
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 67,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"employer_trust_info\""
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 106,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 178,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_profile_for_farmer\""
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 189,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_trust_info\""
+    },
+    {
+      "file": "src/app/preview/PreviewSheets.jsx",
+      "line": 210,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"profile_reports\""
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 68,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'am_i_account_allowed'"
+    },
+    {
+      "file": "src/components/AccountHolderForm.jsx",
+      "line": 110,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"account_holders\""
+    },
+    {
+      "file": "src/components/AdminChat.jsx",
+      "line": 198,
+      "kind": "database",
+      "method": "update",
+      "target": "\"admin_messages\""
+    },
+    {
+      "file": "src/components/AdminJobPreview.jsx",
+      "line": 114,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'admin_preview_job'"
+    },
+    {
+      "file": "src/components/AnalyticsPreferences.jsx",
+      "line": 14,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"product_events\""
+    },
+    {
+      "file": "src/components/ApplyPending.jsx",
+      "line": 23,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/ChatList.jsx",
+      "line": 90,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_chat_partner_initials\""
+    },
+    {
+      "file": "src/components/ChatList.jsx",
+      "line": 108,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_unread_message_counts\""
+    },
+    {
+      "file": "src/components/ChatList.jsx",
+      "line": 108,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_chat_inbox_previews\""
+    },
+    {
+      "file": "src/components/ChatList.jsx",
+      "line": 216,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_cards_for_farmer\""
+    },
+    {
+      "file": "src/components/ChatList.jsx",
+      "line": 289,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 153,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"report_chat_message\""
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 167,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 208,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'job_meeting_place'"
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 301,
+      "kind": "database",
+      "method": "update",
+      "target": "\"messages\""
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 324,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"chat_reads\""
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 340,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"approve_application\""
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 399,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_chat_partner_initials\""
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 506,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'confirm_terms'"
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 515,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"messages\""
+    },
+    {
+      "file": "src/components/ChatView.jsx",
+      "line": 598,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"set_my_available_dates\""
+    },
+    {
+      "file": "src/components/ContractEmergencyContact.jsx",
+      "line": 36,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"contract_emergency_contact\""
+    },
+    {
+      "file": "src/components/ContractPartyName.jsx",
+      "line": 21,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"contract_party_name\""
+    },
+    {
+      "file": "src/components/DayReportSheet.jsx",
+      "line": 114,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"attendance_events\""
+    },
+    {
+      "file": "src/components/EmergencyContactBox.jsx",
+      "line": 61,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"emergency_contacts\""
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 348,
+      "kind": "storage",
+      "method": "remove",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 356,
+      "kind": "database",
+      "method": "upsert",
+      "target": "table"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 370,
+      "kind": "storage",
+      "method": "remove",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 372,
+      "kind": "database",
+      "method": "upsert",
+      "target": "table"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 477,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 549,
+      "kind": "database",
+      "method": "upsert",
+      "target": "table"
+    },
+    {
+      "file": "src/components/EmployerProfileEdit.jsx",
+      "line": 1037,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'employer_trust_info'"
+    },
+    {
+      "file": "src/components/FarmerDashboard.jsx",
+      "line": 366,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/FarmerDashboard.jsx",
+      "line": 541,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/FarmerDashboard.jsx",
+      "line": 583,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/FarmerDashboard.jsx",
+      "line": 957,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/FarmerRecord.jsx",
+      "line": 79,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"employer_public_jobs_by_farmer\""
+    },
+    {
+      "file": "src/components/HireConfirm.jsx",
+      "line": 33,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/HireConfirm.jsx",
+      "line": 34,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/HireConfirm.jsx",
+      "line": 98,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_trust_info\""
+    },
+    {
+      "file": "src/components/HireConfirm.jsx",
+      "line": 125,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"confirm_terms\""
+    },
+    {
+      "file": "src/components/InsurancePrepBox.jsx",
+      "line": 66,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"employer_profiles\""
+    },
+    {
+      "file": "src/components/JobDetailBody.jsx",
+      "line": 60,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'job_employer_profile'"
+    },
+    {
+      "file": "src/components/JobDetailBody.jsx",
+      "line": 61,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'job_employer_trust_info'"
+    },
+    {
+      "file": "src/components/JobQuestions.jsx",
+      "line": 187,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"ask_job_question\""
+    },
+    {
+      "file": "src/components/JobQuestions.jsx",
+      "line": 208,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"answer_job_question\""
+    },
+    {
+      "file": "src/components/JobQuestions.jsx",
+      "line": 217,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_hide_question\""
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 508,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 801,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 817,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1095,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/JobSearchMapView.jsx",
+      "line": 1362,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/LaborConditionsNotice.jsx",
+      "line": 159,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"contract_party_name\""
+    },
+    {
+      "file": "src/components/LikedJobs.jsx",
+      "line": 44,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_job_actions\""
+    },
+    {
+      "file": "src/components/LikedJobs.jsx",
+      "line": 105,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/components/LikedJobs.jsx",
+      "line": 106,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/components/LikedJobs.jsx",
+      "line": 115,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 27,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"signup_open\""
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 103,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 148,
+      "kind": "auth",
+      "method": "signInWithPassword",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 150,
+      "kind": "auth",
+      "method": "signInWithPassword",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 163,
+      "kind": "auth",
+      "method": "signInWithOtp",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 219,
+      "kind": "auth",
+      "method": "verifyOtp",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/components/LoginScreen.jsx",
+      "line": 235,
+      "kind": "auth",
+      "method": "updateUser",
+      "target": "supabase.auth"
+    },
+    {
+      "file": "src/components/MyCalendar.jsx",
+      "line": 104,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"get_my_calendar_jobs\""
+    },
+    {
+      "file": "src/components/MyCalendar.jsx",
+      "line": 699,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/NewApplicantsPage.jsx",
+      "line": 27,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/NewApplicantsPage.jsx",
+      "line": 28,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/NewApplicantsPage.jsx",
+      "line": 43,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/NewApplicantsPage.jsx",
+      "line": 65,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/NewApplicantsPage.jsx",
+      "line": 115,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_farm_applicants\""
+    },
+    {
+      "file": "src/components/NewApplicantsPage.jsx",
+      "line": 116,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_farm_jobs\""
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 113,
+      "kind": "database",
+      "method": "upsert",
+      "target": "'farmers'"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 126,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 127,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/OnboardingModal.jsx",
+      "line": 128,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/PageGuide.jsx",
+      "line": 645,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/ProfileHub.jsx",
+      "line": 80,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"withdrawal_requests\""
+    },
+    {
+      "file": "src/components/ProfileHub.jsx",
+      "line": 192,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_worker_trust_stats\""
+    },
+    {
+      "file": "src/components/ProfileHub.jsx",
+      "line": 269,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 51,
+      "kind": "storage",
+      "method": "upload",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 54,
+      "kind": "database",
+      "method": "update",
+      "target": "'farmers'"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 55,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 67,
+      "kind": "storage",
+      "method": "remove",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 69,
+      "kind": "database",
+      "method": "update",
+      "target": "'farmers'"
+    },
+    {
+      "file": "src/components/ProfileModal.jsx",
+      "line": 263,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"withdrawal_requests\""
+    },
+    {
+      "file": "src/components/ReceivedReviews.jsx",
+      "line": 67,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"job_employer_reviews\""
+    },
+    {
+      "file": "src/components/ReceivedReviews.jsx",
+      "line": 68,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"reviews_public_badges\""
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 223,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_job_actions\""
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 265,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 272,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 282,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 302,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"cancel_application\""
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 570,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 571,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/SavedJobsView.jsx",
+      "line": 579,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/TodayPage.jsx",
+      "line": 247,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/TodayPage.jsx",
+      "line": 266,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/TodayPage.jsx",
+      "line": 293,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/TodayPage.jsx",
+      "line": 356,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/TodayPage.jsx",
+      "line": 416,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/VisitAndInsurance.jsx",
+      "line": 48,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"employer_profiles\""
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 43,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"pending_applications\""
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 67,
+      "kind": "database",
+      "method": "insert",
+      "target": "'attendance_events'"
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 115,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"employer_trust_info\""
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 138,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_job_actions\""
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 159,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'cancel_application'"
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 406,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 469,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/WorkerApplications.jsx",
+      "line": 642,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/WorkerExperiencePage.jsx",
+      "line": 98,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"worker_profiles\""
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 254,
+      "kind": "storage",
+      "method": "remove",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 262,
+      "kind": "database",
+      "method": "upsert",
+      "target": "'worker_profiles'"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 277,
+      "kind": "storage",
+      "method": "remove",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 279,
+      "kind": "database",
+      "method": "upsert",
+      "target": "'worker_profiles'"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 424,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 485,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"worker_profiles\""
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 503,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 830,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/components/WorkerProfileEdit.jsx",
+      "line": 965,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'worker_want_again_count'"
+    },
+    {
+      "file": "src/components/WorkerReviewSheet.jsx",
+      "line": 33,
+      "kind": "database",
+      "method": "insert",
+      "target": "'reviews'"
+    },
+    {
+      "file": "src/components/WorkerWorkRecord.jsx",
+      "line": 133,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_work_record\""
+    },
+    {
+      "file": "src/components/admin/AdminAnalyticsRoom.jsx",
+      "line": 17,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_product_analytics\""
+    },
+    {
+      "file": "src/components/admin/AdminEvaluationRoom.jsx",
+      "line": 57,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_worker_list\""
+    },
+    {
+      "file": "src/components/admin/AdminReportsRoom.jsx",
+      "line": 232,
+      "kind": "database",
+      "method": "update",
+      "target": "REPORT_KINDS.find(source => source.key === row.kind).table"
+    },
+    {
+      "file": "src/components/admin/AdminReviewCommentsRoom.jsx",
+      "line": 21,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_review_comments\""
+    },
+    {
+      "file": "src/components/admin/AdminReviewCommentsRoom.jsx",
+      "line": 32,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"moderate_review_comment\""
+    },
+    {
+      "file": "src/components/admin/AdminSystemRoom.jsx",
+      "line": 168,
+      "kind": "database",
+      "method": "update",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/components/admin/AdminSystemRoom.jsx",
+      "line": 181,
+      "kind": "database",
+      "method": "update",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 152,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_list_contracts\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 171,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_account_jobs\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 196,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_moderate_account\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 220,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"admin_messages\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 251,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 274,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_hide_question\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 324,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_list_accounts\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 360,
+      "kind": "database",
+      "method": "update",
+      "target": "\"withdrawal_requests\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 375,
+      "kind": "database",
+      "method": "update",
+      "target": "\"jobs\""
+    },
+    {
+      "file": "src/components/admin/AdminTab.jsx",
+      "line": 385,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'request_job_revision'"
+    },
+    {
+      "file": "src/components/admin/AdminUpcomingRoom.jsx",
+      "line": 77,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_working_jobs\""
+    },
+    {
+      "file": "src/components/admin/AdminWorkReviewsRoom.jsx",
+      "line": 27,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'admin_work_reviews'"
+    },
+    {
+      "file": "src/components/admin/AdminWorkingRoom.jsx",
+      "line": 121,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"admin_working_jobs\""
+    },
+    {
+      "file": "src/components/admin/FarmTimelessRoom.jsx",
+      "line": 286,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"farm_timeless_posts\""
+    },
+    {
+      "file": "src/components/admin/FarmTimelessRoom.jsx",
+      "line": 302,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"farm_timeless_posts\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 277,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"consignment_summary\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 309,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 325,
+      "kind": "storage",
+      "method": "remove",
+      "target": "\"consignment-photos\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 337,
+      "kind": "database",
+      "method": "update",
+      "target": "\"consignment_fields\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 351,
+      "kind": "database",
+      "method": "update",
+      "target": "\"consignment_deals\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 369,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"consignment_fields\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 425,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"consignment_profiles\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 483,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"consignment_profiles\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 512,
+      "kind": "database",
+      "method": "update",
+      "target": "\"consignment_deals\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 516,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"consignment_deals\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 535,
+      "kind": "database",
+      "method": "update",
+      "target": "\"consignment_deals\""
+    },
+    {
+      "file": "src/features/consignment/ConsignmentRoom.jsx",
+      "line": 551,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"consignment_progress\""
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 54,
+      "kind": "database",
+      "method": "update",
+      "target": "\"consignment_fields\""
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 55,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"consignment_fields\""
+    },
+    {
+      "file": "src/features/consignment/components/ConsignFieldsPane.jsx",
+      "line": 63,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"consignment_fields\""
+    },
+    {
+      "file": "src/features/consignment/components/ConsignLendPane.jsx",
+      "line": 24,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"consignment_profiles\""
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 118,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 128,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"consignment_profiles\""
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 184,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"update_account_holder_self\""
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 221,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"update_account_holder_self\""
+    },
+    {
+      "file": "src/features/consignment/editor/ConsignorInfoEdit.jsx",
+      "line": 227,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"consignment_profiles\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 29,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'employer_trust_info'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 36,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_cards_for_farmer\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 39,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_farm_jobs\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 40,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_farm_applicants\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 50,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"unpublish_job\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 51,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"copy_job\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 54,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"jobs\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 59,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'approve_application'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 61,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'approve_application'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 63,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"set_agreed_dates\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 65,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'set_application_followup'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 68,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'complete_work'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 76,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'submit_farmer_final_review'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 83,
+      "kind": "database",
+      "method": "insert",
+      "target": "'attendance_events'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 87,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_profile_for_farmer\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 89,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"worker_trust_info\""
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 93,
+      "kind": "database",
+      "method": "upsert",
+      "target": "'repeat_roster'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 98,
+      "kind": "database",
+      "method": "delete",
+      "target": "'repeat_roster'"
+    },
+    {
+      "file": "src/features/farmer/dashboard/farmerDashboardApi.js",
+      "line": 102,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"employer_profiles\""
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 830,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 831,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/features/jobs/create/LandingFlow.jsx",
+      "line": 832,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 18,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"get_minimum_wage\""
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 34,
+      "kind": "database",
+      "method": "upsert",
+      "target": "\"employer_profiles\""
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 37,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"employer_trust_info\""
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 61,
+      "kind": "database",
+      "method": "update",
+      "target": "\"jobs\""
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 64,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"jobs\""
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 68,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"publish_my_job_with_check\""
+    },
+    {
+      "file": "src/features/jobs/create/jobCreateApi.js",
+      "line": 76,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"update_my_open_job\""
+    },
+    {
+      "file": "src/features/jobs/search/components/ApplicationPage.jsx",
+      "line": 29,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/jobs/search/components/JobDetailPanel.jsx",
+      "line": 431,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"job_employer_reviews\""
+    },
+    {
+      "file": "src/features/jobs/search/filters/searchFilterStorage.js",
+      "line": 19,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 27,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"pending_job_previews\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 30,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"copy_job\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 31,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"unpublish_job\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 35,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"job_employer_profile\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 37,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"job_employer_trust_info\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 39,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"employer_public_jobs\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 41,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"employer_public_job_counts\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 47,
+      "kind": "database",
+      "method": "delete",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 49,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"saved_jobs\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 66,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"apply_to_job\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 68,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"create_pending_application\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 70,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"cancel_application\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 79,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"job_reports\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 84,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"user_onboarding_survey\""
+    },
+    {
+      "file": "src/features/jobs/search/jobSearchApi.js",
+      "line": 93,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"signup_open\""
+    },
+    {
+      "file": "src/features/today/components/ScheduleDetail.jsx",
+      "line": 24,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/today/components/ScheduleDetail.jsx",
+      "line": 29,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/today/components/ScheduleDetail.jsx",
+      "line": 30,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/today/components/StagePanels.jsx",
+      "line": 133,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/features/today/todayApi.js",
+      "line": 17,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"get_my_calendar_jobs\""
+    },
+    {
+      "file": "src/features/today/todayApi.js",
+      "line": 18,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_todo_items\""
+    },
+    {
+      "file": "src/features/today/todayApi.js",
+      "line": 42,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"confirm_insurance\""
+    },
+    {
+      "file": "src/features/today/todayApi.js",
+      "line": 48,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"my_farm_jobs\""
+    },
+    {
+      "file": "src/hooks/useReviewWindow.js",
+      "line": 18,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'review_window'"
+    },
+    {
+      "file": "src/lib/applyReturn.js",
+      "line": 5,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/authSession.js",
+      "line": 22,
+      "kind": "device",
+      "method": "setItem",
+      "target": "getStorage()"
+    },
+    {
+      "file": "src/lib/avatarUpload.js",
+      "line": 10,
+      "kind": "storage",
+      "method": "upload",
+      "target": "'avatars'"
+    },
+    {
+      "file": "src/lib/calendarMove.js",
+      "line": 13,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"move_job_dates\""
+    },
+    {
+      "file": "src/lib/calendarMove.js",
+      "line": 29,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"get_my_calendar_jobs\""
+    },
+    {
+      "file": "src/lib/chatMessaging.js",
+      "line": 10,
+      "kind": "database",
+      "method": "insert",
+      "target": "table"
+    },
+    {
+      "file": "src/lib/copyJobFlow.js",
+      "line": 45,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"copy_job\""
+    },
+    {
+      "file": "src/lib/copyJobFlow.js",
+      "line": 63,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/lib/copyJobFlow.js",
+      "line": 64,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/lib/deviceDrafts.js",
+      "line": 14,
+      "kind": "device",
+      "method": "setItem",
+      "target": "storage()"
+    },
+    {
+      "file": "src/lib/deviceDrafts.js",
+      "line": 204,
+      "kind": "device",
+      "method": "setItem",
+      "target": "storage()"
+    },
+    {
+      "file": "src/lib/geocode.js",
+      "line": 84,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/image.js",
+      "line": 69,
+      "kind": "storage",
+      "method": "upload",
+      "target": "bucket"
+    },
+    {
+      "file": "src/lib/image.js",
+      "line": 70,
+      "kind": "storage",
+      "method": "upload",
+      "target": "bucket"
+    },
+    {
+      "file": "src/lib/image.js",
+      "line": 111,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/image.js",
+      "line": 133,
+      "kind": "storage",
+      "method": "upload",
+      "target": "bucket"
+    },
+    {
+      "file": "src/lib/image.js",
+      "line": 184,
+      "kind": "storage",
+      "method": "upload",
+      "target": "bucket"
+    },
+    {
+      "file": "src/lib/image.js",
+      "line": 200,
+      "kind": "database",
+      "method": "update",
+      "target": "\"jobs\""
+    },
+    {
+      "file": "src/lib/jobForMe.js",
+      "line": 27,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"job_details_for_party\""
+    },
+    {
+      "file": "src/lib/lastRoute.js",
+      "line": 53,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/loginReturn.js",
+      "line": 17,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/loginReturn.js",
+      "line": 32,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/offlineSync.js",
+      "line": 55,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "pending.open ? \"sync_my_open_job\" : \"sync_my_job_draft\""
+    },
+    {
+      "file": "src/lib/privacyConsent.js",
+      "line": 23,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"save_my_privacy_consent\""
+    },
+    {
+      "file": "src/lib/productAnalytics.js",
+      "line": 109,
+      "kind": "device",
+      "method": "setItem",
+      "target": "storage()"
+    },
+    {
+      "file": "src/lib/push.js",
+      "line": 39,
+      "kind": "database",
+      "method": "insert",
+      "target": "\"app_errors\""
+    },
+    {
+      "file": "src/lib/push.js",
+      "line": 96,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"push_vapid_public\""
+    },
+    {
+      "file": "src/lib/push.js",
+      "line": 111,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"save_push_subscription\""
+    },
+    {
+      "file": "src/lib/searchJobs.js",
+      "line": 15,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/searchJobs.js",
+      "line": 117,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/lib/searchJobs.js",
+      "line": 121,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"count_job_view\""
+    },
+    {
+      "file": "src/lib/skeletonShape.js",
+      "line": 24,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/snapshot.js",
+      "line": 15,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 95,
+      "kind": "rpc-wrapper",
+      "method": "call",
+      "target": "'support_create'"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 107,
+      "kind": "rpc-wrapper",
+      "method": "call",
+      "target": "'support_list'"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 113,
+      "kind": "rpc-wrapper",
+      "method": "call",
+      "target": "'support_detail'"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 118,
+      "kind": "rpc-wrapper",
+      "method": "call",
+      "target": "'support_reply'"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 123,
+      "kind": "rpc-wrapper",
+      "method": "call",
+      "target": "'support_detail'"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 126,
+      "kind": "rpc-wrapper",
+      "method": "call",
+      "target": "'admin_support_update'"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 15,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 28,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/supportClient.js",
+      "line": 64,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "name"
+    },
+    {
+      "file": "src/lib/viewCache.js",
+      "line": 61,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/lib/workerReady.js",
+      "line": 25,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/lib/workerReady.js",
+      "line": 27,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/lib/workerReady.js",
+      "line": 29,
+      "kind": "device",
+      "method": "setItem",
+      "target": "sessionStorage"
+    },
+    {
+      "file": "src/lib/workerReady.js",
+      "line": 41,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"is_worker_profile_ready\""
+    },
+    {
+      "file": "src/lib/workerReady.js",
+      "line": 59,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "\"promote_my_pending_applications\""
+    },
+    {
+      "file": "src/lib/zipLookup.js",
+      "line": 21,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "src/main.jsx",
+      "line": 21,
+      "kind": "device",
+      "method": "setItem",
+      "target": "localStorage"
+    },
+    {
+      "file": "supabase/functions/send-push/index.ts",
+      "line": 37,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'push_payload'"
+    },
+    {
+      "file": "supabase/functions/send-push/index.ts",
+      "line": 52,
+      "kind": "rpc",
+      "method": "rpc",
+      "target": "'unread_count_for'"
+    },
+    {
+      "file": "supabase/functions/send-push/index.ts",
+      "line": 67,
+      "kind": "database",
+      "method": "delete",
+      "target": "'push_subscriptions'"
+    }
+  ]
+}
