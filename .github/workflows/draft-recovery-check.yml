@@ -9,6 +9,7 @@ on:
       - src/lib/jobDraftProtocol.js
       - scripts/*draft*.mjs
       - scripts/fixtures/current-draft-sync-contract.sql
+      - supabase/migrations/*sync*.sql
       - .github/workflows/draft-recovery-check.yml
 permissions:
   contents: read
