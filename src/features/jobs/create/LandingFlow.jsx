@@ -4,7 +4,7 @@
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { logAppError } from "../../../app/diagnostics/errorLog";
 import { safeDraftRebase } from "../../../lib/offlineSync";
-import { calendarDateFromYmd, calendarDateToYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
+import { calendarDateFromYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
 import { useState, useEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
@@ -24,6 +24,7 @@ import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, isValidStreetAddress, validateMinWage } from "./model";
+import { digitsOnly, wageAmount, selectionValue, workTimeLabel as formatWorkTime, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm } from "./jobInputCodec";
 import { geocodeTown } from "./jobCreateGeo";
 import { useTownCheck, TOWN_NOT_FOUND_MESSAGE, TOWN_CHECK_ERROR_MESSAGE } from "./useTownCheck";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
@@ -303,9 +304,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 派生値
-  const workTimeLabel = `${startHour}:${startMinute}〜${endHour}:${endMinute}`;
-  const hourlyWage = Number(hourlyWageInput.replace(/[^\d]/g, "")) || 0;
-  const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
+  const workTimeLabel = formatWorkTime({ startHour, startMinute, endHour, endMinute });
+  const hourlyWage = wageAmount(hourlyWageInput);
+  const dailyWage  = wageAmount(dailyWageInput);
   const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
   // 申告休憩（分）：DBトリガーと同じ抽出（"90分"等から最初の数字・無ければ0）
   const breakMinutes = Number((String(breakTime).match(/\d+/) || [0])[0]);
@@ -501,8 +502,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
-  const farmerCrop = farmerCropPill === "__other__" ? farmerCropText.trim() : (farmerCropText.trim() || farmerCropPill);
-  const farmerTask = farmerTaskPill === "__other__" ? farmerTaskText.trim() : (farmerTaskText.trim() || farmerTaskPill);
+  const farmerCrop = selectionValue(farmerCropPill, farmerCropText);
+  const farmerTask = selectionValue(farmerTaskPill, farmerTaskText);
 
   // 働き手 state
   const [workerExp,         setWorkerExp]         = useState("");
@@ -628,61 +629,60 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // jobs行 → フローのstateへ復元（2026-08-03に関数化）。コピー直後の即時復元（prefill）と
   // 通常の読み込みで同じ対応表を使う＝どちらかだけ直して食い違う事故を防ぐ
   const applyJobRow = (data) => {
-        if (ownerId && data.id && data.farmer_id === ownerId) {
-          deviceDraftRef.current = newDeviceDraft(ownerId, data);
-          deviceReadyRef.current = true;
-        }
-        setEditingOpen(!!_editJobNumber && data.status === "open");
-        setRole("farmer");
-        setFarmerCropPill(CROP_OPTIONS.some(c => c.name === data.crop) ? data.crop : data.crop ? "__other__" : "");
-        setFarmerTaskPill(TASK_OPTIONS.some(t => t.name === data.task) ? data.task : data.task ? "__other__" : "");
-        setFarmerCropText(data.crop ?? "");
-        setFarmerTaskText(data.task ?? "");
-        setFarmerZip(data.zip ?? "");
-        setFarmerPref(data.prefecture ?? "");
-        setFarmerCity(data.city ?? "");
-        setFarmerTown(data.town ?? "");
-        setFarmerAddr(data.address ?? "");
-        setFarmerRegion((data.prefecture ?? "") + (data.city ?? "") + (data.town ?? ""));
-        setJobDateStart(calendarDateFromYmd(data.date_start));
-        setJobDateEnd(calendarDateFromYmd(data.date_end));
-        setJobCount(data.headcount != null ? String(data.headcount) : "");
-        setFarmerPayType(data.pay_type ?? ""); // 報酬方式（時給/日給）も復元（2026-07-24・コピー/再開で欠けていた）
-        setHourlyWageInput(data.hourly_wage ?? "");
-        setDailyWageInput(data.daily_wage ?? "");
-        // 勤務時間（"H:MM〜H:MM"）を start/end に復元（2026-07-24・コピー/再開で欠けていた）
-        { const wt = String(data.work_time ?? "").match(/(\d{1,2}):(\d{2})\D+(\d{1,2}):(\d{2})/); if (wt) { setStartHour(wt[1]); setStartMinute(wt[2]); setEndHour(wt[3]); setEndMinute(wt[4]); } }
-        setBreakTime(data.break_time ?? "");
-        setNearestStation(data.nearest_station ?? "");
-        setCommuteTime(data.commute_time ?? "");
-        setJobExp(data.job_exp ?? "");
-        setBeginnerOk(!!data.beginner_ok);
-        setInstantApproveRepeat(!!data.instant_approve_repeat);
-        setJobPerks(data.perks || null);
-        setExperiencedPreferred(!!data.experienced_preferred);
-        setJobDescription(data.notes ?? "");
-        setWorkVideoUrl(data.work_video_url ?? "");
-        setWorkVideoJobConsent(!!data.work_video_job_consent);
-        setWorkVideoRelatedConsent(!!data.work_video_related_consent);
-        setWorkVideoConsentAt(data.work_video_consent_at ?? null);
-        setWorkVideoConsentVersion(data.work_video_consent_version ?? null);
-        setJobNotes(data.belongings ?? "");
-        setJobCautions(data.cautions ?? "");
-        setOvertimePolicy(data.overtime_policy ?? "");
-        setOvertimeDetail(data.overtime_detail ?? "");
-        // 変更の範囲（2026-08-21）：値の無い旧求人・白紙化（draft_stepだけの呼び出し）は既定の「変更なし」へ
-        setPlaceChangeScope(data.place_change_scope ?? "変更なし");
-        setTaskChangeScope(data.task_change_scope ?? "変更なし");
-        // photos未所持の旧データを補完しつつ復元。2つ目に中身があれば展開フラグも立てる（2026-07-16）
-        const dp = (data.danger_places ?? []).map(x => ({ photos: [], ...x }));
-        const dt = (data.danger_tasks ?? []).map(x => ({ photos: [], ...x }));
-        setJobDangerPlaces(dp.length ? dp : [{ icon:"⚠️", label:"", desc:"", photos:[] }, { icon:"⚠️", label:"", desc:"", photos:[] }]);
-        setJobDangerTasks(dt.length ? dt : [{ icon:"⚠️", label:"", desc:"", photos:[] }, { icon:"⚠️", label:"", desc:"", photos:[] }]);
-        setShowPlace2(dangerHasSecond(dp));
-        setShowTask2(dangerHasSecond(dt));
-        setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
-        setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
-        setStep(isWorkplaceRoute() ? 3 : data.draft_step != null ? data.draft_step : 12);
+    if (ownerId && data.id && data.farmer_id === ownerId) {
+      deviceDraftRef.current = newDeviceDraft(ownerId, data);
+      deviceReadyRef.current = true;
+    }
+    setEditingOpen(!!_editJobNumber && data.status === "open");
+    setRole("farmer");
+    const input = jobFormFromRow(data, { cropOptions: CROP_OPTIONS, taskOptions: TASK_OPTIONS });
+    setFarmerCropPill(input.farmerCropPill);
+    setFarmerTaskPill(input.farmerTaskPill);
+    setFarmerCropText(input.farmerCropText);
+    setFarmerTaskText(input.farmerTaskText);
+    setFarmerZip(input.farmerZip);
+    setFarmerPref(input.farmerPref);
+    setFarmerCity(input.farmerCity);
+    setFarmerTown(input.farmerTown);
+    setFarmerAddr(input.farmerAddr);
+    setFarmerRegion(input.farmerRegion);
+    setJobDateStart(input.jobDateStart);
+    setJobDateEnd(input.jobDateEnd);
+    setJobCount(input.jobCount);
+    setFarmerPayType(input.farmerPayType);
+    setHourlyWageInput(input.hourlyWageInput);
+    setDailyWageInput(input.dailyWageInput);
+    setBreakTime(input.breakTime);
+    setNearestStation(input.nearestStation);
+    setCommuteTime(input.commuteTime);
+    setJobExp(input.jobExp);
+    setBeginnerOk(input.beginnerOk);
+    setInstantApproveRepeat(input.instantApproveRepeat);
+    setJobPerks(input.jobPerks);
+    setExperiencedPreferred(input.experiencedPreferred);
+    setJobDescription(input.jobDescription);
+    setWorkVideoUrl(input.workVideoUrl);
+    setWorkVideoJobConsent(input.workVideoJobConsent);
+    setWorkVideoRelatedConsent(input.workVideoRelatedConsent);
+    setWorkVideoConsentAt(input.workVideoConsentAt);
+    setWorkVideoConsentVersion(input.workVideoConsentVersion);
+    setJobNotes(input.jobNotes);
+    setJobCautions(input.jobCautions);
+    setOvertimePolicy(input.overtimePolicy);
+    setOvertimeDetail(input.overtimeDetail);
+    setPlaceChangeScope(input.placeChangeScope);
+    setTaskChangeScope(input.taskChangeScope);
+    setJobDangerPlaces(input.jobDangerPlaces);
+    setJobDangerTasks(input.jobDangerTasks);
+    setShowPlace2(input.showPlace2);
+    setShowTask2(input.showTask2);
+    setJobPhotos(input.jobPhotos);
+    setJobHolidays(input.jobHolidays);
+    if (Object.hasOwn(input, "startHour")) {
+      setStartHour(input.startHour); setStartMinute(input.startMinute);
+      setEndHour(input.endHour); setEndMinute(input.endMinute);
+    }
+    setStep(isWorkplaceRoute() ? 3 : input.farmerStep);
   };
 
   // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
@@ -795,9 +795,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   useEffect(() => () => { if (savedToastTimer.current) clearTimeout(savedToastTimer.current); }, []);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
-  const saveDraft = (payloadOverride) => {
-    if (completedRef.current || !deviceReadyRef.current || localRouteMissing) return null;
-    const draft = {
+  // 入力の採取は一か所。変換はcodec、保存と同期待ちは既存の各層へ渡す。
+  function currentJobForm() {
+    return {
         role: "farmer", farmerStep: step, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
         farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
         farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr, jobPhotos,
@@ -808,10 +808,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
         workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
         beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
-        jobDateStart: calendarDateToYmd(jobDateStart),
-        jobDateEnd:   calendarDateToYmd(jobDateEnd),
+        jobDateStart,
+        jobDateEnd,
         jobHolidays,
       };
+  }
+
+  const saveDraft = (payloadOverride) => {
+    if (completedRef.current || !deviceReadyRef.current || localRouteMissing) return null;
+    const draft = serializeJobForm(currentJobForm());
     try {
       if (ownerId) {
         const record = deviceDraftRef.current || newDeviceDraft(ownerId);
@@ -835,82 +840,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     }
   };
 
-  // ── カレンダーヘルパー ──────────────────────────────────────
-  const WD = ["日","月","火","水","木","金","土"];
-  const fmtD = (d, opts = {}) => {
-    if (!d) return "";
-    const w = WD[d.getDay()];
-    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
-    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
-    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
-  };
-  // 日程ラベル（2026-07-16）：年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
-  const jobDateLabel = (() => {
-    if (!jobDateStart) return "日程を選択してください";
-    const end = jobDateEnd || jobDateStart;
-    const thisYear = new Date().getFullYear();
-    const inYear = jobDateStart.getFullYear() === thisYear && end.getFullYear() === thisYear;
-    if (jobDateStart.toDateString() === end.toDateString()) return fmtD(jobDateStart, { omitYear: inYear });
-    const sameMonth = inYear && jobDateStart.getMonth() === end.getMonth();
-    return `${fmtD(jobDateStart, { omitYear: inYear })} 〜 ${fmtD(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
-  })();
+  const jobDateLabel = dateLabel(jobDateStart, jobDateEnd);
 
   function buildJobPayload(authUid, statusVal = "pending", geo = null) {
-    const base = deviceDraftRef.current?.base;
-    if (!geo && base && base.prefecture === farmerPref && base.city === farmerCity && base.town === farmerTown) {
-      geo = { lat: base.lat, lng: base.lng, radius: base.geo_radius_m, from: base.geocoded_from };
-    }
-    return {
-      farmer_id:       authUid,
-      crop:            farmerCrop,
-      task:            farmerTask,
-      zip:             farmerZip,
-      prefecture:      farmerPref,
-      city:            farmerCity,
-      town:            farmerTown,
-      address:         farmerAddr,
-      date_label:      jobDateLabel,
-      date_start:      calendarDateToYmd(jobDateStart),
-      date_end:        calendarDateToYmd(jobDateEnd),
-      holidays:        jobHolidays,
-      headcount:       Number(jobCount) || null,
-      pay_type:        "日給", // 時給入力は廃止（2026-07-16）。新規保存は常に日給
-      hourly_wage:     "", // 時給入力は廃止（2026-07-16）。レガシー下書きの隠れ値を保存しない
-      daily_wage:      dailyWageInput,
-      work_time:       workTimeLabel,
-      break_time:      breakTime,
-      nearest_station: nearestStation,
-      commute_time:    commuteTime,
-      job_exp:         jobExp,
-      beginner_ok:     beginnerOk,
-      instant_approve_repeat: instantApproveRepeat,
-      perks:           jobPerks,
-      experienced_preferred: experiencedPreferred,
-      notes:           jobDescription,
-      work_video_url: workVideoUrl.trim() || null,
-      work_video_job_consent: workVideoUrl.trim() ? workVideoJobConsent : null,
-      work_video_related_consent: workVideoUrl.trim() ? workVideoRelatedConsent : null,
-      work_video_consent_at: workVideoUrl.trim() && workVideoJobConsent ? (workVideoConsentAt || new Date().toISOString()) : null,
-      work_video_consent_version: workVideoUrl.trim() && workVideoJobConsent ? (workVideoConsentVersion || "2026-10-05-v1") : null,
-      belongings:      jobNotes,
-      cautions:        jobCautions,
-      // 「あり」以外を選んだら目安は保存しない（選び直しの残骸を残さない・受動喫煙と同じ作法）
-      overtime_policy: overtimePolicy || null,
-      overtime_detail: overtimePolicy === "あり" ? overtimeDetail.trim() : "",
-      // 変更の範囲（2026-08-21）：掲載時にトリガーが空を「変更なし」に倒すが、選んだ値はそのまま保存
-      place_change_scope: placeChangeScope || null,
-      task_change_scope:  taskChangeScope || null,
-      danger_places:   jobDangerPlaces,
-      danger_tasks:    jobDangerTasks,
-      photos:          jobPhotos,
-      draft_step:      step,
-      status:          statusVal,
-      lat:             geo ? geo.lat : null,
-      lng:             geo ? geo.lng : null,
-      geo_radius_m:    geo ? geo.radius : null,
-      geocoded_from:   geo ? geo.from : null,
-    };
-  };
+    return jobPayloadFromForm(currentJobForm(), {
+      ownerId: authUid, status: statusVal, geo, base: deviceDraftRef.current?.base,
+    });
+  }
 
   const handleTopSave = ({ exit = false } = {}) => {
     if (draftSaving || completedRef.current) return;
@@ -1644,7 +1580,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               </section>
               <section className="listing-condition-section">
                 <h3>報酬</h3>
-                <label className="listing-condition-field">日給（円）<div className="listing-condition-pay"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\\d]/g,""))} placeholder="9000" /><span>円 / 日</span></div></label>
+                <label className="listing-condition-field">日給（円）<div className="listing-condition-pay"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(digitsOnly(e.target.value))} placeholder="9000" /><span>円 / 日</span></div></label>
                 <p className="listing-condition-note">各作業日の終了後に、現金で支払います。</p>
                 {workHours <= 0 && <p role="alert" className="listing-condition-error">終了時間は開始時間より後に設定してください。</p>}
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
