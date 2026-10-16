@@ -4,6 +4,7 @@
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { logAppError } from "../../../app/diagnostics/errorLog";
 import { safeDraftRebase } from "../../../lib/offlineSync";
+import { calendarDateFromYmd, calendarDateToYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
 import { useState, useEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
@@ -230,23 +231,23 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 時給・日給（文字列で保持してカーソル飛び防止）
   const [hourlyWageInput, setHourlyWageInput] = useState(d.hourlyWageInput ?? "");
   const [dailyWageInput,  setDailyWageInput]  = useState(d.dailyWageInput  ?? "");
-  // 日程（Date は JSON.parse で文字列になるので再変換）
+  // 保存形式は日付のみ。Dateへの変換はUI境界で行い、UTC変換による前日化を防ぐ。
   // カレンダーの「この日から始まる求人を出す」（2026-08-21）：タップした日that cb_newJobDateStart で届く。
   // 優先順は 下書きの日程 ＞ タップした日＝進行中の入力を上書きしない。編集モードは対象外
   // （applyJobRow that正）。消費は下のマウントeffectで行う（初期化関数内で消すとStrictModeの
   // 二重実行で2回目that空になるため、読むだけにする）
   const [jobDateStart,    setJobDateStart]    = useState(() => {
-    if (d.jobDateStart) return new Date(d.jobDateStart);
+    if (d.jobDateStart) return restoreDraftCalendarDate(d.jobDateStart, _deviceInit?.payload?.date_start);
     if (!_editJobNumber) {
       try {
         const v = sessionStorage.getItem("cb_newJobDateStart");
-        if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + "T00:00:00");
+        if (v) return calendarDateFromYmd(v);
       } catch {}
     }
     return null;
   });
   useEffect(() => { try { sessionStorage.removeItem("cb_newJobDateStart"); } catch {} }, []);
-  const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
+  const [jobDateEnd,      setJobDateEnd]      = useState(() => restoreDraftCalendarDate(d.jobDateEnd, _deviceInit?.payload?.date_end));
   // 期間内の休日（2026-08-03たきと指示）："YYYY-MM-DD"配列。休日ボタン→カレンダータップで設定
   const [jobHolidays,     setJobHolidays]     = useState(Array.isArray(d.jobHolidays) ? d.jobHolidays : []);
   const [holidayMode,     setHolidayMode]     = useState(false); // 休日設定モード中はカレンダータップが休日トグルになる
@@ -643,8 +644,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         setFarmerTown(data.town ?? "");
         setFarmerAddr(data.address ?? "");
         setFarmerRegion((data.prefecture ?? "") + (data.city ?? "") + (data.town ?? ""));
-        setJobDateStart(data.date_start ? new Date(data.date_start) : null);
-        setJobDateEnd(data.date_end ? new Date(data.date_end) : null);
+        setJobDateStart(calendarDateFromYmd(data.date_start));
+        setJobDateEnd(calendarDateFromYmd(data.date_end));
         setJobCount(data.headcount != null ? String(data.headcount) : "");
         setFarmerPayType(data.pay_type ?? ""); // 報酬方式（時給/日給）も復元（2026-07-24・コピー/再開で欠けていた）
         setHourlyWageInput(data.hourly_wage ?? "");
@@ -712,8 +713,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             const p = JSON.parse(sessionStorage.getItem("cb_editJobPresetDates") || "null");
             sessionStorage.removeItem("cb_editJobPresetDates");
             if (p && p.job_number === _editJobNumber) {
-              setJobDateStart(p.date_start ? new Date(p.date_start) : null);
-              setJobDateEnd(p.date_end ? new Date(p.date_end) : null);
+              setJobDateStart(calendarDateFromYmd(p.date_start));
+              setJobDateEnd(calendarDateFromYmd(p.date_end));
               if (Array.isArray(p.holidays)) setJobHolidays(p.holidays);
             }
           } catch {}
@@ -807,8 +808,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
         workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
         beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
-        jobDateStart: jobDateStart?.toISOString() ?? null,
-        jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
+        jobDateStart: calendarDateToYmd(jobDateStart),
+        jobDateEnd:   calendarDateToYmd(jobDateEnd),
         jobHolidays,
       };
     try {
@@ -869,8 +870,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       town:            farmerTown,
       address:         farmerAddr,
       date_label:      jobDateLabel,
-      date_start:      jobDateStart ? ymdLocal(jobDateStart) : null,
-      date_end:        jobDateEnd ? ymdLocal(jobDateEnd) : null,
+      date_start:      calendarDateToYmd(jobDateStart),
+      date_end:        calendarDateToYmd(jobDateEnd),
       holidays:        jobHolidays,
       headcount:       Number(jobCount) || null,
       pay_type:        "日給", // 時給入力は廃止（2026-07-16）。新規保存は常に日給
