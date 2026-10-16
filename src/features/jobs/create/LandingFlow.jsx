@@ -6,7 +6,7 @@ import { logAppError } from "../../../app/diagnostics/errorLog";
 import { safeDraftRebase } from "../../../lib/offlineSync";
 import { calendarDateFromYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
 import { useState, useEffect, useRef } from "react";
-import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
+import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, prepareDevicePublication, settleDevicePublication, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
@@ -29,7 +29,7 @@ import { geocodeTown } from "./jobCreateGeo";
 import { useTownCheck, TOWN_NOT_FOUND_MESSAGE, TOWN_CHECK_ERROR_MESSAGE } from "./useTownCheck";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
   fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
-  fetchJobByNumber, fetchJobStatus, publishMyJob, insertJobPublishCheck,
+  fetchJobByNumber, fetchJobStatus, publishMyJobWithCheck,
   countLiveApplications, syncJobDeviceDrafts,
   uploadPhoto } from "./jobCreateApi";
 import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "./components/LFParts";
@@ -328,7 +328,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
   // 掲載＝即公開（2026-08-14 承認プロセスの削除・届出受理済み）。運営者本人は直接 open で INSERT、
-  // 一般農家は pending 保存→publish_my_job RPC で即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
+  // 一般農家は下書き保存→確認記録付き掲載RPCで即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
   // 掲載＝即公開（2026-08-14 承認プロセスの削除）：管理者か一般農家かの体験の分岐（meCanOpen）は廃止。
   // 実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open がが最終担保）。
   const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載が即公開だったか（完了画面の文言に使う）
@@ -861,7 +861,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         completedRef.current = true;
         if (typeof onDraftSaved === "function") onDraftSaved(null);
         else window.location.hash = "/profile/employer/drafts";
-      } else setDraftMsg("この端末に保存済み・同期待ち。通信が戻ると自動で送信します。");
+      } else setDraftMsg(saved.publication
+        ? "入力はこの端末に保存済みです。先の掲載結果を確認するため、確認画面で「掲載する」を押してください。"
+        : "この端末に保存済み・同期待ち。通信が戻ると自動で送信します。");
     } catch {
       // queueDeviceDraft が投げるのは端末に書けない時だけ（conflict/blocked は例外にしない・2026-09-23）
       setDraftSaving(false);
@@ -1110,6 +1112,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     if (localOnly) {
       handleTopSave();
       setDraftMsg("同意の送信完了後に掲載できます。入力を続けたり、保存して終了したりできます。");
+      return;
+    }
+    if (readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
+      setPublishIssue("先の掲載と確認記録の結果を、同じ操作IDで確認します。待っている間の追加編集は送りません。");
+      setPublishModal(true);
       return;
     }
     const missing = getPublishMissingFields();
@@ -1669,12 +1676,48 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   metadata: { phase: safePhase, reason_code: code },
                 });
               };
+              const confirmPublication = async (record, finishMeasurement) => {
+                const operation = record.publication;
+                deviceDraftRef.current = record;
+                let pub;
+                try { pub = await publishMyJobWithCheck(operation); }
+                finally { emitConfirmedRefresh(REFRESH_JOBS); }
+                const outcome = pub.error ? { confirmed: false, reason: pub.error.code }
+                  : settleDevicePublication(ownerId, record.id, operation.requestId, pub.data);
+                if (outcome.record) deviceDraftRef.current = outcome.record;
+                if (!outcome.confirmed) {
+                  reportPublishFailure("publish_rpc", outcome.reason || "unconfirmed", pub.error || (pub.data?.code ? { code: pub.data.code } : null));
+                  setPublishIssue((outcome.record && !outcome.record.publication
+                    ? "掲載処理は確定していません。入力はこの端末に残っています。内容を確認して、もう一度お試しください。"
+                    : "掲載と確認記録の完了を確認できませんでした。入力はこの端末に残っています。もう一度押すと同じ操作の結果を確認します。")
+                    + (outcome.reason === "conflict" ? " 別の保存で変更された項目があるため、内容の確認が必要です。" : ""));
+                  return;
+                }
+                const status = outcome.currentStatus;
+                setEditingOpen(status === "open");
+                if (outcome.newerInput || !["open", "pending"].includes(status)) {
+                  setPublishModal(false);
+                  setDraftMsg(outcome.newerInput
+                    ? "先の掲載と確認記録は保存済みです。その後の追加編集は未反映のため、この端末に残しました。内容を確認して保存してください。"
+                    : "先の掲載と確認記録は保存済みですが、求人はその後に非公開または掲載終了になっています。再掲載は行っていません。入力はこの端末に残しています。");
+                  return;
+                }
+                completedRef.current = true;
+                removeDeviceDraft(ownerId, record.id);
+                activeDeviceDraft(ownerId, null);
+                try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
+                setDraftJobNumber(null);
+                setPublishModal(false);
+                finishMeasurement("success");
+                if (typeof onPublished === "function") onPublished(status === "open", record.jobNumber);
+                else { setPublishedOpen(status === "open"); setStep(13); }
+              };
               if (localOnly || !ownerId) { handleTopSave(); return; }
               const missing = getPublishMissingFields();
               // 募集者の項目【だけ】が欠けている時はここで止めない＝この直後のrecruitBox
               // （新規登録の内容が初期値で入った入力ボックス）がその場で開く方が親切（2026-08-07）
               const nonRecruiterMissing = missing.filter(m => !m.label.startsWith("募集者"));
-              if (nonRecruiterMissing.length > 0) {
+              if (nonRecruiterMissing.length > 0 && !readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
                 setPublishModal(false); // チェックリストを閉じてから足りない欄のページへ送る
                 goToMissingField(missing);
                 return;
@@ -1686,6 +1729,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 const { data: { session } } = await getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
                 sessionUser = session.user;
+                if (session.user.id !== ownerId) throw new Error("AUTH_REQUIRED");
+                // 応答紛失後は下書き同期・再掲載を始めず、凍結した操作を先に照合する。
+                const awaiting = readDeviceDraft(ownerId, deviceDraftRef.current?.id);
+                if (awaiting?.publication) { await confirmPublication(awaiting, finishMeasurement); return; }
                 // 募集者情報が揃っていなければ、その場でボックスを開いて入力してもらう（法令の明示事項）。
                 // 未入力の欄は新規登録①の内容を初期値に入れる
                 {
@@ -1795,57 +1842,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   else { setPublishedOpen(true); setStep(13); }
                   return;
                 }
-                let publishedNow = true;
-                if (_jn) {
-                  let pub;
-                  try { pub = await publishMyJob(_jn); }
-                  finally { emitConfirmedRefresh(REFRESH_JOBS); } // 保存は成功済み。公開処理が失敗した場合も最新状態を照合
-                  if (pub.error) {
-                    const check = await fetchJobStatus(_jn);
-                    if (!check.error && check.data?.status === "open") pub = { data: { ok: true } };
-                  }
-                  if (pub.error || !pub.data?.ok) {
-                    reportPublishFailure("publish_rpc", pub.data?.reason || pub.error?.code || "publish_rejected", pub.error);
-                    setPublishIssue("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") + "。求人は保存されています。");
-                    return;
-                  }
-                  // 修正のお願い中の求人だけは運営の確認を経て公開（2026-08-14・pending:true）
-                  // ＝祝祭は「公開の準備が整いしだい」側に分岐（onPublished(false)）
-                  if (pub.data?.pending) publishedNow = false;
-                } else {
-                  emitConfirmedRefresh(REFRESH_JOBS);
-                }
-                // 掲載前の確認を記録に残す（2026-07-30たきと指示・行動記録の憲法）。
-                // 画面のstateだけだった同意を、押した文言と時刻ごと追記のみの台帳へ。
-                // 記録に失敗しても掲載自体は止めない（掲載は成功済み）が、管理者には見えるようにする
-                if (_jn) {
-                  try {
-                    const { error: ckErr } = await insertJobPublishCheck({
-                      job_number: _jn,
-                      farmer_id: session.user.id,
-                      // 2026-08-07 UI変更：4つの個別チェック→内容の列挙＋「確認しました」1つに。
-                      // 掲載ボタンは確認済みでないと押せないため、記録は従来と同じ形
-                      // （提示した4項目・全てchecked:true）で追記する＝台帳の形は変えない
-                      items: PUBLISH_CHECKS.map((text) => ({ text, checked: true })),
-                      agreed_at: new Date().toISOString(),
-                    });
-                    if (ckErr && isAdmin(session.user)) alert("【管理者デバッグ】掲載前の確認の記録に失敗：" + ckErr.message);
-                  } catch {}
-                }
-                completedRef.current = true;
-                removeDeviceDraft(ownerId, local.id);
-                activeDeviceDraft(ownerId, null);
-                try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
-                setDraftJobNumber(null);
-                setPublishModal(false);
-                // 完了はこのフローの中のページでなく、Appthat出す掲載完了の画面（2026-09-02＝Airbnbの型：
-                // 白い全画面の「おめでとうございます」＋求人カード＋「完了」・アニメ無し・自動遷移無し）。
-                // onPublished 未指定時のみ従来の完了ページに倒す
-                // 掲載＝即公開の祝祭。修正のお願い中の再掲載（publishedNow=false）だけ
-                // 「公開の準備が整いしだい」側に分岐（2026-08-14）
-                finishMeasurement("success");
-                if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
-                else { setPublishedOpen(publishedNow); setStep(13); }
+                await confirmPublication(prepareDevicePublication(ownerId, local.id,
+                  PUBLISH_CHECKS.map(text => ({ text, checked: true }))), finishMeasurement);
               } catch (e) {
                 reportPublishFailure("unexpected", e?.code || "exception", e);
                 // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
@@ -2432,7 +2430,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       {isFarmer && step <= 12 && <ListingFooter
         step={step} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading} uploading={photoUploading}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
-        publishDisabled={!localOnly && unknownWage}
+        publishDisabled={!localOnly && unknownWage && !deviceDraftRef.current?.publication}
         hidden={sheetOpen || photoCaptionsOpen || !!recruitBox}
         onBack={step === 0 ? closeListing : returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack}
         onNext={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext}

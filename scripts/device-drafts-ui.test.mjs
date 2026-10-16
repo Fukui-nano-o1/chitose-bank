@@ -33,14 +33,14 @@ test('actual consent and listing components continue offline, restore new/edit/c
       },
     },react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/offline/entry.jsx'),name:'OfflineQA',formats:['iife'],fileName:'fixture'},minify:false}});
     const script = await readFile(path.join(output,'fixture.iife.js'),'utf8');
-    async function mount({url='https://ui.test/?case=new#/work/new/8',storage={},session={},offline=true,job=null}={}) {
+    async function mount({url='https://ui.test/?case=new#/work/new/8',storage={},session={},offline=true,job=null,receipts={}}={}) {
       dom?.window.close();
       const console = new VirtualConsole();
       console.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message)) errors.push(e.message);});
       console.on('error',(...args)=>errors.push(args.join(' ')));
       dom = new JSDOM('<div id="root"></div>',{url,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:console});
       const w = dom.window;
-      Object.assign(w,{Response,Request,Headers,AbortController,AbortSignal,TextEncoder,TextDecoder,qaOffline:offline,qaConsent:true,qaJob:job});
+      Object.assign(w,{Response,Request,Headers,AbortController,AbortSignal,TextEncoder,TextDecoder,qaOffline:offline,qaConsent:true,qaJob:job,qaPublicationReceipts:receipts});
       w.scrollTo=()=>{};w.HTMLElement.prototype.scrollTo=()=>{};w.HTMLElement.prototype.scrollBy=()=>{};
       w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});
       w.fetch=()=>Promise.reject(new Error('Unexpected network'));
@@ -116,7 +116,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w=await mount({url:'https://ui.test/#/work/new/12',storage:snapshot(w),offline:true});
     await until(() => /最低賃金を確認できませんでした/.test(w.document.body.textContent), 'offline draft review');
     assert.equal(button(w,'掲載する').disabled,true);
-    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job_with_check').length,0);
     w.qaOffline=false;w.dispatchEvent(new w.Event('online'));
     // 掲載前の下書き同期が従来の掲載導線を壊さず、サーバー確認後にだけ完了する。
     await until(() => !button(w,'掲載する').disabled, 'publish ready');
@@ -128,7 +128,9 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaJob.status,'open');
     assert.equal(w.qaJob.daily_wage,'12000');
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
-    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job_with_check').length,1);
+    assert.equal(w.qaCalls.filter(r=>['rpc/publish_my_job','job_publish_checks'].includes(r.path)).length,0);
+    assert.equal(Object.keys(w.qaPublicationReceipts).length,1);
     const startPublish = async () => {
       await until(() => !button(w,'掲載する').disabled, 'publish ready');
       button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
@@ -136,6 +138,71 @@ test('actual consent and listing components continue offline, restore new/edit/c
       button(w,'同意して掲載する').click();
     };
     const publish = async () => { await startPublish(); await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed'); };
+    // 確認記録の保存だけ失敗したときに、掲載完了や下書き削除へ進まない。
+    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
+    w.qaCheckError=true;
+    await startPublish();
+    await until(() => w.qaCalls.some(r=>r.path==='job_publish_checks' || r.path==='rpc/publish_my_job_with_check'), 'publication receipt attempted');
+    await until(() => /掲載完了/.test(w.document.body.textContent) || [...w.document.querySelectorAll('button')].some(b=>b.textContent.trim()==='同意して掲載する' && !b.disabled), 'publication settles');
+    assert.doesNotMatch(w.document.body.textContent,/掲載完了/);
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,1);
+    assert.equal(w.qaJob.status,'draft');
+    assert.match(w.document.body.textContent,/掲載処理は確定していません/);
+    assert.ok(w.qaCalls.some(r=>r.path==='app_errors' && r.body?.operation==='publish_rpc'));
+    w.qaCheckError=false;
+    button(w,'同意して掲載する').click();
+    await until(() => /掲載完了/.test(w.document.body.textContent),'receipt retry completes');
+    // DBで両方確定した後、通信応答だけを紛失。リロードでも同じ操作を照合し、再同期しない。
+    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
+    w.qaLosePublishResponse=true;
+    await startPublish();
+    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'lost response retained');
+    const awaiting=w.qaDrafts.listDeviceDrafts(owner)[0];
+    const requestBody=w.qaCalls.find(r=>r.path==='rpc/publish_my_job_with_check').body;
+    assert.equal(awaiting.state,'publishing'); assert.equal(w.qaJob.status,'open');
+    assert.equal(Object.keys(w.qaPublicationReceipts).length,1);
+    assert.doesNotMatch(w.document.body.textContent,/掲載完了/);
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,storage:snapshot(w),job:w.qaJob,receipts:w.qaPublicationReceipts});
+    // openという状態だけ・別の確認記録IDでは完了にしない。
+    w.qaReceiptMismatch=true;
+    await startPublish();
+    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'wrong receipt retained');
+    assert.equal(w.qaDrafts.readDeviceDraft(owner,awaiting.id).publication.requestId,awaiting.publication.requestId);
+    w.qaReceiptMismatch=false;
+    button(w,'同意して掲載する').click();
+    await until(() => /掲載完了/.test(w.document.body.textContent),'lost response confirmed after reload');
+    assert.deepEqual(JSON.parse(JSON.stringify(w.qaCalls.find(r=>r.path==='rpc/publish_my_job_with_check').body)),JSON.parse(JSON.stringify(requestBody)));
+    assert.equal(w.qaCalls.filter(r=>/rpc\/sync_my_(job_draft|open_job)$/.test(r.path)).length,0);
+    assert.equal(Object.keys(w.qaPublicationReceipts).length,1);
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
+    // 確認待ちの間に追加入力→保存して終了しても、古い掲載の成功応答で新しい入力を消さない。
+    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
+    w.qaLosePublishResponse=true;
+    await startPublish();
+    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'second lost response retained');
+    const pendingStorage=snapshot(w),pendingJob=w.qaJob,pendingReceipts=w.qaPublicationReceipts;
+    w=await mount({url:'https://ui.test/#/work/new/8',offline:false,storage:pendingStorage,job:pendingJob,receipts:pendingReceipts});
+    await change(w,'掲載確認待ちの追加編集');
+    button(w,'保存して終了').click();
+    await until(() => /掲載結果の確認待ち/.test(w.document.body.textContent),'uncertain publication is visible in drafts');
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].state,'publishing');
+    assert.equal(w.qaCalls.filter(r=>/rpc\/sync_my_/.test(r.path)).length,0);
+    w=await mount({url:'https://ui.test/#/work/new/12',offline:false,storage:snapshot(w),job:pendingJob,receipts:pendingReceipts});
+    await startPublish();
+    await until(() => /その後の追加編集は未反映/.test(w.document.body.textContent),'new input preserved after receipt');
+    assert.doesNotMatch(w.document.body.textContent,/掲載完了/);
+    assert.equal(w.qaJob.notes,'最初の入力');
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].payload.notes,'掲載確認待ちの追加編集');
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].state,'local');
+    // 結果確認前に終了した求人を、過去の操作IDで再掲載しない。
+    w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
+    w.qaLosePublishResponse=true;
+    await startPublish();
+    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'third lost response retained');
+    w.qaJob.status='closed';
+    button(w,'同意して掲載する').click();
+    await until(() => /再掲載は行っていません/.test(w.document.body.textContent),'current closed status respected');
+    assert.equal(w.qaJob.status,'closed'); assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].state,'blocked');
     // カレンダーのコピー日程は入力にだけ入り、比較元はDBの行を維持する。
     const copied={...w.qaJob,status:'draft',draft_step:12,date_start:null,date_end:null,date_label:null,holidays:[]};
     w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:copied,
@@ -189,7 +256,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaJob.notes,legacy.notes);
     assert.equal(w.qaSyncExpected.draft_step_id,'description');
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,2);
-    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job_with_check').length,1);
     // 別タブの本文変更は上書きしない。失敗理由・通知・入力保持と押し直しを実際のUIで検査。
     w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaConflictOnce=true;
@@ -201,7 +268,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(retained.state,'conflict');
     assert.equal(w.qaJob.notes,'別のタブの保存');
     assert.equal(w.qaJob.status,'draft');
-    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job_with_check').length,0);
     assert.ok(w.qaCalls.some(r=>r.path==='app_errors' && r.body?.component==='ListingFlow' && r.body?.operation==='draft_sync'));
     for(let retry=0;retry<2;retry++) {
       const profileReads=w.qaCalls.filter(r=>r.path==='employer_profiles').length;
@@ -210,7 +277,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       await until(() => !button(w,'同意して掲載する').disabled, 'explicit retry completed safely');
     }
     assert.equal(w.qaJob.notes,'別のタブの保存');
-    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,0);
+    assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job_with_check').length,0);
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,1);
     assert.equal(w.qaDrafts.readDeviceDraft(owner,retained.id).payload.notes,'最初の入力');
     assert.ok(!/DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
