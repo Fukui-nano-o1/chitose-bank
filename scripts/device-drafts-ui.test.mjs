@@ -7,6 +7,8 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {build} from 'vite';
 import react from '@vitejs/plugin-react';
+import {JOB_DRAFT_FIELDS} from '../src/lib/jobInputFields.js';
+import {jobInputSample} from './fixtures/job-input.js';
 const require = createRequire(import.meta.url);
 const {JSDOM,VirtualConsole} = require(process.env.CB_TEST_NODE_MODULES ? `${process.env.CB_TEST_NODE_MODULES}/jsdom` : 'jsdom');
 const root = fileURLToPath(new URL('../',import.meta.url));
@@ -95,6 +97,20 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w=await mount({url:'https://ui.test/?case=new#/work/new/5',offline:true});
     await until(() => /最低賃金を確認できませんでした/.test(w.document.body.textContent), 'wage lookup failure');
     assert.equal(button(w,'次へ').disabled,false);
+    // 初期値を注入するだけでは入力時の変換ミスを検知できない。実際のinputイベントを通す。
+    const changeWage = async value => {
+      const input=w.document.querySelector('input[aria-label="日給"]');
+      Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(input,value);
+      input.dispatchEvent(new w.Event('input',{bubbles:true}));
+      const expected=value.replace(/[^0-9]/g,'');
+      await until(() => w.qaDrafts.listDeviceDrafts(owner).some(d => d.form.dailyWageInput === expected && d.payload.daily_wage === expected), 'typed wage saved without losing digits');
+      assert.equal(input.value,expected);
+    };
+    await changeWage('12000');
+    await changeWage('');
+    await changeWage('12,000円');
+    w=await mount({url:'https://ui.test/#/work/new/5',storage:snapshot(w),offline:true});
+    assert.equal(w.document.querySelector('input[aria-label="日給"]').value,'12000');
     button(w,'次へ').click();
     await until(() => w.document.querySelector('[data-step="6"]'), 'continue drafting without wage lookup');
     w=await mount({url:'https://ui.test/#/work/new/12',storage:snapshot(w),offline:true});
@@ -110,6 +126,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     button(w,'同意して掲載する').click();await until(() => /掲載完了/.test(w.document.body.textContent), 'publication confirmed');
     assert.match(w.document.body.textContent,/掲載完了/);
     assert.equal(w.qaJob.status,'open');
+    assert.equal(w.qaJob.daily_wage,'12000');
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job').length,1);
     const startPublish = async () => {
@@ -197,6 +214,26 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/sync_my_job_draft').length,1);
     assert.equal(w.qaDrafts.readDeviceDraft(owner,retained.id).payload.notes,'最初の入力');
     assert.ok(!/DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
+    // codec単体だけでなく、全setter・端末保存・再開・同期の接続を44項目で確認する。
+    const fullRow={...jobInputSample(),id:'00000000-0000-4000-8000-000000000044',job_number:42,farmer_id:owner,status:'draft',draft_step_id:'review'};
+    const expected={...fullRow,date_label:new Date().getFullYear()===2026 ? fullRow.date_label : '2026/12/1（火） 〜 2026/12/5（土）'};
+    const assertInputs = actual => {
+      for (const key of JOB_DRAFT_FIELDS) {
+        assert.ok(Object.hasOwn(actual,key),key);
+        assert.deepEqual(JSON.parse(JSON.stringify(actual[key])),expected[key],key);
+      }
+    };
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:fullRow});
+    await until(() => w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.jobDescription===fullRow.notes),'all input restored from row');
+    let allInputs=w.qaDrafts.listDeviceDrafts(owner)[0];
+    assertInputs(allInputs.payload);
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:true,job:fullRow,storage:snapshot(w)});
+    assertInputs(w.qaDrafts.readDeviceDraft(owner,allInputs.id).payload);
+    button(w,'保存して終了').click();
+    await until(() => w.qaDrafts.readDeviceDraft(owner,allInputs.id)?.state==='pending','all input queued offline');
+    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));
+    await until(() => w.qaDrafts.readDeviceDraft(owner,allInputs.id)?.state==='synced','all input synchronized');
+    assertInputs(w.qaJob);
     assert.deepEqual(errors,[]);
   } catch (error) {
     console.error(`Browser errors: ${JSON.stringify(errors)}\nScreen: ${dom?.window.document.body.textContent}\nRequests: ${JSON.stringify(dom?.window.qaCalls?.map(r=>r.path))}`);

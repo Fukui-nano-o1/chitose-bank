@@ -1,5 +1,14 @@
 # chitose-bank 作業ログ
 
+## 2026-10-16 求人入力コードの分類・変換の分離
+
+- GitHub内の管理コードを対象に、44送信キーをjobInputFields.jsへ分類。DB復元・端末保存形式・payload生成をjobInputCodec.jsへ集約し、LandingFlowから呼ぶ構造にした。
+- 日給入力の正規表現による数字消失を修正。実入力12000、消去、12,000円の貼り付け、端末保存・オフライン再開・掲載送信を回帰試験に追加。
+- 44項目の往復、実UIと端末保存の接続、ローカルPGliteの保存・更新・競合、JSとSQLの許可列一致を確認。JSTとUTC−3のUI・codec試験が通過。
+- critical: 296件中295通過、既存DB課題1件を実行TODOとして記録。動画同意時刻は同じ瞬間でもJSON表記が異なると応答紛失後の再送が競合になる。修正済みと扱わない。
+- ESLint・本番ビルドも通過（TZ=Asia/Tokyo npm run build）。
+- 構造・既存の変換規則・後続課題はdocs/job-input-boundaries-2026-10-16.md。日付修正PR #7に続く変更。本番DB・main・権限は変更していない。
+
 ## 2026-10-16 求人日程の保存・復元
 
 - DB・コピー指定の日付をUTC時刻として読んで前日になる原因を修正。日程の端末保存と送信を YYYY-MM-DD に統一し、変換を calendarDate.js に集約。

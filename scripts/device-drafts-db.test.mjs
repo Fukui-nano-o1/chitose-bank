@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { JOB_DRAFT_FIELDS, jobDraftBase } from '../src/lib/offlineSync.js';
+import {jobDraftPatch} from '../src/lib/jobDraftProtocol.js';
+import {jobFormFromRow, jobPayloadFromForm} from '../src/features/jobs/create/jobInputCodec.js';
+import {jobInputSample, jobInputOptions} from './fixtures/job-input.js';
 const require = createRequire(import.meta.url);
 const { PGlite } = require(process.env.CB_TEST_NODE_MODULES ? `${process.env.CB_TEST_NODE_MODULES}/@electric-sql/pglite` : '@electric-sql/pglite');
 const owner = '00000000-0000-4000-8000-000000000001', other = '00000000-0000-4000-8000-000000000002';
 const jobId = '00000000-0000-4000-8000-000000000003';
 
-test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job checks, and consent version checks', async () => {
+test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job checks, and consent version checks', async t => {
   const db = new PGlite();
   try {
     const types = { headcount: 'integer', draft_step: 'integer', lat: 'numeric', lng: 'numeric', geo_radius_m: 'integer',
@@ -69,6 +72,8 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     for (const name of ['sync_my_job_draft','sync_my_open_job']) {
       const def = (await db.query('select pg_get_functiondef(($1)::regprocedure) as definition', [`public.${name}(uuid,uuid,jsonb,jsonb)`])).rows[0].definition;
       assert.match(def, /'draft_step_id'/);
+      const allowed = [...def.match(/v_allowed text\[\] := array\[([^\]]+)\]/)[1].matchAll(/'([^']+)'/g)].map(match=>match[1]);
+      assert.deepEqual(new Set(allowed),new Set([...JOB_DRAFT_FIELDS,'draft_step_id']));
     }
     const legacyBase = jobDraftBase(first.row); delete legacyBase.draft_step_id;
     const falseConflict = await call('sync_my_job_draft',legacyBase,{notes:'second'});
@@ -111,6 +116,28 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
     await db.exec(`reset role; insert into public.applications values(${changed.row.job_number},'applied')`);
     await login(owner);
     assert.equal((await call('sync_my_open_job',jobDraftBase(changed.row),{notes:'cannot edit with applicant'})).reason,'has_applications');
+    // codecの44項目をSQLのjsonb_populate_recordまで通す。所有者・公開状態はpatch外。
+    const input=jobInputSample();
+    const patch=jobDraftPatch(jobPayloadFromForm(jobFormFromRow(input,jobInputOptions),{ownerId:owner,status:'draft',base:input,now:new Date(2026,9,16)}));
+    const allId='00000000-0000-4000-8000-000000000044';
+    const allSaved=await call('sync_my_job_draft',null,patch,allId);
+    assert.equal(allSaved.ok,true);
+    for (const field of JOB_DRAFT_FIELDS) {
+      if (field === 'work_video_consent_at') assert.equal(Date.parse(allSaved.row[field]),Date.parse(input[field]),field);
+      else assert.deepEqual(allSaved.row[field],input[field],field);
+    }
+    // 既存SQLの課題を隠さない。timestamptzのJSON表記だけの差で再送が競合になる。
+    // このPRは入力変換の分離。サーバーの比較修正と別の変更単位にし、実行するTODOで再現を残す。
+    await t.test('video consent timestamp survives an identical retry after a lost response', {
+      todo: '既存DB比較の課題: 同じ同意時刻のUTC/JST表記を型付きで比較する必要がある',
+    }, async () => {
+      const allRetry=await call('sync_my_job_draft',null,patch,allId);
+      assert.equal(allRetry.ok,true); assert.equal(allRetry.row.job_number,allSaved.row.job_number);
+    });
+    const allUpdate=await call('sync_my_job_draft',jobDraftBase(allSaved.row),{...patch,notes:'',beginner_ok:false,photos:[]},allId);
+    assert.equal(allUpdate.ok,true); assert.equal(allUpdate.row.notes,''); assert.equal(allUpdate.row.beginner_ok,false); assert.deepEqual(allUpdate.row.photos,[]);
+    const allConflict=await call('sync_my_job_draft',jobDraftBase(allSaved.row),{...patch,notes:'別端末の古い入力'},allId);
+    assert.equal(allConflict.reason,'conflict'); assert.equal(allConflict.row.notes,'');
     await assert.rejects(consent('old'), /POLICY_CHANGED/);
     assert.equal((await db.query('select agreed_privacy_version from public.account_holders')).rows[0].agreed_privacy_version,'current');
     await db.exec('reset role');
