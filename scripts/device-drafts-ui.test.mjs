@@ -129,6 +129,39 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaJob.date_start,'2026-12-01');
     assert.equal(w.qaSyncExpected.date_start,null);
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,0);
+    // DB編集→端末保存→オフライン再開でも期間と休日を変換で壊さない。
+    const period={...w.qaJob,status:'draft',draft_step:12,date_start:'2026-12-01',date_end:'2026-12-05',holidays:['2026-12-02']};
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:period});
+    await until(() => w.qaDrafts.listDeviceDrafts(owner).some(d => d.form?.jobDateEnd === '2026-12-05'), 'DB period saved as calendar dates');
+    const periodDraft=w.qaDrafts.listDeviceDrafts(owner)[0];
+    const checkPeriod = draft => {
+      assert.equal(draft.form.jobDateStart,'2026-12-01');
+      assert.equal(draft.form.jobDateEnd,'2026-12-05');
+      assert.equal(draft.payload.date_start,'2026-12-01');
+      assert.equal(draft.payload.date_end,'2026-12-05');
+      assert.deepEqual(Array.from(draft.form.jobHolidays),['2026-12-02']);
+      assert.deepEqual(Array.from(draft.payload.holidays),['2026-12-02']);
+    };
+    checkPeriod(periodDraft);
+    w=await mount({url:`https://ui.test/#/work/local/${periodDraft.id}`,storage:snapshot(w),offline:true,job:period});
+    await until(() => w.qaDrafts.readDeviceDraft(owner,periodDraft.id)?.form?.jobDateEnd === '2026-12-05', 'local period restored');
+    checkPeriod(w.qaDrafts.readDeviceDraft(owner,periodDraft.id));
+    assert.match(w.document.body.textContent,/12\/1/);
+    // 旧ISO下書きも同時保存のpayloadを正として読む。再開先の時差には依存しない。
+    const oldStorage=snapshot(w);
+    const storageKey=`cb:device-draft:v1:${owner}:${periodDraft.id}`;
+    const oldDraft=JSON.parse(oldStorage[storageKey]);
+    oldDraft.form.jobDateStart='2026-11-30T15:00:00.000Z';
+    oldDraft.form.jobDateEnd='2026-12-04T15:00:00.000Z';
+    oldStorage[storageKey]=JSON.stringify(oldDraft);
+    w=await mount({url:`https://ui.test/#/work/local/${periodDraft.id}`,storage:oldStorage,offline:true,job:period});
+    await until(() => w.qaDrafts.readDeviceDraft(owner,periodDraft.id)?.form?.jobDateEnd === '2026-12-05', 'legacy ISO upgraded without changing its day');
+    checkPeriod(w.qaDrafts.readDeviceDraft(owner,periodDraft.id));
+    w.qaOffline=false;w.dispatchEvent(new w.Event('online'));
+    await publish();
+    assert.equal(w.qaJob.date_start,'2026-12-01');
+    assert.equal(w.qaJob.date_end,'2026-12-05');
+    assert.deepEqual(Array.from(w.qaJob.holidays),['2026-12-02']);
     // 入力内容は同じで、比較用の列が追加された旧キャッシュは安全に再照合して掲載できる。
     const legacy={...w.qaJob,status:'draft',draft_step:12};delete legacy.draft_step_id;
     w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:legacy,
