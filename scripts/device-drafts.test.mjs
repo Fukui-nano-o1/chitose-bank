@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { newDeviceDraft, saveDeviceDraft, readDeviceDraft, listDeviceDrafts, queueDeviceDraft,
   settleDeviceDraft, queuePrivacyConsent, readPendingConsent, forkDeviceDraft } from '../src/lib/deviceDrafts.js';
 import { syncDeviceWork } from '../src/lib/offlineSync.js';
+import { draftPayloadMatches, safeDraftRebase } from '../src/lib/jobDraftProtocol.js';
 
 const owner = '00000000-0000-4000-8000-000000000001', other = '00000000-0000-4000-8000-000000000002';
 const version = 'test-version';
@@ -33,6 +34,47 @@ function client(handler, user = owner) {
   return { db, calls };
 }
 test.beforeEach(reset);
+
+test('consent timestamp equality uses instants, preserves microseconds and rejects ambiguous dates', () => {
+  const matches = (left, right) => draftPayloadMatches({work_video_consent_at:left}, {work_video_consent_at:right});
+  for (const equivalent of ['2026-10-16T00:00:00Z', '2026-10-16T09:00:00.000000+09:00',
+    '2026-10-15T21:00:00-03:00', '2026-10-16 00:00:00+00']) {
+    assert.equal(matches('2026-10-16T00:00:00+00:00', equivalent), true, equivalent);
+  }
+  assert.equal(matches('2026-10-16T00:00:00.123456Z', '2026-10-16T09:00:00.123456+09:00'), true);
+  assert.equal(matches('2026-10-16T00:00:00.123456Z', '2026-10-16T09:00:00.123457+09:00'), false);
+  for (const invalid of [null, '', 0, '2026-10-16', '2026-10-16T00:00:00', 'not-a-date', '2026-10-16T00:00:00+24:00']) {
+    assert.equal(matches('2026-10-16T00:00:00Z', invalid), false);
+  }
+  assert.equal(matches('2026-02-30T00:00:00Z', '2026-03-02T00:00:00Z'), false);
+  assert.equal(draftPayloadMatches({notes:'2026-10-16T00:00:00Z'}, {notes:'2026-10-16T09:00:00+09:00'}), false);
+  assert.equal(draftPayloadMatches({photos:['a','b']}, {photos:['b','a']}), false);
+  assert.equal(draftPayloadMatches({photos:['a','b']}, {photos:[]}), false);
+});
+
+test('same-instant timestamp allows safe rebase but different consent and other remote edits remain conflicts', () => {
+  const base = {id:'job', farmer_id:owner, status:'draft', notes:'original', work_video_consent_at:'2026-10-16T00:00:00Z'};
+  const remote = {...base, work_video_consent_at:'2026-10-16T09:00:00+09:00'};
+  const payload = {notes:'edit', work_video_consent_at:'2026-10-16T00:00:00Z'};
+  assert.equal(safeDraftRebase(base, remote, payload).safe, true);
+  assert.equal(safeDraftRebase(base, {...remote, work_video_consent_at:'2026-10-16T09:00:00.000001+09:00'}, payload).safe, false);
+  assert.equal(safeDraftRebase(base, {...remote, notes:'another device'}, payload).safe, false);
+  assert.equal(safeDraftRebase(base, {...remote, farmer_id:other}, payload).safe, false);
+});
+
+test('an old-server timestamp conflict can be retried explicitly without discarding input or changing identity', () => {
+  const d = saveDeviceDraft(newDeviceDraft(owner), {jobDescription:'keep me'}, {
+    notes:'keep me', work_video_consent_at:'2026-10-16T00:00:00Z',
+  });
+  queueDeviceDraft(owner, d.id);
+  const remote = {...row(d), work_video_consent_at:'2026-10-16T09:00:00+09:00'};
+  settleDeviceDraft(owner, d.id, d.revision, {ok:false, reason:'conflict', row:remote});
+  const queued = queueDeviceDraft(owner, d.id);
+  assert.equal(queued.state, 'pending');
+  assert.equal(queued.jobId, d.jobId);
+  assert.equal(queued.form.jobDescription, 'keep me');
+  assert.deepEqual(queued.pending.base, remote);
+});
 
 test('device drafts survive a reload and never appear under another account; new copy has a new server ID', () => {
   const first = draft();
