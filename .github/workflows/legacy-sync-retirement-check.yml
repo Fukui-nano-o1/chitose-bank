@@ -1,0 +1,32 @@
+name: Legacy sync retirement checks
+on:
+  pull_request:
+    paths:
+      - api/sync-farmer.js
+      - scripts/legacy-sync-retirement.test.mjs
+      - package.json
+      - package-lock.json
+      - .github/workflows/legacy-sync-retirement-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: legacy-sync-retirement-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Critical regressions, lint and production bundle (no production credentials)
+        run: npm run build
