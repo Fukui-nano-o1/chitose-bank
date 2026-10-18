@@ -4,6 +4,7 @@ on:
     paths:
       - src/lib/image.js
       - src/lib/photoStorage.js
+      - src/components/admin/AdminSystemRoom.jsx
       - src/features/jobs/create/components/StepPhotos.jsx
       - src/features/jobs/create/components/StepDanger.jsx
       - src/features/jobs/create/LandingFlow.jsx

@@ -1,3 +1,4 @@
+import { sameProfileValue } from './profileRecord.js';
 const fail = (code, message) => Object.assign(new Error(message), { code });
 export async function photoOwner(client, expected) {
   const { data, error } = await client.auth.getSession();
@@ -33,4 +34,22 @@ export async function putPhotoBytes(client, owner, bucket, prefix, blob) {
   await photoOwner(client, owner);
   if (!saved) throw fail('PHOTO_UNCONFIRMED', '写真の保存を確認できません。同じ写真を選び直して再試行してください。');
   return url;
+}
+
+// Maintenance may change only the photo list it actually read. A zero-row
+// update or lost response is confirmed by reading the exact desired result.
+export async function confirmJobPhotoList(client, owner, id, expected, desired) {
+  if (!id || !Array.isArray(expected) || !Array.isArray(desired)) throw fail('PHOTO_LIST_INPUT', '写真一覧の比較元を確認できません。');
+  await photoOwner(client, owner);
+  try {
+    await client.from('jobs').update({ photos: desired }).eq('id', id).eq('photos', JSON.stringify(expected));
+  } catch { /* A lost response may have committed; never retry without the baseline. */ }
+  await photoOwner(client, owner);
+  let result;
+  try { result = await client.from('jobs').select('id,photos').eq('id', id).maybeSingle(); }
+  catch { /* Unknown remains unknown. */ }
+  await photoOwner(client, owner);
+  if (!result || result.error || (result.data && result.data.id !== id)) throw fail('PHOTO_LIST_UNCONFIRMED', '写真一覧の保存結果を確認できません。');
+  if (!result.data || !sameProfileValue(result.data.photos, desired)) throw fail('PHOTO_LIST_CONFLICT', '写真一覧が変更されたか、更新を拒否されました。最新の一覧で再実行してください。');
+  return result.data;
 }

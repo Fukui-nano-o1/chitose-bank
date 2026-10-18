@@ -1,4 +1,4 @@
-import { photoOwner, putPhotoBytes } from "./photoStorage.js";
+import { photoOwner, putPhotoBytes, confirmJobPhotoList } from "./photoStorage.js";
 // 画像のクライアント圧縮（2026-07-26 LandingFlowから共有層へ移動）：求人写真・ヘルプのスクショ等、
 // アップロード前に必ず通す。原寸4MB級が「白いまま読み込み待ち」になる問題と転送量（egress）対策の両方。
 // 圧縮に失敗したら原本をそのまま返す（古いブラウザ等でも壊れない）
@@ -128,9 +128,9 @@ export async function recompressBucket(supabase, bucket, { maxSide = 1600, quali
 }
 
 // 既存の求人写真へのサムネ後埋め（管理者用・2026-08-02・②）：jobs.photos の各写真について
-// 640pxサムネを生成して thumb_<元ファイル名> に保存し、jsonbへ thumb URL を書き戻す。
-// ・thumbのパスは元ファイル名から機械的に決まる＝uploadJobPhotoの命名規則と同一
-// ・同一パスへupsert＝再実行しても増殖しない（冪等）。
+// 640pxサムネを内容ハッシュの新しいパスへ保存し、読込時と写真一覧が同じ場合だけ参照を変更する。
+// ・既存ファイルを上書き・削除せず、通常アップロードと同じバイト照合を使う。
+// ・応答不明時も保存済み一覧との一致を確認し、他の編集を戻さない。
 // ・失敗した写真は飛ばして続行（元のentryを保持＝原寸フォールバックが効き続ける）
 // ・危険箇所写真（danger_）はカード表示が無いので対象外
 // 2026-08-03たきと指示「一瞬で終了させろ」：
@@ -138,8 +138,14 @@ export async function recompressBucket(supabase, bucket, { maxSide = 1600, quali
 //   新規アップロードはuploadJobPhotoがサムネを同時生成するので、このツールの仕事は「thumb無しの後埋め」だけでよい）
 // ・残った対象は6並列で処理。★旧320px世代を作り直したい時は force:true（全再生成・通常は不要）
 export async function generateJobPhotoThumbs(supabase, { maxSide = 640, quality = 0.65, bucket = "job-photos", onProgress, force = false } = {}) {
-  const { data: rows, error } = await supabase.from("jobs").select("id, photos");
-  if (error) return { error: error.message };
+  let owner, rows;
+  try {
+    owner = await photoOwner(supabase);
+    const result = await supabase.from("jobs").select("id, photos");
+    if (result.error) throw result.error;
+    rows = result.data;
+    await photoOwner(supabase, owner);
+  } catch (e) { return { error: e?.message || "求人写真を読み込めません。" }; }
   const jobsWithPhotos = (rows || []).filter(r => Array.isArray(r.photos) && r.photos.length > 0);
   const total = jobsWithPhotos.reduce((n, r) => n + r.photos.length, 0);
   // 処理が要る写真だけを平らに集める（job行をまたいで1つのプールで並走させるため）
@@ -155,11 +161,13 @@ export async function generateJobPhotoThumbs(supabase, { maxSide = 640, quality 
       const at = url ? url.indexOf(marker) : -1;
       if (at < 0) return; // このバケットの写真でなければ触らない
       if (!force && typeof p === "object" && p?.thumb) { skipped++; return; } // 生成済み＝仕事なし
-      const path = decodeURIComponent(url.slice(at + marker.length).split("?")[0]);
+      let path;
+      try { path = decodeURIComponent(url.slice(at + marker.length).split("?")[0]); }
+      catch { skipped++; return; }
       tasks.push({ row, index: i, url, path, name: path.split("/").pop() });
     });
   }
-  let done = 0, made = 0, failed = 0, updatedJobs = 0;
+  let done = 0, made = 0, failed = 0, updatedJobs = 0, conflictedJobs = 0, unconfirmedJobs = 0;
   const changedJobs = new Set();
   await runPool(tasks, 6, async (t) => {
     try {
@@ -167,12 +175,7 @@ export async function generateJobPhotoThumbs(supabase, { maxSide = 640, quality 
       if (dlErr || !blob) { failed++; return; }
       const file = new File([blob], t.name, { type: blob.type || "image/jpeg" });
       const small = await compressImage(file, maxSide, quality);
-      const thumbPath = t.path.replace(/[^/]+$/, "thumb_" + t.name);
-      const { error: upErr } = await supabase.storage.from(bucket).upload(thumbPath, small, { upsert: true, contentType: small.type || "image/jpeg" });
-      if (upErr) { failed++; return; }
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(thumbPath);
-      const thumbUrl = urlData?.publicUrl || "";
-      if (!thumbUrl) { failed++; return; }
+      const thumbUrl = await putPhotoBytes(supabase, owner, bucket, "thumb_backfill_", small);
       made++;
       const p = t.row.photos[t.index];
       const entry = typeof p === "string" ? { url: t.url } : { ...p };
@@ -184,8 +187,13 @@ export async function generateJobPhotoThumbs(supabase, { maxSide = 640, quality 
   // 書き戻しは並走完了後にjob単位で1回（写真の並び順は維持される：indexで差し込むため）
   for (const row of jobsWithPhotos) {
     if (!changedJobs.has(row.id)) continue;
-    const { error: upErr } = await supabase.from("jobs").update({ photos: nextByJob.get(row.id) }).eq("id", row.id);
-    if (!upErr) updatedJobs++;
+    try {
+      await confirmJobPhotoList(supabase, owner, row.id, row.photos, nextByJob.get(row.id));
+      updatedJobs++;
+    } catch (e) {
+      if (e?.code === "PHOTO_LIST_CONFLICT") conflictedJobs++;
+      else unconfirmedJobs++;
+    }
   }
-  return { total, made, failed, skipped, updatedJobs };
+  return { total, made, failed, skipped, updatedJobs, conflictedJobs, unconfirmedJobs };
 }

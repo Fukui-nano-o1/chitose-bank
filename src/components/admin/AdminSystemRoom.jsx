@@ -432,7 +432,7 @@ export function AdminSystemRoom() {
                     {thumbGenResult
                       ? (thumbGenResult.error
                           ? `失敗：${thumbGenResult.error}`
-                          : `完了：${thumbGenResult.made}枚生成（生成済みスキップ${thumbGenResult.skipped ?? 0}・失敗${thumbGenResult.failed}・求人${thumbGenResult.updatedJobs}件更新／全${thumbGenResult.total}枚）`)
+                          : `処理結果：${thumbGenResult.made}枚生成（スキップ${thumbGenResult.skipped ?? 0}・生成失敗${thumbGenResult.failed}・求人${thumbGenResult.updatedJobs}件の保存確認済み／全${thumbGenResult.total}枚）。競合・拒否${thumbGenResult.conflictedJobs ?? 0}件、保存未確認${thumbGenResult.unconfirmedJobs ?? 0}件。未確認の求人は最新の一覧で再実行してください。`)
                       : "サムネ無しの写真だけ後埋め（640px・生成済みは飛ばす＝通常は数秒）"}
                   </span>
                 </div>
