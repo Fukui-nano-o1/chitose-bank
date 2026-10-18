@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - api/sync-farmer.js
+      - api/auth/verify-otp.js
       - scripts/legacy-sync-retirement.test.mjs
       - package.json
       - package-lock.json
