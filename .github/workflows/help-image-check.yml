@@ -1,0 +1,33 @@
+name: Help image integrity checks
+on:
+  pull_request:
+    paths:
+      - src/app/help/HelpCenter.jsx
+      - src/lib/helpImageRecord.js
+      - scripts/help-image-*.test.mjs
+      - scripts/fixtures/help-image-*
+      - supabase/migrations/*help_image*.sql
+      - package.json
+      - package-lock.json
+      - .github/workflows/help-image-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: help-image-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build

@@ -6,6 +6,7 @@ import { isAdmin } from "../../lib/utils";
 import { Dots } from "../../components/ui";
 import { isIOS } from "../../lib/push";
 import { compressImage } from "../../lib/image";
+import { readHelpImages, saveHelpImage } from "../../lib/helpImageRecord";
 import { NavIconInline } from "../../components/NavIcons";
 import { openSupport } from "../../lib/supportDiagnostics";
 
@@ -123,48 +124,42 @@ const HELP_CONTENT = {
   },
 };
 
-// help-imagesバケットの公開URLから、削除に必要なストレージパスだけを取り出す
-function helpImagePathFromUrl(url) {
-  if (!url) return null;
-  const marker = "/help-images/";
-  const idx = url.indexOf(marker);
-  if (idx === -1) return null;
-  return url.slice(idx + marker.length).split("?")[0];
+const INSTALL_SLOTS = ["install-ios", "install-android"];
+function useHelpImageSlots(me, slots) {
+  const [records, setRecords] = useState(null);
+  const [readError, setReadError] = useState("");
+  const [busy, setBusy] = useState(null);
+  const lock = useRef(false);
+  const load = async () => {
+    try { const rows = await readHelpImages(supabase, slots); setRecords(rows); setReadError(""); }
+    catch (e) { setReadError(e.message); }
+  };
+  useEffect(() => { load(); }, [slots]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ready = records !== null && !readError;
+  const images = Object.fromEntries(Object.entries(records || {}).map(([k, row]) => [k, row.url]));
+  const run = async (key, action) => {
+    if (lock.current || !ready) return;
+    lock.current = true; setBusy(key);
+    try { await action(); } catch (e) { alert(e?.message || "画像の保存結果を確認できません。元の画像は残しています。"); }
+    finally { lock.current = false; setBusy(null); }
+  };
+  const save = async (slotKey, blob) => {
+    const row = await saveHelpImage({ client: supabase, userId: me?.id, slotKey, record: records[slotKey] || null, blob });
+    setRecords(prev => { const next = { ...prev }; if (row) next[slotKey] = row; else delete next[slotKey]; return next; });
+  };
+  const notice = readError ? <div role="alert" className="f-sans"><p>{readError}</p><button type="button" onClick={load} disabled={!!busy}>もう一度読み込む</button></div> : null;
+  return { images, ready, busy, run, save, notice };
 }
-
 
 // インストール案内（#/install・未ログインでも閲覧可・2026-07-22）：OS自動判定で手順を並べ、
 // 画像2枠（help_images: install-ios / install-android）は管理者がアップロードできる（ヘルプ画像スロット方式）
 export function InstallGuide({ me }) {
-  const [images, setImages] = useState({});
-  const [uploadingSlot, setUploadingSlot] = useState(null);
+  const { images, ready, busy: uploadingSlot, run, save, notice } = useHelpImageSlots(me, INSTALL_SLOTS);
   const admin = isAdmin(me);
   const ios = isIOS();
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.from("help_images").select("slot_key,url").in("slot_key", ["install-ios","install-android"]);
-        if (data) { const m = {}; data.forEach(r => { m[r.slot_key] = r.url; }); setImages(m); }
-      } catch {}
-    })();
-  }, []);
-  const upload = async (slotKey, file) => {
-    if (!file || uploadingSlot) return;
-    setUploadingSlot(slotKey);
-    try {
-      // スクショは原寸1〜3MB級ので長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
-      const upFile = await compressImage(file, 1280, 0.75);
-      const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
-      const path = slotKey + "." + ext;
-      const { error: upErr } = await supabase.storage.from("help-images").upload(path, upFile, { upsert: true });
-      if (upErr) { alert("アップロードに失敗しました：" + upErr.message); setUploadingSlot(null); return; }
-      const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
-      const url = (urlData?.publicUrl || "") + "?t=" + Date.now();
-      const { error: dbErr } = await supabase.from("help_images").upsert({ slot_key: slotKey, url, updated_at: new Date().toISOString() });
-      if (dbErr) { alert("保存に失敗しました：" + dbErr.message); setUploadingSlot(null); return; }
-      setImages(prev => ({ ...prev, [slotKey]: url }));
-    } catch { alert("アップロードに失敗しました。"); }
-    setUploadingSlot(null);
+  const upload = (slotKey, file) => {
+    if (!file) return;
+    return run(slotKey, async () => { const blob = await compressImage(file, 1280, 0.75); await save(slotKey, blob); });
   };
   const slot = (slotKey, label, steps) => (
     <div key={slotKey} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"20px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -177,7 +172,7 @@ export function InstallGuide({ me }) {
       {admin && (
         <label className="f-sans" style={{ display:"inline-block", marginTop:10, fontSize:12, fontWeight:700, color:"#00A86B", cursor:"pointer" }}>
           {uploadingSlot===slotKey ? <>アップロード中<Dots /></> : (images[slotKey] ? "画像を差し替え" : "＋ 画像をアップロード")}
-          <input type="file" accept="image/*" style={{ display:"none" }} onChange={e => upload(slotKey, e.target.files?.[0])} />
+          <input type="file" accept="image/*" disabled={!ready || !!uploadingSlot} style={{ display:"none" }} onChange={e => { upload(slotKey, e.target.files?.[0]); e.target.value = ""; }} />
         </label>
       )}
     </div>
@@ -196,6 +191,7 @@ export function InstallGuide({ me }) {
           ホーム画面に置くだけで完了します。下の手順のとおりに進めてください（1分ほどで終わります）。
         </p>
       </div>
+      {notice}
       <div style={{ display:"grid", gap:16 }}>
         {ios ? <>{iosSlot}{andSlot}</> : <>{andSlot}{iosSlot}</>}
       </div>
@@ -210,8 +206,7 @@ export function HelpCenter({ me, onReportClick = () => openSupport() }) {
     return (m && HELP_CHAPTER_KEYS.includes(m[1])) ? m[1] : null;
   };
   const [openChapter, setOpenChapter] = useState(chapterFromHash());
-  const [images, setImages] = useState({}); // { [slot_key]: url }
-  const [uploadingSlot, setUploadingSlot] = useState(null);
+  const { images, ready, busy: uploadingSlot, run, save, notice } = useHelpImageSlots(me);
   useEffect(() => {
     const onHash = () => setOpenChapter(chapterFromHash());
     window.addEventListener("hashchange", onHash);
@@ -222,86 +217,46 @@ export function HelpCenter({ me, onReportClick = () => openSupport() }) {
     const el = document.getElementById("help-" + openChapter);
     if (el) setTimeout(() => el.scrollIntoView({ behavior:"smooth", block:"start" }), 50);
   }, [openChapter]);
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.from("help_images").select("slot_key,url");
-        if (data) {
-          const map = {};
-          data.forEach(row => { map[row.slot_key] = row.url; });
-          setImages(map);
-        }
-      } catch {}
-    })();
-  }, []);
   const toggle = (key) => {
     const next = openChapter === key ? null : key;
     setOpenChapter(next);
     window.location.hash = next ? "/help/" + next : "/help";
   };
-  const uploadSlotImage = async (slotKey, file) => {
-    if (uploadingSlot) return;
-    setUploadingSlot(slotKey);
-    try {
-      // スクショは原寸1〜3MB級ので長辺1280px・品質0.75に圧縮してから上げる（表示幅760pxの約1.7倍=Retina十分・2026-07-26）
-      const upFile = await compressImage(file, 1280, 0.75);
-      const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
-      const path = slotKey + "." + ext;
-      const { error: upErr } = await supabase.storage.from("help-images").upload(path, upFile, { upsert: true });
-      if (upErr) { alert("アップロードに失敗しました：" + upErr.message); setUploadingSlot(null); return; }
-      const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
-      const url = (urlData?.publicUrl || "") + "?t=" + Date.now();
-      const { error: dbErr } = await supabase.from("help_images").upsert({ slot_key: slotKey, url, updated_at: new Date().toISOString() });
-      if (dbErr) { alert("保存に失敗しました：" + dbErr.message); setUploadingSlot(null); return; }
-      setImages(prev => ({ ...prev, [slotKey]: url }));
-    } catch { alert("アップロードに失敗しました。"); }
-    setUploadingSlot(null);
+  const uploadSlotImage = (slotKey, file) => {
+    if (!file) return;
+    return run(slotKey, async () => { const blob = await compressImage(file, 1280, 0.75); await save(slotKey, blob); });
   };
-  const deleteSlotImage = async (slotKey) => {
-    if (!confirm("この画像を削除しますか？")) return;
-    try {
-      const path = helpImagePathFromUrl(images[slotKey]);
-      if (path) await supabase.storage.from("help-images").remove([path]);
-      const { error } = await supabase.from("help_images").delete().eq("slot_key", slotKey);
-      if (error) { alert("削除に失敗しました：" + error.message); return; }
-      setImages(prev => { const next = { ...prev }; delete next[slotKey]; return next; });
-    } catch { alert("削除に失敗しました。"); }
+  const deleteSlotImage = (slotKey) => {
+    if (!ready || uploadingSlot || !confirm("この画像をガイドから削除しますか？")) return;
+    return run(slotKey, () => save(slotKey, null));
   };
-  // 既存スクショの一括軽量化（管理者のみ・2026-07-26）：圧縮なしで上がった原寸PNG級を、ブラウザで
-  // 取得→compressImage(1280px/0.75)→差し替え。png→jpgで拡張子が変わったら旧ファイルを削除しURLも更新。
-  // 既に軽い画像（compressImageが原本を返す）はスキップ＝何度押しても安全
+  // 軽量化も同じ条件付き参照更新を通す。既存オブジェクトは上書き・削除しない。
   const [recompressing, setRecompressing] = useState("");
-  const recompressAll = async () => {
-    if (recompressing) return;
+  const recompressAll = () => {
+    if (!ready || uploadingSlot) return;
     const entries = Object.entries(images);
     if (!entries.length) { alert("画像がありません。"); return; }
     if (!confirm(`ガイドのスクショ${entries.length}枚を軽量化して差し替えます。よろしいですか？`)) return;
-    let done = 0, replaced = 0, savedBytes = 0;
-    for (const [slotKey, url] of entries) {
-      done++; setRecompressing(`${done}/${entries.length}`);
+    return run("bulk", async () => {
+      let done = 0, replaced = 0, failed = 0, savedBytes = 0;
       try {
-        const res = await fetch(url.split("?")[0] + "?t=" + Date.now(), { cache: "reload" });
-        if (!res.ok) continue;
-        const blob = await res.blob();
-        const file = new File([blob], helpImagePathFromUrl(url) || slotKey + ".jpg", { type: blob.type });
-        const upFile = await compressImage(file, 1280, 0.75);
-        if (upFile === file) continue; // 既に軽い
-        const ext = (upFile.name.split(".").pop() || "jpg").toLowerCase();
-        const path = slotKey + "." + ext;
-        const { error: upErr } = await supabase.storage.from("help-images").upload(path, upFile, { upsert: true });
-        if (upErr) continue;
-        const oldPath = helpImagePathFromUrl(url);
-        if (oldPath && oldPath !== path) { try { await supabase.storage.from("help-images").remove([oldPath]); } catch { /* 旧ファイル残置は表示に影響なし */ } }
-        const { data: urlData } = supabase.storage.from("help-images").getPublicUrl(path);
-        const newUrl = (urlData?.publicUrl || "") + "?t=" + Date.now();
-        const { error: dbErr } = await supabase.from("help_images").upsert({ slot_key: slotKey, url: newUrl, updated_at: new Date().toISOString() });
-        if (dbErr) continue;
-        setImages(prev => ({ ...prev, [slotKey]: newUrl }));
-        replaced++; savedBytes += Math.max(0, blob.size - upFile.size);
-      } catch { /* この1枚は飛ばして続行 */ }
-    }
-    setRecompressing("");
-    alert(`軽量化が完了しました：${entries.length}枚中 ${replaced}枚を差し替え（約${Math.round(savedBytes / 1024 / 1024 * 10) / 10}MB削減）`);
+        for (const [slotKey, url] of entries) {
+          done++; setRecompressing(`${done}/${entries.length}`);
+          try {
+            const res = await fetch(url, { cache: "reload" });
+            if (!res.ok) throw Error("画像を取得できません");
+            const blob = await res.blob();
+            const file = new File([blob], slotKey + ".jpg", { type: blob.type });
+            const upFile = await compressImage(file, 1280, 0.75);
+            if (upFile === file) continue;
+            await save(slotKey, upFile);
+            replaced++; savedBytes += Math.max(0, blob.size - upFile.size);
+          } catch { failed++; }
+        }
+      } finally { setRecompressing(""); }
+      alert(`軽量化の結果：${entries.length}枚中 ${replaced}枚の差し替えを確認（配信画像を約${Math.round(savedBytes / 1024 / 1024 * 10) / 10}MB削減）。` +
+        (failed ? ` ${failed}枚は確認できません。元のファイルは残しています。読み込み直して確認してください。` : ""));
+    });
   };
   return (
     <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（モバイル・CSS側の負マージン併用） */}
@@ -311,8 +266,9 @@ export function HelpCenter({ me, onReportClick = () => openSupport() }) {
         <p className="f-sans" style={{ margin:"0 0 12px", color:"#333", fontSize:14, lineHeight:1.7 }}>操作で困ったことや、分かりにくいところを運営に相談できます。ログイン前でも利用できます。</p>
         <button type="button" onClick={onReportClick} className="f-sans" style={{ padding:"12px 18px", color:"#fff", background:"#222", border:0, borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer" }}>ヘルプ・お問い合わせ</button>
       </div>
+      {notice}
       {isAdmin(me) && (
-        <button onClick={recompressAll} disabled={!!recompressing} className="f-sans" style={{ marginBottom:24, padding:"8px 14px", fontSize:12, fontWeight:700, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:10, cursor: recompressing ? "default" : "pointer" }}>
+        <button onClick={recompressAll} disabled={!ready || !!uploadingSlot} className="f-sans" style={{ marginBottom:24, padding:"8px 14px", fontSize:12, fontWeight:700, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:10, cursor: recompressing ? "default" : "pointer" }}>
           {recompressing ? <>🗜 軽量化中 {recompressing}<Dots /></> : "🗜 スクショを一括軽量化（管理）"}
         </button>
       )}
@@ -355,11 +311,11 @@ export function HelpCenter({ me, onReportClick = () => openSupport() }) {
                         {isAdmin(me) && (
                           <div style={{ marginTop:8 }}>
                             {imgUrl ? (
-                              <button onClick={() => deleteSlotImage(slotKey)} className="f-sans" style={{ fontSize:11, color:"#E24B4A", background:"none", border:"1px solid #E24B4A44", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>🗑 削除</button>
+                              <button onClick={() => deleteSlotImage(slotKey)} disabled={!ready || !!uploadingSlot} className="f-sans" style={{ fontSize:11, color:"#E24B4A", background:"none", border:"1px solid #E24B4A44", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>🗑 削除</button>
                             ) : (
                               <label className="f-sans" style={{ display:"inline-block", fontSize:11, color:"#717171", background:"#F7F7F7", border:"1px dashed #D0D0D0", borderRadius:8, padding:"4px 10px", cursor: uploadingSlot ? "default" : "pointer" }}>
                                 {uploadingSlot === slotKey ? <>アップロード中<Dots /></> : "＋ スクショを追加"}
-                                <input type="file" accept="image/*" disabled={!!uploadingSlot} onChange={e => { const f = e.target.files?.[0]; if (f) uploadSlotImage(slotKey, f); e.target.value = ""; }} style={{ display:"none" }} />
+                                <input type="file" accept="image/*" disabled={!ready || !!uploadingSlot} onChange={e => { const f = e.target.files?.[0]; if (f) uploadSlotImage(slotKey, f); e.target.value = ""; }} style={{ display:"none" }} />
                               </label>
                             )}
                           </div>
