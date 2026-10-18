@@ -8,7 +8,10 @@ import { zipLookup } from "../../../lib/zipLookup";
 import { Dots } from "../../../components/ui";
 import { CORP_KINDS, CONSIGNOR_IND_FIELDS, CONSIGNOR_CORP_FIELDS, corpNoCheckOk, consignorPartyRows,
   CONSIGNOR_CONSENT_VERSION, CONSIGNOR_CONSENT_TEXT, CONSIGNOR_DISCLOSURE_STAGES, seedConsignorData,
-  stripConsignorIdentity, consignScrollTop } from "../model";
+  consignScrollTop } from "../model";
+import {readConsignorRecord, saveConsignorRecord, saveConsignorConsent, consignorDraftKey, consignorBase} from "../consignorRecord";
+import {sameProfileValue} from "../../../lib/profileRecord";
+import {ProfileReadError} from "../../../components/ProfileReadError";
 
 // 委託者情報の設定フロー（ブラック・アイコンなし・1ページ1つの問い）
 export function ConsignorInfoEdit() {
@@ -17,6 +20,12 @@ export function ConsignorInfoEdit() {
   const [cstep, setCstep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const recordRef = useRef(null);
+  const savingRef = useRef(false);
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [draftOwner, setDraftOwner] = useState(null);
+  const [draftConflict, setDraftConflict] = useState(false);
   // 保存済みなら名刺タップの行き先は「委託プロフィールページ」＝保存内容の表示（2026-08-02たきと指示）。
   // 未保存・下書き編集中はこれまで通り設定フロー（ウィザード）を出す
   const [viewing, setViewing] = useState(false);
@@ -49,24 +58,21 @@ export function ConsignorInfoEdit() {
     confirm: { t:"登録内容確認",   q:"内容を確認して保存します", de:"案件の確認ページと印刷仕様書に自動で反映されます。" },
   };
   useEffect(() => {
+    let active = true;
+    recordRef.current = null; setLoadError(""); setD(null); setDraftOwner(null);
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setD({}); return; }
-        const { data } = await supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
+        const record = await readConsignorRecord(supabase);
+        if (!active) return;
+        recordRef.current = record;
+        const data = record.profile;
         rowRef.current = data || null;
         setConsentOk(!!(data && data.consignment_data_consent && data.consignment_data_consent_version === CONSIGNOR_CONSENT_VERSION));
         // 新規登録①の本人確認情報を引き継ぎの下敷きに（2026-07-31たきと指示）。
         // ★黙って書面へ流し込まない：フォームの初期値に入れるだけで、確認ページを経て
         //   本人が「保存する」を押した時に確定する＝本人の意思で契約書面に載せる形（2026-07-27作法）
-        let ahRow = null;
-        try {
-          const { data: ah } = await supabase.from("account_holders")
-            .select("full_name,postal_code,address,birth_date,entity_type,contact_email,contact_phone,company_name,company_number")
-            .eq("auth_id", session.user.id).maybeSingle();
-          ahRow = ah || null;
-          setAhInfo(ahRow);
-        } catch {}
+        const ahRow = record.account;
+        setAhInfo(ahRow);
         const nd = { ...((data && data.consignor_data) || {}) };
         // 旧v2キー（4分割 pref/city/addr）からの移行：住所(main)へ併合。旧addrには町域が
         // 入っていた（番地ではない）ため main 側に寄せる。番地・建物名は本人が入力し直す
@@ -95,7 +101,13 @@ export function ConsignorInfoEdit() {
         // 入力中の下書き（localStorage・自動保存）があればDB値の上に重ねて復元。
         // ステップと種別も戻す＝中断した場所から再開（求人フローと同じ作法）
         let draft = null;
-        try { draft = JSON.parse(localStorage.getItem("cb_consignorDraft_v1") || "null"); } catch {}
+        try { draft = JSON.parse(localStorage.getItem(consignorDraftKey(record.userId)) || "null"); } catch {}
+        if (draft?.userId !== record.userId) draft = null;
+        if (draft?.base) {
+          setDraftConflict(!sameProfileValue(draft.base, consignorBase(record)));
+          recordRef.current = {...record, profile:draft.base.profile ? {...(record.profile || {}),...draft.base.profile} : null,
+            account:{...record.account,contact_phone:draft.base.phone}};
+        } else setDraftConflict(false);
         // 区分は新規登録の entity_type が唯一の正（2026-08-02たきと指示）。委託フローで再選択させない
         // ＝新規登録と委託で別人格になるのを防ぐ。entity_type が無い旧データだけ種類ページへフォールバック
         const ent = (ahRow && (ahRow.entity_type === "corporate" || ahRow.entity_type === "individual")) ? ahRow.entity_type : "";
@@ -107,36 +119,28 @@ export function ConsignorInfoEdit() {
         if (okC && draft && Number.isInteger(draft.s)) setCstep(draft.s); // 未同意ならステップ1（引き継ぎ確認）から
         // 保存済み（種別確定＋同意済み）で下書きが無ければプロフィール表示モード（2026-08-02たきと指示）
         setViewing(!!(data && data.consignor_type) && okC && !draft);
-        setD(merged);
-      } catch { setD({}); }
+        setD(merged); setDraftOwner(record.userId);
+      } catch (e) { if (active) { recordRef.current = null; setLoadError(e.message); } }
     })();
-  }, []);
+    return () => { active = false; };
+  }, [loadAttempt]);
   // 自動下書き保存：入力・ステップ移動のたびにlocalStorageへ（保存成功で消す）。
   // プロフィール表示モード中は書かない（見ただけで下書きが生まれ、次回ウィザードに戻ってしまうため）
   useEffect(() => {
-    if (!d || viewing) return;
-    try { localStorage.setItem("cb_consignorDraft_v1", JSON.stringify({ t: ctype, s: cstep, d })); } catch {}
-  }, [d, ctype, cstep, viewing]);
+    if (!d || viewing || saved || !draftOwner || recordRef.current?.status !== "ready") return;
+    try { localStorage.setItem(consignorDraftKey(draftOwner), JSON.stringify({ userId: draftOwner, t: ctype, s: cstep, d, base:consignorBase(recordRef.current) })); } catch {}
+  }, [d, ctype, cstep, viewing, saved, draftOwner, ahInfo]);
   useEffect(() => { if (stepKey !== "confirm") setConfirmAgree(false); }, [stepKey]); // 確認のたびに改めてチェックさせる
   // 同意ログの保存（consent/at/version/user_id・行動記録の憲法＝時刻列の追記）
   const agreeConsent = async () => {
-    if (consentSaving || !consentChecked) return;
-    setConsentSaving(true);
+    if (savingRef.current || !consentChecked) return;
+    savingRef.current = true; setConsentSaving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setConsentSaving(false); return; }
-      const { error } = await supabase.from("consignment_profiles").upsert({
-        auth_id: session.user.id,
-        consignment_data_consent: true,
-        consignment_data_consent_at: new Date().toISOString(),
-        consignment_data_consent_version: CONSIGNOR_CONSENT_VERSION,
-        consignment_data_consent_user_id: session.user.id,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
-      if (error) alert("同意の記録に失敗しました：" + error.message);
-      else { setConsentOk(true); setCstep(v => v + 1); consignScrollTop(); }
-    } catch { alert("同意の記録に失敗しました。"); }
-    setConsentSaving(false);
+      recordRef.current = await saveConsignorConsent(supabase, recordRef.current, CONSIGNOR_CONSENT_VERSION);
+      rowRef.current = recordRef.current.profile;
+      setConsentOk(true); setCstep(v => v + 1); consignScrollTop();
+    } catch (e) { alert(e.message || "同意の記録を確認できませんでした。"); }
+    finally { savingRef.current = false; setConsentSaving(false); }
   };
   // 登録情報の修正フォームを開く：account_holders の保存済み値を復元（住所は既知形式で2分割）
   const openRegEdit = () => {
@@ -166,11 +170,11 @@ export function ConsignorInfoEdit() {
   // entity_type / company_number は通常編集禁止（DBトリガーでも拒否）＝patch に含めない。
   // 委託側 d への身元コピーは廃止（身元は consignor_data に持たない・表示は ahInfo を直接参照）
   const saveRegEdit = async () => {
-    if (regSaving || !regForm) return;
-    setRegSaving(true);
+    if (savingRef.current || !regForm) return;
+    savingRef.current = true; setRegSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setRegSaving(false); return; }
+      if (!session || session.user.id !== recordRef.current?.userId) throw new Error("ログイン中のアカウントが変わりました。画面を開き直してください。");
       const composedAddr = [regForm.addr_main.trim(), regForm.addr_detail.trim()].filter(Boolean).join(" ");
       const patch = {
         full_name: regForm.full_name.trim(),
@@ -184,10 +188,13 @@ export function ConsignorInfoEdit() {
       const { data: r, error } = await supabase.rpc("update_account_holder_self",
         { p_patch: patch, p_source: "consignment_reg_edit" });
       if (error || !(r && r.ok)) { alert("保存に失敗しました：" + (error?.message || (r && r.reason) || "不明なエラー")); setRegSaving(false); return; }
-      setAhInfo(a => ({ ...(a || {}), ...patch }));
+      const confirmed = await readConsignorRecord(supabase);
+      if (confirmed.userId !== recordRef.current?.userId) throw new Error("アカウントが変わりました。");
+      recordRef.current = { ...recordRef.current, account: confirmed.account };
+      setAhInfo(confirmed.account);
       setEditReg(false); consignScrollTop();
-    } catch { alert("保存に失敗しました。"); }
-    setRegSaving(false);
+    } catch (e) { alert(e.message || "保存に失敗しました。"); }
+    finally { savingRef.current = false; setRegSaving(false); }
   };
   const setV = (k, v) => setD(p => ({ ...p, [k]: v }));
   // 種別を選ぶ：旧v1列を下敷きに（空欄のみ）→次ページへ
@@ -208,34 +215,16 @@ export function ConsignorInfoEdit() {
     setZipBusy("");
   };
   const save = async () => {
-    if (saving) return;
-    setSaving(true);
+    if (savingRef.current || !confirmAgree) return;
+    savingRef.current = true; setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
-      // 新規登録に電話が無く、委託フローで入力された場合は account_holders（唯一の正）へ書き戻す
-      // （変更元タグ付きRPC経由＝変更履歴に consignment_flow として残る）
-      const flowPhone = (d.ind_phone || "").trim();
-      if (ctype === "individual" && flowPhone && !(ahInfo?.contact_phone || "").trim()) {
-        try {
-          const { data: r } = await supabase.rpc("update_account_holder_self",
-            { p_patch: { contact_phone: flowPhone }, p_source: "consignment_flow" });
-          if (r && r.ok) setAhInfo(a => ({ ...(a || {}), contact_phone: flowPhone }));
-        } catch {}
-      }
-      // 身元キーは保存しない（account_holders が唯一の正・2026-08-02たきと確定指示）
-      const { error } = await supabase.from("consignment_profiles").upsert({
-        auth_id: session.user.id, consignor_type: ctype, consignor_data: stripConsignorIdentity(d), updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
-      if (error) alert("保存に失敗しました：" + error.message);
-      else {
-        try { localStorage.removeItem("cb_consignorDraft_v1"); } catch {} // 保存成功＝DBが真実の座ので下書きは消す
-        // 保存したら委託のトップ（一覧）へ戻る（2026-07-31たきと指示）。✓を一瞬見せてから
-        setSaved(true);
-        setTimeout(() => { window.location.hash = "/admin/consignment"; }, 600);
-      }
-    } catch { alert("保存に失敗しました。"); }
-    setSaving(false);
+      const confirmed = await saveConsignorRecord(supabase, recordRef.current, ctype, d);
+      recordRef.current = confirmed; rowRef.current = confirmed.profile; setAhInfo(confirmed.account);
+      try { localStorage.removeItem(consignorDraftKey(confirmed.userId)); } catch {}
+      setSaved(true);
+      setTimeout(() => { window.location.hash = "/admin/consignment"; }, 600);
+    } catch (e) { alert(e.message || "保存結果を確認できませんでした。入力は残しています。"); }
+    finally { savingRef.current = false; setSaving(false); }
   };
   // 条件表示の一元判定（入力欄と登録内容確認の両方が使う）：
   // tradeOnly=屋号ありのみ／phoneIfMissing=新規登録に電話が無い場合のみ／
@@ -328,6 +317,7 @@ export function ConsignorInfoEdit() {
     );
   };
   // 読み込み中は画面中央に配置（2026-07-31たきと指示）
+  if (loadError) return <ProfileReadError message={loadError} onRetry={() => setLoadAttempt(v => v + 1)} />;
   if (!d) return (
     <div style={{ minHeight:"55vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
       <p className="f-sans" style={{ fontSize:14.3, color:"#999999", margin:0 }}>読み込み中<Dots /></p>
@@ -444,7 +434,15 @@ export function ConsignorInfoEdit() {
   );
   const meta = STEP_META[stepKey];
   return (
-    <div>
+    <fieldset disabled={saving || consentSaving || regSaving} style={{border:0,padding:0,margin:0,minWidth:0}}>
+      {draftConflict && <div role="alert" className="f-sans" style={{padding:12,marginBottom:12,border:'1px solid #999',lineHeight:1.7}}>
+        <p>この下書きの作成後に保存済みの情報が変更されています。下書きの入力は残しています。</p>
+        <button type="button" onClick={() => {
+          if (!window.confirm("この端末の未保存の入力を破棄し、最新の保存内容を読み込みますか？")) return;
+          try { localStorage.removeItem(consignorDraftKey(draftOwner)); } catch { alert("下書きの解除に失敗しました。"); return; }
+          setSaved(false); setLoadAttempt(v => v + 1);
+        }}>最新の保存内容を読み込む</button>
+      </div>}
       {/* 進捗（黒バー）＋ステップ見出し */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
         {cstep > 0 && <button onClick={()=>{ setCstep(v => v - 1); consignScrollTop(); }} className="f-sans" style={{ display:"flex", alignItems:"center", gap:6, background:"#fff", border:"1px solid #EBEBEB", borderRadius:20, fontSize:13.2, fontWeight:600, color:"#111111", cursor:"pointer", padding:"7px 14px", flexShrink:0 }}>← 前へ</button>}
@@ -560,6 +558,6 @@ export function ConsignorInfoEdit() {
           {saved && <p className="f-sans" style={{ fontSize:13.2, color:"#111111", textAlign:"center", marginTop:10 }}>保存しました ✓</p>}
         </div>
       )}
-    </div>
+    </fieldset>
   );
 }
