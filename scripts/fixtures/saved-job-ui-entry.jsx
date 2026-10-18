@@ -1,0 +1,12 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {SavedJobsView} from '../../src/components/SavedJobsView.jsx';
+import {LikedJobs} from '../../src/components/LikedJobs.jsx';
+import {JobSearchMapView} from '../../src/components/JobSearchMapView.jsx';
+import {setCache,getCache} from '../../src/lib/viewCache.js';
+import {job,uid} from './saved-job-client.mjs';
+import {mapJobPublicRow} from '../../src/lib/utils.js';
+setCache('saved:rows',[job]);setCache('search:jobs',[mapJobPublicRow(job)]);setCache('search:myJobNums',[]);
+window.qaGetCache=getCache;
+const me={id:uid};
+createRoot(document.getElementById('root')).render(window.qaMode==='status'?<SavedJobsView me={me} embedded/>:window.qaMode==='liked'?<LikedJobs me={me}/>:<JobSearchMapView me={me}/>);

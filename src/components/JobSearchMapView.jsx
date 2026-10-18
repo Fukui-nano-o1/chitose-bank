@@ -12,6 +12,8 @@ import { pushRoute, ROUTE_CHANGED } from "../lib/pushRoute";
 import { copyJobToEdit } from "../lib/copyJobFlow";
 import { Avatar, Carousel, DangerItem, JobPhotoFallback, LinkifiedText, NoticeJumpText, StatusRibbon, AutoSkeleton, useSkeletonProbe, Dots, MaskedAddress, MaskedText, QaChat } from "./ui";
 import { getCache, setCache } from "../lib/viewCache";
+import { useSavedJobMutation } from "../lib/useSavedJobMutation";
+import { savedJobRevision } from "../lib/savedJobRecord";
 import { snapGet } from "../lib/snapshot";
 import { fetchPublicJobs, orderSearchJobs, recordSeenNewIds, fetchJobViewCounts, countJobView } from "../lib/searchJobs";
 import { useRefreshTick, emitConfirmedRefresh, getConfirmedRefreshVersion, REFRESH_APPLICATIONS, REFRESH_JOBS } from "../lib/refreshBus";
@@ -36,7 +38,7 @@ import { ApplyPanel, ApplyBarPC, ApplyBarMobile } from "../features/jobs/search/
 import { ApplicationPage, readApplicationStep } from "../features/jobs/search/components/ApplicationPage";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, unpublishJob,
   fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
-  fetchSavedJobNumbers, deleteSavedJob, insertSavedJob, fetchMyApplications, fetchMyPendingApplications,
+  fetchSavedJobNumbers, fetchMyApplications, fetchMyPendingApplications,
   fetchMyApplicationForJob, fetchMyPendingForJob, applyToJob, createPendingApplication, cancelApplication,
   fetchAccountHolderId, insertJobReport, fetchSurveyAnswered, insertSurvey,
   fetchConsignorConsent, fetchSignupOpen } from "../features/jobs/search/jobSearchApi";
@@ -463,6 +465,7 @@ export function JobSearchMapView({ onRegister, me }) {
 
   // ── いいね（お気に入り）：saved_jobs（本人のみRLS）。job_number(=job.id)をキーに管理 ──
   const [savedIds, setSavedIds] = useState(new Set());
+  const likes = useSavedJobMutation(me?.id);
   const [likeDone, setLikeDone] = useState(null); // 初いいねボックス（2026-07-19）：各求人の最初のいいねで1回だけ展開（localStorage cb_likeBoxShown）
   // きっかけアンケート（初回いいね時・2026-07-24）：未回答ユーザーの最初のいいね前に1度だけ聞く
   const [surveyAnswered, setSurveyAnswered] = useState(null); // null=未取得 / true / false
@@ -485,31 +488,32 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [me]);
   useEffect(() => {
     if (!me) { setSavedIds(new Set()); return; }
+    let cancelled = false;
+    const revision = savedJobRevision(me.id);
     (async () => {
       try {
-        const { data } = await fetchSavedJobNumbers(me.id);
-        setSavedIds(new Set((data || []).map(r => r.job_number)));
+        const { data, error } = await fetchSavedJobNumbers(me.id);
+        if (!cancelled && !error && Array.isArray(data) && revision === savedJobRevision(me.id)) setSavedIds(new Set(data.map(r => r.job_number)));
       } catch {}
     })();
+    return () => { cancelled = true; };
   }, [me]);
-  // 実いいね処理（アンケートゲート通過後・解除時に呼ぶ）
-  const performSave = async (job) => {
-    const isSaved = savedIds.has(job.id);
-    setSavedIds(prev => { const next = new Set(prev); isSaved ? next.delete(job.id) : next.add(job.id); return next; });
-    const { error } = isSaved
-      ? await deleteSavedJob(me.id, job.id)
-      : await insertSavedJob(me.id, job.id);
-    if (error) { setSavedIds(prev => { const next = new Set(prev); isSaved ? next.add(job.id) : next.delete(job.id); return next; }); return; }
-    // 各求人の初いいねだけボックス展開（求人ごとに1回・解除→再いいねでは出さない）
-    if (!isSaved) {
-      try {
-        const shown = JSON.parse(localStorage.getItem("cb_likeBoxShown") || "[]");
-        if (!shown.includes(job.id)) {
-          localStorage.setItem("cb_likeBoxShown", JSON.stringify([...shown, job.id]));
-          setLikeDone(job);
-        }
-      } catch { setLikeDone(job); }
-    }
+  // 保存の確認前に♥や完了ボックスを変えない。
+  const performSave = job => {
+    const desired = !savedIds.has(job.id);
+    return likes.mutate(job.id, desired, saved => {
+      setSavedIds(prev => { const next = new Set(prev); saved ? next.add(job.id) : next.delete(job.id); return next; });
+      const full = getCache("saved:rows");
+      if (Array.isArray(full)) setCache("saved:rows", full.map(x => x.job_number === job.id ? { ...x, liked: saved } : x));
+      if (saved) {
+        try {
+          const shown = JSON.parse(localStorage.getItem("cb_likeBoxShown") || "[]");
+          if (!shown.includes(job.id)) {
+            localStorage.setItem("cb_likeBoxShown", JSON.stringify([...shown, job.id])); setLikeDone(job);
+          }
+        } catch { setLikeDone(job); }
+      }
+    });
   };
   const toggleSurveyReason = (v) => setSurveyReasons(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const submitSurvey = async () => {
@@ -1212,7 +1216,7 @@ export function JobSearchMapView({ onRegister, me }) {
               いいねは♡マークだけ（2026-08-25たきと指示）＝文字を出さない丸ボタン。
               押した状態は塗り（heartFill・赤）で分かる。読み上げ用の名前は aria-label が持つ */}
           {!isOwnJob && canLike(selectedJob) && (
-          <button onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-btn cb-btn-press cb-hover-tint" style={{
+          <button disabled={likes.isBusy(selectedJob.id)} onClick={() => toggleSave(selectedJob)} aria-label={savedIds.has(selectedJob.id) ? "いいねを解除" : "いいね"} className="f-sans job-float-btn cb-btn-press cb-hover-tint" style={{
             display:"flex", alignItems:"center", justifyContent:"center", width:38, height:38, background:"#fff", border:"1px solid #EBEBEB", borderRadius:"50%",
             color: savedIds.has(selectedJob.id) ? "#E24B4A" : "#717171", cursor:"pointer", padding:0, boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
           }}><span className="cb-like-heart" style={{ display:"inline-flex" }}><NavIcon name={savedIds.has(selectedJob.id) ? "heartFill" : "heart"} size={19} /></span></button>
