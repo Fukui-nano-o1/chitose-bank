@@ -43,6 +43,22 @@ export const supabase = {
   auth: { getSession: async () => ({ data: { session: { user: { id: uid(), email: 'fixture@example.test' } } } }) },
   from: table => new Query(table),
   rpc: async (name, args) => {
+    if (name === 'confirm_my_worker_terms') {
+      window.qaRequests.push({rpc:name,args:copy(args)});
+      await window.qaTermsBeforeRPC?.();
+      if (args.p_owner !== uid()) return {data:{ok:false,reason:'not_logged_in'}};
+      if (window.qaTermsMode === 'rejected') return {data:{ok:false,reason:'save_rejected'}};
+      const app = window.qaData.applications.find(a=>a.id===args.p_application_id && a.worker_id===uid());
+      if (!app) return {data:{ok:false,reason:'not_party'}};
+      if (!app.terms_confirmed_worker_at) {
+        app.terms_confirmed_worker_at = new Date().toISOString();
+        window.qaTermsWrites = (window.qaTermsWrites || 0) + 1;
+        window.qaData.messages.push({id:'terms-message',application_id:app.id,sender_id:uid(),body:'✓ 求人内容を確認しました。よろしくお願いします。',created_at:new Date().toISOString()});
+      }
+      if (window.qaTermsMode === 'lost') { window.qaTermsMode = null; throw Error('response lost'); }
+      if (window.qaTermsMode === 'switch') window.qaUser = 'another-account';
+      return {data:{ok:true,owner:args.p_owner,application_id:app.id,worker_confirmed:true}};
+    }
     if (name === 'my_unread_message_counts') return { data: { by_application: window.qaUnread } };
     if (name === 'my_chat_inbox_previews') {
       const map = {};

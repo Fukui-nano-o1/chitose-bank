@@ -3,6 +3,7 @@ import { goAlongPath, returnAlongPath, routeReturn } from "../lib/routeTrail";
 // 日程案シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
 import { useState, useEffect, useRef, Fragment } from "react";
 import { supabase } from "../lib/supabase";
+import { confirmWorkerTerms } from "../lib/workerTermsRecord";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK, ROLE_ORANGE,
   CHAT_ELIGIBLE_STATUSES, APP_PHASE_LABEL, APP_PHASE_COLOR, appPhaseKey,
@@ -92,6 +93,8 @@ export function ChatView({ applicationId, onBack }) {
   const [insurancePreparedAt, setInsurancePreparedAt] = useState(() => _cr?.insurance_prepared_at ?? null);
   const [isWorkerSide, setIsWorkerSide] = useState(() => _cr?._role === "worker");
   const [confirmingTerms, setConfirmingTerms] = useState(false);
+  const termsLock = useRef(false), termsOwner = useRef(myId);
+  termsOwner.current = myId;
   const [confirmStep, setConfirmStep] = useState(0); // はじめる前の確認：1項目ずつ「はい」で進む分割式（2026-07-18）
   const [confirmBoxOpen, setConfirmBoxOpen] = useState(false); // 求人内容確認をボックス展開（2026-07-19）
   // ＋シート（2026-07-22・第8弾）：入力欄横の＋で開く。定型文は削除（2026-08-19たきと指示）ので
@@ -499,28 +502,21 @@ export function ChatView({ applicationId, onBack }) {
   // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsが農家の初回確定時のみ見るので、
   // 働き手の確認呼び出しには掛からない＝受諾フラグ不要）
   const confirmTerms = async () => {
-    if (confirmingTerms) return;
-    setConfirmingTerms(true);
-    const wasWorkerConfirmed = workerConfirmed; // 遷移検知用（今回初めて確認したかどうか）
+    if (termsLock.current || !isWorkerSide) return;
+    termsLock.current = true; setConfirmingTerms(true);
+    const target = activeAppId, owner = myId;
     try {
-      const { data, error } = await supabase.rpc('confirm_terms', { p_application_id: activeAppId });
-      if (!error && data && data.ok) {
-        setWorkerConfirmed(!!data.worker_confirmed);
-        // 働き手が今回はじめて確認した時、その旨をチャットメッセージとして送信（2026-07-19）。
-        // 履歴として残り、農家にも「確認済み」が伝わる
-        if (isWorkerSide && !wasWorkerConfirmed && data.worker_confirmed) {
-          try {
-            const { data: { session } } = await chatDeadline(supabase.auth.getSession());
-            if (session) {
-              await supabase.from("messages").insert({ application_id: activeAppId, sender_id: session.user.id, body: "✓ 求人内容を確認しました。よろしくお願いします。" });
-              await load(appIds);
-            }
-          } catch {}
-        }
-      }
-    } catch {}
-    setConfirmingTerms(false);
+      await confirmWorkerTerms(supabase, owner, target);
+      if (!aliveRef.current || activeAppIdRef.current !== target || termsOwner.current !== owner) return;
+      setWorkerConfirmed(true); setConfirmBoxOpen(false);
+      // Refresh failure cannot undo the atomic confirmation; the existing chat
+      // loader owns its retry/error display.
+      load(appIds).catch(() => {});
+    } catch (error) {
+      if (aliveRef.current && activeAppIdRef.current === target && termsOwner.current === owner) alert(error.message || '確認結果を取得できません。もう一度お試しください。');
+    } finally { termsLock.current = false; setConfirmingTerms(false); }
   };
+
   // 採用ボックスは削除（2026-08-19たきと指示「チャットの採用するボックス削除」）。
   // 農家の採用の実行窓口は【採用するページ #/calendar/todo/hire】1箇所（2026-08-19一本化）。
   // チャットは会話と記録の場に戻す＝ここから採用は押せない（lib/hire もここでは使わない）。
@@ -745,7 +741,7 @@ export function ChatView({ applicationId, onBack }) {
                   <p className="f-sans" style={{ fontSize:11, color:"#8A8A8A", lineHeight:1.7, margin:"0 0 10px", background:"#F7F7F7", borderRadius:8, padding:"8px 10px" }}>
                     確認すると契約が成立し、お互いのお名前（本名）が相手に表示されます。雇用の手続き（労働者名簿・賃金の記録）に必要なためです。
                   </p>
-                  <button onClick={async ()=>{ await confirmTerms(); setConfirmBoxOpen(false); }} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>
+                  <button onClick={confirmTerms} disabled={confirmingTerms} className="f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>
                     {confirmingTerms ? "..." : "内容に相違ありません"}
                   </button>
                 </div>

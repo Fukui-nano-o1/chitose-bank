@@ -93,6 +93,28 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
   assert.equal(w.qaRequests.filter(row=>row.op==='insert').length,0,'navigating never sends');
  });
  await t.test('support chat also preserves failed messages and requires explicit send for multiline input',async()=>{const w=mount({qaRoute:'admin',qaSendMode:'lost'});await until(()=>w.document.querySelector('textarea')&&!w.document.querySelector('textarea').disabled,'support composer');await fill(w,'textarea','運営への相談\n二行目');const el=w.document.querySelector('textarea');el.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.equal(w.qaData.admin_messages.length,0);button(w,'送信').click();await until(()=>button(w,'同じ内容で再送'),'support failure');button(w,'同じ内容で再送').click();await until(()=>el.value==='','support recovered');assert.equal(w.qaData.admin_messages.length,1);assert.ok(button(w,'この画面を報告'));});
+ await t.test('worker confirmation commits the chat record once and retains failed confirmation cards',async()=>{
+  for(const mode of ['normal','rejected','lost','switch','double']){
+   const data=records();data.applications[0].terms_confirmed_worker_at=null;
+   const w=mount({qaRoute:app,qaData:data,qaTermsMode:mode,qaTermsWrites:0});const alerts=[];w.alert=m=>alerts.push(m);
+   await until(()=>[...w.document.querySelectorAll('button')].some(b=>b.textContent.includes('確認する →')),'confirmation invitation');
+   [...w.document.querySelectorAll('button')].find(b=>b.textContent.includes('確認する →')).click();
+   for(let i=0;i<20 && !button(w,'内容に相違ありません');i++){
+    await until(()=>button(w,'はい')||button(w,'内容に相違ありません'),'confirmation step');
+    const yes=button(w,'はい');if(yes){yes.click();await pause(10);}
+   }
+   const finish=button(w,'内容に相違ありません');assert.ok(finish);
+   let release;if(mode==='double')w.qaTermsBeforeRPC=()=>new Promise(r=>{release=r;});
+   finish.click();if(mode==='double'){finish.click();await until(()=>release,'confirmation RPC');assert.equal(w.qaRequests.filter(r=>r.rpc==='confirm_my_worker_terms').length,1);release();}
+   if(['rejected','lost','switch'].includes(mode)){
+    await until(()=>alerts.length && button(w,'内容に相違ありません')?.disabled === false,'confirmation error and retry');assert.ok(w.document.querySelector('[role="dialog"]'),'card remains open');
+    if(mode==='lost'){button(w,'内容に相違ありません').click();await until(()=>!w.document.querySelector('[role="dialog"]'),'recovered');assert.equal(w.qaTermsWrites,1);}
+    if(mode==='rejected')assert.equal(w.qaTermsWrites,0);
+   }else{await until(()=>!w.document.querySelector('[role="dialog"]'),'confirmed');assert.equal(w.qaTermsWrites,1);}
+   assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='insert').length,0,'no second client-side record insert');
+   assert.equal(w.qaData.messages.filter(m=>m.id==='terms-message').length,mode==='rejected'?0:1);
+  }
+ });
  assert.deepEqual(errors,[]);
  }finally{dom?.window.close();await rm(output,{recursive:true,force:true});}
 });

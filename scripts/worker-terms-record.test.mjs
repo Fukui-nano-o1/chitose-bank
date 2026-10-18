@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {confirmWorkerTerms} from '../src/lib/workerTermsRecord.js';
+function fixture(){const s={owner:'worker',confirmed:false,writes:0,lost:false,rejected:false};return {s,client:{auth:{getSession:async()=>({data:{session:{user:{id:s.owner}}}})},rpc:async(name,a)=>{assert.equal(name,'confirm_my_worker_terms');if(s.rejected)return {data:{ok:false,reason:'save_rejected'}};if(!s.confirmed){s.confirmed=true;s.writes++;}if(s.lost)throw Error('lost');if(s.switch)s.owner='other';return {data:{ok:true,owner:a.p_owner,application_id:a.p_application_id,worker_confirmed:true}};}}};}
+test('lost confirmation response retries the same application without a second confirmation',async()=>{const f=fixture();f.s.lost=true;await assert.rejects(confirmWorkerTerms(f.client,'worker','app'),{code:'TERMS_UNCONFIRMED'});f.s.lost=false;assert.equal((await confirmWorkerTerms(f.client,'worker','app')).worker_confirmed,true);assert.equal(f.s.writes,1);});
+test('server rejection and switched account cannot report completion',async()=>{const f=fixture();f.s.rejected=true;await assert.rejects(confirmWorkerTerms(f.client,'worker','app'),{code:'TERMS_REJECTED'});assert.equal(f.s.writes,0);f.s.rejected=false;f.s.switch=true;await assert.rejects(confirmWorkerTerms(f.client,'worker','app'),{code:'TERMS_SESSION'});});

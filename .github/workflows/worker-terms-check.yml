@@ -1,0 +1,35 @@
+name: Worker terms atomic confirmation checks
+on:
+  pull_request:
+    paths:
+      - src/lib/workerTermsRecord.js
+      - src/components/ChatView.jsx
+      - scripts/worker-terms-*.test.mjs
+      - scripts/fixtures/worker-terms-*
+      - scripts/chat-ui.test.mjs
+      - scripts/fixtures/chat/*
+      - supabase/migrations/*worker_terms*.sql
+      - package.json
+      - package-lock.json
+      - .github/workflows/worker-terms-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: worker-terms-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
