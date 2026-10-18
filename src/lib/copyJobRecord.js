@@ -1,3 +1,4 @@
+import { createOperationStore } from './operationStore.js';
 const fail = (code, message) => Object.assign(new Error(message), { code });
 async function owner(client, expected) {
   const { data, error } = await client.auth.getSession();
@@ -5,35 +6,7 @@ async function owner(client, expected) {
   if (error || !id || (expected && expected !== id)) throw fail('COPY_SESSION', 'ログイン中のアカウントを確認できません。ページを開き直してください。');
   return id;
 }
-// A read-write transaction serializes get-or-create across tabs as well as reloads.
-// A failed durable write blocks the RPC, so there is always an ID to retry.
-export function copyRequestStore(indexed = globalThis.indexedDB) {
-  const transact = (key, proposal, removeId) => new Promise((resolve, reject) => {
-    if (!indexed) { reject(Error('IndexedDB unavailable')); return; }
-    const open = indexed.open('cb_job_copy_requests_v1', 1);
-    let blocked = false;
-    open.onupgradeneeded = () => open.result.createObjectStore('pending');
-    open.onerror = () => reject(open.error);
-    open.onblocked = () => { blocked = true; reject(Error('Copy storage blocked')); };
-    open.onsuccess = () => {
-      const db = open.result;
-      if (blocked) { db.close(); return; }
-      let result;
-      let tx, store;
-      try { tx = db.transaction('pending', 'readwrite'); store = tx.objectStore('pending'); }
-      catch (e) { db.close(); reject(e); return; }
-      tx.oncomplete = () => { db.close(); resolve(result); };
-      tx.onabort = tx.onerror = () => { db.close(); reject(tx.error || Error('Copy storage failed')); };
-      const get = store.get(key);
-      get.onsuccess = () => {
-        result = get.result || null;
-        if (removeId) { if (result?.requestId === removeId) store.delete(key); }
-        else if (!result) { result = proposal; store.add(proposal, key); }
-      };
-    };
-  });
-  return { acquire: (key, proposal) => transact(key, proposal, null), clear: (key, id) => transact(key, null, id) };
-}
+export const copyRequestStore = indexed => createOperationStore('cb_job_copy_requests_v1', indexed);
 export async function copyJobRecord(client, jobNumber, options = {}, { store = copyRequestStore(), uuid = () => crypto.randomUUID() } = {}) {
   if (!Number.isSafeInteger(Number(jobNumber)) || Number(jobNumber) < 1) throw fail('COPY_TARGET', 'コピー元の求人を確認できません。');
   const userId = await owner(client), key = `${userId}:${Number(jobNumber)}`;

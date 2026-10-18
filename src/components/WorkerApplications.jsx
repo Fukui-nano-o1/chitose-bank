@@ -14,6 +14,7 @@ import { JobCard } from "./JobCard";
 import { CropIcon } from "./CropIcon";
 import { openPhaseInfo } from "../lib/previewBus";
 import { AgreedDatesRow, AvailDatesChips } from "./DateChips";
+import { AttendanceDisputeSheet } from "./AttendanceDisputeSheet";
 import { WorkerReviewSheet } from "./WorkerReviewSheet";
 import { reviewPeriod } from "../lib/reviewWindow";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -58,21 +59,6 @@ export function WorkerApplications({ filter, me }) {
 
   // 欠勤記録への異議申立（Part2・attended=falseの代替導線）
   const [disputeModalApp, setDisputeModalApp] = useState(null);
-  const [disputeReason, setDisputeReason] = useState("");
-  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
-  const submitDispute = async () => {
-    if (!disputeModalApp || !disputeReason.trim() || disputeSubmitting) return;
-    setDisputeSubmitting(true);
-    try {
-      const { error } = await supabase.from('attendance_events').insert({
-        application_id: disputeModalApp.id, actor_id: me.id, kind: 'dispute_no_show', reason: disputeReason.trim(),
-      });
-      if (error) { alert('送信に失敗しました：' + error.message); setDisputeSubmitting(false); return; }
-      setAllApps(prev => prev.map(x => x.id===disputeModalApp.id ? { ...x, _disputed: true } : x));
-      setDisputeModalApp(null); setDisputeReason("");
-    } catch { alert('送信に失敗しました。'); }
-    setDisputeSubmitting(false);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -243,7 +229,7 @@ export function WorkerApplications({ filter, me }) {
                     a._disputed ? (
                       <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#717171", margin:"0 0 8px", textAlign:"center" }}>異議申立を送信しました</p>
                     ) : (
-                      <button onClick={()=>{ setDisputeModalApp(a); setDisputeReason(""); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer", marginBottom:8 }}>異議申立</button>
+                      <button onClick={()=>{ setDisputeModalApp(a); }} className="f-sans" style={{ width:"100%", padding:"10px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A", borderRadius:10, cursor:"pointer", marginBottom:8 }}>異議申立</button>
                     )
                   ) : reviewedIds.has(a.id) ? (
                     <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#00A86B", margin:"0 0 8px", textAlign:"center" }}><NavIconInline name="tick" size={13} style={{ verticalAlign:"-2px" }} />評価済み</p>
@@ -678,21 +664,8 @@ export function WorkerApplications({ filter, me }) {
         onDone={(id)=>{ setReviewedIds(prev => new Set(prev).add(id)); setReviewModalApp(null); setReviewDone(true); emitConfirmedRefresh(REFRESH_APPLICATIONS); }} />
 
       {/* 異議申立モーダル（Part2・欠勤記録への異議） */}
-      {disputeModalApp && (
-        <div className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
-            <p className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:12 }}>欠勤記録への異議申立</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", lineHeight:1.6, marginBottom:12 }}>心当たりがない場合、理由を書いて送信してください。運営が確認します。</p>
-            <textarea value={disputeReason} onChange={e=>setDisputeReason(e.target.value)} placeholder="異議の理由" rows={4}
-              className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
-            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-              <button onClick={()=>setDisputeModalApp(null)} className="f-sans" style={{ padding:"9px 18px", fontSize:13, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:10, cursor:"pointer" }}>キャンセル</button>
-              <button onClick={submitDispute} disabled={disputeSubmitting || !disputeReason.trim()}
-                className="f-sans" style={{ padding:"9px 18px", fontSize:13, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>{disputeSubmitting ? <>送信中<Dots /></> : "送信する"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AttendanceDisputeSheet app={disputeModalApp} meId={me.id} onClose={()=>setDisputeModalApp(null)}
+        onDone={id=>{ setAllApps(prev=>prev.map(x=>x.id===id ? {...x,_disputed:true} : x)); setDisputeModalApp(null); }} />
     </div>
   );
 }
