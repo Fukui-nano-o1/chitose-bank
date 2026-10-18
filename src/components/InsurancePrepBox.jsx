@@ -2,13 +2,15 @@
 // 2026-08-25たきと指示「保険の準備はプロフィール編集ページに移設。同じ構造にして表示。
 // マイページの保険の準備は削除」＝マイページの反転カード（2026-07-29）を畳み、
 // 雇い手プロフィール編集の格子の1ボックスにした。
-// ★保存はこの部品の中で完結する（employer_profiles の insurance_items / insurance_notes だけを upsert）＝
+// ★保存はこの部品の中で完結する（employer_profiles の insurance_items / insurance_notes だけを条件付き保存）＝
 //   緊急連絡先（EmergencyContactBox）と同じ作法。編集ページの共通「保存する」には載せない
 //   （委託レーン＝consignment_profiles にはこの2列が無いため、共通の payload に混ぜると委託側の保存が落ちる）。
 // ★中身（1項目=1ボックス・トグル・ひとこと・排他ルール）は保険の準備ページ（#/insurance・
 //   VisitAndInsurance の InsurancePrepPage）と同じ＝申告の形をサイト内で2種類にしない。
 //   排他ルールの本体は lib/utils の insuranceToggle（3画面で共用）。
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
+import { ProfileReadError } from "./ProfileReadError";
 import { supabase } from "../lib/supabase";
 import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -25,26 +27,28 @@ export function InsurancePrepBox({ accent = "#00A86B", onSaved }) {
   const [items, setItems] = useState([]);
   const [notes, setNotes] = useState({});
   const [loading, setLoading] = useState(true);
+  const recordRef = useRef(null), saveBusyRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     let live = true;
+    setLoading(true); setLoadError(false); recordRef.current = null;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const record = await readProfileRecord(supabase, "employer_profiles");
         if (!live) return;
-        if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("employer_profiles")
-          .select("insurance_items,insurance_notes").eq("auth_id", session.user.id).maybeSingle();
-        if (!live) return;
+        recordRef.current = record;
+        const data = record.row;
         setItems(Array.isArray(data?.insurance_items) ? data.insurance_items : []);
         setNotes((data?.insurance_notes && typeof data.insurance_notes === "object") ? data.insurance_notes : {});
-      } catch {}
-      if (live) setLoading(false);
+      } catch { if (live) setLoadError(true); }
+      finally { if (live) setLoading(false); }
     })();
     return () => { live = false; };
-  }, []);
+  }, [loadAttempt]);
 
   // 排他ルール（「これから準備する」は他と両立しない）は lib/utils に一本化。
   // 消えるものがある時だけ一度確認する（文言も保険の準備ページと同じ）
@@ -55,26 +59,27 @@ export function InsurancePrepBox({ accent = "#00A86B", onSaved }) {
   };
 
   const save = async () => {
-    if (saving) return;
+    if (saveBusyRef.current || loading || loadError) return;
+    saveBusyRef.current = true;
     setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
       // ひとことは選択中の項目のぶんだけ残す（外した項目のメモは持ち越さない＝表示と保存の一致）
       const pruned = {};
       items.forEach(k => { const t = (notes[k] || "").trim(); if (t) pruned[k] = t; });
-      const { error } = await supabase.from("employer_profiles")
-        .upsert({ auth_id: session.user.id, insurance_items: items, insurance_notes: pruned, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      const record = await saveProfileRecord(supabase, recordRef.current, { insurance_items: items, insurance_notes: pruned });
+      recordRef.current = record;
       setSaving(false);
-      if (error) { alert("保存に失敗しました：" + error.message); return; }
       setSaved(true); setTimeout(() => setSaved(false), 2000);
       if (typeof onSaved === "function") onSaved({ items, notes: pruned });
-    } catch { setSaving(false); alert("保存に失敗しました"); }
+    } catch (e) { alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    finally { saveBusyRef.current = false; setSaving(false); }
   };
 
+  if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   if (loading) return <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>読み込み中<Dots /></p>;
 
   return (
+    <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     <>
       {/* 見出しはページ側（「‹ 保険の準備」）が出す＝二重にしない（2026-08-25たきと報告）。
           自己申告であることは下の説明文が言う */}
@@ -110,5 +115,6 @@ export function InsurancePrepBox({ accent = "#00A86B", onSaved }) {
         style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, background:accent, color:"#fff", border:"none", borderRadius:12, cursor:"pointer" }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       {saved && <p className="f-sans" style={{ fontSize:12, color:accent, textAlign:"center", marginTop:12 }}>保存しました</p>}
     </>
+    )}</fieldset>
   );
 }

@@ -2,8 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
+import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
+import { employerProfileChange } from "../lib/profileInput";
+import { ProfileReadError } from "./ProfileReadError";
 import { saveProfileAvatar } from "../lib/profileAvatar";
-import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, splitTextsForReview, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
@@ -59,7 +62,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 未申告のまま掲載も可（通知書は「記録にありません」と正直に出す）＝掲載は止めない
   const [laborInsuranceStatus, setLaborInsuranceStatus] = useState("");
   // 保険の準備（2026-08-25・マイページの反転カードから移設）：カードの要約だけをここで持つ。
-  // 保存は InsurancePrepBox の中で完結（employer_profiles の2列だけをupsert）＝共通payloadには載せない
+  // 保存は InsurancePrepBox の中で完結（employer_profiles の2列だけを条件付き保存）＝共通payloadには載せない
   // （委託レーン＝consignment_profiles にこの2列は無い）。読み込みは本体の data から拾う（下）
   const [insSummary, setInsSummary] = useState("");
   const [employerPaysSupplies, setEmployerPaysSupplies] = useState(false);
@@ -172,6 +175,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [uploading, setUploading] = useState(false);
   const avatarBusyRef = useRef(false);
   const [loading, setLoading] = useState(true);
+  const recordRef = useRef(null);
+  const saveBusyRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   // 項目ページを一度でも開いたら真（＝入力が始まりうる）。ネット取得の完了時、キャッシュで
@@ -260,48 +267,23 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     } catch {}
   };
   useEffect(() => {
-    // ① 即時復元（2026-08-28）：マイページが取ってある自分の全列キャッシュ
-    //   （farm:empMini＝viewCache／empMini＝snapshot・本人スコープ・ログアウトで消える）から
-    //   その場で描く＝完全終了からでも骨（スケルトン）を見せない。表示専用の使い方（2026-08-02規則）
-    //   ＝正しさは下の②ネット取得が担保。委託レーン（consignment_profiles）はこのキャッシュと
-    //   別テーブルなので使わない（従来どおり取得を待つ）
-    let hydrated = false;
-    if (table === "employer_profiles") {
-      try {
-        const cached = getCache("farm:empMini") ?? snapGet("empMini");
-        if (cached && typeof cached === "object") { applyRow(cached); hydrated = true; setLoading(false); }
-      } catch {}
-    }
-    // ② ネット取得（従来どおり・正しさの担保）
+    let live = true;
+    setLoading(true); setLoadError(false); recordRef.current = null;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        let { data } = await supabase.from(table).select("*").eq("auth_id", session.user.id).maybeSingle();
-
-        // 初回引き継ぎ：自分の行が無ければ seedFrom（農家プロフィール）を初期値として読む。
-        // 行は作らない＝保存は本人が押した時だけ。承認済み控えは空にする（この表にはまだ何も保存されていない）
-        let seeded = false;
-        if (!data && seedFrom) {
-          const { data: sd } = await supabase.from(seedFrom).select("*").eq("auth_id", session.user.id).maybeSingle();
-          if (sd) { data = sd; seeded = true; }
-        }
-        if (data) {
-          // キャッシュで復元済みかつ項目ページを開いた後なら上書きしない（書きかけを守る）。
-          // キャッシュは直前のマイページ表示が書いた自分の行so、残るズレは他端末での同時編集だけ
-          if (!(hydrated && editBoxOpenedRef.current)) {
-            applyRow(data, seeded);
-            await prefillFromAccount(data, session);
-          }
-          // 次回の即時復元のために最新を写す（正本の行だけ＝seedFrom由来の初期値は写さない）
-          if (table === "employer_profiles" && !seeded) { try { setCache("farm:empMini", data); snapSet("empMini", data); } catch {} }
-        } else {
-          await prefillFromAccount(null, session);
-        }
-      } catch {}
-      setLoading(false);
+        const record = await readProfileRecord(supabase, table);
+        let data = record.row, seeded = false;
+        if (!data && seedFrom) { const seed = await readProfileRecord(supabase, seedFrom); data = seed.row; seeded = !!data; }
+        if (!live) return;
+        recordRef.current = record;
+        applyRow(data || {}, seeded);
+        await prefillFromAccount(data, { user: { id: record.userId } });
+        try { if (table === "employer_profiles" && record.row) { setCache("farm:empMini", record.row); snapSet("empMini", record.row); } } catch {}
+      } catch { if (live) setLoadError(true); }
+      finally { if (live) setLoading(false); }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { live = false; };
+  }, [loadAttempt, table, seedFrom]); // eslint-disable-line react-hooks/exhaustive-deps
   // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
   const convertToJpeg = (file) => new Promise((resolve, reject) => {
     const img = new Image();
@@ -334,7 +316,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   };
   const handleAvatar = async e => {
     const input = e.target, file = input.files?.[0];
-    if (!file || avatarBusyRef.current || saving) return;
+    if (!file || avatarBusyRef.current || saveBusyRef.current || saving) return;
     avatarBusyRef.current = true;
     setUploading(true);
     try {
@@ -357,7 +339,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     finally { avatarBusyRef.current = false; setUploading(false); input.value = ""; }
   };
   const handleDeleteAvatar = async () => {
-    if (!avatarUrl || avatarBusyRef.current || saving) return;
+    if (!avatarUrl || avatarBusyRef.current || saveBusyRef.current || saving) return;
     avatarBusyRef.current = true;
     setUploading(true);
     try {
@@ -478,17 +460,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     } catch {}
   };
   const save = async (stay = false) => {
-    if (saving || avatarBusyRef.current) return;
+    if (saveBusyRef.current || avatarBusyRef.current || loading || loadError) return;
     if (editBox === "avatar") { closeEditBox(); return; }
-    setSaving(true); setSaved(false);
+    saveBusyRef.current = true; setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      // ★保存を無言で終わらせない（2026-08-14たきと指示「保存したら即反映」＝失敗も必ず喋らせる）。
-      // 従来はセッション切れだと何も言わずreturn＝「保存しました」も「失敗」も出ない迷子だった
-      if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
-      // 自由記述は、承認済み値と異なるキーだけを texts_pending に積む。
-      // 2026-08-14の承認プロセス削除以降は、DBトリガー（trg_ep_z_publish_texts）が保存の瞬間に
-      // 公開列へ畳む＝運営の承認を待たず即公開（NG検査＝電話・メール・URLはトリガー側で拒否）
       const desiredTexts = {
         owner_comment: ownerComment || "", intro_path: introPath || "", intro_joy: introJoy || "",
         intro_crops: introCrops || "", intro_atmosphere: introAtmosphere || "", intro_message: introMessage || "",
@@ -500,15 +475,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         bonus_detail: hasBonus ? (bonusDetail || "") : "",
         severance_detail: hasSeverancePay ? (severanceDetail || "") : "",
       };
-      // 空にした項目はその場で公開列を空にする（2026-08-03たきと指示「入力項目を空にするなら
-      // 審査は必要ない」の名残）。承認プロセス削除後はどちらの経路でも即公開＝結果は同じ
-      const { pending: textsPending, cleared: clearedTexts } = splitTextsForReview(desiredTexts, approvedTextsRef.current);
-      // texts_pending 経由は employer_profiles 専用（このテーブルにだけ公開列へ畳むトリガーがある）。
-      // 別テーブル（委託＝管理者専用レーン）は畳む相手がおらず pending が永久に滞留するため、
-      // 自由記述を本欄へ直接保存する。※変数名の reviewFlow は審査時代の名残
-      const reviewFlow = table === "employer_profiles";
-      const payload = {
-        auth_id: session.user.id,
+      const values = {
         // 表示名(nickname)は既存の値を尊重し、空のときだけ氏名・名称で埋める（チャット等の「〇〇さん」が空にならないように）
         nickname: (nickname.trim() || recruiterName.trim()), pr: pr.trim(),
         place_zip: placeZip.trim(), place_prefecture: placePref.trim(), place_city: placeCity.trim(),
@@ -530,53 +497,28 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         recruiter_city: recruiterCity.trim(), recruiter_address_detail: recruiterDetail.trim(),
         interaction_style: interactionStyle || null,
         teaching_style: teachingStyle || null, chat_style: chatStyle || null, question_style: questionStyle || null,
-        ...(reviewFlow ? {
-          ...clearedTexts, // 空にした項目は即その場で消す（審査を通さない）
-          texts_pending: textsPending,
-          texts_submitted_at: Object.keys(textsPending).length > 0 ? new Date().toISOString() : null,
-          // 再提出で修正依頼フラグ（赤帯）を解除（2026-07-19）
-          ...(Object.keys(textsPending).length > 0 ? { texts_revision_requested_at: null } : {}),
-        } : {
-          ...desiredTexts,
-          texts_pending: {},
-          texts_submitted_at: null,
-        }),
-        updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from(table).upsert(payload, { onConflict: "auth_id" });
-      setSaving(false);
-      if (!error) {
-        // 即反映した空欄は「承認済みの控え」も空にする（次の保存で再び差分と見なさないため）
-        Object.keys(clearedTexts).forEach(k => { approvedTextsRef.current[k] = ""; });
-        // 名刺裏面・確認ページが読むキャッシュ（farm:empMini＝FarmerDashboard/LandingFlowの正本）へ
-        // 保存内容を即時反映（2026-08-14たきと報告「問いかけも保存しても反映されない」の修理）。
-        // 自由記述は保存＝即公開（trg_ep_z_publish_texts）ので、公開後の姿＝desiredTexts で写す。
-        // キャッシュが無い時は何もしない＝次の画面が新規に取得する（誤った部分行を正本にしない）
-        if (table === "employer_profiles") {
-          try {
-            const cur = getCache("farm:empMini");
-            if (cur) {
-              const nx = { ...cur, ...payload, ...desiredTexts, texts_pending: {}, texts_submitted_at: null };
-              setCache("farm:empMini", nx); snapSet("empMini", nx);
-            }
-          } catch {}
-        }
-        setSaved(true);
-        if (stay === true) {
-          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
-          // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
-          const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
-          if (nxt) replaceEditBox(nxt); else closeEditBox();
-          setTimeout(() => setSaved(false), 2200);
-        }
-        else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 900);
+      const change = employerProfileChange(editBox, values, desiredTexts, table, recordRef.current?.row);
+      const record = await saveProfileRecord(supabase, recordRef.current, change.patch, change.options);
+      recordRef.current = record;
+      applyRow(record.row || {});
+      if (table === "employer_profiles") {
+        try { setCache("farm:empMini", record.row); snapSet("empMini", record.row); } catch {}
       }
-      else { logSaveError(error.message); alert("保存に失敗しました：" + error.message); }
-    } catch (e) { setSaving(false); logSaveError(e?.message || e); alert("保存に失敗しました。"); }
+      setSaved(true);
+      if (stay === true) {
+        const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
+        if (nxt) replaceEditBox(nxt); else closeEditBox();
+        setTimeout(() => setSaved(false), 2200);
+      } else setTimeout(() => { setSaved(false); onDone?.(); }, 2200);
+    } catch (e) { logSaveError(e?.message || e); alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    finally { saveBusyRef.current = false; setSaving(false); }
   };
+  if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
   return (
+    <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
       {/* 見出し・説明文・ページ全体の保存は削除済み（2026-07-25／2026-08-03）。
           プレビューは運営チャットと同じ浮遊ボックスへ移植（2026-08-03たきと指示）＝下部に固定・
@@ -983,11 +925,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             })}
       </>)}
 
-      {/* モーダルフッター：保存する（全項目upsert）→格子に戻る。
+      {/* モーダルフッター：保存する（この項目の条件付き保存）→格子に戻る。
           ★自分でDBに書くボックスでは出さない＝同じ文言のボタンが2つ並ぶため
           （2026-08-05たきと指示・緊急連絡先／2026-08-25たきと報告「保存するが2つある」・保険の準備）：
             緊急連絡先＝別テーブル emergency_contacts
-            保険の準備＝employer_profiles の insurance_items / insurance_notes だけを自分でupsert
+            保険の準備＝employer_profiles の insurance_items / insurance_notes だけを自分で条件付き保存
               （委託レーンにこの2列が無いので共通payloadに載せられない） */}
       {!["emergency", "insurance"].includes(editBox) && (
         <button onClick={()=>save(true)} disabled={saving || uploading} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : editBox === "avatar" ? "完了" : "保存する"}</button>
@@ -1011,6 +953,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         </div>
       )}
     </div>
+    )}</fieldset>
   );
 }
 

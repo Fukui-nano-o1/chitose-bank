@@ -4,7 +4,9 @@
 // 開示は採用成立後・相手方のみ（contract_emergency_contact RPC）＝ContractEmergencyContact が表示側。
 import { NavIconInline } from "./NavIcons";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
+import { ProfileReadError } from "./ProfileReadError";
 import { supabase } from "../lib/supabase";
 import { setCache } from "../lib/viewCache";
 import { Dots } from "./ui";
@@ -21,60 +23,58 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
   const [relation, setRelation] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
+  const recordRef = useRef(null), saveBusyRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showHelp, setShowHelp] = useState(false);   // 「これは？」で説明を展開（既定は畳む）
   useEffect(() => {
+    let live = true;
+    setLoading(true); setLoadError(false); recordRef.current = null;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("emergency_contacts")
-          .select("name,relation,phone").eq("auth_id", session.user.id).maybeSingle();
+        const record = await readProfileRecord(supabase, "emergency_contacts");
+        if (!live) return;
+        recordRef.current = record;
+        const data = record.row;
         if (data) { setName(data.name || ""); setRelation(data.relation || ""); setPhone(data.phone || ""); }
         else {
-          // 行が無い時の保険（DBのトリガーより前に登録した人・登録前にこの画面を開いた人）。
-          // 「本人」を既定に、氏名・電話は新規登録の内容を画面に出す＝保存を押すまでDBには入らない
           setRelation("本人");
-          try {
-            const { data: ah } = await supabase.from("account_holders")
-              .select("full_name,contact_phone").eq("auth_id", session.user.id).maybeSingle();
-            if (ah) {
-              if ((ah.full_name || "").trim()) setName(ah.full_name.trim());
-              if ((ah.contact_phone || "").trim()) setPhone(ah.contact_phone.trim());
-            }
-          } catch {}
+          const { data: ah, error } = await supabase.from("account_holders").select("full_name,contact_phone").eq("auth_id", record.userId).maybeSingle();
+          if (error) throw error;
+          if (live && ah) { setName((ah.full_name || "").trim()); setPhone((ah.contact_phone || "").trim()); }
         }
-      } catch {}
-      setLoading(false);
+      } catch { if (live) setLoadError(true); }
+      finally { if (live) setLoading(false); }
     })();
-  }, []);
+    return () => { live = false; };
+  }, [loadAttempt]);
   const save = async () => {
-    if (saving) return;
+    if (saveBusyRef.current || loading || loadError) return;
+    saveBusyRef.current = true;
     setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
       // confirmed_at＝本人がこの内容を確認して保存した時刻（2026-08-19 裁定D案）。
       // 自動初期登録（seed_emergency_contact）はこの列を書かないのでNULLのまま＝相手方に出ない。
       // ここで初めて時刻が入り、採用成立時に contract_emergency_contact が中身を返すようになる。
-      const { error } = await supabase.from("emergency_contacts").upsert({
-        auth_id: session.user.id,
-        name: name.trim(), relation: relation.trim(), phone: phone.trim(),
-        confirmed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
+      const record = await saveProfileRecord(supabase, recordRef.current, {
+        name: name.trim(), relation: relation.trim(), phone: phone.trim(), confirmed_at: new Date().toISOString(),
+      });
+      recordRef.current = record;
       setSaving(false);
-      if (error) { alert("保存に失敗しました：" + error.message); return; }
       // 名刺の未設定バッジ用キャッシュも更新（FarmerDashboard farm:hasEmergency・2026-08-14）。
       // 空欄で保存し直した時はfalseに戻す＝バッジが実態から乖離しない
       try { setCache("farm:hasEmergency", !!(name.trim() || phone.trim())); } catch {}
       setSaved(true); setTimeout(()=>setSaved(false), 2000);
       if (typeof onSaved === "function") onSaved({ name: name.trim(), relation: relation.trim(), phone: phone.trim() });
-    } catch { setSaving(false); alert("保存に失敗しました。"); }
+    } catch (e) { alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    finally { saveBusyRef.current = false; setSaving(false); }
   };
+  if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   if (loading) return <p className="f-sans" style={{ fontSize:12, color:"#B0B0B0" }}>読み込み中<Dots /></p>;
   return (
+    <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     <>
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
         {/* 見出しはページ側（「‹ 緊急連絡先」）が出す＝二重にしない（2026-08-25たきと報告） */}
@@ -124,5 +124,6 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
         いつでも書き換え・空欄にできます。空欄にしても、応募や掲載はできます。
       </p>
     </>
+    )}</fieldset>
   );
 }

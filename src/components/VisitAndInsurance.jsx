@@ -1,6 +1,8 @@
 // 訪問者の玄関（#/visit・恒久URL）／QRページ／保険の準備ページ（分割・段階2で切り出し・2026-07-24）。
 // /#/visit は印刷物に焼かれた恒久URL＝ルート文字列・遷移先の意味を変えない（CLAUDE.md絶対遵守）。
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
+import { ProfileReadError } from "./ProfileReadError";
 import { supabase } from "../lib/supabase";
 import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
 import { prefetchSearchJobs } from "../lib/searchJobs";
@@ -8,25 +10,32 @@ import { ToggleSwitch } from "./ToggleSwitch";
 import { Dots } from "./ui";
 import { NavIconInline } from "./NavIcons";
 // 🛡 保険の準備（自己申告）専用ページ（#/insurance・2026-07-24）：農家プロフィール編集の箱から独立ページへ。
-// employer_profiles.insurance_items を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
+// employer_profiles.insurance_items を本人用RPCで条件付き保存（当該列だけ更新し、他項目は温存）。
 export function InsurancePrepPage({ me }) {
   const [items, setItems] = useState([]);
   const [notes, setNotes] = useState({}); // { key: 農家の自由記述メモ }。求人の🛡保険タブで定型説明の下に出す
   const [loading, setLoading] = useState(true);
+  const recordRef = useRef(null), saveBusyRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
+    let live = true;
+    setLoading(true); setLoadError(false); recordRef.current = null;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("employer_profiles").select("insurance_items,insurance_notes").eq("auth_id", session.user.id).maybeSingle();
+        const record = await readProfileRecord(supabase, "employer_profiles");
+        if (!live) return;
+        recordRef.current = record;
+        const data = record.row;
         setItems(Array.isArray(data?.insurance_items) ? data.insurance_items : []);
         setNotes((data?.insurance_notes && typeof data.insurance_notes === "object") ? data.insurance_notes : {});
-      } catch {}
-      setLoading(false);
+      } catch { if (live) setLoadError(true); }
+      finally { if (live) setLoading(false); }
     })();
-  }, []);
+    return () => { live = false; };
+  }, [loadAttempt]);
   // トグルの排他ルール（2026-07-25たきと指示）：「これから準備する」は他の保険と両立しない。
   // 選ぶと他の選択・ひとことが消えるため、消えるものがある時だけ警告を一度出してからリセットする
   const toggleItem = (k, v) => {
@@ -37,21 +46,23 @@ export function InsurancePrepPage({ me }) {
     setNotes(r.notes);
   };
   const save = async () => {
-    if (saving) return;
+    if (saveBusyRef.current || loading || loadError) return;
+    saveBusyRef.current = true;
     setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
       // メモは「選択中の項目」の空でないものだけ保存（外した項目のメモは残さない＝表示と保存の一致）
       const prunedNotes = {};
       items.forEach(k => { const t = (notes[k] || "").trim(); if (t) prunedNotes[k] = t; });
-      const { error } = await supabase.from("employer_profiles").upsert({ auth_id: session.user.id, insurance_items: items, insurance_notes: prunedNotes, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
+      const record = await saveProfileRecord(supabase, recordRef.current, { insurance_items: items, insurance_notes: prunedNotes });
+      recordRef.current = record;
       setSaving(false);
-      if (error) { alert("保存に失敗しました：" + error.message); return; }
       setSaved(true); setTimeout(()=>setSaved(false), 2000);
-    } catch { setSaving(false); alert("保存に失敗しました"); }
+    } catch (e) { alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    finally { saveBusyRef.current = false; setSaving(false); }
   };
+  if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   return (
+    <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     /* ins-prep-page＝このページではサイトのフッター（サポート等）を隠す目印（CSSはappStyles） */
     <div className="help-edge ins-prep-page" style={{ maxWidth:560, marginLeft:"auto", marginRight:"auto", padding:"24px 20px 96px" }}>
       {/* ← 戻る＝左下の浮遊ボックス（2026-08-03たきと指示。下部バー・☰を消したページの戻り道・経験ページと同型） */}
@@ -95,6 +106,7 @@ export function InsurancePrepPage({ me }) {
         {saved && <p className="f-sans" style={{ fontSize:12, color:"#00A86B", textAlign:"center", marginTop:12 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>}
       </>)}
     </div>
+    )}</fieldset>
   );
 }
 
