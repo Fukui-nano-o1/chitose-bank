@@ -2,7 +2,7 @@
 // 専用定数（PR_PROMPTS・Q&A20問・興味/言語/作業強度の選択肢）も同居。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { uploadAvatarResilient } from "../lib/avatarUpload";
+import { saveProfileAvatar } from "../lib/profileAvatar";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
 import { Avatar, LFPillSelect, AutoSkeleton, Dots, ProfileEditRow } from "./ui";
@@ -123,6 +123,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [expEntries, setExpEntries] = useState([]); // 経験の構造化申告 {crop,task,duration}（最大5・2026-07-23）
   const [experiencedTasks, setExperiencedTasks] = useState([]); // 旧「経験のある作業」＝その他の作業（残置・データ移行なし）
   const [uploading, setUploading] = useState(false);
+  const avatarBusyRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -226,61 +227,54 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('この画像を読み込めませんでした。別の画像をお試しください。')); };
     img.src = url;
   });
+  const applySavedAvatar = (result) => {
+    setAvatarUrl(result.url);
+    try {
+      const cached = getCache("hub:wMini") ?? snapGet("wMini");
+      if (cached) {
+        const next = { ...cached, avatar_url: result.url };
+        setCache("hub:wMini", next); snapSet("wMini", next);
+      }
+    } catch { /* Display caches never decide whether a save succeeded. */ }
+    if (typeof onAvatarChange === "function") onAvatarChange({ url: result.url, name: nickname });
+    if (result.warning) alert(result.warning);
+  };
   const handleAvatar = async e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const input = e.target, file = input.files?.[0];
+    if (!file || avatarBusyRef.current || saving) return;
+    avatarBusyRef.current = true;
     setUploading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setUploading(false); return; }
+      if (!session) throw new Error("ログインが確認できません。ページを開き直してください。");
       let sourceFile = file;
-      // iPhoneのHEIC/HEIF形式は、まずheic2anyでjpegにデコード（選択時のみ動的import）
       const isHeic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type);
       if (isHeic) {
         try {
           const heic2any = (await import('heic2any')).default;
           const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
           sourceFile = Array.isArray(converted) ? converted[0] : converted;
-        } catch (heicErr) { setUploading(false); alert("iPhoneの写真（HEIC）の変換に失敗しました。もう一度お試しください。"); return; }
+        } catch { throw new Error("iPhoneの写真（HEIC）の変換に失敗しました。もう一度お試しください。"); }
       }
-      let blob;
-      try { blob = await convertToJpeg(sourceFile); }
-      catch (convErr) { setUploading(false); alert(convErr.message || "この画像形式は対応していません。JPEG・PNG・WebP等をお試しください。"); return; }
-      // 拡張子はjpg固定（変換後は必ずjpeg）。旧ファイルが別拡張子で残っていれば掃除
-      try {
-        const { data: olds } = await supabase.storage.from('avatars').list("worker/" + session.user.id);
-        if (olds && olds.length > 0) {
-          const paths = olds.map(f => "worker/" + session.user.id + "/" + f.name);
-          await supabase.storage.from('avatars').remove(paths);
-        }
-      } catch {}
-      const path = "worker/" + session.user.id + "/avatar.jpg";
-      const upErr = await uploadAvatarResilient("worker/" + session.user.id, blob);
-      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message + "\n通信環境を確認して、もう一度お試しください。"); return; }
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-      const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
-      await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
-      setAvatarUrl(url);
-      if (typeof onAvatarChange === "function") onAvatarChange({ url, name: nickname });
-    } catch { alert("画像のアップロードに失敗しました。"); }
-    setUploading(false);
+      const blob = await convertToJpeg(sourceFile);
+      const result = await saveProfileAvatar({ client: supabase, table: "worker_profiles", directory: "worker",
+        userId: session.user.id, expectedUrl: avatarUrl, blob });
+      applySavedAvatar(result);
+    } catch (error) { alert(error?.message || "画像の保存を確認できませんでした。ページを開き直してください。"); }
+    finally { avatarBusyRef.current = false; setUploading(false); input.value = ""; }
   };
   const handleDeleteAvatar = async () => {
-    if (!avatarUrl || uploading) return;
+    if (!avatarUrl || avatarBusyRef.current || saving) return;
+    avatarBusyRef.current = true;
     setUploading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setUploading(false); return; }
-      const { data: files } = await supabase.storage.from('avatars').list("worker/" + session.user.id);
-      if (files && files.length > 0) {
-        const paths = files.map(f => "worker/" + session.user.id + "/" + f.name);
-        await supabase.storage.from('avatars').remove(paths);
-      }
-      await supabase.from('worker_profiles').upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
-      setAvatarUrl('');
-      if (typeof onAvatarChange === "function") onAvatarChange({ url: "", name: nickname });
-    } catch { alert("削除に失敗しました。"); }
-    setUploading(false);
+      if (!session) throw new Error("ログインが確認できません。ページを開き直してください。");
+      const result = await saveProfileAvatar({ client: supabase, table: "worker_profiles", directory: "worker",
+        userId: session.user.id, expectedUrl: avatarUrl });
+      applySavedAvatar(result);
+    } catch (error) { alert(error?.message || "画像の削除を確認できませんでした。ページを開き直してください。"); }
+    finally { avatarBusyRef.current = false; setUploading(false); }
   };
   // ハブの「📋 経験・できること」カードから来た時は、その場でそのボックスを開く（2026-07-23）
   // 🆘緊急連絡先のカード表示用サマリー（2026-08-14たきと報告「保存しても空のまま」の修理）：
@@ -377,6 +371,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setEditBox(k);
   };
   const closeEditBox = () => {
+    if (avatarBusyRef.current) return;
     if (editFromPreview) { setEditFromPreview(false); setShowPreview(true); }
     const y = listScrollRef.current;
     if (boxFromHash()) window.history.back(); else setEditBox(null);
@@ -429,7 +424,8 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     } catch {}
   };
   const save = async (stay = false) => {
-    if (saving) return;
+    if (saving || avatarBusyRef.current) return;
+    if (editBox === "avatar") { closeEditBox(); return; }
     setSaving(true); setSaved(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -641,10 +637,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
             {uploading ? <>処理中<Dots /></> : avatarUrl ? "画像を変更" : "画像を選ぶ"}
-            <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
+            <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading || saving} style={{ display:"none" }} />
           </label>
           {avatarUrl && (
-            <button onClick={handleDeleteAvatar} disabled={uploading} className="f-sans" style={{ padding:"8px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:12, color:"#717171", cursor:"pointer" }}>削除</button>
+            <button onClick={handleDeleteAvatar} disabled={uploading || saving} className="f-sans" style={{ padding:"8px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:12, color:"#717171", cursor:"pointer" }}>削除</button>
           )}
         </div>
       </div>
@@ -922,7 +918,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
           両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
-        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4, background:ROLE_ORANGE }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
+        <button onClick={()=>save(true)} disabled={saving || uploading} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4, background:ROLE_ORANGE }}>{saving ? <>保存中<Dots /></> : editBox === "avatar" ? "完了" : "保存する"}</button>
       )}
       </div>
       )}
