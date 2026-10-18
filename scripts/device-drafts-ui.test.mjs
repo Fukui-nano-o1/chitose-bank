@@ -323,6 +323,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     const videoCopy={...fullRow,work_video_job_consent:false,work_video_related_consent:false,work_video_consent_at:null,work_video_consent_version:null};
     w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:videoCopy});
     await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoUrl===videoCopy.work_video_url),'copied URL retained');
+    await until(()=>button(w,'掲載する')&&!button(w,'掲載する').disabled,'video copy publish ready');
     button(w,'掲載する').click();
     await until(()=>w.document.querySelector('#work-video-url'),'missing consent opens video step');
     assert.equal(w.document.querySelector('#work-video-url').value,videoCopy.work_video_url);
