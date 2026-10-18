@@ -6,7 +6,9 @@ on:
       - src/components/ProfileReadError.jsx
       - scripts/consignor-*.test.mjs
       - scripts/consignment-deal-*.test.mjs
+      - scripts/consignment-aux-*.test.mjs
       - scripts/fixtures/consignment-deal-*
+      - scripts/fixtures/consignment-aux-*
       - scripts/fixtures/consignor-*
       - scripts/fixtures/account-holder-update-prod.sql
       - supabase/migrations/*consignor*.sql

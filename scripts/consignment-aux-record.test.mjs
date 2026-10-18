@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {saveConsignmentAux} from '../src/features/consignment/consignmentAuxRecord.js';
+function fixture(){const pending=new Map(),calls=[];let owner='owner',lost=true;
+ const store={read:async k=>pending.get(k),acquire:async(k,p)=>{if(!pending.has(k))pending.set(k,structuredClone(p));return pending.get(k);},clear:async(k,id)=>{if(pending.get(k)?.requestId===id)pending.delete(k);}};
+ const client={auth:{getSession:async()=>({data:{session:{user:{id:owner}}}})},rpc:async(_,q)=>{calls.push(q);if(lost)throw Error('lost');return {data:{ok:true,owner:q.p_owner,id:q.p_id,operation:q.p_operation,input:q.p_input,row:{id:q.p_id,...q.p_input}}};}};
+ return {client,store,pending,calls,setOwner:v=>owner=v,recover:()=>lost=false};}
+const args={owner:'owner',operation:'progress',target:'deal',input:{deal_id:'deal',note:'original'}};
+test('progress replay restores original payload and uses a record UUID separate from its deal scope',async()=>{const f=fixture();await assert.rejects(saveConsignmentAux(f.client,args,{store:f.store}),{code:'CONSIGN_AUX_UNCONFIRMED'});f.recover();const r=await saveConsignmentAux(f.client,{...args,input:{...args.input,note:'new edit'}},{store:f.store});assert.equal(r.changed,true);assert.equal(r.row.note,'original');assert.notEqual(r.id,'deal');assert.equal(f.calls[0].p_id,f.calls[1].p_id);assert.equal(f.pending.size,1);await r.acknowledge();assert.equal(f.pending.size,0);});
+test('failed durable storage stops writes and account switch cannot complete another owner operation',async()=>{const f=fixture();await assert.rejects(saveConsignmentAux(f.client,args,{store:{acquire:async()=>{throw Error('blocked');}}}),{code:'CONSIGN_AUX_STORAGE'});assert.equal(f.calls.length,0);f.setOwner('other');await assert.rejects(saveConsignmentAux(f.client,args,{store:f.store}),{code:'CONSIGNMENT_SESSION'});assert.equal(f.calls.length,0);});
+test('a success response with the wrong saved record cannot clear the operation',async()=>{const f=fixture();f.client.rpc=async(_,q)=>({data:{ok:true,owner:q.p_owner,id:q.p_id,operation:q.p_operation,input:q.p_input,row:{id:'other'}}});await assert.rejects(saveConsignmentAux(f.client,args,{store:f.store}),{code:'CONSIGN_AUX_UNCONFIRMED'});assert.equal(f.pending.size,1);});

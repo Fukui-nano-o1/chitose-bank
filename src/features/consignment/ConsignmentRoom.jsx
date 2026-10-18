@@ -1,7 +1,9 @@
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { sameProfileValue } from "../../lib/profileRecord";
 import { ymdLocal } from "../../lib/utils";
+import { readConsignmentAuxPending, saveConsignmentAux } from "./consignmentAuxRecord";
 import { CONSIGN_TERMS_VERSION } from "../../lib/consignAccess";
 import { getCache, setCache } from "../../lib/viewCache";
 import { snapGet } from "../../lib/snapshot";
@@ -260,11 +262,28 @@ export function ConsignmentRoom() {
   const [deals, setDeals] = useState(() => getCache("consign:deals") ?? []);
   const [progAgg, setProgAgg] = useState(() => getCache("consign:progAgg") ?? {}); // 台帳の要約用：deal_id→{hours,boxes,days}
   const [busy, setBusy] = useState(false);
+  const actionRef=useRef(false),auxAlive=useRef(true),auxScope=useRef(""),activeDeal=useRef(null);
+  auxScope.current=`${saveOwner}:${editId}:${cTab}`;activeDeal.current=editId;
+  useEffect(()=>{auxAlive.current=true;return()=>{auxAlive.current=false;};},[]);
+  const [progressReady,setProgressReady]=useState(false);
+  const [progressError,setProgressError]=useState("");
+  const [progressReadVersion,setProgressReadVersion]=useState(0);
   const todayJst = () => { try { return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); } catch { return new Date().toISOString().slice(0, 10); } };
   // 日次進捗（作業中）
   const [prog, setProg] = useState([]);
   const [summary, setSummary] = useState(null);
   const [pForm, setPForm] = useState({ work_date: "", hours: "", workers: "", yield_boxes: "", note: "" });
+  useEffect(()=>{
+    let active=true;setProgressReady(false);setProgressError("");
+    if(!saveOwner||!editId||curDeal?.status!=="working")return()=>{active=false;};
+    readConsignmentAuxPending(supabase,saveOwner,"progress",editId).then(p=>{
+      if(!active)return;
+      if(p)setPForm({work_date:p.input.work_date,hours:p.input.hours??"",workers:p.input.workers??"",yield_boxes:p.input.yield_boxes??"",note:p.input.note||""});
+      else setPForm({work_date:"",hours:"",workers:"",yield_boxes:"",note:""});
+      setProgressReady(true);
+    }).catch(e=>{if(active)setProgressError(e.message);});
+    return()=>{active=false;};
+  },[saveOwner,editId,curDeal?.status,progressReadVersion]);
   const [inspectNote, setInspectNote] = useState("");
   const [reflection, setReflection] = useState("");
   const dealAreaA = (d) => { const v = d?.area_a != null ? d.area_a : (d?.spec || {}).area_a; const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
@@ -276,6 +295,7 @@ export function ConsignmentRoom() {
     ]);
     if (dl.error) { setLoadError("案件を読み込めません。保存済みの情報は消していません。通信を確認して一覧を開き直してください。"); return []; }
     setDeals(dl.data || []); setCache("consign:deals", dl.data || []);
+    if (pr.error) { setLoadError("進捗の集計を読み込めません。表示中の集計は保持しています。"); return dl.data || []; }
     const agg = {};
     (pr.data || []).forEach(r => { const a = agg[r.deal_id] || { hours: 0, boxes: 0, days: new Set() }; a.hours += Number(r.hours || 0); a.boxes += Number(r.yield_boxes || 0); if (r.work_date) a.days.add(r.work_date); agg[r.deal_id] = a; });
     const out = {}; Object.entries(agg).forEach(([k, v]) => { out[k] = { hours: v.hours, boxes: v.boxes, days: v.days.size }; });
@@ -284,12 +304,14 @@ export function ConsignmentRoom() {
   };
   const loadProgress = async (id) => {
     if (!id) { setProg([]); setSummary(null); return; }
-    const [{ data: rows }, { data: sum }] = await Promise.all([
-      supabase.from("consignment_progress").select("*").eq("deal_id", id).order("work_date", { ascending: false }),
-      supabase.rpc("consignment_summary", { p_deal_id: id }),
+    const [rows,sum] = await Promise.all([
+      supabase.from("consignment_progress").select("*").eq("deal_id",id).order("work_date",{ascending:false}),
+      supabase.rpc("consignment_summary",{p_deal_id:id}),
     ]);
-    setProg(rows || []);
-    setSummary(sum && sum.ok ? sum : null);
+    if(!auxAlive.current||activeDeal.current!==id)return;
+    if(rows.error||sum.error){setLoadError("進捗を読み込めません。表示中の記録は保持しています。");return;}
+    setProg(rows.data||[]);setSummary(sum.data?.ok?sum.data:null);
+
   };
   // トップの大プロフィールカード用（農家プロフィール入口と同じ構造・2026-07-31たきと指示）。
   // 名刺の中身は employer_profiles の自分の行から（このページはprops無しなので自分で引く）
@@ -299,22 +321,23 @@ export function ConsignmentRoom() {
   // 委託者情報（設定ページの保存値・確認STEP5と印刷仕様書へ自動反映）。設定ページから戻るたびに再読込。
   // 身元（氏名・法人名・住所）は account_holders＝唯一の正から並行取得（2026-08-02たきと確定指示）
   const [consignor, setConsignor] = useState(() => getCache("consign:consignor") ?? null);
+  const [profileReady,setProfileReady]=useState(false),[profileReadVersion,setProfileReadVersion]=useState(0);
   const [consignAh, setConsignAh] = useState(() => getCache("consign:ah") ?? null);
   // 委託圃場（2026-08-02たきと指示）：プロフィールのスワイプ2枚目で登録・管理。
   // ウィザードSTEP1の呼び出しと、掲載時の自動登録（同名upsert）で共用
   const [fields, setFields] = useState(() => getCache("consign:fields") ?? []);
+  const [fieldsReady,setFieldsReady]=useState(false);
   const loadFields = async () => {
+    setFieldsReady(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data } = await supabase.from("consignment_fields").select("*").eq("auth_id", session.user.id).order("updated_at", { ascending: false });
-      setFields(data || []); setCache("consign:fields", data || []);
-    } catch {}
+      const { data,error } = await supabase.from("consignment_fields").select("*").eq("auth_id", session.user.id).order("updated_at", { ascending: false });
+      if(error)throw Error("圃場一覧を読み込めません。もう一度読み込んでください。");
+      await consignmentOwner(supabase,session.user.id);
+      setFields(data || []); setCache("consign:fields", data || []);setFieldsReady(true);
+    } catch(e) {setLoadError(e.message);}
   };
-  // 既存写真の自動軽量化（2026-08-03たきと指示「自動で圧縮処理」・手動操作ゼロ）：
-  // 圧縮修理(c4b49b1)より前に原寸で上がった写真を、委託ページを開いたとき裏で1回だけ圧縮し直す。
-  // HEADでサイズ確認→700KB超だけ対象。新URLへ差し替え成功後に旧ファイルを削除（孤児を残さない）。
-  // 1セッション1回（sessionStorageフラグ）。以後のアップロードは常に自動圧縮ので新たな対象は増えない
   // プロフィールの2面（委託者情報⇄委託圃場）：スワイプと上部チップで切替
   const [profilePane, setProfilePane] = useState("info");
   const profTouchRef = useRef(null);
@@ -348,46 +371,35 @@ export function ConsignmentRoom() {
     <p className="f-sans" style={{ fontSize:12.1, color:"#111111", background:"#F7F7F7", borderRadius:10, padding:"10px 12px", margin:"6px 0 8px", lineHeight:1.7 }}>{text}</p>
   ) : null);
   const agreeTerms = async () => {
-    if (termsSaving || !termsChecked) return;
-    setTermsSaving(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setTermsSaving(false); return; }
-      const patch = {
-        auth_id: session.user.id,
-        consignment_terms_consent: true,
-        consignment_terms_consent_at: new Date().toISOString(),
-        consignment_terms_consent_version: CONSIGN_TERMS_VERSION,
-        consignment_terms_consent_user_id: session.user.id,
-        updated_at: new Date().toISOString(),
-      };
-      const { error } = await supabase.from("consignment_profiles").upsert(patch, { onConflict: "auth_id" });
-      if (error) alert("同意の記録に失敗しました：" + error.message);
-      else {
-        const merged = { ...(consignor || {}), ...patch };
-        setConsignor(merged); setCache("consign:consignor", merged);
-        consignScrollTop();
-      }
-    } catch { alert("同意の記録に失敗しました。"); }
-    setTermsSaving(false);
+    if(actionRef.current||!termsChecked||!saveOwner)return;
+    actionRef.current=true;setTermsSaving(true);const scope=auxScope.current;
+    try{
+      const r=await saveConsignmentAux(supabase,{owner:saveOwner,operation:"terms",target:saveOwner,input:{version:CONSIGN_TERMS_VERSION}});
+      if(!auxAlive.current||auxScope.current!==scope)return;
+      setConsignor(r.row);setCache("consign:consignor",r.row);await r.acknowledge();consignScrollTop();
+    }catch(e){if(auxAlive.current&&auxScope.current===scope)alert(e.message);}
+    finally{actionRef.current=false;setTermsSaving(false);}
   };
   useEffect(() => {
-    if (cTab === "profile") return; // 設定ページ自身はフォーム側が読む
+    let active=true;setProfileReady(false);
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const [{ data }, { data: ah }] = await Promise.all([
+        const [profile, account] = await Promise.all([
           supabase.from("consignment_profiles").select("*").eq("auth_id", session.user.id).maybeSingle(),
           supabase.from("account_holders")
             .select("full_name,postal_code,address,entity_type,contact_email,contact_phone,company_name,company_number")
             .eq("auth_id", session.user.id).maybeSingle(),
         ]);
-        setConsignor(data || null); setCache("consign:consignor", data || null);
-        setConsignAh(ah || null); setCache("consign:ah", ah || null);
-      } catch {}
+        if(profile.error||account.error)throw Error("委託者情報を読み込めません。もう一度読み込んでください。");
+        await consignmentOwner(supabase,session.user.id);if(!active)return;
+        setConsignor(profile.data||null);setCache("consign:consignor",profile.data||null);
+        setConsignAh(account.data||null);setCache("consign:ah",account.data||null);setProfileReady(true);
+      } catch(e) {if(active)setLoadError(e.message);}
     })();
-  }, [cTab]);
+    return()=>{active=false;};
+  }, [cTab,profileReadVersion]);
   // ★mount時の読み込み（loadDeals・名刺・リロード復元）は openDealState の定義より後ろに置いた
   //   effectが担う（no-use-before-define対応＝「呼ぶ側・effectを下げる」の作法・2026-07-29教訓）
   const setF = (k, v) => setSpec(p => ({ ...p, [k]: v }));
@@ -423,13 +435,8 @@ export function ConsignmentRoom() {
     const nde = ne ? ymdLocal(ne) : "";
     setSpec(p => ({ ...p, date_start: nds, date_end: nde, deadline: deadlineLabel(nds, nde) }));
   };
-  const refreshCur = async (id) => {
-    const { data } = await supabase.from("consignment_deals").select("*").eq("id", id).maybeSingle();
-    if (data) { setCurDeal(data); setStatus(data.status || "draft"); }
-    await loadDeals();
-  };
   const save = async () => {
-    if (savingRef.current || photoUploading) return false;
+    if (savingRef.current || actionRef.current || photoUploading) return false;
     if (!saveOwner || (cTab === "deal" && !curDeal)) { alert("保存済みの案件を読み込んでから保存してください。"); return false; }
     if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return false; }
     savingRef.current = true; setSaving(true);
@@ -450,39 +457,49 @@ export function ConsignmentRoom() {
     } catch (e) { alert(e?.message || "保存結果を確認できません。入力は残しています。"); return false; }
     finally { savingRef.current = false; setSaving(false); }
   };
-  // 状態を1つ進める共通処理（合意/前金/作業中/検収/支払/完了）。パッチをupdate→現行行を取り直す
-  const advance = async (patch, confirmMsg) => {
-    if (busy || !editId) return;
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
-    setBusy(true);
-    const { error } = await supabase.from("consignment_deals").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", editId);
-    if (error) { alert("更新に失敗しました：" + error.message); setBusy(false); return; }
-    await refreshCur(editId);
-    setBusy(false);
+  // Confirm the specific action against the loaded row; never send a stale spec.
+  const advance = async (action, confirmMsg, note="") => {
+    if(actionRef.current||savingRef.current||!editId||!curDeal||!saveOwner)return;
+    if(!sameProfileValue(spec,{...CONSIGN_EMPTY,...curDeal.spec}) || memo.trim()!==(curDeal.notes||"").trim() || status!==curDeal.status){
+      alert("仕様書に未保存の入力があります。先に「更新を保存」で内容を保存してください。");return;
+    }
+    if(confirmMsg&&!window.confirm(confirmMsg))return;
+    actionRef.current=true;setBusy(true);const scope=auxScope.current;
+    try{
+      const r=await saveConsignmentAux(supabase,{owner:saveOwner,operation:"advance",target:editId,
+        expected:{updated_at:curDeal.updated_at},input:{action,date:todayJst(),note}});
+      if(!auxAlive.current||auxScope.current!==scope)return;
+      setCurDeal(r.row);setStatus(r.row.status);setSpec({...CONSIGN_EMPTY,...r.row.spec});
+      setDeals(prev=>[r.row,...prev.filter(d=>d.id!==r.row.id)]);
+      if(r.changed)alert("前回の操作を確認しました。今回の変更はまだ保存していません。");
+      await r.acknowledge();
+    }catch(e){if(auxAlive.current&&auxScope.current===scope)alert(e.message);}
+    finally{actionRef.current=false;setBusy(false);}
   };
-  const makeAgreed = () => advance({ status: "agreed" }, "この内容で合意にしますか？\n合意すると、いまの仕様書が「合意時の仕様書」として凍結されます。");
-  const receiveDeposit = async () => advance({ spec: { ...(curDeal?.spec || spec), deposit_received_at: todayJst() } }, "着手金を受領した記録を残しますか？");
-  const startWork = () => advance({ status: "working" }, "作業中にしますか？");
-  const doInspect = () => advance({ status: "inspected", inspected_at: todayJst(), notes: inspectNote.trim() || (curDeal?.notes || null) }, "検収を記録しますか？");
-  const doPay = () => advance({ status: "paid", paid_at: todayJst() }, "残金の支払いを記録しますか？");
-  const doComplete = () => advance({ status: "done", spec: { ...(curDeal?.spec || spec), reflection: reflection.trim() } }, "この委託を完了にしますか？");
-  const addProgress = async () => {
-    if (busy || !editId) return;
-    const p = pForm;
-    if (!p.hours && !p.yield_boxes && !p.workers && !p.note.trim()) { alert("実働時間・人数・収量箱・メモのいずれかを入力してください。"); return; }
-    setBusy(true);
-    const { error } = await supabase.from("consignment_progress").insert({
-      deal_id: editId,
-      work_date: p.work_date || todayJst(),
-      hours: p.hours === "" ? null : Number(p.hours),
-      workers: p.workers === "" ? null : parseInt(p.workers, 10),
-      yield_boxes: p.yield_boxes === "" ? null : parseInt(p.yield_boxes, 10),
-      note: p.note.trim() || "",
-    });
-    if (error) { alert("記録に失敗しました：" + error.message); setBusy(false); return; }
-    setPForm({ work_date: "", hours: "", workers: "", yield_boxes: "", note: "" });
-    await loadProgress(editId);
-    setBusy(false);
+  const makeAgreed=()=>advance("agree","この内容で合意にしますか？合意時の仕様書を凍結します。");
+  const receiveDeposit=()=>advance("deposit","着手金を受領した記録を残しますか？");
+  const startWork=()=>advance("start","作業中にしますか？");
+  const doInspect=()=>advance("inspect","検収を記録しますか？",inspectNote.trim()||curDeal?.notes||"");
+  const doPay=()=>advance("pay","残金の支払いを記録しますか？");
+  const doComplete=()=>advance("complete","この委託を完了にしますか？",reflection.trim());
+  const addProgress=async()=>{
+    if(actionRef.current||savingRef.current||!editId||!saveOwner||!progressReady)return;
+    const p=pForm;
+    if(!p.hours&&!p.yield_boxes&&!p.workers&&!p.note.trim()){alert("実働時間・人数・収量箱・メモのいずれかを入力してください。");return;}
+    const input={deal_id:editId,work_date:p.work_date||todayJst(),hours:p.hours===""?null:Number(p.hours),
+      workers:p.workers===""?null:Number(p.workers),yield_boxes:p.yield_boxes===""?null:Number(p.yield_boxes),note:p.note.trim()};
+    if([input.hours,input.workers,input.yield_boxes].some(v=>v!==null&&(!Number.isFinite(v)||v<0))||
+      [input.workers,input.yield_boxes].some(v=>v!==null&&!Number.isInteger(v))){alert("時間・人数・収量を正しい数値で入力してください。");return;}
+    actionRef.current=true;setBusy(true);const scope=auxScope.current;
+    try{
+      const r=await saveConsignmentAux(supabase,{owner:saveOwner,operation:"progress",target:editId,input});
+      if(!auxAlive.current||auxScope.current!==scope)return;
+      setProg(prev=>[r.row,...prev.filter(x=>x.id!==r.row.id)]);
+      if(r.changed)alert("前回の進捗を保存済みと確認しました。今回の入力はまだ保存していません。");
+      else setPForm({work_date:"",hours:"",workers:"",yield_boxes:"",note:""});
+      await r.acknowledge();await loadProgress(editId);
+    }catch(e){if(auxAlive.current&&auxScope.current===scope)alert(e.message);}
+    finally{actionRef.current=false;setBusy(false);}
   };
   const openDealState = (d) => { setStdTerms({}); setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
   const newDealState = () => { setStdTerms({}); setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(0); setCTab("new"); };
@@ -841,7 +858,7 @@ export function ConsignmentRoom() {
   return (
     <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "") + (returning ? " consign-returning" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
       {loadError && <p role="alert" className="f-sans">{loadError}</p>}
-      <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
+      <fieldset disabled={saving || busy} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
       {/* 委託機能利用特約：同意後は右上の浮遊ボックスからいつでも再読できる（2026-08-02たきと指示） */}
       {termsOk && !leaving && cTab !== "contractor" && ( /* 受託面ではバナーの中に畳む（アバターと重なるため・2026-09-03） */
         <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:12.1, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
@@ -1198,8 +1215,8 @@ export function ConsignmentRoom() {
             })}
           </div>
           {profilePane === "info" && <ConsignorInfoEdit />}
-          {profilePane === "fields" && <ConsignFieldsPane fields={fields} onReload={loadFields} />}
-          {profilePane === "lend" && <ConsignLendPane consignor={consignor} onSaved={(merged)=>{ setConsignor(merged); setCache("consign:consignor", merged); }} />}
+          {profilePane === "fields" && <ConsignFieldsPane ready={fieldsReady} ownerId={saveOwner} fields={fields} onReload={loadFields} />}
+          {profilePane === "lend" && <ConsignLendPane ready={profileReady} onRetry={()=>setProfileReadVersion(v=>v+1)} ownerId={saveOwner} consignor={consignor} onSaved={(merged)=>{ setConsignor(merged); setCache("consign:consignor", merged); }} />}
         </div>
       )}
 
@@ -1487,7 +1504,7 @@ export function ConsignmentRoom() {
                 <button onClick={goBack} className="f-sans" style={{ background:"transparent", border:"none", padding:"10px 4px", fontSize:15.4, fontWeight:700, color:"#111111", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>戻る</button>
               )}
               {isLast ? (
-                <button onClick={async ()=>{ const ok = await save(); if (ok) { window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ padding:"13px 24px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1, minWidth:150 }}>{saving ? <>掲載中<Dots /></> : "掲載する"}</button>
+                <button onClick={async ()=>{ const ok = await save(); if (ok) { window.location.hash = "/admin/consignment"; } }} disabled={saving || busy} className="f-sans" style={{ padding:"13px 24px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1, minWidth:150 }}>{saving ? <>掲載中<Dots /></> : "掲載する"}</button>
               ) : (
                 <button onClick={goNext} className="f-sans" style={{ padding:"13px 28px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", minWidth: page.kind === "overview" ? 150 : 110 }}>{page.kind === "overview" ? "はじめる" : "次へ"}</button>
               )}
@@ -1605,6 +1622,8 @@ export function ConsignmentRoom() {
                 <div style={{ background:"#F9FAFB", border:"1px solid #EBEBEB", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
                   {/* minmax(0,1fr)＝グリッドの子がトラック幅より小さくなれる（既定の 1fr は min-width:auto ので
                       input[type=date] の固有幅がトラックを超えると縮まず枠外へ出る・2026-08-16の修理と同型） */}
+                  {progressError && <p role="alert">{progressError}<button onClick={()=>setProgressReadVersion(v=>v+1)}>もう一度読み込む</button></p>}
+                  <fieldset disabled={busy || !progressReady} style={{border:0,padding:0,margin:0,minWidth:0}}>
                   <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr) minmax(0, 1fr)", gap:8, marginBottom:8 }}>
                     <div style={{ minWidth:0 }}><label className="lbl f-sans" style={{ fontSize:12.1 }}>日付</label><input type="date" className="field f-sans" value={pForm.work_date} onChange={e=>setPForm(p=>({...p, work_date:e.target.value}))} style={{ fontSize:14.3, marginBottom:0, width:"100%", maxWidth:"100%", minWidth:0 }} /></div>
                     <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>実働時間(h)</label><input inputMode="decimal" className="field f-sans" value={pForm.hours} onChange={e=>setPForm(p=>({...p, hours:e.target.value.replace(/[^0-9.]/g,"")}))} placeholder="例：6.5" style={{ fontSize:14.3, marginBottom:0 }} /></div>
@@ -1612,7 +1631,8 @@ export function ConsignmentRoom() {
                     <div><label className="lbl f-sans" style={{ fontSize:12.1 }}>収量（箱）</label><input inputMode="numeric" className="field f-sans" value={pForm.yield_boxes} onChange={e=>setPForm(p=>({...p, yield_boxes:e.target.value.replace(/[^0-9]/g,"")}))} placeholder="例：40" style={{ fontSize:14.3, marginBottom:0 }} /></div>
                   </div>
                   <input className="field f-sans" value={pForm.note} onChange={e=>setPForm(p=>({...p, note:e.target.value}))} placeholder="メモ（任意）" style={{ fontSize:14.3, marginBottom:8 }} />
-                  <button onClick={addProgress} disabled={busy} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>＋ 進捗を記録</button>
+                  <button onClick={addProgress} disabled={busy || !progressReady} className="f-sans" style={{ width:"100%", padding:"11px", fontSize:14.3, fontWeight:700, background:"#111111", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>＋ 進捗を記録</button>
+                  </fieldset>
                 </div>
               )}
               {prog.length === 0 ? (
@@ -1663,7 +1683,7 @@ export function ConsignmentRoom() {
             <textarea className="field f-sans" value={memo} onChange={e=>setMemo(e.target.value)} rows={2} style={{ fontSize:14.3, marginBottom:0, resize:"vertical" }} />
           </div>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={save} disabled={saving} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? <>保存中<Dots /></> : (editId ? "更新を保存" : "保存")}</button>
+            <button onClick={save} disabled={saving || busy} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, borderRadius:12, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1 }}>{saving ? <>保存中<Dots /></> : (editId ? "更新を保存" : "保存")}</button>
             <button onClick={()=>setPrintOpen(true)} className="f-sans" style={{ flex:1, padding:"13px", fontSize:15.4, fontWeight:700, background:"#fff", color:"#111111", border:"1px solid #222", borderRadius:12, cursor:"pointer" }}>印刷ビュー</button>
           </div>
         </div>
