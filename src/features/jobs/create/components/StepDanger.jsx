@@ -1,16 +1,41 @@
 // 農家 step9: 危険な場所・危険な作業（安全配慮義務の告知欄）（第2次構造改革2026-08-17で LandingFlow.jsx から分離）。
-// ★中身は移設前と同一（行頭の字下げだけを詰めた）。表示・保存の仕様は変えていない。
+// 写真の選択は同期ロックし、最新の配列で重複と枚数上限を確認してから追加する。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
+import { useEffect, useRef } from "react";
+import { mergePastPhotos } from "../model";
 import { lfStyles } from "../lfStyles";
 import { LFWizCard } from "../../../../components/ui";
 import { uploadPhoto } from "../jobCreateApi";
 import { NavIcon } from "../../../../components/NavIcons";
 
-export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks, setJobDangerTasks, showPlace2, setShowPlace2, showTask2, setShowTask2 }) {
+export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks, setJobDangerTasks, showPlace2, setShowPlace2, showTask2, setShowTask2, photoUploading, setPhotoUploading, ownerId, currentJobNumber }) {
+  const lock = useRef(false), alive = useRef(true), scope = useRef("");
+  scope.current = `${ownerId || ""}:${currentJobNumber || "new"}`;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const upload = async (event, kind, index) => {
+    const input = event.target, files = Array.from(input.files || []);
+    input.value = "";
+    if (lock.current || !files.length) return;
+    const rows = kind === "place" ? jobDangerPlaces : jobDangerTasks;
+    const setter = kind === "place" ? setJobDangerPlaces : setJobDangerTasks;
+    const queue = files.slice(0, Math.max(0, 2 - (rows[index]?.photos?.length || 0)));
+    if (!queue.length) return;
+    const target = scope.current;
+    lock.current = true; setPhotoUploading(true);
+    try {
+      const results = await Promise.allSettled(queue.map(file => uploadPhoto(file, { pathPrefix: "danger_", withThumb: false, ownerId })));
+      if (!alive.current || scope.current !== target) return;
+      const uploaded = results.filter(r => r.status === "fulfilled" && r.value?.url).map(r => ({ url: r.value.url }));
+      setter(prev => prev.map((row, i) => i === index ? { ...row, photos: mergePastPhotos(row.photos || [], uploaded, 2) } : row));
+      if (uploaded.length < queue.length) alert("一部の写真の保存を確認できません。同じ写真を選び直して再試行してください。");
+    } finally { lock.current = false; setPhotoUploading(false); }
+  };
   return (<>
     <h2 className="f-sans" style={lfStyles.stepTitle}>危険な作業・場所</h2>
     <p className="f-sans" style={lfStyles.subtitle}>危険な場所や作業を正直に伝えましょう。写真や補足を添えると正確に伝わります。</p>
     <LFWizCard>
+      {photoUploading && <p role="status" className="f-sans">写真を保存しています…</p>}
+      <fieldset disabled={photoUploading} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
       <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
         <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
@@ -30,19 +55,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
                       <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
                         <NavIcon name="camera" size={22} style={{ opacity:0.6 }} />
                         <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={async e => {
-                          const files = Array.from(e.target.files || []);
-                          if (files.length === 0) return;
-                          const room = 2 - (place.photos?.length || 0);
-                          const queue = files.slice(0, room);
-                          const results = await Promise.all(queue.map(file =>
-                            uploadPhoto(file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
-                          ));
-                          const uploaded = results.filter(r => r && r.url).map(r => ({ url: r.url }));
-                          if (uploaded.length > 0) setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: [...(p.photos||[]), ...uploaded] } : p));
-                          if (uploaded.length < queue.length) { alert('一部の写真のアップロードに失敗しました。もう一度お試しください。'); }
-                          e.target.value = '';
-                        }} />
+                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={e => upload(e, "place", i)} />
                       </label>
                     );
                   })}
@@ -74,19 +87,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
                       <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
                         <NavIcon name="camera" size={22} style={{ opacity:0.6 }} />
                         <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={async e => {
-                          const files = Array.from(e.target.files || []);
-                          if (files.length === 0) return;
-                          const room = 2 - (task.photos?.length || 0);
-                          const queue = files.slice(0, room);
-                          const results = await Promise.all(queue.map(file =>
-                            uploadPhoto(file, { pathPrefix: 'danger_', withThumb: false }).catch(err => { console.error('danger photo upload failed', err); return null; })
-                          ));
-                          const uploaded = results.filter(r => r && r.url).map(r => ({ url: r.url }));
-                          if (uploaded.length > 0) setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: [...(t.photos||[]), ...uploaded] } : t));
-                          if (uploaded.length < queue.length) { alert('一部の写真のアップロードに失敗しました。もう一度お試しください。'); }
-                          e.target.value = '';
-                        }} />
+                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={e => upload(e, "task", i)} />
                       </label>
                     );
                   })}
@@ -99,6 +100,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
               <button onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t, j) => j === 1 ? { ...t, label:"", desc:"", photos:[] } : t)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
             )}
       </div>
+      </fieldset>
     </LFWizCard>
   </>);
 }

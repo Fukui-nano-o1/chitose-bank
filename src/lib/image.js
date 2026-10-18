@@ -1,3 +1,4 @@
+import { photoOwner, putPhotoBytes } from "./photoStorage.js";
 // 画像のクライアント圧縮（2026-07-26 LandingFlowから共有層へ移動）：求人写真・ヘルプのスクショ等、
 // アップロード前に必ず通す。原寸4MB級が「白いまま読み込み待ち」になる問題と転送量（egress）対策の両方。
 // 圧縮に失敗したら原本をそのまま返す（古いブラウザ等でも壊れない）
@@ -31,18 +32,8 @@ export async function compressImage(file, maxSide = 1600, quality = 0.8) {
 // (1)デコードは1回だけ・原寸とサムネで使い回す (2)原寸とサムネのuploadを並列に投げる。
 // 呼び出し側で Promise.all すれば全ファイルも並列になる。
 // 返り値: { url, thumb? }（withThumb=false の危険箇所写真は { url } のみ）
-export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pathPrefix = "job_", withThumb = true } = {}) {
-  const base = pathPrefix + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
-  // 本人フォルダ（auth.uid()/…）に保存する（2026-08-06）。job-photosの書き込みRLSは
-  // 「本人フォルダのみ＋管理者は全域」＝他人の写真を消せない・差し替えられない機構の壁。
-  // 既存のルート直下ファイルは移動しない（凍結terms_snapshot・photos jsonbのURLを壊さないため）。
-  // 未ログインはフォルダ無し＝従来どおりRLSで弾かれる（挙動不変）
-  let ownerFolder = "";
-  try {
-    const { data } = await supabase.auth.getSession();
-    const uid = data?.session?.user?.id;
-    if (uid) ownerFolder = uid + "/";
-  } catch { /* セッション取得失敗時はフォルダ無し＝RLSが弾く */ }
+export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pathPrefix = "job_", withThumb = true, ownerId } = {}) {
+  const owner = await photoOwner(supabase, ownerId);
   let full = file, thumb = null;
   try {
     let src = file;
@@ -64,19 +55,14 @@ export async function uploadJobPhoto(supabase, file, { bucket = "job-photos", pa
       bitmap.close?.();
     }
   } catch { full = file; thumb = null; }
-  const fullPath = ownerFolder + base + ".jpg";
-  const thumbPath = ownerFolder + "thumb_" + base + ".jpg";
-  const jobs = [supabase.storage.from(bucket).upload(fullPath, full, { contentType: full.type || undefined })];
-  if (thumb) jobs.push(supabase.storage.from(bucket).upload(thumbPath, thumb, { contentType: thumb.type || undefined }));
-  const [fullRes, thumbRes] = await Promise.all(jobs);
-  if (fullRes.error) throw fullRes.error;
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fullPath);
-  let thumbUrl = "";
-  if (thumb && thumbRes && !thumbRes.error) {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(thumbPath);
-    thumbUrl = data?.publicUrl || "";
-  }
-  return { url: urlData?.publicUrl || "", ...(thumbUrl ? { thumb: thumbUrl } : {}) };
+  const results = await Promise.allSettled([
+    putPhotoBytes(supabase, owner, bucket, pathPrefix, full),
+    ...(thumb ? [putPhotoBytes(supabase, owner, bucket, "thumb_" + pathPrefix, thumb)] : []),
+  ]);
+  await photoOwner(supabase, owner);
+  if (results[0].status !== "fulfilled") throw results[0].reason;
+  // A thumbnail is optional. Never advertise an unconfirmed thumbnail.
+  return { url: results[0].value, ...(results[1]?.status === "fulfilled" ? { thumb: results[1].value } : {}) };
 }
 
 // バケット内の全画像を再帰列挙（2026-07-26・一括軽量化用）。フォルダはid=nullで返るので潜る
@@ -117,6 +103,7 @@ const writeRecompSkip = (v) => { try { localStorage.setItem(RECOMP_SKIP_KEY, JSO
 export async function recompressBucket(supabase, bucket, { maxSide = 1600, quality = 0.8, minBytes = 400 * 1024, onProgress } = {}) {
   const skipMemo = readRecompSkip();
   const files = (await listBucketFiles(supabase, bucket)).filter(f =>
+    !f.path.split("/").includes("v2") && // content-addressed objects stay immutable
     !f.path.split("/").pop().startsWith("thumb_") &&
     /\.(jpe?g|png|webp)$/i.test(f.path) &&
     f.size >= minBytes &&
