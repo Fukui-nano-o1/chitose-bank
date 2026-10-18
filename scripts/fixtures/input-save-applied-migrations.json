@@ -1,0 +1,104 @@
+{
+  "checkedAt": "2026-10-19T01:15:00+09:00",
+  "scope": "Input-save repairs applied in this session only; not the complete pre-existing database history",
+  "migrations": [
+    {
+      "old": "20261018140713_profile_section_compare_and_save.sql",
+      "file": "20261018141532_profile_section_compare_and_save.sql",
+      "version": "20261018141532",
+      "name": "profile_section_compare_and_save",
+      "md5": "f23cb6b319a19524e5b7e898ff3580fb"
+    },
+    {
+      "old": "20261016123800_job_sync_value_equality.sql",
+      "file": "20261018142041_job_sync_value_equality.sql",
+      "version": "20261018142041",
+      "name": "job_sync_value_equality",
+      "md5": "0100d46a96508e25381c358776d65854"
+    },
+    {
+      "old": "20261016124849_atomic_job_publish_check.sql",
+      "file": "20261018142043_atomic_job_publish_check.sql",
+      "version": "20261018142043",
+      "name": "atomic_job_publish_check",
+      "md5": "82e7a8102777de42cf9d61c013d3da42"
+    },
+    {
+      "old": "20261018142125_copy_job_input_integrity.sql",
+      "file": "20261018142821_copy_job_input_integrity.sql",
+      "version": "20261018142821",
+      "name": "copy_job_input_integrity",
+      "md5": "e63f68018b8361fd9de00a5e29322eea"
+    },
+    {
+      "old": "20261018142801_consignor_atomic_profile_save.sql",
+      "file": "20261018144027_consignor_atomic_profile_save.sql",
+      "version": "20261018144027",
+      "name": "consignor_atomic_profile_save",
+      "md5": "dc82225793c794559e6d915cc62b4b7d"
+    },
+    {
+      "old": "20261018144001_consignment_deal_atomic_save.sql",
+      "file": "20261018145244_consignment_deal_atomic_save.sql",
+      "version": "20261018145244",
+      "name": "consignment_deal_atomic_save",
+      "md5": "24ca385c0a71b3bf83113b476a72bdc4"
+    },
+    {
+      "old": "20261018145042_help_image_compare_and_save.sql",
+      "file": "20261018145930_help_image_compare_and_save.sql",
+      "version": "20261018145930",
+      "name": "help_image_compare_and_save",
+      "md5": "0049b9f822f5042894dd5d789e3a2639"
+    },
+    {
+      "old": "20261018145733_profile_save_owner_guard.sql",
+      "file": "20261018150428_profile_save_owner_guard.sql",
+      "version": "20261018150428",
+      "name": "profile_save_owner_guard",
+      "md5": "1673479af805f027def58a5d3961e11f"
+    },
+    {
+      "old": "20261018150103_job_copy_idempotent_request.sql",
+      "file": "20261018151053_job_copy_idempotent_request.sql",
+      "version": "20261018151053",
+      "name": "job_copy_idempotent_request",
+      "md5": "2b1efe0fc46cd95c3b5786fe3dcbbf45"
+    },
+    {
+      "old": "20261018150636_retire_non_idempotent_job_copy.sql",
+      "file": "20261018151627_retire_non_idempotent_job_copy.sql",
+      "version": "20261018151627",
+      "name": "retire_non_idempotent_job_copy",
+      "md5": "786f0bf6e733d2f9775388d803b26720"
+    },
+    {
+      "old": "20261018150950_attendance_event_idempotent_save.sql",
+      "file": "20261018152223_attendance_event_idempotent_save.sql",
+      "version": "20261018152223",
+      "name": "attendance_event_idempotent_save",
+      "md5": "669da22e5b94a8fce2e4f3bd7cb6ac20"
+    },
+    {
+      "old": "20261018153139_worker_terms_atomic_confirmation.sql",
+      "file": "20261018153955_worker_terms_atomic_confirmation.sql",
+      "version": "20261018153955",
+      "name": "worker_terms_atomic_confirmation",
+      "md5": "2acf7c6ba6df3f26105e11fa362c8d2c"
+    },
+    {
+      "old": "20261018153253_retire_split_worker_terms_confirmation.sql",
+      "file": "20261018154909_retire_split_worker_terms_confirmation.sql",
+      "version": "20261018154909",
+      "name": "retire_split_worker_terms_confirmation",
+      "md5": "becef9b247d695264db56bdf9c9e1152"
+    },
+    {
+      "old": "20261018155131_consignment_aux_compare_and_save.sql",
+      "file": "20261018160533_consignment_aux_compare_and_save.sql",
+      "version": "20261018160533",
+      "name": "consignment_aux_compare_and_save",
+      "md5": "b0d95c88056ec94e7eea9dd016fabb3a"
+    }
+  ]
+}

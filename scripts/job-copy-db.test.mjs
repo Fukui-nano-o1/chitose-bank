@@ -36,7 +36,7 @@ test('copy preserves all input, resets dates and requires fresh video consent',a
       for(const k of ['place_change_scope','task_change_scope','work_video_url'])assert.equal(old.job[k],null,k);
     });
     await db.exec('reset role');
-    await db.exec(await sql('../supabase/migrations/20261018142125_copy_job_input_integrity.sql'));
+    await db.exec(await sql('../supabase/migrations/20261018142821_copy_job_input_integrity.sql'));
     await login(owner);
     let copied;
     await t.test('every carry field equals its source; reset fields follow the central policy',async()=>{
@@ -77,7 +77,7 @@ test('copy preserves all input, resets dates and requires fresh video consent',a
       assert.ok(p.proconfig.includes('search_path=""'));assert.equal(p.anon,false);assert.equal(p.auth,true);
     });
     await db.exec('reset role');
-    await db.exec(await sql('../supabase/migrations/20261018150103_job_copy_idempotent_request.sql'));
+    await db.exec(await sql('../supabase/migrations/20261018151053_job_copy_idempotent_request.sql'));
     const once=async(id,n=seed,user=owner)=>(await db.query('select public.copy_my_job_once($1,$2,$3) r',[user,id,n])).rows[0].r;
     const count=async()=>(await db.query('select count(*)::int n from public.jobs')).rows[0].n;
     await login(owner);let operation,receipt;
@@ -100,7 +100,7 @@ test('copy preserves all input, resets dates and requires fresh video consent',a
       await db.query("select set_config('qa.copy_fail','no',false)");assert.equal((await once(id)).ok,true);assert.equal(await count(),before+1);
     });
     await t.test('owner guard and ledger access protect replays; old non-idempotent RPC is closed',async()=>{
-      await db.exec('reset role');await db.exec(await sql('../supabase/migrations/20261018150636_retire_non_idempotent_job_copy.sql'));await login(owner);
+      await db.exec('reset role');await db.exec(await sql('../supabase/migrations/20261018151627_retire_non_idempotent_job_copy.sql'));await login(owner);
       await assert.rejects(call(seed),/permission denied/);await assert.rejects(db.query('select * from private.job_copy_requests'),/permission denied/);
       assert.equal((await once(randomUUID(),seed,other)).reason,'not_logged_in');await login(other);assert.equal((await once(operation,seed,other)).reason,'request_mismatch');assert.equal((await once(randomUUID(),seed,other)).reason,'not_yours');
       await login('');assert.equal((await once(randomUUID())).reason,'not_logged_in');await db.exec('set role anon');await assert.rejects(once(randomUUID()),/permission denied/);

@@ -41,8 +41,8 @@ test('Postgres: publication and confirmation are one atomic, owned, replayable o
       create trigger qa_job_update after update on public.jobs for each row execute function public.qa_job_update();
     `);
     for (const file of ['20260814093042_revision_requested_jobs_need_admin_open.sql',
-      '20260731144258_job_publish_checks_record.sql','20261016124849_atomic_job_publish_check.sql']) {
-      if (file === '20261016124849_atomic_job_publish_check.sql') {
+      '20260731144258_job_publish_checks_record.sql','20261018142043_atomic_job_publish_check.sql']) {
+      if (file === '20261018142043_atomic_job_publish_check.sql') {
         await db.exec(await readFile(new URL('./fixtures/job-save-prod-functions-20261018.sql', import.meta.url), 'utf8'));
       }
       await db.exec(await readFile(new URL(`../supabase/migrations/${file}`,import.meta.url),'utf8'));
@@ -74,7 +74,7 @@ test('Postgres: publication and confirmation are one atomic, owned, replayable o
       (select count(*)::int from private.job_publication_requests) requests,(select count(*)::int from public.qa_effects) effects`)).rows[0];
 
     await t.test('snapshot contract and function/table permissions',async()=>{
-      const source=await readFile(new URL('../supabase/migrations/20261016124849_atomic_job_publish_check.sql',import.meta.url),'utf8');
+      const source=await readFile(new URL('../supabase/migrations/20261018142043_atomic_job_publish_check.sql',import.meta.url),'utf8');
       const fields=[...source.match(/v_fields text\[\] := array\[([^\]]+)\]/)[1].matchAll(/'([^']+)'/g)].map(m=>m[1]);
       assert.deepEqual(new Set(fields),new Set([...JOB_DRAFT_FIELDS,'draft_step_id','status']));
       const security=(await db.query(`select proname,prosecdef,proconfig from pg_proc where proname in ('publish_job_with_check','publish_my_job_with_check') order by proname`)).rows;

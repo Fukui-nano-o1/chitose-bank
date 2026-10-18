@@ -7,7 +7,7 @@
 | 入力の型と表示 | `src/features/consignment/model.js` |
 | 入力と保存操作の管理 | `src/features/consignment/consignmentRecord.js` |
 | 画面・復元 | `src/features/consignment/ConsignmentRoom.jsx` |
-| 確定・競合比較・再送 | `supabase/migrations/20261018144001_consignment_deal_atomic_save.sql` |
+| 確定・競合比較・再送 | `supabase/migrations/20261018145244_consignment_deal_atomic_save.sql` |
 
 `private.consignment_save_requests` は操作UUID、利用者UUID、案件UUID、比較元と送信内容、確定時の結果を保存する。RLS有効、匿名・認証済利用者の直接参照/更新を禁止。公開関数はinvoker、内部関数は固定search_pathのdefiner。サーバーで `auth.uid() = p_owner` と既存の `app_admins` 所属を確認する。管理者限定の公開範囲は変更しない。
 

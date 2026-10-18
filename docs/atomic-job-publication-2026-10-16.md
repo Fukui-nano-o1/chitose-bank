@@ -26,7 +26,7 @@
 | `src/features/jobs/create/jobCreateApi.js` | 新RPCへの唯一の送信口。掲載と記録の分離送信・旧RPCへのフォールバックを廃止 |
 | `src/features/jobs/create/LandingFlow.jsx` | 未確定と拒否の案内、同じ操作の再確認、完全な確認後だけ完了表示 |
 | `src/components/DeviceDrafts.jsx` | 「掲載結果の確認待ち」の表示と再開導線 |
-| `supabase/migrations/20261016124849_atomic_job_publish_check.sql` | 原子的保存・本人確認・競合拒否・重複防止・実行権限 |
+| `supabase/migrations/20261018142043_atomic_job_publish_check.sql` | 原子的保存・本人確認・競合拒否・重複防止・実行権限 |
 
 - 端末保存に失敗した場合、掲載RPCを送らない。
 - 応答不明時は `publishing` として操作を残す。確認前の下書き再同期・比較元差し替え・コピーを止める。再読込後も同じID・文言・時刻で照合する。

@@ -10,9 +10,9 @@ UIは共通保存部品で所有者と対象を照合し、同期ロックで連
 
 ## 反映順と互換性
 
-1. `20261018153139_worker_terms_atomic_confirmation.sql` を適用し、新RPCの定義・権限を確認。
+1. `20261018153955_worker_terms_atomic_confirmation.sql` を適用し、新RPCの定義・権限を確認。
 2. CI成功後にマージし、wwwで新RPCと分離INSERTの撤去を確認。
-3. その後 `20261018153253_retire_split_worker_terms_confirmation.sql` を適用し、旧confirm_termsの働き手分岐だけを拒否へ変更。古い働き手画面は再読込が必要。農家の採用処理は本番定義のまま維持する。
+3. その後 `20261018154909_retire_split_worker_terms_confirmation.sql` を適用し、旧confirm_termsの働き手分岐だけを拒否へ変更。古い働き手画面は再読込が必要。農家の採用処理は本番定義のまま維持する。
 
 ## 検証範囲
 

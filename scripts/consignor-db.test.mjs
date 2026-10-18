@@ -22,7 +22,7 @@ test('consignor phone and profile share a transaction under existing admin and o
         insert into public.qa_phone_history values(new.contact_phone,current_setting('app.change_source',true));return new;end$$;
       create trigger qa_phone_write after update on public.account_holders for each row execute function public.qa_phone_write();
     `);
-    for(const file of ['./fixtures/consignor-prod-schema.sql','./fixtures/account-holder-update-prod.sql','../supabase/migrations/20261018142801_consignor_atomic_profile_save.sql'])await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
+    for(const file of ['./fixtures/consignor-prod-schema.sql','./fixtures/account-holder-update-prod.sql','../supabase/migrations/20261018144027_consignor_atomic_profile_save.sql'])await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
     await db.exec(`alter table public.consignment_profiles enable row level security;
       create policy admin_all on public.consignment_profiles for all to authenticated using(exists(select 1 from public.app_admins where auth_id=auth.uid())) with check(exists(select 1 from public.app_admins where auth_id=auth.uid()));
       grant select,insert,update on public.consignment_profiles to authenticated;

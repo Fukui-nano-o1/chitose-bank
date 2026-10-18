@@ -25,7 +25,7 @@ test('help references compare and save under existing public-read/admin-write RL
         if current_setting('qa.skip',true)='yes' then return null;end if;
         if tg_op='DELETE' then return old;else return new;end if;end$$;
       create trigger qa_help_failure before insert or update or delete on public.help_images for each row execute function public.qa_help_failure();`);
-    await db.exec(await readFile(new URL('../supabase/migrations/20261018145042_help_image_compare_and_save.sql',import.meta.url),'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20261018145930_help_image_compare_and_save.sql',import.meta.url),'utf8'));
     const login=async id=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');};
     const read=async()=>(await db.query("select to_jsonb(h) r from public.help_images h where slot_key='about-purpose'")).rows[0]?.r||null;
     const call=async(expected,next,id=own,slot='about-purpose')=>(await db.query('select public.save_help_image_reference($1,$2,$3,$4) r',[id,slot,expected,next])).rows[0].r;

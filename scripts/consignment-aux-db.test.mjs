@@ -19,7 +19,7 @@ test('consignment auxiliary writes preserve concurrent input and replay existing
    create function freeze() returns trigger language plpgsql as $$begin if new.status='agreed' and old.status is distinct from 'agreed' then if new.spec_snapshot is null then new.spec_snapshot:=new.spec;new.snapshot_at:=now();end if;if new.agreed_at is null then new.agreed_at:=(now() at time zone 'Asia/Tokyo')::date;end if;end if;return new;end$$;
    create trigger trg_consign_freeze_spec before update on consignment_deals for each row execute function freeze();`);
   for(const table of ['consignment_profiles','consignment_fields','consignment_deals','consignment_progress'])await db.exec(`alter table ${table} enable row level security;create policy admin_only on ${table} for all to authenticated using(exists(select 1 from app_admins where auth_id=auth.uid())) with check(exists(select 1 from app_admins where auth_id=auth.uid()));grant select,insert,update,delete on ${table} to authenticated;`);
-  await db.exec(await readFile(new URL('../supabase/migrations/20261018155131_consignment_aux_compare_and_save.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018160533_consignment_aux_compare_and_save.sql',import.meta.url),'utf8'));
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[owner]);await db.exec('set role authenticated');
   const call=async(op,key,input,expected=null,who=owner)=>(await db.query('select save_my_consignment_aux($1,$2,$3,$4,$5) r',[who,op,key,expected,input])).rows[0].r;
   const deal=async()=>(await db.query('select to_jsonb(d) r from consignment_deals d where id=$1',[id(1)])).rows[0].r;
