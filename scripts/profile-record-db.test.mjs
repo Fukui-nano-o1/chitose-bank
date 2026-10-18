@@ -10,8 +10,9 @@ test('actual profile RPC enforces atomic comparisons, RLS and publication trigge
  try {
   await db.exec(await readFile(new URL('./fixtures/profile-schema.sql',import.meta.url),'utf8'));
   await db.exec(sql);
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018145733_profile_save_owner_guard.sql',import.meta.url),'utf8'));
   const login=async(id,role='authenticated')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id||'']);await db.exec('set role '+role);};
-  const call=async(table,expected,patch)=>(await db.query('select public.save_my_profile_fields($1,$2::jsonb,$3::jsonb) as result',[table,expected===null?null:JSON.stringify(expected),JSON.stringify(patch)])).rows[0].result;
+  const call=async(table,expected,patch)=>(await db.query('select public.save_my_profile_fields($1,$2::jsonb,$3::jsonb,$4::uuid) as result',[table,expected===null?null:JSON.stringify(expected),JSON.stringify(patch),owner])).rows[0].result;
   await login(owner);
   await t.test('initial insert preserves defaults and a second insert conflicts',async()=>{
    const r=await call('worker_profiles',null,{nickname:'first',transport:'自転車',interests:['A','B']});
@@ -54,7 +55,7 @@ test('actual profile RPC enforces atomic comparisons, RLS and publication trigge
   });
   await t.test('another authenticated user cannot select or overwrite the owner',async()=>{
    await login(other);assert.equal((await db.query('select * from worker_profiles')).rows.length,0);
-   assert.equal((await call('worker_profiles',{nickname:'new'},{nickname:'intruder'})).reason,'conflict');
+   assert.equal((await call('worker_profiles',{nickname:'new'},{nickname:'intruder'})).reason,'not_logged_in');
    await login(owner);assert.equal((await db.query('select nickname from worker_profiles')).rows[0].nickname,'new');
   });
   await t.test('invoker keeps the consignment policy restriction',async()=>{
@@ -70,7 +71,26 @@ test('actual profile RPC enforces atomic comparisons, RLS and publication trigge
    await login(null,'anon');await assert.rejects(call('worker_profiles',null,{nickname:'bad'}),/permission denied/);
   });
   await db.exec('reset role');
-  const flags=(await db.query("select prosecdef,proconfig from pg_proc where proname='save_my_profile_fields'")).rows[0];
+  const flags=(await db.query("select prosecdef,proconfig from pg_proc where proname='save_my_profile_fields' and pronargs=4")).rows[0];
   assert.equal(flags.prosecdef,false);assert.ok(flags.proconfig.some(x=>x.startsWith('search_path=')));
  } finally {await db.close();}
+});
+
+test('owner guard closes a reproduced token-switch write when comparison values coincide',async()=>{
+ const db=new PGlite();
+ try {
+  await db.exec(await readFile(new URL('./fixtures/profile-schema.sql',import.meta.url),'utf8'));
+  await db.exec(sql);
+  await db.query('insert into public.worker_profiles(auth_id,nickname) values($1,$3),($2,$3)',[owner,other,'same baseline']);
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[other]);await db.exec('set role authenticated');
+  // Old client checked owner A, but the HTTP request is authenticated as B.
+  const old=(await db.query("select public.save_my_profile_fields('worker_profiles','{\"nickname\":\"same baseline\"}','{\"nickname\":\"input from A\"}') r")).rows[0].r;
+  assert.equal(old.ok,true);assert.equal(old.row.auth_id,other);assert.equal(old.row.nickname,'input from A');
+  await db.exec('reset role');await db.query('update public.worker_profiles set nickname=$1 where auth_id=$2',['same baseline',other]);
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018145733_profile_save_owner_guard.sql',import.meta.url),'utf8'));
+  await db.exec('set role authenticated');
+  const guarded=(await db.query("select public.save_my_profile_fields('worker_profiles','{\"nickname\":\"same baseline\"}','{\"nickname\":\"input from A\"}',$1) r",[owner])).rows[0].r;
+  assert.equal(guarded.reason,'not_logged_in');assert.equal((await db.query('select nickname from public.worker_profiles')).rows[0].nickname,'same baseline');
+  await assert.rejects(db.query("select public.save_my_profile_fields('worker_profiles','{\"nickname\":\"same baseline\"}','{\"nickname\":\"input from A\"}')"),/permission denied/);
+ }finally{await db.close();}
 });

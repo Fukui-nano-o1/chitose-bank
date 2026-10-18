@@ -42,6 +42,7 @@ export async function saveProfileRecord(client, record, patch, { guard = Object.
   let data, failed;
   try {
     const result = await client.rpc('save_my_profile_fields', {
+      p_owner: record.userId,
       p_table: record.table,
       p_expected: record.row ? Object.fromEntries([...new Set([...guard, ...keys])].map(k => [k, record.row[k] ?? null])) : null,
       p_patch: patch,

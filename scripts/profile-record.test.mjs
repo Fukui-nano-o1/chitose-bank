@@ -64,6 +64,11 @@ test('account switch while saving never exposes the old owner result to the new 
  const f=profileFixture({beforeWrite:s=>{s.userId='different-user';}}),r=await readProfileRecord(f.client,'worker_profiles');
  await assert.rejects(saveProfileRecord(f.client,r,{nickname:'new'}),{code:'PROFILE_SESSION'});
 });
+test('account switch after the client check but before RPC execution cannot write',async()=>{
+ const f=profileFixture({beforeRPC:s=>{s.userId='different-user';}}),r=await readProfileRecord(f.client,'worker_profiles');
+ await assert.rejects(saveProfileRecord(f.client,r,{nickname:'input from prior account'}));
+ assert.equal(f.state.writes,0);assert.equal(f.state.rows.worker_profiles.nickname,r.row.nickname);
+});
 test('worker section saves exclude unrelated profile and pending text fields',async()=>{
  const change=workerProfileChange('residence',{residence_city:'徳島市',transport:'old',pr:'old'},{});
  assert.deepEqual(change.patch,{residence_city:'徳島市'});
