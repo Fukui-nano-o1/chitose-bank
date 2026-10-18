@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {JOB_INPUT_GROUPS, JOB_DRAFT_FIELDS} from '../src/lib/jobInputFields.js';
 import {jobDraftPatch} from '../src/lib/jobDraftProtocol.js';
 import {calendarDateFromYmd, restoreDraftCalendarDate} from '../src/lib/calendarDate.js';
-import {digitsOnly, wageAmount, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm} from '../src/features/jobs/create/jobInputCodec.js';
+import {digitsOnly, wageAmount, workDurationHours, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm} from '../src/features/jobs/create/jobInputCodec.js';
 import {jobInputSample, jobInputOptions} from './fixtures/job-input.js';
 
 const now = new Date(2026, 9, 16);
@@ -90,9 +90,29 @@ test('wage digits and date labels share their UI and save conversions', () => {
   assert.equal(dateLabel(day('2026-12-31'),day('2027-01-01'),now),'2026/12/31（木） 〜 2027/1/1（金）');
 });
 
-test('unreadable legacy work time does not invent a replacement in the decoder', () => {
-  for (const work_time of [null,'','不明']) {
-    const form=decode({...jobInputSample(),work_time});
-    for (const key of ['startHour','startMinute','endHour','endMinute']) assert.equal(Object.hasOwn(form,key),false);
+test('missing and opaque work times survive other edits, serialization and payload without default hours', () => {
+  for (const work_time of [null,'','不明','99:00〜17:00','8:99〜16:00','午前8:00〜16:00']) {
+    const row={...jobInputSample(),work_time};
+    const form=decode(row);
+    for (const key of ['startHour','startMinute','endHour','endMinute']) assert.equal(form[key],'');
+    assert.equal(workDurationHours(form),0);
+    const restored=JSON.parse(JSON.stringify(serializeJobForm({...form,jobDescription:'別項目を編集'})));
+    restored.jobDateStart=restoreDraftCalendarDate(restored.jobDateStart);restored.jobDateEnd=restoreDraftCalendarDate(restored.jobDateEnd);
+    assert.equal(jobPayloadFromForm(restored,context(row)).work_time,work_time);
   }
+});
+test('only explicit time edits replace raw time; partial or cleared input stays null and new defaults remain', () => {
+  const row={...jobInputSample(),work_time:null},form=decode(row);
+  const edited={...form,workTimeRaw:undefined,startHour:'9',startMinute:'15',endHour:'17',endMinute:'45'};
+  assert.equal(jobPayloadFromForm(edited,context(row)).work_time,'9:15〜17:45');
+  assert.equal(workDurationHours(edited),8.5);
+  assert.equal(jobPayloadFromForm({...edited,endHour:''},context(row)).work_time,null);
+  assert.equal(workDurationHours({...edited,endHour:''}),0);
+  const fresh={...form,workTimeRaw:undefined,startHour:'8',startMinute:'00',endHour:'16',endMinute:'00'};
+  assert.equal(jobPayloadFromForm(fresh,context(row)).work_time,'8:00〜16:00');
+});
+test('valid legacy formatting is kept exactly until a time control is edited', () => {
+  const row={...jobInputSample(),work_time:' 08:00 - 16:30 '},form=decode(row);
+  assert.equal(workDurationHours(form),8.5);
+  assert.equal(jobPayloadFromForm(form,context(row)).work_time,row.work_time);
 });

@@ -16,7 +16,15 @@ const BOOLEAN_FIELDS = {
 export const digitsOnly = value => String(value ?? "").replace(/[^0-9]/g, "");
 export const wageAmount = value => Number(digitsOnly(value)) || 0;
 export const selectionValue = (selected, text) => selected === "__other__" ? text.trim() : (text.trim() || selected);
-export const workTimeLabel = form => `${form.startHour}:${form.startMinute}〜${form.endHour}:${form.endMinute}`;
+const validPart = (value, max) => /^\d{1,2}$/.test(String(value ?? "")) && Number(value) <= max;
+export const hasWorkTime = form => validPart(form.startHour, 23) && validPart(form.endHour, 23) && validPart(form.startMinute, 59) && validPart(form.endMinute, 59);
+export const workDurationHours = form => hasWorkTime(form) ? Number(form.endHour) + Number(form.endMinute) / 60 - Number(form.startHour) - Number(form.startMinute) / 60 : 0;
+export const workTimeLabel = form => form.workTimeRaw !== undefined ? form.workTimeRaw : hasWorkTime(form) ? `${form.startHour}:${form.startMinute}〜${form.endHour}:${form.endMinute}` : null;
+export function parseWorkTime(value) {
+  const match = String(value ?? "").trim().match(/^(\d{1,2}):(\d{2})\s*[〜～~–—-]\s*(\d{1,2}):(\d{2})$/);
+  const parts = match ? { startHour: match[1], startMinute: match[2], endHour: match[3], endMinute: match[4] } : {};
+  return hasWorkTime(parts) ? parts : { startHour: "", startMinute: "", endHour: "", endMinute: "" };
+}
 
 export function dateLabel(start, finish, now = new Date()) {
   if (!start) return "日程を選択してください";
@@ -43,7 +51,7 @@ export function jobFormFromRow(row, { cropOptions, taskOptions }) {
   const places = (row.danger_places ?? []).map(item => ({ photos: [], ...item }));
   const tasks = (row.danger_tasks ?? []).map(item => ({ photos: [], ...item }));
   const emptyDanger = () => [{ icon: "⚠️", label: "", desc: "", photos: [] }, { icon: "⚠️", label: "", desc: "", photos: [] }];
-  const time = String(row.work_time ?? "").match(/(\d{1,2}):(\d{2})\D+(\d{1,2}):(\d{2})/);
+
   return {
     ...Object.fromEntries(Object.entries(TEXT_FIELDS).map(([formKey, column]) => [formKey, row[column] ?? ""])),
     ...Object.fromEntries(Object.entries(BOOLEAN_FIELDS).map(([formKey, column]) => [formKey, !!row[column]])),
@@ -53,9 +61,9 @@ export function jobFormFromRow(row, { cropOptions, taskOptions }) {
     jobDateStart: calendarDateFromYmd(row.date_start), jobDateEnd: calendarDateFromYmd(row.date_end),
     jobCount: row.headcount != null ? String(row.headcount) : "",
     farmerPayType: row.pay_type ?? "", hourlyWageInput: row.hourly_wage ?? "",
-    // 旧動作を維持：読めない時刻はここで推測せず、画面にある時刻を保つ。
-    // 新規画面の既定8:00〜16:00と未入力の区別は後続の仕様変更で扱う。
-    ...(time ? { startHour: time[1], startMinute: time[2], endHour: time[3], endMinute: time[4] } : {}),
+    // Preserve the original DB value until the user edits the time controls.
+    // Blank or unparseable rows must never inherit the new-job default hours.
+    workTimeRaw: row.work_time ?? null, ...parseWorkTime(row.work_time),
     jobPerks: row.perks || null,
     workVideoUrl: row.work_video_url ?? "", workVideoJobConsent: !!row.work_video_job_consent,
     workVideoRelatedConsent: !!row.work_video_related_consent,

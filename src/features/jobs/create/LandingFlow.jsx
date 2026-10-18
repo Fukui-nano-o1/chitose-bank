@@ -24,7 +24,7 @@ import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, isValidStreetAddress, validateMinWage } from "./model";
-import { digitsOnly, wageAmount, selectionValue, workTimeLabel as formatWorkTime, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm } from "./jobInputCodec";
+import { digitsOnly, wageAmount, selectionValue, workDurationHours, workTimeLabel as formatWorkTime, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm } from "./jobInputCodec";
 import { geocodeTown } from "./jobCreateGeo";
 import { useTownCheck, TOWN_NOT_FOUND_MESSAGE, TOWN_CHECK_ERROR_MESSAGE } from "./useTownCheck";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
@@ -224,6 +224,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [farmerPayType,     setFarmerPayType]     = useState(d.farmerPayType ?? "");
   const [payTiming,         setPayTiming]         = useState("即日払い（作業当日）");
   const [payMethod,         setPayMethod]         = useState("現金手渡し");
+  const [workTimeRaw, setWorkTimeRaw] = useState(d.workTimeRaw);
   // 勤務時間（4分割）
   const [startHour,   setStartHour]   = useState(d.startHour   ?? "8");
   const [startMinute, setStartMinute] = useState(d.startMinute ?? "00");
@@ -304,10 +305,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 派生値
-  const workTimeLabel = formatWorkTime({ startHour, startMinute, endHour, endMinute });
+  const workTimeLabel = formatWorkTime({ startHour, startMinute, endHour, endMinute, workTimeRaw });
   const hourlyWage = wageAmount(hourlyWageInput);
   const dailyWage  = wageAmount(dailyWageInput);
-  const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
+  const workHours = workDurationHours({ startHour, startMinute, endHour, endMinute });
   // 申告休憩（分）：DBトリガーと同じ抽出（"90分"等から最初の数字・無ければ0）
   const breakMinutes = Number((String(breakTime).match(/\d+/) || [0])[0]);
   const { hourlyViolation, dailyViolation, unknownWage } = validateMinWage(hourlyWage, dailyWage, workHours, minWage, breakMinutes);
@@ -678,6 +679,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     setShowTask2(input.showTask2);
     setJobPhotos(input.jobPhotos);
     setJobHolidays(input.jobHolidays);
+    setWorkTimeRaw(input.workTimeRaw);
     if (Object.hasOwn(input, "startHour")) {
       setStartHour(input.startHour); setStartMinute(input.startMinute);
       setEndHour(input.endHour); setEndMinute(input.endMinute);
@@ -803,7 +805,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr, jobPhotos,
         farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText,
         farmerWanted, farmerPayType, payTiming, payMethod,
-        startHour, startMinute, endHour, endMinute,
+        startHour, startMinute, endHour, endMinute, workTimeRaw,
         jobCount, breakTime, commuteTime, nearestStation, jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput,
         jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
         workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
@@ -989,7 +991,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmerExp, farmerPurpose, farmerDisplayName, farmerRegion, farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr,
       jobPhotos, farmerCropPill, farmerCropText, farmerTaskPill, farmerTaskText, farmerWanted, farmerPayType, payTiming, payMethod,
-      startHour, startMinute, endHour, endMinute, jobCount, breakTime, commuteTime, nearestStation,
+      startHour, startMinute, endHour, endMinute, workTimeRaw, jobCount, breakTime, commuteTime, nearestStation,
       jobDangerPlaces, jobDangerTasks, hourlyWageInput, dailyWageInput, jobExp, jobTemplate, jobNotes, jobCautions,
       overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
       workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
@@ -1564,10 +1566,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               <section className="listing-condition-section">
                 <h3>勤務時間</h3>
                 <div className="listing-work-time-fields">
-                  <label>開始時間<input type="time" aria-label="勤務開始時間" value={`${String(startHour).padStart(2,"0")}:${String(startMinute).padStart(2,"0")}`} onChange={e => { const [h,m] = e.target.value.split(":"); if(h && m !== undefined){setStartHour(String(Number(h)));setStartMinute(m);} }} /></label>
-                  <label>終了時間<input type="time" aria-label="勤務終了時間" value={`${String(endHour).padStart(2,"0")}:${String(endMinute).padStart(2,"0")}`} onChange={e => { const [h,m] = e.target.value.split(":"); if(h && m !== undefined){setEndHour(String(Number(h)));setEndMinute(m);} }} /></label>
+                  <label>開始時間<input type="time" aria-label="勤務開始時間" value={startHour !== "" && startMinute !== "" ? `${String(startHour).padStart(2,"0")}:${String(startMinute).padStart(2,"0")}` : ""} onChange={e => { const [h,m] = e.target.value.split(":"); setWorkTimeRaw(undefined); setStartHour(h ? String(Number(h)) : ""); setStartMinute(m ?? ""); }} /></label>
+                  <label>終了時間<input type="time" aria-label="勤務終了時間" value={endHour !== "" && endMinute !== "" ? `${String(endHour).padStart(2,"0")}:${String(endMinute).padStart(2,"0")}` : ""} onChange={e => { const [h,m] = e.target.value.split(":"); setWorkTimeRaw(undefined); setEndHour(h ? String(Number(h)) : ""); setEndMinute(m ?? ""); }} /></label>
                 </div>
-                <p className="listing-condition-note">{workTimeLabel}</p>
+                <p className="listing-condition-note">{workTimeLabel || "勤務時間は未入力です。開始時間と終了時間を入力してください。"}</p>
+                {workTimeRaw && !startHour && <p role="alert" className="listing-condition-error">保存されている勤務時間を時刻として読み取れません。元の値を保持しています。掲載前に開始時間と終了時間を入力してください。</p>}
               </section>
               <section className="listing-condition-section">
                 <div className="listing-condition-heading"><h3>時間外労働</h3><button type="button" className="listing-condition-help" aria-expanded={overtimeInfoOpen} onClick={() => setOvertimeInfoOpen(v => !v)}>説明を見る</button></div>
@@ -1590,7 +1593,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 <h3>報酬</h3>
                 <label className="listing-condition-field">日給（円）<div className="listing-condition-pay"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(digitsOnly(e.target.value))} placeholder="9000" /><span>円 / 日</span></div></label>
                 <p className="listing-condition-note">各作業日の終了後に、現金で支払います。</p>
-                {workHours <= 0 && <p role="alert" className="listing-condition-error">終了時間は開始時間より後に設定してください。</p>}
+                {workHours <= 0 && <p role="alert" className="listing-condition-error">開始時間と終了時間を入力し、終了は開始より後に設定してください。</p>}
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
                 {dailyViolation && !unknownWage && <p role="alert" className="listing-condition-error">{farmerPref || "この地域"}の最低賃金（時給{minWage ? minWage.toLocaleString() : "―"}円）を下回っています。この金額では掲載できません</p>}
                 {wageLookupNotice}
