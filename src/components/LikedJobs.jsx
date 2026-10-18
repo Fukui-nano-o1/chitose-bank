@@ -18,6 +18,8 @@
 //   JSONで保存→復元すると文字列になり読む側が落ちる（2026-08-03の実害と同じ型）。開くたび1往復する。
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { useSavedJobMutation } from "../lib/useSavedJobMutation";
+import { savedJobRevision } from "../lib/savedJobRecord";
 import { fetchJobRowListForMe } from "../lib/jobForMe";
 import { getCache, setCache } from "../lib/viewCache";
 import { mapJobPublicRow, ROLE_ORANGE } from "../lib/utils";
@@ -32,6 +34,7 @@ export function LikedJobs({ me }) {
   const [rows, setRows] = useState(() => likedOf(getCache("saved:rows"))); // null=読み込み中
   const [jobs, setJobs] = useState({});            // job_number → mapJobPublicRow（★viewCacheに入れない・上記）
   // 👀閲覧数：さがすと同じキャッシュを共用（search:viewCounts＝数のみ・誰が見たかは持たない）
+  const likes = useSavedJobMutation(me?.id);
   const [viewCounts, setViewCounts] = useState(() => getCache("search:viewCounts") ?? {});
   // ♥の表示状態（この求人にいまいいねが付いているか）
   const [savedIds, setSavedIds] = useState(() => new Set((likedOf(getCache("saved:rows")) || []).map(r => r.job_number)));
@@ -39,6 +42,7 @@ export function LikedJobs({ me }) {
   useEffect(() => {
     if (!me?.id) return;
     let live = true;
+    const revision = savedJobRevision(me.id);
     (async () => {
       let res;
       try { res = await supabase.rpc("my_job_actions"); }
@@ -52,6 +56,7 @@ export function LikedJobs({ me }) {
           if (!session) list = null;
         } catch { list = null; }
       }
+      if (revision !== savedJobRevision(me.id)) return;
       if (!Array.isArray(list)) return; // ①失敗時は手元の値（キャッシュ）のまま
       setCache("saved:rows", list); // 全体をステータスページと同じ形で保存（形を変えない）
       const liked = likedOf(list);
@@ -95,19 +100,14 @@ export function LikedJobs({ me }) {
     return () => { live = false; };
   }, [numsKey]); // eslint-disable-line react-hooks/exhaustive-deps -- jobsは取得済み判定のみ（依存に入れると再取得ループ）
 
-  // ♥の解除⇄再いいね（さがすの performSave と同じ：楽観更新→失敗時は戻す）。
-  // 自分の求人は my_job_actions が最初から返さない（farmer_id <> auth.uid()）ので canLike 判定は不要
-  const toggleLike = async (job) => {
-    const jn = job.id;
-    const isSaved = savedIds.has(jn);
-    setSavedIds(prev => { const nx = new Set(prev); isSaved ? nx.delete(jn) : nx.add(jn); return nx; });
-    const { error } = isSaved
-      ? await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", jn)
-      : await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: jn });
-    if (error) { setSavedIds(prev => { const nx = new Set(prev); isSaved ? nx.add(jn) : nx.delete(jn); return nx; }); return; }
-    // ステータスページと共用のキャッシュにも liked を写す（次に開いた画面が古い♥を出さない）
-    const full = getCache("saved:rows");
-    if (Array.isArray(full)) setCache("saved:rows", full.map(x => x.job_number === jn ? { ...x, liked: !isSaved } : x));
+  // 保存結果を照合してから♥と共用キャッシュを変える。
+  const toggleLike = job => {
+    const jn = job.id, desired = !savedIds.has(jn);
+    return likes.mutate(jn, desired, saved => {
+      setSavedIds(prev => { const next = new Set(prev); saved ? next.add(jn) : next.delete(jn); return next; });
+      const full = getCache("saved:rows");
+      if (Array.isArray(full)) setCache("saved:rows", full.map(x => x.job_number === jn ? { ...x, liked: saved } : x));
+    });
   };
 
   // 求人ページへ（戻り先＝いまのマイページ。WorkerApplicationsの求人リンクと同じ作法）

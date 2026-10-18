@@ -42,10 +42,6 @@ export const fetchEmployerPublicJobCounts = (jobNumber) =>
 // ── いいね（saved_jobs・本人のみRLS）─────────────────────
 export const fetchSavedJobNumbers = (workerId) =>
   supabase.from("saved_jobs").select("job_number").eq("worker_id", workerId);
-export const deleteSavedJob = (workerId, jobNumber) =>
-  supabase.from("saved_jobs").delete().eq("worker_id", workerId).eq("job_number", jobNumber);
-export const insertSavedJob = (workerId, jobNumber) =>
-  supabase.from("saved_jobs").insert({ worker_id: workerId, job_number: jobNumber });
 
 // ── 自分の応募の状態（一覧のバッジ・詳細のボタン）───────
 export const fetchMyApplications = (workerId) =>

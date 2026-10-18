@@ -1,0 +1,36 @@
+name: Saved job confirmation checks
+on:
+  pull_request:
+    paths:
+      - src/lib/savedJobRecord.js
+      - src/lib/useSavedJobMutation.js
+      - src/components/SavedJobsView.jsx
+      - src/components/LikedJobs.jsx
+      - src/components/JobSearchMapView.jsx
+      - src/features/jobs/search/jobSearchApi.js
+      - scripts/saved-job-*.test.mjs
+      - scripts/fixtures/saved-job-*
+      - package.json
+      - package-lock.json
+      - .github/workflows/saved-job-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: saved-job-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build

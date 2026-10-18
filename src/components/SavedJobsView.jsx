@@ -7,6 +7,8 @@
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { useSavedJobMutation } from "../lib/useSavedJobMutation";
+import { savedJobRevision } from "../lib/savedJobRecord";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";
@@ -218,6 +220,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   useEffect(() => {
     let cancelled = false;
     const load = async (retryLeft) => {
+      const revision = savedJobRevision(me?.id);
       let actRes;
       try {
         actRes = await supabase.rpc("my_job_actions");
@@ -236,6 +239,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
         setLoadFailed(true); // ②一覧は手元の内容のまま（キャッシュも消さない）
         return;
       }
+      if (revision !== savedJobRevision(me?.id)) return;
       setLoadFailed(false);
       setRows(list); setCache("saved:rows", list);
     };
@@ -246,6 +250,9 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   // いいね解除。応募のある求人はステータス確認のため一覧に残す（消えるのは「いいねだけ」の求人）。
   // 誤タップ救済に「元に戻す」を10秒出す（2026-07-27）
   const [undoJob, setUndoJob] = useState(null);
+  const undoTimer = useRef(null);
+  const likes = useSavedJobMutation(me?.id);
+  useEffect(() => () => clearTimeout(undoTimer.current), []);
   const [cancelingId, setCancelingId] = useState(null); // 応募の取り消し中（多重送信ガード）
   // 求人カードのボタン（2026-08-23たきと指示「働き手のカレンダーも同じ構造で」＝雇い手の求人カードと同じ
   // 労働条件通知書／記録する（最終の作業日からは評価する））。表示・保存はすべて共有部品が担う
@@ -258,34 +265,29 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
   // （当事者RLS＝自分の応募だけ）。評価済みの応募（reviews・自分が書いた行だけ読める）も同時に
   const [farmerIds, setFarmerIds] = useState(() => getCache("saved:farmerIds") ?? {});
   const [reviewedIds, setReviewedIds] = useState(() => getCache("saved:reviewed") ?? []);
-  const handleUnsave = async (r) => {
-    setRows(prev => (prev || []).flatMap(x => x.job_number !== r.job_number ? [x] : (x.application_id ? [{ ...x, liked: false }] : [])));
-    setUndoJob(r);
-    setTimeout(() => setUndoJob(prev => (prev && prev.job_number === r.job_number) ? null : prev), 10000);
-    await supabase.from("saved_jobs").delete().eq("worker_id", me.id).eq("job_number", r.job_number);
+  const confirmRows = update => {
+    setRows(prev => update(prev || []));
+    const cached = getCache("saved:rows");
+    if (Array.isArray(cached)) setCache("saved:rows", update(cached));
   };
-  // いいねを付ける（2026-08-23たきと指示「いいねボタン設置。現状は外せるがいいねを付けられない」）。
-  // 応募済みの求人でいいねを外した後、この一覧から付け直す道が無かった（♥は liked の時だけ出ていた）。
-  // 楽観更新→失敗したら戻す（さがす一覧の performSave と同じ作法）
-  const handleLike = async (r) => {
-    setRows(prev => (prev || []).map(x => x.job_number === r.job_number ? { ...x, liked: true } : x));
-    const { error } = await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: r.job_number });
-    // 23505＝既に同じ行がある（＝もういいね済み）＝成功扱い。それ以外の失敗だけ元に戻す
-    if (error && error.code !== "23505") {
-      setRows(prev => (prev || []).map(x => x.job_number === r.job_number ? { ...x, liked: false } : x));
-      alert("いいねできませんでした：" + error.message);
-    }
-  };
-  const handleUndo = async () => {
+  const handleUnsave = r => likes.mutate(r.job_number, false, () => {
+    confirmRows(prev => prev.flatMap(x => x.job_number !== r.job_number ? [x] : (x.application_id ? [{ ...x, liked: false }] : [])));
+    clearTimeout(undoTimer.current); setUndoJob(r);
+    undoTimer.current = setTimeout(() => setUndoJob(null), 10000);
+  });
+  const handleLike = r => likes.mutate(r.job_number, true, () => {
+    confirmRows(prev => prev.map(x => x.job_number === r.job_number ? { ...x, liked: true } : x));
+  });
+  const handleUndo = () => {
     const r = undoJob; if (!r) return;
-    setUndoJob(null);
-    const { error } = await supabase.from("saved_jobs").insert({ worker_id: me.id, job_number: r.job_number });
-    if (error) { alert("戻せませんでした：" + error.message); return; }
-    setRows(prev => {
-      const has = (prev || []).some(x => x.job_number === r.job_number);
-      const next = has ? (prev || []).map(x => x.job_number === r.job_number ? { ...x, liked: true } : x)
-                       : [{ ...r, liked: true }, ...(prev || [])];
-      return next.sort((a, b) => b.job_number - a.job_number);
+    clearTimeout(undoTimer.current);
+    return likes.mutate(r.job_number, true, () => {
+      confirmRows(prev => {
+        const next = prev.some(x => x.job_number === r.job_number)
+          ? prev.map(x => x.job_number === r.job_number ? { ...x, liked: true } : x) : [{ ...r, liked: true }, ...prev];
+        return next.sort((a, b) => b.job_number - a.job_number);
+      });
+      setUndoJob(prev => prev === r ? null : prev);
     });
   };
 
@@ -435,7 +437,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
       {undoJob && (
         <div className="fade-in" style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:12, padding:"10px 14px", marginBottom:12 }}>
           <span className="f-sans" style={{ fontSize:12, color:"#717171", minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>いいねを外しました（#{undoJob.job_number}）</span>
-          <button onClick={handleUndo} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>元に戻す</button>
+          <button disabled={likes.isBusy(undoJob.job_number)} onClick={handleUndo} className="f-sans" style={{ flexShrink:0, background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>元に戻す</button>
         </div>
       )}
       {/* 最新を取れなかった時（手元の内容は消さずに出したまま・上の取得の規則②）＝黙って古い内容を
@@ -669,7 +671,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     いいねを付けられない」）。以前は liked の時だけ出ており、外した後に付け直せなかった。
                     ★いいねだけの求人を外すとカードが一覧から下りる（応募のある求人は残る）＝従来どおり。
                       その時の付け直しは下の「元に戻す」（10秒）が担う */}
-                <button onClick={()=> r.liked ? handleUnsave(r) : handleLike(r)}
+                <button disabled={likes.isBusy(r.job_number)} onClick={()=> r.liked ? handleUnsave(r) : handleLike(r)}
                   aria-label={r.liked ? "いいねを解除" : "いいね"} className="f-sans"
                   style={{ position:"absolute", top:6, right:6, zIndex:1, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.92)", border:"none", cursor:"pointer", fontSize:20, lineHeight:1, color: r.liked ? "#E24B4A" : "#717171", boxShadow:"0 1px 4px rgba(0,0,0,0.15)" }}>
                   <span className="cb-like-heart" style={{ display:"inline-block" }}><NavIcon name={r.liked ? "heartFill" : "heart"} size={20} /></span>
