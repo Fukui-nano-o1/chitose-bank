@@ -7,7 +7,7 @@
 // ・読むのは自分の求人だけ（fetchMyJobPhotos＝farmer_id＋RLS）。取得に失敗した時は手元を変えない（2026-08-07規則）
 // ・過去の写真が1枚も無ければカードごと出さない（初めての人には従来どおりの画面）
 // ・束の組み方・重複・上限の判定は model.js（pastPhotoGroups／mergePastPhotos）＝純粋関数so試験できる
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { lfStyles } from "../lfStyles";
 import { LFWizCard, Dots } from "../../../../components/ui";
 import { photoThumb } from "../../../../lib/utils";
@@ -111,7 +111,10 @@ function usePastPhotoRows() {
   return { status, rows, retry: () => setRetry(v => v + 1) };
 }
 
-export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUploading, currentJobNumber = null }) {
+export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUploading, currentJobNumber = null, ownerId }) {
+  const lock = useRef(false), alive = useRef(true), scope = useRef("");
+  scope.current = `${ownerId || ""}:${currentJobNumber || "new"}`;
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const past = usePastPhotoRows();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selected, setSelected] = useState([]); // 選んだ写真の url
@@ -127,22 +130,21 @@ export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUp
     setSelected([]);
     setPickerOpen(false);
   };
-  const uploadFiles = async (e, roomNow) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    const queue = files.slice(0, roomNow);
-    setPhotoUploading(true);
-    // 全ファイルを並列アップロード（各ファイル内も原寸＋サムネを並列・デコード1回）
-    const results = await Promise.all(queue.map(file =>
-      uploadPhoto(file).catch(err => { console.error('photo upload failed', file.name, err); return null; })
-    ));
-    const uploaded = results.filter(r => r && r.url).map(r => ({ caption: "", ...r }));
-    if (uploaded.length > 0) setJobPhotos(prev => [...prev, ...uploaded]);
-    if (uploaded.length < queue.length) {
-      alert(`${queue.length - uploaded.length}枚のアップロードに失敗しました。通信環境を確認して、もう一度お試しください。`);
-    }
-    setPhotoUploading(false);
-    e.target.value = '';
+  const uploadFiles = async (event, roomNow) => {
+    const input = event.target, files = Array.from(input.files || []);
+    input.value = "";
+    if (lock.current || !files.length) return;
+    const queue = files.slice(0, Math.max(0, roomNow));
+    if (!queue.length) return;
+    const target = scope.current;
+    lock.current = true; setPhotoUploading(true);
+    try {
+      const results = await Promise.allSettled(queue.map(file => uploadPhoto(file, { ownerId })));
+      if (!alive.current || scope.current !== target) return;
+      const uploaded = results.filter(r => r.status === "fulfilled" && r.value?.url).map(r => ({ caption: "", ...r.value }));
+      setJobPhotos(prev => mergePastPhotos(prev, uploaded, PHOTO_CAP));
+      if (uploaded.length < queue.length) alert(`${queue.length - uploaded.length}枚の写真の保存を確認できません。同じ写真を選び直して再試行してください。`);
+    } finally { lock.current = false; setPhotoUploading(false); }
   };
   return (<>
     <h2 className="f-sans" style={lfStyles.stepTitle}>仕事の様子を写真で伝えましょう</h2>

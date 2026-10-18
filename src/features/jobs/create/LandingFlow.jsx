@@ -1620,7 +1620,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {isFarmer && step === 6 && <ListingDetailsIntro crop={farmerCrop} task={farmerTask} region={farmerPref + farmerCity} dates={jobDateLabel} wage={dailyWage} />}
 
           {/* ── 農家 step7: 写真 ── */}
-          {isFarmer && step === 7 && <StepPhotos jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
+          {isFarmer && step === 7 && <StepPhotos ownerId={ownerId} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
 
           {/* ── 農家 step8: 作業説明文 ── */}
           {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef} workVideoUrl={workVideoUrl} setWorkVideoUrl={setWorkVideoUrl} workVideoJobConsent={workVideoJobConsent} setWorkVideoJobConsent={setWorkVideoJobConsent} workVideoRelatedConsent={workVideoRelatedConsent} setWorkVideoRelatedConsent={setWorkVideoRelatedConsent} setWorkVideoConsentAt={setWorkVideoConsentAt} setWorkVideoConsentVersion={setWorkVideoConsentVersion} />}
@@ -1632,7 +1632,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} />}
 
           {/* ── 農家 step10: 危険箇所 ── */}
-          {isFarmer && step === 10 && <StepDanger jobDangerPlaces={jobDangerPlaces} setJobDangerPlaces={setJobDangerPlaces} jobDangerTasks={jobDangerTasks} setJobDangerTasks={setJobDangerTasks} showPlace2={showPlace2} setShowPlace2={setShowPlace2} showTask2={showTask2} setShowTask2={setShowTask2} />}
+          {isFarmer && step === 10 && <StepDanger ownerId={ownerId} currentJobNumber={draftJobNumber} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} jobDangerPlaces={jobDangerPlaces} setJobDangerPlaces={setJobDangerPlaces} jobDangerTasks={jobDangerTasks} setJobDangerTasks={setJobDangerTasks} showPlace2={showPlace2} setShowPlace2={setShowPlace2} showTask2={showTask2} setShowTask2={setShowTask2} />}
 
           {/* ── 農家 step11: 持ち物・備考＋必要経験 ── */}
           {isFarmer && step === 11 && <StepWishes jobNotes={jobNotes} setJobNotes={setJobNotes} jobCautions={jobCautions} setJobCautions={setJobCautions} beginnerOk={beginnerOk} setBeginnerOk={setBeginnerOk} experiencedPreferred={experiencedPreferred} setExperiencedPreferred={setExperiencedPreferred} instantApproveRepeat={instantApproveRepeat} setInstantApproveRepeat={setInstantApproveRepeat} flagInfoOpen={flagInfoOpen} setFlagInfoOpen={setFlagInfoOpen} />}
