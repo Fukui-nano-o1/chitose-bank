@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
-const endpoint = new URL('../api/sync-farmer.js', import.meta.url).href;
 function response() {
   return {
     headers: {}, statusCode: null, body: undefined, ended: false,
@@ -13,7 +12,9 @@ function response() {
   };
 }
 
-test('retired endpoint imports without Supabase configuration or network access', () => {
+for (const route of ['sync-farmer', 'auth/verify-otp']) {
+const endpoint = new URL(`../api/${route}.js`, import.meta.url).href;
+test(`${route}: retired endpoint imports without Supabase configuration or network access`, () => {
   const env = { ...process.env };
   for (const key of ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']) delete env[key];
   const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
@@ -24,7 +25,7 @@ test('retired endpoint imports without Supabase configuration or network access'
   assert.equal(child.status, 0, child.stderr);
 });
 
-test('retirement denies requests without consulting identity, payload or the database', async t => {
+test(`${route}: retirement denies requests without consulting identity, payload or the database`, async t => {
   // Dummy configuration allows the old vulnerable module to load for the red test.
   // No real key is loaded; any attempted Supabase request is intercepted below.
   t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unexpected outbound request'); });
@@ -70,3 +71,4 @@ test('retirement denies requests without consulting identity, payload or the dat
   });
   assert.equal(globalThis.fetch.mock.callCount(), 0, 'retirement must not query or mutate any backend');
 });
+}
