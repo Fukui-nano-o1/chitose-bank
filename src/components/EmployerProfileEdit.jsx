@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
-import { uploadAvatarResilient } from "../lib/avatarUpload";
+import { saveProfileAvatar } from "../lib/profileAvatar";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, splitTextsForReview, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -170,6 +170,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const [questionStyle, setQuestionStyle] = useState("");
   const [introOpen, setIntroOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const avatarBusyRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -320,59 +321,53 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('この画像を読み込めませんでした。別の画像をお試しください。')); };
     img.src = url;
   });
+  const applySavedAvatar = (result) => {
+    setAvatarUrl(result.url);
+    if (table === "employer_profiles") try {
+      const cached = getCache("farm:empMini") ?? snapGet("empMini");
+      if (cached) {
+        const next = { ...cached, avatar_url: result.url };
+        setCache("farm:empMini", next); snapSet("empMini", next);
+      }
+    } catch { /* Display caches never decide whether a save succeeded. */ }
+    if (result.warning) alert(result.warning);
+  };
   const handleAvatar = async e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const input = e.target, file = input.files?.[0];
+    if (!file || avatarBusyRef.current || saving) return;
+    avatarBusyRef.current = true;
     setUploading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setUploading(false); return; }
+      if (!session) throw new Error("ログインが確認できません。ページを開き直してください。");
       let sourceFile = file;
-      // iPhoneのHEIC/HEIF形式は、まずheic2anyでjpegにデコード（選択時のみ動的import）
       const isHeic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type);
       if (isHeic) {
         try {
           const heic2any = (await import('heic2any')).default;
           const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
           sourceFile = Array.isArray(converted) ? converted[0] : converted;
-        } catch (heicErr) { setUploading(false); alert("iPhoneの写真（HEIC）の変換に失敗しました。もう一度お試しください。"); return; }
+        } catch { throw new Error("iPhoneの写真（HEIC）の変換に失敗しました。もう一度お試しください。"); }
       }
-      let blob;
-      try { blob = await convertToJpeg(sourceFile); }
-      catch (convErr) { setUploading(false); alert(convErr.message || "この画像形式は対応していません。JPEG・PNG・WebP等をお試しください。"); return; }
-      // 拡張子はjpg固定（変換後は必ずjpeg）。旧ファイルが別拡張子で残っていれば掃除
-      try {
-        const { data: olds } = await supabase.storage.from('avatars').list(avatarDir + "/" + session.user.id);
-        if (olds && olds.length > 0) {
-          const paths = olds.map(f => avatarDir + "/" + session.user.id + "/" + f.name);
-          await supabase.storage.from('avatars').remove(paths);
-        }
-      } catch {}
-      const path = avatarDir + "/" + session.user.id + "/avatar.jpg";
-      const upErr = await uploadAvatarResilient(avatarDir + "/" + session.user.id, blob);
-      if (upErr) { setUploading(false); alert("アップロードに失敗しました：" + upErr.message + "\n通信環境を確認して、もう一度お試しください。"); return; }
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-      const url = (urlData?.publicUrl || '') + "?t=" + Date.now();
-      await supabase.from(table).upsert({ auth_id: session.user.id, avatar_url: url, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
-      setAvatarUrl(url);
-    } catch { alert("画像のアップロードに失敗しました。"); }
-    setUploading(false);
+      const blob = await convertToJpeg(sourceFile);
+      const result = await saveProfileAvatar({ client: supabase, table: table, directory: avatarDir,
+        userId: session.user.id, expectedUrl: avatarUrl, blob });
+      applySavedAvatar(result);
+    } catch (error) { alert(error?.message || "画像の保存を確認できませんでした。ページを開き直してください。"); }
+    finally { avatarBusyRef.current = false; setUploading(false); input.value = ""; }
   };
   const handleDeleteAvatar = async () => {
-    if (!avatarUrl || uploading) return;
+    if (!avatarUrl || avatarBusyRef.current || saving) return;
+    avatarBusyRef.current = true;
     setUploading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setUploading(false); return; }
-      const { data: files } = await supabase.storage.from('avatars').list(avatarDir + "/" + session.user.id);
-      if (files && files.length > 0) {
-        const paths = files.map(f => avatarDir + "/" + session.user.id + "/" + f.name);
-        await supabase.storage.from('avatars').remove(paths);
-      }
-      await supabase.from(table).upsert({ auth_id: session.user.id, avatar_url: '', updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
-      setAvatarUrl('');
-    } catch { alert("削除に失敗しました。"); }
-    setUploading(false);
+      if (!session) throw new Error("ログインが確認できません。ページを開き直してください。");
+      const result = await saveProfileAvatar({ client: supabase, table: table, directory: avatarDir,
+        userId: session.user.id, expectedUrl: avatarUrl });
+      applySavedAvatar(result);
+    } catch (error) { alert(error?.message || "画像の削除を確認できませんでした。ページを開き直してください。"); }
+    finally { avatarBusyRef.current = false; setUploading(false); }
   };
   // 項目の編集は【1項目＝1ページ】（2026-08-25たきと指示・働き手側と同じ）。
   // URLは #/profile/employer/profile/{項目}＝戻る・スワイプバック・リロードがそのまま効く。
@@ -426,6 +421,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     setEditBox(k);
   };
   const closeEditBox = () => {
+    if (avatarBusyRef.current) return;
     const y = listScrollRef.current;
     if (!black && boxFromHash()) window.history.back(); else setEditBox(null);
     requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
@@ -482,7 +478,8 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     } catch {}
   };
   const save = async (stay = false) => {
-    if (saving) return;
+    if (saving || avatarBusyRef.current) return;
+    if (editBox === "avatar") { closeEditBox(); return; }
     setSaving(true); setSaved(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -661,10 +658,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           <label className="f-sans" style={{ padding:"10px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:13, color:"#222", cursor:"pointer", textAlign:"center" }}>
             {uploading ? <>処理中<Dots /></> : avatarUrl ? "画像を変更" : "画像を選ぶ"}
-            <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading} style={{ display:"none" }} />
+            <input type="file" accept="image/*" onChange={handleAvatar} disabled={uploading || saving} style={{ display:"none" }} />
           </label>
           {avatarUrl && (
-            <button onClick={handleDeleteAvatar} disabled={uploading} className="f-sans" style={{ padding:"8px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:12, color:"#717171", cursor:"pointer" }}>削除</button>
+            <button onClick={handleDeleteAvatar} disabled={uploading || saving} className="f-sans" style={{ padding:"8px 16px", border:"1px solid #EBEBEB", borderRadius:10, background:"#fff", fontSize:12, color:"#717171", cursor:"pointer" }}>削除</button>
           )}
         </div>
       </div>
@@ -993,7 +990,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             保険の準備＝employer_profiles の insurance_items / insurance_notes だけを自分でupsert
               （委託レーンにこの2列が無いので共通payloadに載せられない） */}
       {!["emergency", "insurance"].includes(editBox) && (
-        <button onClick={()=>save(true)} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
+        <button onClick={()=>save(true)} disabled={saving || uploading} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : editBox === "avatar" ? "完了" : "保存する"}</button>
       )}
       </div>
       )}

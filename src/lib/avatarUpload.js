@@ -1,23 +1,19 @@
-// 分割3-B（2026-07-25）：App.jsxから移動。働き手・雇い手のアバター保存で共用。
-import { supabase } from "./supabase";
-
-// アバターのアップロード（通信断耐性・2026-07-19）：iOS Safariでは応答だけ失われて「Load failed」に
-// なっても実際にはサーバー保存済みのことがある（実事例：2026-07-19 働き手アイコン）。
-// 1回リトライ→それでも失敗なら実物の存在確認で救済する。呼び出し前に旧ファイルは掃除済みの前提
-// （フォルダにavatar.jpgが残っていれば今回のアップロードの実物と判断できる）
-export async function uploadAvatarResilient(folder, blob) {
-  const path = folder + "/avatar.jpg";
-  const attempt = async () => (await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })).error;
-  let err = await attempt();
-  if (err) {
-    await new Promise(r => setTimeout(r, 800));
-    err = await attempt();
-  }
-  if (err) {
+// Upload to an operation-specific key. Existing avatars never prove this upload succeeded.
+export async function uploadAvatarResilient(client, path, blob) {
+  const storage = client.storage.from("avatars");
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const { data: files, error: listErr } = await supabase.storage.from('avatars').list(folder);
-      if (!listErr && (files || []).some(f => f.name === 'avatar.jpg')) err = null;
-    } catch {}
+      const { error } = await storage.upload(path, blob, { upsert: false, contentType: "image/jpeg" });
+      if (!error) return;
+    } catch { /* A response can be lost after the object is stored. */ }
   }
-  return err;
+  try {
+    const { data, error } = await storage.download(path);
+    if (!error && data?.size === blob.size) {
+      const [wanted, actual] = await Promise.all([blob.arrayBuffer(), data.arrayBuffer()]);
+      const left = new Uint8Array(wanted), right = new Uint8Array(actual);
+      if (left.length === right.length && left.every((value, index) => value === right[index])) return;
+    }
+  } catch { /* Preserve the old reference when this exact content cannot be verified. */ }
+  throw Object.assign(new Error("画像のアップロードを確認できませんでした。元の画像を残しています。もう一度お試しください。"), { code: "AVATAR_UPLOAD" });
 }
