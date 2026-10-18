@@ -7,15 +7,21 @@ on:
       - src/lib/deviceDrafts.js
       - src/lib/offlineSync.js
       - src/lib/jobDraftProtocol.js
+      - src/lib/jobInputFields.js
+      - src/lib/copyJobFlow.js
+      - src/features/jobs/create/components/StepWorkVideo.jsx
       - src/features/jobs/create/LandingFlow.jsx
       - src/features/jobs/create/jobCreateApi.js
       - src/components/DeviceDrafts.jsx
       - scripts/*publish*.mjs
+      - scripts/job-copy*.mjs
+      - scripts/fixtures/copy-job*.sql
       - scripts/*draft*.mjs
       - scripts/fixtures/offline/**
       - scripts/fixtures/current-draft-sync-contract.sql
       - supabase/migrations/*sync*.sql
       - supabase/migrations/*publish*.sql
+      - supabase/migrations/*copy*.sql
       - .github/workflows/draft-recovery-check.yml
 permissions:
   contents: read

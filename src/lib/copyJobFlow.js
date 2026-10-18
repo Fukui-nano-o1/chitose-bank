@@ -65,9 +65,10 @@ export async function copyJobToEdit(jobNumber, opts = {}) {
         else sessionStorage.removeItem("cb_editJobPresetDates");
       }
     } catch {}
-    if (data.dates_cleared && !opts.quietDates) {
-      alert("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
-    }
+    const notices = [];
+    if (data.dates_cleared && !opts.quietDates) notices.push("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
+    if (data.video_reconfirmation_required) notices.push("作業動画のURLを引き継ぎました。掲載前に「作業動画」で、この求人への掲載同意を確認してください。");
+    if (notices.length) alert(notices.join("\n"));
     fbSuccess();
     window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
     return { ok: true, jobNumber: data.job_number };

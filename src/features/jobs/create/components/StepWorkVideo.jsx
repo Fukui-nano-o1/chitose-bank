@@ -35,7 +35,7 @@ export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedC
   };
   return (<>
     {!compact && <h2 className="f-sans" style={lfStyles.stepTitle}>作業動画を追加しますか？</h2>}
-    {!compact && <p className="f-sans" style={lfStyles.subtitle}>働き手が仕事をイメージできる動画を追加できます。YouTube動画に対応しています（任意）。</p>}
+    {!compact && <p className="f-sans" style={lfStyles.subtitle}>働き手が仕事をイメージできる動画を追加できます。YouTube動画に対応しています（任意）。URLは下書きに保存できます。求人をコピーした場合は、この求人への掲載同意をもう一度確認してください。</p>}
     <LFWizCard>
       <label className="f-sans" htmlFor="work-video-url" style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>YouTube URL</label>
       <input id="work-video-url" type="url" inputMode="url" value={url} onChange={e=>onUrl(e.target.value)}

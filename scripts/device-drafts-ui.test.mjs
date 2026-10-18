@@ -301,6 +301,25 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w.qaOffline=false;w.dispatchEvent(new w.Event('online'));
     await until(() => w.qaDrafts.readDeviceDraft(owner,allInputs.id)?.state==='synced','all input synchronized');
     assertInputs(w.qaJob);
+    // A copied video's URL survives, while its new job needs a fresh affirmative check.
+    const videoCopy={...fullRow,work_video_job_consent:false,work_video_related_consent:false,work_video_consent_at:null,work_video_consent_version:null};
+    w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:videoCopy});
+    await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoUrl===videoCopy.work_video_url),'copied URL retained');
+    button(w,'掲載する').click();
+    await until(()=>w.document.querySelector('#work-video-url'),'missing consent opens video step');
+    assert.equal(w.document.querySelector('#work-video-url').value,videoCopy.work_video_url);
+    const consent=w.document.querySelector('input[type="checkbox"]');assert.equal(consent.checked,false);
+    assert.equal(w.qaJob.status,'draft');
+    assert.equal(w.document.querySelector('[data-guide="flow-next"]').disabled,true);
+    w.document.querySelector('[data-guide="flow-next"]').click();
+    assert.ok(w.document.querySelector('#work-video-url'),'cannot continue without consent');
+    consent.click();
+    await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoJobConsent===true),'fresh consent persisted');
+    w.document.querySelector('[data-guide="flow-next"]').click();
+    await until(()=>[...w.document.querySelectorAll('button')].some(b=>b.textContent.trim()==='掲載する'),'return to review after consent');
+    await publish();
+    assert.equal(w.qaJob.work_video_url,videoCopy.work_video_url);assert.equal(w.qaJob.work_video_job_consent,true);
+    assert.ok(w.qaJob.work_video_consent_at);assert.equal(w.qaJob.work_video_related_consent,false);
     assert.deepEqual(errors,[]);
   } catch (error) {
     console.error(`Browser errors: ${JSON.stringify(errors)}\nScreen: ${dom?.window.document.body.textContent}\nRequests: ${JSON.stringify(dom?.window.qaCalls?.map(r=>r.path))}`);
