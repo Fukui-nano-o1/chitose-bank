@@ -7,8 +7,15 @@ on:
       - src/lib/deviceDrafts.js
       - src/lib/offlineSync.js
       - src/lib/jobDraftProtocol.js
+      - src/features/jobs/create/LandingFlow.jsx
+      - src/features/jobs/create/jobCreateApi.js
+      - src/components/DeviceDrafts.jsx
+      - scripts/*publish*.mjs
       - scripts/*draft*.mjs
+      - scripts/fixtures/offline/**
       - scripts/fixtures/current-draft-sync-contract.sql
+      - supabase/migrations/*sync*.sql
+      - supabase/migrations/*publish*.sql
       - .github/workflows/draft-recovery-check.yml
 permissions:
   contents: read

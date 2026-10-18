@@ -1,4 +1,4 @@
-import { safeDraftRebase, draftPayloadMatches } from "./jobDraftProtocol.js";
+import { safeDraftRebase, draftPayloadMatches, jobDraftBase, jobDraftPatch } from "./jobDraftProtocol.js";
 
 // 端末上の作業記録。アカウント・作業ごとに分離し、送信内容は押した時点で固定する。
 export const DEVICE_DRAFT_EVENT = "cb:device-drafts";
@@ -56,6 +56,8 @@ export function saveDeviceDraft(record, form, payload) {
 export function queueDeviceDraft(owner, id) {
   const record = readDeviceDraft(owner, id);
   if (!record?.payload) throw new Error("DEVICE_SAVE_FAILED");
+  // 掲載の応答待ちは、下書きの再送より先に同じ操作IDで確認する。
+  if (record.publication) return record;
   if (record.conflictContext && !record.pending) {
     const { remote, known } = record.conflictContext;
     const check = conflictCheck(record, remote, known);
@@ -97,7 +99,7 @@ function rememberConflict(record, remote, known = true) {
 // 最新行を取得できても、他の変更を上書きする比較元の差し替えは許可しない。
 export function rebaseDeviceDraft(owner, id, row) {
   const record = readDeviceDraft(owner, id);
-  if (!record || record.state === "pending") return record;
+  if (!record || record.state === "pending" || record.publication) return record;
   // 新規・未送信の下書きに限り、行が存在しない状態を維持できる。
   if (!row && !record.base && !record.conflictContext && !record.jobNumber) return record;
   const check = conflictCheck(record, row);
@@ -142,8 +144,55 @@ export function settleDeviceDraft(owner, id, token, result) {
   return write(key(owner, id), record);
 }
 export function forkDeviceDraft(record) {
+  if (readDeviceDraft(record.owner, record.id)?.publication) throw new Error("PUBLICATION_UNCONFIRMED");
   const fresh = newDeviceDraft(record.owner);
   return saveDeviceDraft(fresh, { ...record.form, job_number: null }, record.payload);
+}
+// 仕分け済みの入力・確認文言・時刻を掲載操作に固定する。通信より前に端末へ保存する。
+export function prepareDevicePublication(owner, id, items) {
+  const record = readDeviceDraft(owner, id);
+  if (record?.publication) return record;
+  if (!record || record.state !== "synced" || record.pending || record.next || !record.jobNumber ||
+      record.base?.id !== record.jobId || record.base?.farmer_id !== owner ||
+      !["draft", "pending"].includes(record.base?.status)) throw new Error("DRAFT_NOT_CONFIRMED");
+  record.publication = { requestId: crypto.randomUUID(), jobId: record.jobId,
+    expected: jobDraftBase(record.base), items: copy(items), agreedAt: new Date().toISOString(),
+    payload: copy(record.payload) };
+  record.state = "publishing";
+  return write(key(owner, id), record);
+}
+// 掲載済みという状態だけでは不十分。同じ操作の確認記録IDまで一致して初めて確定する。
+export function settleDevicePublication(owner, id, requestId, result) {
+  const record = readDeviceDraft(owner, id);
+  if (!record?.publication || record.publication.requestId !== requestId) return { confirmed: false, reason: "response_mismatch" };
+  if (result?.ok === false && result.reason && result.reason !== "request_mismatch") {
+    delete record.publication;
+    if (result.reason === "conflict") rememberConflict(record, result.row, Object.hasOwn(result, "row"));
+    else { record.state = "blocked"; record.reason = result.reason; }
+    return { confirmed: false, reason: result.reason, record: write(key(owner, id), record) };
+  }
+  if (result?.ok !== true || result.request_id !== requestId || result.check_id !== requestId ||
+      result.job_id !== record.jobId || result.job_number !== record.jobNumber ||
+      !["open", "pending"].includes(result.published_base?.status) ||
+      !Object.keys(record.publication.expected).every(field => Object.hasOwn(result.published_base, field)) ||
+      result.row?.id !== record.jobId || result.row?.farmer_id !== owner || result.row?.job_number !== record.jobNumber) {
+    return { confirmed: false, reason: "response_mismatch", record };
+  }
+  // ページ移動だけでは新しい入力としない。送信後に編集した値は成功応答でも消さない。
+  const previous = jobDraftPatch(record.publication.payload), current = jobDraftPatch(record.payload);
+  delete previous.draft_step; delete current.draft_step;
+  const newerInput = !draftPayloadMatches(previous, current) || !draftPayloadMatches(current, previous);
+  delete record.publication;
+  delete record.reason;
+  // 再送時の最新行を無条件に比較元にすると、確認待ち中の他端末の更新を上書きしてしまう。
+  // 次の編集は、この操作が確定した時点の入力を比較元にする。
+  record.base = { ...result.row, ...jobDraftPatch(result.published_base),
+    draft_step_id: result.published_base.draft_step_id, status: result.published_base.status };
+  record.state = newerInput ? "local" : "synced";
+  if (!["open", "pending"].includes(result.row.status)) {
+    record.state = "blocked"; record.reason = "publication_changed";
+  }
+  return { confirmed: true, newerInput, currentStatus: result.row.status, record: write(key(owner, id), record) };
 }
 export function removeDeviceDraft(owner, id) {
   storage().removeItem(key(owner, id));

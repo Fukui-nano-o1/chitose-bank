@@ -4,8 +4,9 @@
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { logAppError } from "../../../app/diagnostics/errorLog";
 import { safeDraftRebase } from "../../../lib/offlineSync";
+import { calendarDateFromYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
 import { useState, useEffect, useRef } from "react";
-import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
+import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, prepareDevicePublication, settleDevicePublication, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
@@ -23,11 +24,12 @@ import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
 import { JobSearchMapView } from "../../../components/JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, isValidStreetAddress, validateMinWage } from "./model";
+import { digitsOnly, wageAmount, selectionValue, workTimeLabel as formatWorkTime, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm } from "./jobInputCodec";
 import { geocodeTown } from "./jobCreateGeo";
 import { useTownCheck, TOWN_NOT_FOUND_MESSAGE, TOWN_CHECK_ERROR_MESSAGE } from "./useTownCheck";
 import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceAddress,
   fetchEmployerRecruiterInfo, upsertEmployerProfile, fetchEmployerTrustInfo, fetchAccountHolder,
-  fetchJobByNumber, fetchJobStatus, publishMyJob, insertJobPublishCheck,
+  fetchJobByNumber, fetchJobStatus, publishMyJobWithCheck,
   countLiveApplications, syncJobDeviceDrafts,
   uploadPhoto } from "./jobCreateApi";
 import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "./components/LFParts";
@@ -230,23 +232,23 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 時給・日給（文字列で保持してカーソル飛び防止）
   const [hourlyWageInput, setHourlyWageInput] = useState(d.hourlyWageInput ?? "");
   const [dailyWageInput,  setDailyWageInput]  = useState(d.dailyWageInput  ?? "");
-  // 日程（Date は JSON.parse で文字列になるので再変換）
+  // 保存形式は日付のみ。Dateへの変換はUI境界で行い、UTC変換による前日化を防ぐ。
   // カレンダーの「この日から始まる求人を出す」（2026-08-21）：タップした日that cb_newJobDateStart で届く。
   // 優先順は 下書きの日程 ＞ タップした日＝進行中の入力を上書きしない。編集モードは対象外
   // （applyJobRow that正）。消費は下のマウントeffectで行う（初期化関数内で消すとStrictModeの
   // 二重実行で2回目that空になるため、読むだけにする）
   const [jobDateStart,    setJobDateStart]    = useState(() => {
-    if (d.jobDateStart) return new Date(d.jobDateStart);
+    if (d.jobDateStart) return restoreDraftCalendarDate(d.jobDateStart, _deviceInit?.payload?.date_start);
     if (!_editJobNumber) {
       try {
         const v = sessionStorage.getItem("cb_newJobDateStart");
-        if (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + "T00:00:00");
+        if (v) return calendarDateFromYmd(v);
       } catch {}
     }
     return null;
   });
   useEffect(() => { try { sessionStorage.removeItem("cb_newJobDateStart"); } catch {} }, []);
-  const [jobDateEnd,      setJobDateEnd]      = useState(d.jobDateEnd   ? new Date(d.jobDateEnd)   : null);
+  const [jobDateEnd,      setJobDateEnd]      = useState(() => restoreDraftCalendarDate(d.jobDateEnd, _deviceInit?.payload?.date_end));
   // 期間内の休日（2026-08-03たきと指示）："YYYY-MM-DD"配列。休日ボタン→カレンダータップで設定
   const [jobHolidays,     setJobHolidays]     = useState(Array.isArray(d.jobHolidays) ? d.jobHolidays : []);
   const [holidayMode,     setHolidayMode]     = useState(false); // 休日設定モード中はカレンダータップが休日トグルになる
@@ -302,9 +304,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 派生値
-  const workTimeLabel = `${startHour}:${startMinute}〜${endHour}:${endMinute}`;
-  const hourlyWage = Number(hourlyWageInput.replace(/[^\d]/g, "")) || 0;
-  const dailyWage  = Number(dailyWageInput.replace(/[^\d]/g, "")) || 0;
+  const workTimeLabel = formatWorkTime({ startHour, startMinute, endHour, endMinute });
+  const hourlyWage = wageAmount(hourlyWageInput);
+  const dailyWage  = wageAmount(dailyWageInput);
   const workHours = (Number(endHour) + Number(endMinute) / 60) - (Number(startHour) + Number(startMinute) / 60);
   // 申告休憩（分）：DBトリガーと同じ抽出（"90分"等から最初の数字・無ければ0）
   const breakMinutes = Number((String(breakTime).match(/\d+/) || [0])[0]);
@@ -326,7 +328,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
   const resumePublishRef = useRef(null);
   // 掲載＝即公開（2026-08-14 承認プロセスの削除・届出受理済み）。運営者本人は直接 open で INSERT、
-  // 一般農家は pending 保存→publish_my_job RPC で即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
+  // 一般農家は下書き保存→確認記録付き掲載RPCで即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
   // 掲載＝即公開（2026-08-14 承認プロセスの削除）：管理者か一般農家かの体験の分岐（meCanOpen）は廃止。
   // 実際の公開ゲートは不変（jobs admin write・trg_block_third_party_open がが最終担保）。
   const [publishedOpen, setPublishedOpen] = useState(false); // 直前の掲載が即公開だったか（完了画面の文言に使う）
@@ -500,8 +502,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [jobTemplate,       setJobTemplate]       = useState(d.jobTemplate ?? "収穫補助");
 
   // ピル選択とテキスト入力の合成値（自由入力優先）
-  const farmerCrop = farmerCropPill === "__other__" ? farmerCropText.trim() : (farmerCropText.trim() || farmerCropPill);
-  const farmerTask = farmerTaskPill === "__other__" ? farmerTaskText.trim() : (farmerTaskText.trim() || farmerTaskPill);
+  const farmerCrop = selectionValue(farmerCropPill, farmerCropText);
+  const farmerTask = selectionValue(farmerTaskPill, farmerTaskText);
 
   // 働き手 state
   const [workerExp,         setWorkerExp]         = useState("");
@@ -627,61 +629,60 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // jobs行 → フローのstateへ復元（2026-08-03に関数化）。コピー直後の即時復元（prefill）と
   // 通常の読み込みで同じ対応表を使う＝どちらかだけ直して食い違う事故を防ぐ
   const applyJobRow = (data) => {
-        if (ownerId && data.id && data.farmer_id === ownerId) {
-          deviceDraftRef.current = newDeviceDraft(ownerId, data);
-          deviceReadyRef.current = true;
-        }
-        setEditingOpen(!!_editJobNumber && data.status === "open");
-        setRole("farmer");
-        setFarmerCropPill(CROP_OPTIONS.some(c => c.name === data.crop) ? data.crop : data.crop ? "__other__" : "");
-        setFarmerTaskPill(TASK_OPTIONS.some(t => t.name === data.task) ? data.task : data.task ? "__other__" : "");
-        setFarmerCropText(data.crop ?? "");
-        setFarmerTaskText(data.task ?? "");
-        setFarmerZip(data.zip ?? "");
-        setFarmerPref(data.prefecture ?? "");
-        setFarmerCity(data.city ?? "");
-        setFarmerTown(data.town ?? "");
-        setFarmerAddr(data.address ?? "");
-        setFarmerRegion((data.prefecture ?? "") + (data.city ?? "") + (data.town ?? ""));
-        setJobDateStart(data.date_start ? new Date(data.date_start) : null);
-        setJobDateEnd(data.date_end ? new Date(data.date_end) : null);
-        setJobCount(data.headcount != null ? String(data.headcount) : "");
-        setFarmerPayType(data.pay_type ?? ""); // 報酬方式（時給/日給）も復元（2026-07-24・コピー/再開で欠けていた）
-        setHourlyWageInput(data.hourly_wage ?? "");
-        setDailyWageInput(data.daily_wage ?? "");
-        // 勤務時間（"H:MM〜H:MM"）を start/end に復元（2026-07-24・コピー/再開で欠けていた）
-        { const wt = String(data.work_time ?? "").match(/(\d{1,2}):(\d{2})\D+(\d{1,2}):(\d{2})/); if (wt) { setStartHour(wt[1]); setStartMinute(wt[2]); setEndHour(wt[3]); setEndMinute(wt[4]); } }
-        setBreakTime(data.break_time ?? "");
-        setNearestStation(data.nearest_station ?? "");
-        setCommuteTime(data.commute_time ?? "");
-        setJobExp(data.job_exp ?? "");
-        setBeginnerOk(!!data.beginner_ok);
-        setInstantApproveRepeat(!!data.instant_approve_repeat);
-        setJobPerks(data.perks || null);
-        setExperiencedPreferred(!!data.experienced_preferred);
-        setJobDescription(data.notes ?? "");
-        setWorkVideoUrl(data.work_video_url ?? "");
-        setWorkVideoJobConsent(!!data.work_video_job_consent);
-        setWorkVideoRelatedConsent(!!data.work_video_related_consent);
-        setWorkVideoConsentAt(data.work_video_consent_at ?? null);
-        setWorkVideoConsentVersion(data.work_video_consent_version ?? null);
-        setJobNotes(data.belongings ?? "");
-        setJobCautions(data.cautions ?? "");
-        setOvertimePolicy(data.overtime_policy ?? "");
-        setOvertimeDetail(data.overtime_detail ?? "");
-        // 変更の範囲（2026-08-21）：値の無い旧求人・白紙化（draft_stepだけの呼び出し）は既定の「変更なし」へ
-        setPlaceChangeScope(data.place_change_scope ?? "変更なし");
-        setTaskChangeScope(data.task_change_scope ?? "変更なし");
-        // photos未所持の旧データを補完しつつ復元。2つ目に中身があれば展開フラグも立てる（2026-07-16）
-        const dp = (data.danger_places ?? []).map(x => ({ photos: [], ...x }));
-        const dt = (data.danger_tasks ?? []).map(x => ({ photos: [], ...x }));
-        setJobDangerPlaces(dp.length ? dp : [{ icon:"⚠️", label:"", desc:"", photos:[] }, { icon:"⚠️", label:"", desc:"", photos:[] }]);
-        setJobDangerTasks(dt.length ? dt : [{ icon:"⚠️", label:"", desc:"", photos:[] }, { icon:"⚠️", label:"", desc:"", photos:[] }]);
-        setShowPlace2(dangerHasSecond(dp));
-        setShowTask2(dangerHasSecond(dt));
-        setJobPhotos(normalizePhotos(data.photos)); // 旧形式（文字列配列）の求人でも真っ白にならないよう正規化（2026-07-16）
-        setJobHolidays(Array.isArray(data.holidays) ? data.holidays : []);
-        setStep(isWorkplaceRoute() ? 3 : data.draft_step != null ? data.draft_step : 12);
+    if (ownerId && data.id && data.farmer_id === ownerId) {
+      deviceDraftRef.current = newDeviceDraft(ownerId, data);
+      deviceReadyRef.current = true;
+    }
+    setEditingOpen(!!_editJobNumber && data.status === "open");
+    setRole("farmer");
+    const input = jobFormFromRow(data, { cropOptions: CROP_OPTIONS, taskOptions: TASK_OPTIONS });
+    setFarmerCropPill(input.farmerCropPill);
+    setFarmerTaskPill(input.farmerTaskPill);
+    setFarmerCropText(input.farmerCropText);
+    setFarmerTaskText(input.farmerTaskText);
+    setFarmerZip(input.farmerZip);
+    setFarmerPref(input.farmerPref);
+    setFarmerCity(input.farmerCity);
+    setFarmerTown(input.farmerTown);
+    setFarmerAddr(input.farmerAddr);
+    setFarmerRegion(input.farmerRegion);
+    setJobDateStart(input.jobDateStart);
+    setJobDateEnd(input.jobDateEnd);
+    setJobCount(input.jobCount);
+    setFarmerPayType(input.farmerPayType);
+    setHourlyWageInput(input.hourlyWageInput);
+    setDailyWageInput(input.dailyWageInput);
+    setBreakTime(input.breakTime);
+    setNearestStation(input.nearestStation);
+    setCommuteTime(input.commuteTime);
+    setJobExp(input.jobExp);
+    setBeginnerOk(input.beginnerOk);
+    setInstantApproveRepeat(input.instantApproveRepeat);
+    setJobPerks(input.jobPerks);
+    setExperiencedPreferred(input.experiencedPreferred);
+    setJobDescription(input.jobDescription);
+    setWorkVideoUrl(input.workVideoUrl);
+    setWorkVideoJobConsent(input.workVideoJobConsent);
+    setWorkVideoRelatedConsent(input.workVideoRelatedConsent);
+    setWorkVideoConsentAt(input.workVideoConsentAt);
+    setWorkVideoConsentVersion(input.workVideoConsentVersion);
+    setJobNotes(input.jobNotes);
+    setJobCautions(input.jobCautions);
+    setOvertimePolicy(input.overtimePolicy);
+    setOvertimeDetail(input.overtimeDetail);
+    setPlaceChangeScope(input.placeChangeScope);
+    setTaskChangeScope(input.taskChangeScope);
+    setJobDangerPlaces(input.jobDangerPlaces);
+    setJobDangerTasks(input.jobDangerTasks);
+    setShowPlace2(input.showPlace2);
+    setShowTask2(input.showTask2);
+    setJobPhotos(input.jobPhotos);
+    setJobHolidays(input.jobHolidays);
+    if (Object.hasOwn(input, "startHour")) {
+      setStartHour(input.startHour); setStartMinute(input.startMinute);
+      setEndHour(input.endHour); setEndMinute(input.endMinute);
+    }
+    setStep(isWorkplaceRoute() ? 3 : input.farmerStep);
   };
 
   // 編集・コピーで開いた時の復元（2026-08-03に高速化）。
@@ -712,8 +713,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             const p = JSON.parse(sessionStorage.getItem("cb_editJobPresetDates") || "null");
             sessionStorage.removeItem("cb_editJobPresetDates");
             if (p && p.job_number === _editJobNumber) {
-              setJobDateStart(p.date_start ? new Date(p.date_start) : null);
-              setJobDateEnd(p.date_end ? new Date(p.date_end) : null);
+              setJobDateStart(calendarDateFromYmd(p.date_start));
+              setJobDateEnd(calendarDateFromYmd(p.date_end));
               if (Array.isArray(p.holidays)) setJobHolidays(p.holidays);
             }
           } catch {}
@@ -794,9 +795,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   useEffect(() => () => { if (savedToastTimer.current) clearTimeout(savedToastTimer.current); }, []);
 
   // ドラフト保存 → ログイン後に LandingFlow 初期化時に復元される
-  const saveDraft = (payloadOverride) => {
-    if (completedRef.current || !deviceReadyRef.current || localRouteMissing) return null;
-    const draft = {
+  // 入力の採取は一か所。変換はcodec、保存と同期待ちは既存の各層へ渡す。
+  function currentJobForm() {
+    return {
         role: "farmer", farmerStep: step, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
         farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
         farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr, jobPhotos,
@@ -807,10 +808,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         jobExp, jobTemplate, jobNotes, jobCautions, overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
         workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
         beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
-        jobDateStart: jobDateStart?.toISOString() ?? null,
-        jobDateEnd:   jobDateEnd?.toISOString()   ?? null,
+        jobDateStart,
+        jobDateEnd,
         jobHolidays,
       };
+  }
+
+  const saveDraft = (payloadOverride) => {
+    if (completedRef.current || !deviceReadyRef.current || localRouteMissing) return null;
+    const draft = serializeJobForm(currentJobForm());
     try {
       if (ownerId) {
         const record = deviceDraftRef.current || newDeviceDraft(ownerId);
@@ -834,82 +840,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     }
   };
 
-  // ── カレンダーヘルパー ──────────────────────────────────────
-  const WD = ["日","月","火","水","木","金","土"];
-  const fmtD = (d, opts = {}) => {
-    if (!d) return "";
-    const w = WD[d.getDay()];
-    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
-    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
-    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
-  };
-  // 日程ラベル（2026-07-16）：年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
-  const jobDateLabel = (() => {
-    if (!jobDateStart) return "日程を選択してください";
-    const end = jobDateEnd || jobDateStart;
-    const thisYear = new Date().getFullYear();
-    const inYear = jobDateStart.getFullYear() === thisYear && end.getFullYear() === thisYear;
-    if (jobDateStart.toDateString() === end.toDateString()) return fmtD(jobDateStart, { omitYear: inYear });
-    const sameMonth = inYear && jobDateStart.getMonth() === end.getMonth();
-    return `${fmtD(jobDateStart, { omitYear: inYear })} 〜 ${fmtD(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
-  })();
+  const jobDateLabel = dateLabel(jobDateStart, jobDateEnd);
 
   function buildJobPayload(authUid, statusVal = "pending", geo = null) {
-    const base = deviceDraftRef.current?.base;
-    if (!geo && base && base.prefecture === farmerPref && base.city === farmerCity && base.town === farmerTown) {
-      geo = { lat: base.lat, lng: base.lng, radius: base.geo_radius_m, from: base.geocoded_from };
-    }
-    return {
-      farmer_id:       authUid,
-      crop:            farmerCrop,
-      task:            farmerTask,
-      zip:             farmerZip,
-      prefecture:      farmerPref,
-      city:            farmerCity,
-      town:            farmerTown,
-      address:         farmerAddr,
-      date_label:      jobDateLabel,
-      date_start:      jobDateStart ? ymdLocal(jobDateStart) : null,
-      date_end:        jobDateEnd ? ymdLocal(jobDateEnd) : null,
-      holidays:        jobHolidays,
-      headcount:       Number(jobCount) || null,
-      pay_type:        "日給", // 時給入力は廃止（2026-07-16）。新規保存は常に日給
-      hourly_wage:     "", // 時給入力は廃止（2026-07-16）。レガシー下書きの隠れ値を保存しない
-      daily_wage:      dailyWageInput,
-      work_time:       workTimeLabel,
-      break_time:      breakTime,
-      nearest_station: nearestStation,
-      commute_time:    commuteTime,
-      job_exp:         jobExp,
-      beginner_ok:     beginnerOk,
-      instant_approve_repeat: instantApproveRepeat,
-      perks:           jobPerks,
-      experienced_preferred: experiencedPreferred,
-      notes:           jobDescription,
-      work_video_url: workVideoUrl.trim() || null,
-      work_video_job_consent: workVideoUrl.trim() ? workVideoJobConsent : null,
-      work_video_related_consent: workVideoUrl.trim() ? workVideoRelatedConsent : null,
-      work_video_consent_at: workVideoUrl.trim() && workVideoJobConsent ? (workVideoConsentAt || new Date().toISOString()) : null,
-      work_video_consent_version: workVideoUrl.trim() && workVideoJobConsent ? (workVideoConsentVersion || "2026-10-05-v1") : null,
-      belongings:      jobNotes,
-      cautions:        jobCautions,
-      // 「あり」以外を選んだら目安は保存しない（選び直しの残骸を残さない・受動喫煙と同じ作法）
-      overtime_policy: overtimePolicy || null,
-      overtime_detail: overtimePolicy === "あり" ? overtimeDetail.trim() : "",
-      // 変更の範囲（2026-08-21）：掲載時にトリガーが空を「変更なし」に倒すが、選んだ値はそのまま保存
-      place_change_scope: placeChangeScope || null,
-      task_change_scope:  taskChangeScope || null,
-      danger_places:   jobDangerPlaces,
-      danger_tasks:    jobDangerTasks,
-      photos:          jobPhotos,
-      draft_step:      step,
-      status:          statusVal,
-      lat:             geo ? geo.lat : null,
-      lng:             geo ? geo.lng : null,
-      geo_radius_m:    geo ? geo.radius : null,
-      geocoded_from:   geo ? geo.from : null,
-    };
-  };
+    return jobPayloadFromForm(currentJobForm(), {
+      ownerId: authUid, status: statusVal, geo, base: deviceDraftRef.current?.base,
+    });
+  }
 
   const handleTopSave = ({ exit = false } = {}) => {
     if (draftSaving || completedRef.current) return;
@@ -924,7 +861,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         completedRef.current = true;
         if (typeof onDraftSaved === "function") onDraftSaved(null);
         else window.location.hash = "/profile/employer/drafts";
-      } else setDraftMsg("この端末に保存済み・同期待ち。通信が戻ると自動で送信します。");
+      } else setDraftMsg(saved.publication
+        ? "入力はこの端末に保存済みです。先の掲載結果を確認するため、確認画面で「掲載する」を押してください。"
+        : "この端末に保存済み・同期待ち。通信が戻ると自動で送信します。");
     } catch {
       // queueDeviceDraft が投げるのは端末に書けない時だけ（conflict/blocked は例外にしない・2026-09-23）
       setDraftSaving(false);
@@ -1173,6 +1112,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     if (localOnly) {
       handleTopSave();
       setDraftMsg("同意の送信完了後に掲載できます。入力を続けたり、保存して終了したりできます。");
+      return;
+    }
+    if (readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
+      setPublishIssue("先の掲載と確認記録の結果を、同じ操作IDで確認します。待っている間の追加編集は送りません。");
+      setPublishModal(true);
       return;
     }
     const missing = getPublishMissingFields();
@@ -1643,7 +1587,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               </section>
               <section className="listing-condition-section">
                 <h3>報酬</h3>
-                <label className="listing-condition-field">日給（円）<div className="listing-condition-pay"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(e.target.value.replace(/[^\\d]/g,""))} placeholder="9000" /><span>円 / 日</span></div></label>
+                <label className="listing-condition-field">日給（円）<div className="listing-condition-pay"><input aria-label="日給" inputMode="numeric" value={dailyWageInput} onChange={e => setDailyWageInput(digitsOnly(e.target.value))} placeholder="9000" /><span>円 / 日</span></div></label>
                 <p className="listing-condition-note">各作業日の終了後に、現金で支払います。</p>
                 {workHours <= 0 && <p role="alert" className="listing-condition-error">終了時間は開始時間より後に設定してください。</p>}
                 <LFWageCompare type="日給" value={dailyWage} avg={AVG_DAILY} count={AVG_COUNT} />
@@ -1732,12 +1676,48 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   metadata: { phase: safePhase, reason_code: code },
                 });
               };
+              const confirmPublication = async (record, finishMeasurement) => {
+                const operation = record.publication;
+                deviceDraftRef.current = record;
+                let pub;
+                try { pub = await publishMyJobWithCheck(operation); }
+                finally { emitConfirmedRefresh(REFRESH_JOBS); }
+                const outcome = pub.error ? { confirmed: false, reason: pub.error.code }
+                  : settleDevicePublication(ownerId, record.id, operation.requestId, pub.data);
+                if (outcome.record) deviceDraftRef.current = outcome.record;
+                if (!outcome.confirmed) {
+                  reportPublishFailure("publish_rpc", outcome.reason || "unconfirmed", pub.error || (pub.data?.code ? { code: pub.data.code } : null));
+                  setPublishIssue((outcome.record && !outcome.record.publication
+                    ? "掲載処理は確定していません。入力はこの端末に残っています。内容を確認して、もう一度お試しください。"
+                    : "掲載と確認記録の完了を確認できませんでした。入力はこの端末に残っています。もう一度押すと同じ操作の結果を確認します。")
+                    + (outcome.reason === "conflict" ? " 別の保存で変更された項目があるため、内容の確認が必要です。" : ""));
+                  return;
+                }
+                const status = outcome.currentStatus;
+                setEditingOpen(status === "open");
+                if (outcome.newerInput || !["open", "pending"].includes(status)) {
+                  setPublishModal(false);
+                  setDraftMsg(outcome.newerInput
+                    ? "先の掲載と確認記録は保存済みです。その後の追加編集は未反映のため、この端末に残しました。内容を確認して保存してください。"
+                    : "先の掲載と確認記録は保存済みですが、求人はその後に非公開または掲載終了になっています。再掲載は行っていません。入力はこの端末に残しています。");
+                  return;
+                }
+                completedRef.current = true;
+                removeDeviceDraft(ownerId, record.id);
+                activeDeviceDraft(ownerId, null);
+                try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
+                setDraftJobNumber(null);
+                setPublishModal(false);
+                finishMeasurement("success");
+                if (typeof onPublished === "function") onPublished(status === "open", record.jobNumber);
+                else { setPublishedOpen(status === "open"); setStep(13); }
+              };
               if (localOnly || !ownerId) { handleTopSave(); return; }
               const missing = getPublishMissingFields();
               // 募集者の項目【だけ】が欠けている時はここで止めない＝この直後のrecruitBox
               // （新規登録の内容が初期値で入った入力ボックス）がその場で開く方が親切（2026-08-07）
               const nonRecruiterMissing = missing.filter(m => !m.label.startsWith("募集者"));
-              if (nonRecruiterMissing.length > 0) {
+              if (nonRecruiterMissing.length > 0 && !readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
                 setPublishModal(false); // チェックリストを閉じてから足りない欄のページへ送る
                 goToMissingField(missing);
                 return;
@@ -1749,6 +1729,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 const { data: { session } } = await getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
                 sessionUser = session.user;
+                if (session.user.id !== ownerId) throw new Error("AUTH_REQUIRED");
+                // 応答紛失後は下書き同期・再掲載を始めず、凍結した操作を先に照合する。
+                const awaiting = readDeviceDraft(ownerId, deviceDraftRef.current?.id);
+                if (awaiting?.publication) { await confirmPublication(awaiting, finishMeasurement); return; }
                 // 募集者情報が揃っていなければ、その場でボックスを開いて入力してもらう（法令の明示事項）。
                 // 未入力の欄は新規登録①の内容を初期値に入れる
                 {
@@ -1858,57 +1842,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   else { setPublishedOpen(true); setStep(13); }
                   return;
                 }
-                let publishedNow = true;
-                if (_jn) {
-                  let pub;
-                  try { pub = await publishMyJob(_jn); }
-                  finally { emitConfirmedRefresh(REFRESH_JOBS); } // 保存は成功済み。公開処理が失敗した場合も最新状態を照合
-                  if (pub.error) {
-                    const check = await fetchJobStatus(_jn);
-                    if (!check.error && check.data?.status === "open") pub = { data: { ok: true } };
-                  }
-                  if (pub.error || !pub.data?.ok) {
-                    reportPublishFailure("publish_rpc", pub.data?.reason || pub.error?.code || "publish_rejected", pub.error);
-                    setPublishIssue("掲載エラー：" + (pub.error?.message || pub.data?.reason || "不明") + "。求人は保存されています。");
-                    return;
-                  }
-                  // 修正のお願い中の求人だけは運営の確認を経て公開（2026-08-14・pending:true）
-                  // ＝祝祭は「公開の準備が整いしだい」側に分岐（onPublished(false)）
-                  if (pub.data?.pending) publishedNow = false;
-                } else {
-                  emitConfirmedRefresh(REFRESH_JOBS);
-                }
-                // 掲載前の確認を記録に残す（2026-07-30たきと指示・行動記録の憲法）。
-                // 画面のstateだけだった同意を、押した文言と時刻ごと追記のみの台帳へ。
-                // 記録に失敗しても掲載自体は止めない（掲載は成功済み）が、管理者には見えるようにする
-                if (_jn) {
-                  try {
-                    const { error: ckErr } = await insertJobPublishCheck({
-                      job_number: _jn,
-                      farmer_id: session.user.id,
-                      // 2026-08-07 UI変更：4つの個別チェック→内容の列挙＋「確認しました」1つに。
-                      // 掲載ボタンは確認済みでないと押せないため、記録は従来と同じ形
-                      // （提示した4項目・全てchecked:true）で追記する＝台帳の形は変えない
-                      items: PUBLISH_CHECKS.map((text) => ({ text, checked: true })),
-                      agreed_at: new Date().toISOString(),
-                    });
-                    if (ckErr && isAdmin(session.user)) alert("【管理者デバッグ】掲載前の確認の記録に失敗：" + ckErr.message);
-                  } catch {}
-                }
-                completedRef.current = true;
-                removeDeviceDraft(ownerId, local.id);
-                activeDeviceDraft(ownerId, null);
-                try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
-                setDraftJobNumber(null);
-                setPublishModal(false);
-                // 完了はこのフローの中のページでなく、Appthat出す掲載完了の画面（2026-09-02＝Airbnbの型：
-                // 白い全画面の「おめでとうございます」＋求人カード＋「完了」・アニメ無し・自動遷移無し）。
-                // onPublished 未指定時のみ従来の完了ページに倒す
-                // 掲載＝即公開の祝祭。修正のお願い中の再掲載（publishedNow=false）だけ
-                // 「公開の準備が整いしだい」側に分岐（2026-08-14）
-                finishMeasurement("success");
-                if (typeof onPublished === "function") { onPublished(publishedNow, _jn); }
-                else { setPublishedOpen(publishedNow); setStep(13); }
+                await confirmPublication(prepareDevicePublication(ownerId, local.id,
+                  PUBLISH_CHECKS.map(text => ({ text, checked: true }))), finishMeasurement);
               } catch (e) {
                 reportPublishFailure("unexpected", e?.code || "exception", e);
                 // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
@@ -2495,7 +2430,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       {isFarmer && step <= 12 && <ListingFooter
         step={step} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading} uploading={photoUploading}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
-        publishDisabled={!localOnly && unknownWage}
+        publishDisabled={!localOnly && unknownWage && !deviceDraftRef.current?.publication}
         hidden={sheetOpen || photoCaptionsOpen || !!recruitBox}
         onBack={step === 0 ? closeListing : returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack}
         onNext={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext}

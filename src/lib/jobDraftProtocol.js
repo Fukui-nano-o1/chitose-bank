@@ -1,12 +1,7 @@
 // 送信可能な項目と、DBの楽観ロックに渡す比較用スナップショットを分ける。
 // draft_step_id は現行DBの比較対象だが、この画面が編集する値ではない。
-export const JOB_DRAFT_FIELDS = ["crop", "task", "zip", "prefecture", "city", "town", "address",
-  "date_label", "date_start", "date_end", "holidays", "headcount", "pay_type", "hourly_wage", "daily_wage",
-  "work_time", "break_time", "nearest_station", "commute_time", "job_exp", "beginner_ok", "instant_approve_repeat",
-  "perks", "experienced_preferred", "notes", "belongings", "cautions", "overtime_policy", "overtime_detail",
-  "place_change_scope", "task_change_scope", "danger_places", "danger_tasks", "photos",
-  "work_video_url", "work_video_job_consent", "work_video_related_consent", "work_video_consent_at", "work_video_consent_version", "draft_step",
-  "lat", "lng", "geo_radius_m", "geocoded_from"];
+import { JOB_DRAFT_FIELDS } from "./jobInputFields.js";
+export { JOB_DRAFT_FIELDS };
 
 export function jobDraftPatch(payload) {
   return Object.fromEntries(JOB_DRAFT_FIELDS.filter(k => Object.hasOwn(payload, k)).map(k => [k, payload[k]]));
@@ -28,8 +23,26 @@ export function equalDraftValue(left, right) {
   const keys = Object.keys(left);
   return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && equalDraftValue(left[key], right[key]));
 }
+// DBのtimestamptzはUTC/JST・小数秒の表記が変わる。Dateだけで比較すると
+// マイクロ秒を丸め、別の同意時刻まで同じと誤認するため、小数6桁を保持する。
+// 日付だけ・時差なし・不正日付は推測しない。他の入力項目には適用しない。
+function consentInstant(value) {
+  if (typeof value !== "string") return null;
+  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|([+-])(\d{2})(?::?(\d{2}))?)$/.exec(value);
+  if (!match || match[1].startsWith("0000")) return null;
+  const [, date, time, fraction = "", zone, sign, hour = "0", minute = "0"] = match;
+  const whole = `${date}T${time}`;
+  const milliseconds = Date.parse(`${whole}Z`);
+  if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString().slice(0, 19) !== whole ||
+      Number(hour) > 15 || Number(minute) > 59) return null;
+  const offset = zone === "Z" ? 0 : (Number(hour) * 60 + Number(minute)) * (sign === "+" ? 1 : -1);
+  return BigInt(milliseconds - offset * 60000) * 1000n + BigInt(fraction.padEnd(6, "0"));
+}
 function equalField(key, left, right) {
-  return equalDraftValue(left ?? null, right ?? null);
+  if (equalDraftValue(left ?? null, right ?? null)) return true;
+  if (key !== "work_video_consent_at") return false;
+  const instant = consentInstant(left);
+  return instant !== null && instant === consentInstant(right);
 }
 export function draftPayloadMatches(remote, payload) {
   const keys = JOB_DRAFT_FIELDS.filter(key => Object.hasOwn(payload || {}, key));

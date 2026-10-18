@@ -33,8 +33,26 @@ export const supabase = createClient('https://offline-fixture.test', 'fixture-ke
         window.qaJob = {...window.qaJob, ...body.p_patch, id:body.p_id, job_number:42, farmer_id:owner, status:path.endsWith('open_job')?'open':'draft'};
         result = {ok:true,row:window.qaJob};
       }
+    } else if (path === 'rpc/publish_my_job_with_check') {
+      const receipts = window.qaPublicationReceipts ||= {};
+      if (!receipts[body.p_request_id]) {
+        if (window.qaCheckError) return new Response(JSON.stringify({ok:false,reason:'publication_rejected',code:'P0001'}),{status:200,headers:{'Content-Type':'application/json'}});
+        if (!['draft','pending'].includes(window.qaJob.status)) result = {ok:false,reason:'bad_status'};
+        else {
+          window.qaJob.status = window.qaJob.revision_requested_at ? 'pending' : 'open';
+          receipts[body.p_request_id] = {ok:true,request_id:body.p_request_id,check_id:body.p_request_id,
+            job_id:body.p_job_id,job_number:42,pending:window.qaJob.status==='pending',
+            published_base:{...body.p_expected,status:window.qaJob.status}};
+        }
+      }
+      result ||= {...receipts[body.p_request_id],row:window.qaJob};
+      if (window.qaLosePublishResponse) { window.qaLosePublishResponse = false; throw new TypeError('Lost publication response'); }
+      if (window.qaReceiptMismatch) result.check_id = 'wrong-receipt';
     } else if (path === 'rpc/publish_my_job') { window.qaJob.status = 'open'; result = {ok:true}; }
-    else if (path === 'job_publish_checks') result = null;
+    else if (path === 'job_publish_checks') {
+      if (window.qaCheckError) return new Response(JSON.stringify({code:'P0001',message:'test receipt failure'}),{status:500,headers:{'Content-Type':'application/json'}});
+      result = null;
+    }
     else if (path === 'applications') return new Response(null,{status:200,headers:{'Content-Range':'*/0'}});
     return new Response(JSON.stringify(result), {status:200,headers:{'Content-Type':'application/json'}});
   } },
