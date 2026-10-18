@@ -22,7 +22,7 @@ async function until(predicate, label, timeout = 5000) {
   }
 }
 
-test('actual consent and listing components continue offline, restore new/edit/copy input, and sync on reconnect', async () => {
+test('actual consent and listing components continue offline, restore new/edit/copy input, and sync on reconnect', async t => {
   const output = await mkdtemp(path.join(tmpdir(),'cb-offline-ui-'));
   let dom;
   const errors = [];
@@ -282,6 +282,24 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaDrafts.readDeviceDraft(owner,retained.id).payload.notes,'最初の入力');
     assert.ok(!/DRAFT_REQUIRES_REVIEW|管理者デバッグ/.test(w.document.body.textContent));
     // codec単体だけでなく、全setter・端末保存・再開・同期の接続を44項目で確認する。
+    await t.test('missing and unreadable work time stays unchanged through edit/reopen until both time controls are entered',async()=>{
+      for(const raw of [null,'','不明']) {
+        const row={...jobInputSample(),id:'00000000-0000-4000-8000-000000000044',job_number:42,farmer_id:owner,status:'draft',draft_step:5,work_time:raw};
+        w=await mount({url:'https://ui.test/#/work/edit/42',offline:false,job:row,session:{cb_editJobPrefill:JSON.stringify(row)}});
+        const clock=label=>w.document.querySelector(`input[aria-label="${label}"]`);
+        await until(()=>clock('勤務開始時間')&&clock('勤務開始時間').value==='','empty legacy controls');
+        assert.equal(clock('勤務終了時間').value,'');
+        const inputTime=async(label,value)=>{const el=clock(label);Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new w.Event('input',{bubbles:true}));await pause(20);};
+        const wage=w.document.querySelector('input[aria-label="日給"]');Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(wage,'15000');wage.dispatchEvent(new w.Event('input',{bubbles:true}));
+        await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.payload.daily_wage==='15000'&&d.payload.work_time===raw),'other edit retains raw time');
+        const stored=snapshot(w);w=await mount({url:'https://ui.test/#/work/edit/42',offline:true,storage:stored,job:row});
+        assert.equal(clock('勤務開始時間').value,'');assert.equal(clock('勤務終了時間').value,'');
+        assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].payload.work_time,raw);
+        await inputTime('勤務開始時間','09:15');assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].payload.work_time,null);
+        await inputTime('勤務終了時間','17:45');await until(()=>w.qaDrafts.listDeviceDrafts(owner)[0].payload.work_time==='9:15〜17:45','explicit time saved');
+        await inputTime('勤務終了時間','');assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].payload.work_time,null);
+      }
+    });
     const fullRow={...jobInputSample(),id:'00000000-0000-4000-8000-000000000044',job_number:42,farmer_id:owner,status:'draft',draft_step_id:'review'};
     const expected={...fullRow,date_label:new Date().getFullYear()===2026 ? fullRow.date_label : '2026/12/1（火） 〜 2026/12/5（土）'};
     const assertInputs = actual => {
