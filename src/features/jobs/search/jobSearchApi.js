@@ -27,7 +27,6 @@ export const fetchMyJobNumbers = (farmerId) =>
 export const fetchPendingJobPreviews = () => supabase.rpc("pending_job_previews");
 
 // 自分の求人の操作（コピーして下書き／一時非公開）
-export const copyJob = (jobNumber) => supabase.rpc("copy_job", { p_job_number: jobNumber });
 export const unpublishJob = (jobNumber) => supabase.rpc("unpublish_job", { p_job_number: jobNumber });
 
 // ── 募集主（求人詳細の農家プロフィール・過去の求人）─────

@@ -48,7 +48,6 @@ export const fetchMyJobContext = (jobNumber, farmerId) =>
 
 // ── 求人の操作（一時非公開・削除・コピー）───────────────
 export const unpublishJob = (jobNumber) => supabase.rpc("unpublish_job", { p_job_number: jobNumber });
-export const copyJob = (jobNumber) => supabase.rpc("copy_job", { p_job_number: jobNumber });
 // 削除できるのは下書きだけ（タップ側の判定＋DBの trg_block_delete_past_job が二重の壁）
 export const deleteMyJob = (jobNumber, farmerId) =>
   supabase.from("jobs").delete().eq("job_number", jobNumber).eq("farmer_id", farmerId);

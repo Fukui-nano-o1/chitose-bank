@@ -9,7 +9,7 @@
 // ★コピーの入口を新しく作る時は必ずこの関数を使う（自前で copy_job を撃たない）。
 import { supabase } from "./supabase";
 import { fbError, fbSuccess } from "./feedback";
-import { describeRpcOutage } from "./rpcOutage";
+import { copyJobRecord } from "./copyJobRecord";
 
 let inFlight = false;
 
@@ -42,18 +42,7 @@ export async function copyJobToEdit(jobNumber, opts = {}) {
   inFlight = true;
   const hideVeil = showBusyVeil("コピーしています…");
   try {
-    const { data, error, status } = await supabase.rpc("copy_job", { p_job_number: jobNumber });
-    if (error || !data?.ok) {
-      fbError();
-      // サーバーが応答しなかった型（5xx／statement timeout／通信切れ）は正確な文言で（2026-09-08）。
-      // ★応答が届かなかった時は「コピーされていない」と言い切らない＝copy_job は冪等でないため
-      const outage = describeRpcOutage(error, status, {
-        notDone: "求人はコピーされていません",
-        unknown: "コピーされたかどうかは確認できていません。作成中の一覧を確かめてから",
-      });
-      alert(outage || ("コピーに失敗しました：" + (data?.reason || error?.message || "不明")));
-      return { ok: false };
-    }
+    const { data, intent, acknowledge } = await copyJobRecord(supabase, jobNumber, opts);
     try {
       if (data.job) {
         // ★受け渡す行は copy_job が返したDBの行【そのもの】（2026-09-23）。ここに離した日を重ねると、
@@ -61,17 +50,22 @@ export async function copyJobToEdit(jobNumber, opts = {}) {
         //   conflict になって詰まっていた（DRAFT_REQUIRES_REVIEW）。日は別の鍵で渡し、
         //   編集フローが画面の入力（フォーム）にだけ入れる＝DBの下書きは日程なしのまま・保存で入る
         sessionStorage.setItem("cb_editJobPrefill", JSON.stringify(data.job));
-        if (opts.presetDates) sessionStorage.setItem("cb_editJobPresetDates", JSON.stringify({ job_number: data.job_number, ...opts.presetDates }));
+        if (intent.presetDates && data.copy_unchanged) sessionStorage.setItem("cb_editJobPresetDates", JSON.stringify({ job_number: data.job_number, ...intent.presetDates }));
         else sessionStorage.removeItem("cb_editJobPresetDates");
       }
-    } catch {}
+    } catch { throw new Error("コピーは確認できましたが、編集画面へ内容を渡せません。端末の保存領域を確認し、同じコピーボタンで再確認してください。"); }
     const notices = [];
-    if (data.dates_cleared && !opts.quietDates) notices.push("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
-    if (data.video_reconfirmation_required) notices.push("作業動画のURLを引き継ぎました。掲載前に「作業動画」で、この求人への掲載同意を確認してください。");
+    if (!data.copy_unchanged) notices.push("前回のコピー先を確認しました。その後に編集された内容を開きます。");
+    if (data.copy_unchanged && data.dates_cleared && !intent.quietDates) notices.push("コピーしました。作業日程は引き継がないため空になっています。確認ページの「日程」から新しい日を選んでください。");
+    if (data.copy_unchanged && data.video_reconfirmation_required) notices.push("作業動画のURLを引き継ぎました。掲載前に「作業動画」で、この求人への掲載同意を確認してください。");
     if (notices.length) alert(notices.join("\n"));
     fbSuccess();
     window.location.hash = "/work/edit/" + data.job_number; // 新しい下書きを編集フローで開く
+    await acknowledge();
     return { ok: true, jobNumber: data.job_number };
+  } catch (e) {
+    fbError(); alert(e?.message || "コピー結果を確認できません。同じコピーボタンで結果を確認してください。");
+    return { ok: false };
   } finally {
     hideVeil();
     inFlight = false;

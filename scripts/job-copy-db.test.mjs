@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
+import {randomUUID} from 'node:crypto';
 import {JOB_COPY_POLICY,JOB_DRAFT_FIELDS} from '../src/lib/jobInputFields.js';
 import {jobInputSample} from './fixtures/job-input.js';
 const owner='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
@@ -74,6 +75,35 @@ test('copy preserves all input, resets dates and requires fresh video consent',a
       await db.exec('reset role');
       const p=(await db.query("select proconfig,has_function_privilege('anon',oid,'execute') anon,has_function_privilege('authenticated',oid,'execute') auth from pg_proc where oid='public.copy_job(integer)'::regprocedure")).rows[0];
       assert.ok(p.proconfig.includes('search_path=""'));assert.equal(p.anon,false);assert.equal(p.auth,true);
+    });
+    await db.exec('reset role');
+    await db.exec(await sql('../supabase/migrations/20261018150103_job_copy_idempotent_request.sql'));
+    const once=async(id,n=seed,user=owner)=>(await db.query('select public.copy_my_job_once($1,$2,$3) r',[user,id,n])).rows[0].r;
+    const count=async()=>(await db.query('select count(*)::int n from public.jobs')).rows[0].n;
+    await login(owner);let operation,receipt;
+    await t.test('copy request replay keeps one target, with the existing complete copy policy',async()=>{
+      const before=await count();operation=randomUUID();receipt=await once(operation);assert.equal(receipt.ok,true);assert.equal(receipt.owner,owner);assert.equal(receipt.request_id,operation);assert.equal(receipt.job.place_change_scope,sample.place_change_scope);
+      const retry=await once(operation);assert.equal(retry.job_number,receipt.job_number);assert.equal(retry.replayed,true);assert.equal(retry.copy_unchanged,true);assert.equal(await count(),before+1);
+      assert.equal((await once(operation,seed+999)).reason,'request_mismatch');
+    });
+    await t.test('edited or deleted copy is reconciled without creating a replacement',async()=>{
+      await db.exec('reset role');await db.query("update public.jobs set notes='edited by another screen' where id=$1",[receipt.job.id]);await login(owner);
+      const before=await count(),retry=await once(operation);assert.equal(retry.job.notes,'edited by another screen');assert.equal(retry.copy_unchanged,false);assert.equal(await count(),before);
+      await db.exec('reset role');await db.query('delete from public.jobs where id=$1',[receipt.job.id]);await login(owner);
+      assert.equal((await once(operation)).reason,'copy_deleted');assert.equal(await count(),before-1);
+    });
+    await t.test('receipt refusal rolls back the copied job and allows safe retry',async()=>{
+      await db.exec('reset role');await db.exec(`create function public.qa_copy_receipt_failure() returns trigger language plpgsql as $$begin
+        if current_setting('qa.copy_fail',true)='yes' then raise exception 'receipt failure';end if;return new;end$$;
+        create trigger qa_copy_receipt_failure before insert on private.job_copy_requests for each row execute function public.qa_copy_receipt_failure();`);
+      await login(owner);const before=await count(),id=randomUUID();await db.query("select set_config('qa.copy_fail','yes',false)");assert.equal((await once(id)).reason,'copy_rejected');assert.equal(await count(),before);
+      await db.query("select set_config('qa.copy_fail','no',false)");assert.equal((await once(id)).ok,true);assert.equal(await count(),before+1);
+    });
+    await t.test('owner guard and ledger access protect replays; old non-idempotent RPC is closed',async()=>{
+      await db.exec('reset role');await db.exec(await sql('../supabase/migrations/20261018150636_retire_non_idempotent_job_copy.sql'));await login(owner);
+      await assert.rejects(call(seed),/permission denied/);await assert.rejects(db.query('select * from private.job_copy_requests'),/permission denied/);
+      assert.equal((await once(randomUUID(),seed,other)).reason,'not_logged_in');await login(other);assert.equal((await once(operation,seed,other)).reason,'request_mismatch');assert.equal((await once(randomUUID(),seed,other)).reason,'not_yours');
+      await login('');assert.equal((await once(randomUUID())).reason,'not_logged_in');await db.exec('set role anon');await assert.rejects(once(randomUUID()),/permission denied/);
     });
   } finally {await db.close();}
 });
