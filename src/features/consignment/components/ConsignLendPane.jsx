@@ -1,5 +1,6 @@
 // 貸与・提供できるものの登録簿（委託者単位）。第2次構造改革2026-08-17で分離・中身は不変。
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { saveConsignmentAux } from "../consignmentAuxRecord";
 import { supabase } from "../../../lib/supabase";
 import { CONSIGN_LEND_KINDS, CONSIGN_LEND_PH, normalizeLendItems } from "../model";
 
@@ -9,40 +10,42 @@ import { CONSIGN_LEND_KINDS, CONSIGN_LEND_PH, normalizeLendItems } from "../mode
 // 保存形は [{k:区分, n:名前}]。旧データ（文字列の配列）は読み込み時に {k:"", n:文字列} へ正規化。
 // 案件側は呼び出し（選択）＋掲載時に写し（spec.facility_lend）を凍結する
 // 委託の型（定数・純関数） → features/consignment/model.js へ移設（2026-08-17）
-export function ConsignLendPane({ consignor, onSaved }) {
+export function ConsignLendPane({ consignor, onSaved, ownerId, ready=true, onRetry }) {
   const items = normalizeLendItems(((consignor || {}).consignor_data || {}).cmn_lend_items);
   const [kind, setKind] = useState("");
   const [input, setInput] = useState("");
   const [lBusy, setLBusy] = useState(false);
-  const persist = async (next) => {
-    if (lBusy) return;
-    setLBusy(true);
+  const lock=useRef(false),active=useRef(true);
+  useEffect(()=>{active.current=true;return()=>{active.current=false;};},[]);
+  const persist = async (next, clearInput=false) => {
+    if (lock.current) return;
+    lock.current=true;setLBusy(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setLBusy(false); return; }
-      const merged = { ...((consignor && consignor.consignor_data) || {}), cmn_lend_items: next };
-      const { error } = await supabase.from("consignment_profiles").upsert({
-        auth_id: session.user.id, consignor_data: merged, updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
-      if (error) alert("保存に失敗しました：" + error.message);
-      else onSaved({ ...(consignor || {}), consignor_data: merged });
-    } catch { alert("保存に失敗しました。"); }
-    setLBusy(false);
+      const result=await saveConsignmentAux(supabase,{owner:ownerId,operation:"lend",target:ownerId,
+        expected:consignor?.consignor_data?.cmn_lend_items??null,input:{items:next}});
+      if(!active.current)return;
+      onSaved(result.row);
+      if(result.changed)alert("前回の保存を確認しました。今回の変更はまだ保存していません。");
+      else if(clearInput)setInput("");
+      await result.acknowledge();
+    } catch(e) { if(active.current)alert(e.message||"保存できません。入力は残しています。"); }
+    finally{lock.current=false;setLBusy(false);}
   };
   const add = () => {
     // 「・」は案件側の区切り文字ので名前には使わせない（スペースに置換）
     const v = input.replace(/・/g, " ").trim();
     if (!v || !kind) return;
     if (items.some(x => x.n === v)) { setInput(""); return; }
-    persist([...items, { k: kind, n: v }]); setInput("");
+    persist([...items, { k: kind, n: v }],true);
   };
   const del = (i) => persist(items.filter((_, k) => k !== i));
   // 区分ごとに並べる（未分類＝旧データは最後に「その他」で出す）
   const groups = [...CONSIGN_LEND_KINDS.map(k => [k, items.map((it, i) => ({ ...it, i })).filter(x => x.k === k)]),
     ["その他", items.map((it, i) => ({ ...it, i })).filter(x => !CONSIGN_LEND_KINDS.includes(x.k))]]
     .filter(([, list]) => list.length);
+  if(!ready)return <p role="status">貸与機材の読込を確認できていません。<button onClick={onRetry}>もう一度読み込む</button></p>;
   return (
-    <div>
+    <fieldset disabled={lBusy || !ownerId} style={{border:0,padding:0,margin:0,minWidth:0}}>
       <h2 className="f-sans" style={{ fontSize:22, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>貸与・提供できるもの</h2>
       <p className="f-sans" style={{ fontSize:13.2, color:"#999999", margin:"0 0 16px" }}>道具・機械・設備・消耗品を登録します。ここで登録した内容が、委託の作成ページと仕様書に自動で反映されます。</p>
       {/* まず区分を選ぶ（2026-08-03たきと指示）→選ぶまで名前は入力できない */}
@@ -74,6 +77,6 @@ export function ConsignLendPane({ consignor, onSaved }) {
           ))}
         </div>
       ))}
-    </div>
+    </fieldset>
   );
 }
