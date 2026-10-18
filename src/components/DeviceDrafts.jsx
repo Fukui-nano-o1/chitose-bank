@@ -20,6 +20,7 @@ export function DeviceDrafts({ owner }) {
       <strong>{[d.payload.crop, d.payload.task].filter(Boolean).join("・") || "作成中の求人"}{d.jobNumber ? ` #${d.jobNumber}` : ""}</strong>
       <p role="status" style={{ fontSize:13, lineHeight:1.8 }}>
         {d.state === "conflict" ? "別の場所でこの求人が更新されたため、自動では送りませんでした。入力はこの端末に残っています。「続きを入力」から保存すると、いまの内容で保存し直します。コピーして新しい求人にすることもできます。"
+          : d.state === "publishing" ? "掲載結果の確認待ちです。掲載と確認記録がそろったかを再確認します。入力はこの端末に残っています。「続きを入力」から確認画面を開いてください。"
           : d.state === "blocked" ? "サーバーに保存できませんでした。入力はこの端末に残っています。「続きを入力」からもう一度保存できます。必要ならコピーして新しく作成してください。"
           : d.state === "pending" ? `この端末に保存済み・同期待ち。${d.pending?.open ? "公開中の求人にはまだ反映されていません。" : "まだ掲載されていません。"}通信が戻るか、次にこの画面を開いたときに送信します。`
           : "この端末に保存済み。続きを入力できます。"}
