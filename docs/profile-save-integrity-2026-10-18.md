@@ -36,3 +36,8 @@ CI成功後、追加RPCを先に適用・権限と定義を確認し、それか
 次順位: 掲載と確認記録の一体保存（未反映PR #10）、コピー項目の欠落（A16）、委託情報（A11）、ヘルプ画像（A12）。満額支払条件（A13）は仕様判断を要する。
 
 参考: [Supabase Database Functions](https://supabase.com/docs/guides/database/functions)、[RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)（2026-10-18確認）。同日のchangelog確認では9/25の拡張機能変更と10/12のTLS変更を確認し、今回の関数が新たに依存する機能は含まれない。
+## 追加の本人照合（2026-10-18）
+
+3引数RPCでは、画面のセッション確認後、HTTP送信までにログイン先が切り替わり、両者の比較値が一致すると、新アカウントの同じ項目を旧画面の入力で更新できることを実SQLで再現した。RLSは新アカウント自身の更新として許可するため、RLSだけでは編集元の利用者を識別できない。
+
+4引数版 `save_my_profile_fields(text,jsonb,jsonb,uuid)` に編集時の利用者ID `p_owner` を必須化し、DBで `auth.uid()` と照合する。旧3引数版の外部実行権限を閉じる。4引数版もinvokerで、許可項目、比較規則、公開トリガー、RLSは維持する。旧画面では再読込が必要。実SQLによる修正前再現・修正後拒否、旧RPC拒否、共通クライアントの送信直前切替を検証する。

@@ -39,6 +39,8 @@ export function profileFixture(options = {}) {
   }
   const client={from:t=>new Query(t),auth:{getSession:async()=>({data:{session:state.userId?{user:{id:state.userId}}:null},error:null})},rpc:async(name,args)=>{
     if(name!=='save_my_profile_fields')return {data:0,error:null};
+    await options.beforeRPC?.(state,args);
+    if(args.p_owner!==state.userId)return {data:{ok:false,reason:'not_logged_in'},error:null};
     const q=new Query(args.p_table);
     if(args.p_expected===null)q.insert({auth_id:state.userId,...args.p_patch});
     else {q.update(args.p_patch).eq('auth_id',state.userId);for(const [k,v] of Object.entries(args.p_expected))q.eq(k,v&&typeof v==='object'?JSON.stringify(v):v);}
