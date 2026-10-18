@@ -25,6 +25,7 @@ import { ConsignStepper } from "./components/ConsignStepper";
 import { ConsignFieldsPane } from "./components/ConsignFieldsPane";
 import { ConsignLendPane } from "./components/ConsignLendPane";
 import { ConsignorInfoEdit } from "./editor/ConsignorInfoEdit";
+import { consignmentOwner, readConsignmentPending, saveConsignmentRecord } from "./consignmentRecord";
 import { CONSIGN_SPRIGS, CONSIGN_CLUSTER_BASES, CONSIGN_GRASS_SCALE, makeConsignGrass,
   CONSIGN_VINES, CONSIGN_CORNER_VINE, makeConsignVines, computeSky } from "./entranceArt";
 
@@ -233,6 +234,16 @@ export function ConsignmentRoom() {
   const [status, setStatus] = useState("draft");
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveOwner, setSaveOwner] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const restoredOperation = useRef(null);
+  useEffect(() => {
+    let active = true;
+    consignmentOwner(supabase).then(id => { if (active) setSaveOwner(id); })
+      .catch(e => { if (active) setLoadError(e.message); });
+    return () => { active = false; };
+  }, []);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [showDeadlineCal, setShowDeadlineCal] = useState(false);
   // 新規ウィザードの現在の頁＝CONSIGN_WIZ_PAGES の添字（0=全体像／扉／問い・cTab==="new"時のみ有効）。
@@ -263,6 +274,7 @@ export function ConsignmentRoom() {
       supabase.from("consignment_deals").select("*").order("created_at", { ascending: false }),
       supabase.from("consignment_progress").select("deal_id,hours,yield_boxes,work_date"),
     ]);
+    if (dl.error) { setLoadError("案件を読み込めません。保存済みの情報は消していません。通信を確認して一覧を開き直してください。"); return []; }
     setDeals(dl.data || []); setCache("consign:deals", dl.data || []);
     const agg = {};
     (pr.data || []).forEach(r => { const a = agg[r.deal_id] || { hours: 0, boxes: 0, days: new Set() }; a.hours += Number(r.hours || 0); a.boxes += Number(r.yield_boxes || 0); if (r.work_date) a.days.add(r.work_date); agg[r.deal_id] = a; });
@@ -353,27 +365,6 @@ export function ConsignmentRoom() {
         }
       }
       if (touched) loadFields();
-    } catch {}
-  };
-  // 掲載・保存の成功時に、入力中の圃場情報を登録簿へ自動保存（呼び名が空なら何もしない）
-  const saveFieldRegistry = async (sp) => {
-    const name = (sp.field_name || "").trim();
-    if (!name) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      // 既存の圃場＝正式住所（region/zip/番地・圃場ペインで登録）を保持し、面積・設備だけ更新する。
-      // ウィザードの地域欄は掲載用の粗い表記ので、正式住所を上書きしない（2026-08-02たきと指示）
-      const existing = fields.find(x => x.name === name);
-      const exd = (existing && existing.data) || {};
-      await supabase.from("consignment_fields").upsert({
-        auth_id: session.user.id, name,
-        region: existing ? existing.region : (sp.region || "").trim(),
-        area_a: String(sp.area_a || "").trim(),
-        data: { ...exd },
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id,name" });
-      loadFields();
     } catch {}
   };
   // プロフィールの2面（委託者情報⇄委託圃場）：スワイプと上部チップで切替
@@ -471,19 +462,6 @@ export function ConsignmentRoom() {
     setPhotoUploading(false);
   };
   const removePhoto = (i) => setSpec(p => ({ ...p, photos: (p.photos || []).filter((_, k) => k !== i) }));
-  // 初回掲載で入力した標準取引条件を委託者情報(consignor_data)へ保存（空欄は書かない・既存値は上書きしない）
-  const saveStdTerms = async () => {
-    const entries = Object.entries(stdTerms).filter(([, v]) => (v || "").trim());
-    if (!entries.length) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const merged = { ...((consignor && consignor.consignor_data) || {}) };
-      entries.forEach(([k, v]) => { if (!(merged[k] || "").trim()) merged[k] = v.trim(); });
-      await supabase.from("consignment_profiles").upsert({ auth_id: session.user.id, consignor_data: merged, updated_at: new Date().toISOString() }, { onConflict: "auth_id" });
-      setConsignor(c => c ? { ...c, consignor_data: merged } : { consignor_data: merged });
-    } catch {}
-  };
   // 履行期限のカレンダー選択（1回目=開始／2回目=終了／開始より前=選び直し）。
   // raw(date_start/date_end)とラベル(deadline)を同時に更新
   const onDeadlineSelect = (dt) => {
@@ -503,29 +481,26 @@ export function ConsignmentRoom() {
     await loadDeals();
   };
   const save = async () => {
-    if (saving) return false;
+    if (savingRef.current || photoUploading) return false;
+    if (!saveOwner || (cTab === "deal" && !curDeal)) { alert("保存済みの案件を読み込んでから保存してください。"); return false; }
     if ((spec.photos || []).length < 3) { alert("掲載には写真が最低3枚必要です。"); return false; }
-    setSaving(true);
+    savingRef.current = true; setSaving(true);
     try {
-      const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null, updated_at: new Date().toISOString() };
-      if (editId) {
-        const { error } = await supabase.from("consignment_deals").update(payload).eq("id", editId);
-        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return false; }
-        await refreshCur(editId);
-      } else {
-        const { data, error } = await supabase.from("consignment_deals").insert(payload).select("*").single();
-        if (error) { alert("保存に失敗しました：" + error.message); setSaving(false); return false; }
-        if (data) {
-          setEditId(data.id); setCurDeal(data);
-          // URLを /new → /deal/{id} に置換（pushしない＝スワイプ/戻る1回で一覧へ帰れるまま）
-          try { window.history.replaceState(null, "", "#/admin/consignment/deal/" + data.id); } catch {}
-        }
-        await loadDeals();
+      const payload = { spec: { ...spec, crop: CONSIGN_CROP, fixed_clauses: CONSIGN_FIXED_CLAUSES }, status, notes: memo.trim() || null };
+      const result = await saveConsignmentRecord(supabase, { owner: saveOwner, row: curDeal, patch: payload, fields, terms: stdTerms });
+      setEditId(result.row.id); setCurDeal(result.row);
+      if (result.profile) { setConsignor(result.profile); setCache("consign:consignor", result.profile); }
+      if (result.field) setFields(prev => [result.field, ...prev.filter(f => f.id !== result.field.id)]);
+      setDeals(prev => [result.row, ...prev.filter(d => d.id !== result.row.id)]);
+      try { window.history.replaceState(null, "", "#/admin/consignment/deal/" + result.row.id); } catch {}
+      if (result.changed) {
+        alert("前回の保存完了を確認しました。その後に変更した入力はまだ保存していません。内容を確認して、もう一度保存してください。");
+        return false;
       }
-    } catch { alert("保存に失敗しました。"); setSaving(false); return false; }
-    saveFieldRegistry(spec); // 圃場を登録簿へ自動保存（2026-08-02たきと指示・失敗しても掲載は成立）
-    setSaving(false);
-    return true;
+      setStdTerms({}); setLoadError("");
+      return true;
+    } catch (e) { alert(e?.message || "保存結果を確認できません。入力は残しています。"); return false; }
+    finally { savingRef.current = false; setSaving(false); }
   };
   // 状態を1つ進める共通処理（合意/前金/作業中/検収/支払/完了）。パッチをupdate→現行行を取り直す
   const advance = async (patch, confirmMsg) => {
@@ -561,8 +536,8 @@ export function ConsignmentRoom() {
     await loadProgress(editId);
     setBusy(false);
   };
-  const openDealState = (d) => { setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
-  const newDealState = () => { setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(0); setCTab("new"); };
+  const openDealState = (d) => { setStdTerms({}); setSpec({ ...CONSIGN_EMPTY, ...(d.spec || {}) }); setEditId(d.id); setCurDeal(d); setStatus(d.status || "draft"); setMemo(d.notes || ""); setInspectNote(d.notes || ""); setReflection((d.spec || {}).reflection || ""); setCTab("deal"); loadProgress(d.id); };
+  const newDealState = () => { setStdTerms({}); setSpec({ ...CONSIGN_EMPTY }); setEditId(null); setCurDeal(null); setStatus("draft"); setMemo(""); setInspectNote(""); setReflection(""); setProg([]); setSummary(null); setWizStep(0); setCTab("new"); };
   const openDeal = (d) => { openDealState(d); window.location.hash = "/admin/consignment/deal/" + d.id; };
   // 新しく委託を出す：まず蔓が画面外へ→次に太陽→最後に名刺・ボックス・文言が退場→ウィザードへ（2026-07-31たきと指示）。
   // 振り付けはCSS（.consign-leaving）。動きを減らす設定の端末は演出なしで即遷移
@@ -638,6 +613,23 @@ export function ConsignmentRoom() {
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 不明な保存結果はアカウント・案件別に復元する。現在のDB行へ古い入力を結び直さない。
+  useEffect(() => {
+    if (!saveOwner || !["new", "deal"].includes(cTab)) return;
+    const route = readConsignView();
+    const scope = route.view === "deal" ? route.id : null;
+    if (route.view === "deal" && editId !== scope) return;
+    try {
+      const pending = readConsignmentPending(localStorage, saveOwner, scope);
+      if (!pending || restoredOperation.current === pending.p_request_id) return;
+      restoredOperation.current = pending.p_request_id;
+      setSpec({ ...CONSIGN_EMPTY, ...pending.p_patch.spec });
+      setStatus(pending.p_patch.status); setMemo(pending.p_patch.notes || ""); setStdTerms(pending.p_terms);
+      setCurDeal(pending.p_expected ? { ...pending.p_expected, id: pending.p_deal_id } : null);
+      setEditId(pending.p_expected ? pending.p_deal_id : null);
+      setLoadError("前回の保存結果が未確認です。入力を復元しました。保存ボタンで結果を確認できます。");
+    } catch (e) { setLoadError(e.message); }
+  }, [saveOwner, cTab, editId]);
   // 合意後にフォームを変更したか（保存済みspec vs 凍結snapshot・基本/テキスト項目で比較）
   const specKeys = [...CONSIGN_BASIC_FIELDS.map(f => f.k), ...CONSIGN_TEXT_FIELDS.map(f => f.k)];
   const pick = (o) => specKeys.reduce((a, k) => { a[k] = (o || {})[k] || ""; return a; }, {});
@@ -900,6 +892,8 @@ export function ConsignmentRoom() {
 
   return (
     <div className={"cb-consign-page fade-in" + (leaving ? " consign-leaving" : "") + (returning ? " consign-returning" : "")} style={{ maxWidth:640, margin:"0 auto", padding:"24px 16px 120px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))" }}>
+      {loadError && <p role="alert" className="f-sans">{loadError}</p>}
+      <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
       {/* 委託機能利用特約：同意後は右上の浮遊ボックスからいつでも再読できる（2026-08-02たきと指示） */}
       {termsOk && !leaving && cTab !== "contractor" && ( /* 受託面ではバナーの中に畳む（アバターと重なるため・2026-09-03） */
         <button type="button" onClick={()=>setTermsModal(true)} className="f-sans" style={{ position:"fixed", top:"calc(12px + env(safe-area-inset-top, 0px))", right:12, zIndex:60, background:"#111111", color:"#fff", border:"none", borderRadius:12, padding:"8px 12px", fontSize:12.1, fontWeight:800, cursor:"pointer", boxShadow:"0 2px 10px rgba(0,0,0,0.25)" }}>利用特約</button>
@@ -1545,7 +1539,7 @@ export function ConsignmentRoom() {
                 <button onClick={goBack} className="f-sans" style={{ background:"transparent", border:"none", padding:"10px 4px", fontSize:15.4, fontWeight:700, color:"#111111", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>戻る</button>
               )}
               {isLast ? (
-                <button onClick={async ()=>{ const ok = await save(); if (ok) { await saveStdTerms(); window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ padding:"13px 24px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1, minWidth:150 }}>{saving ? <>掲載中<Dots /></> : "掲載する"}</button>
+                <button onClick={async ()=>{ const ok = await save(); if (ok) { window.location.hash = "/admin/consignment"; } }} disabled={saving} className="f-sans" style={{ padding:"13px 24px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", opacity: saving ? 0.6 : 1, minWidth:150 }}>{saving ? <>掲載中<Dots /></> : "掲載する"}</button>
               ) : (
                 <button onClick={goNext} className="f-sans" style={{ padding:"13px 28px", fontSize:15.4, fontWeight:800, borderRadius:10, background:"#111111", color:"#fff", border:"none", cursor:"pointer", minWidth: page.kind === "overview" ? 150 : 110 }}>{page.kind === "overview" ? "はじめる" : "次へ"}</button>
               )}
@@ -1841,6 +1835,7 @@ export function ConsignmentRoom() {
         </div>
         );
       })()}
+      </fieldset>
     </div>
   );
 }
