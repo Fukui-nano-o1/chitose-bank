@@ -1,9 +1,11 @@
 // 📋 経験・できること（自己申告）専用ページ（#/experience・2026-07-25たきと指示）：
 // 働き手プロフィール編集のボックスモーダルから独立ページへ（保険の準備 #/insurance と同型）。
-// worker_profiles の experience_entries / self_declared / experienced_tasks を単独upsert（onConflictで当該列のみ更新＝他項目は温存）。
+// worker_profiles の experience_entries / self_declared / experienced_tasks を本人用RPCで条件付き保存（当該列だけ更新し、他項目は温存）。
 import { NavIconInline } from "./NavIcons";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
+import { ProfileReadError } from "./ProfileReadError";
 import { supabase } from "../lib/supabase";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, CROP_OPTIONS, ROLE_ORANGE } from "../lib/utils";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -73,41 +75,46 @@ export function WorkerExperiencePage() {
   const [selfDeclared, setSelfDeclared] = useState([]);   // できること・資格（key配列）
   const [experiencedTasks, setExperiencedTasks] = useState([]); // 旧「経験のある作業」＝データがある人だけ残置表示
   const [loading, setLoading] = useState(true);
+  const recordRef = useRef(null), saveBusyRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
+    let live = true;
+    setLoading(true); setLoadError(false); recordRef.current = null;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("worker_profiles")
-          .select("experience_entries,self_declared,experienced_tasks").eq("auth_id", session.user.id).maybeSingle();
+        const record = await readProfileRecord(supabase, "worker_profiles");
+        if (!live) return;
+        recordRef.current = record;
+        const data = record.row;
         setExpEntries(Array.isArray(data?.experience_entries) ? data.experience_entries : []);
         setSelfDeclared(Array.isArray(data?.self_declared) ? data.self_declared : []);
         setExperiencedTasks(Array.isArray(data?.experienced_tasks) ? data.experienced_tasks : []);
-      } catch {}
-      setLoading(false);
+      } catch { if (live) setLoadError(true); }
+      finally { if (live) setLoading(false); }
     })();
-  }, []);
+    return () => { live = false; };
+  }, [loadAttempt]);
   const save = async () => {
-    if (saving) return;
+    if (saveBusyRef.current || loading || loadError) return;
+    saveBusyRef.current = true;
     setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setSaving(false); return; }
-      const { error } = await supabase.from("worker_profiles").upsert({
-        auth_id: session.user.id,
+      const record = await saveProfileRecord(supabase, recordRef.current, {
         experience_entries: expEntries.map(e => ({ crop:(e.crop||"").trim(), task:e.task||"", duration:e.duration||"" })).filter(e => e.crop).slice(0, 5),
-        self_declared: selfDeclared,
-        experienced_tasks: experiencedTasks,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
+        self_declared: selfDeclared, experienced_tasks: experiencedTasks,
+      });
+      recordRef.current = record;
       setSaving(false);
-      if (error) { alert("保存に失敗しました：" + error.message); return; }
       setSaved(true); setTimeout(()=>setSaved(false), 2000);
-    } catch { setSaving(false); alert("保存に失敗しました"); }
+    } catch (e) { alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    finally { saveBusyRef.current = false; setSaving(false); }
   };
+  if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   return (
+    <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     /* cb-exp-page＝このページ表示中は下部バー・浮遊☰・フッターを隠す（appStyles・2026-08-03たきと指示） */
     <div className="help-edge cb-exp-page" style={{ maxWidth:560, marginLeft:"auto", marginRight:"auto", padding:"24px 20px 96px" }}>
       {/* ← 戻る＝左下の浮遊ボックス（2026-08-03たきと指示。下部バー・☰を消したページの戻り道） */}
@@ -145,5 +152,6 @@ export function WorkerExperiencePage() {
         {saved && <p className="f-sans" style={{ fontSize:12, color:ROLE_ORANGE, textAlign:"center", marginTop:12 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>}
       </>)}
     </div>
+    )}</fieldset>
   );
 }

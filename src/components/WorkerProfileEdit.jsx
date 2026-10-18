@@ -2,6 +2,9 @@
 // 専用定数（PR_PROMPTS・Q&A20問・興味/言語/作業強度の選択肢）も同居。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
+import { workerProfileChange } from "../lib/profileInput";
+import { ProfileReadError } from "./ProfileReadError";
 import { saveProfileAvatar } from "../lib/profileAvatar";
 import { promotePendingApplications } from "../lib/workerReady";
 import { WORKER_DECLARATIONS, TASK_OPTIONS, WORKER_STYLE_QUESTIONS, ROLE_ORANGE } from "../lib/utils"; // TASK_OPTIONS＝経験・資格ボックスの「その他の作業」で使用
@@ -125,6 +128,10 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   const [uploading, setUploading] = useState(false);
   const avatarBusyRef = useRef(false);
   const [loading, setLoading] = useState(true);
+  const recordRef = useRef(null);
+  const saveBusyRef = useRef(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   // 直前の保存で自由記述を書き換えたか（完了メッセージの出し分け）。名前の InReview は審査時代の名残で、
@@ -168,32 +175,20 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     setRevTargets(Array.isArray(data.pr_revision_targets) ? data.pr_revision_targets : []);
   };
   useEffect(() => {
-    // ① 即時復元：マイページが取ってある自分の全列キャッシュ（hub:wMini＝viewCache／wMini＝snapshot・
-    //   本人スコープ・ログアウトで消える）からその場で描く＝完全終了からでも骨（スケルトン）を見せない。
-    //   表示専用の使い方（2026-08-02規則）＝正しさは下の②ネット取得が担保。
-    //   ★審査系の控え（approvedRef/pendingRef）はキャッシュ由来でも、save()が保存直前に
-    //     取り直す既存の守り（2026-08-14）があるので古い控えのまま審査に出ることはない
-    let hydrated = false;
-    try {
-      const cached = getCache("hub:wMini") ?? snapGet("wMini");
-      if (cached && typeof cached === "object") { applyRow(cached); hydrated = true; setLoading(false); }
-    } catch {}
-    // ② ネット取得（従来どおり・正しさの担保）
+    let live = true;
+    setLoading(true); setLoadError(false); recordRef.current = null;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setLoading(false); return; }
-        const { data } = await supabase.from("worker_profiles").select("*").eq("auth_id", session.user.id).maybeSingle();
-        if (data) {
-          // キャッシュで復元済みかつ項目ページを開いた後なら上書きしない（書きかけを守る）
-          if (!(hydrated && editBoxOpenedRef.current)) applyRow(data);
-          // 次回の即時復元のために最新を写す
-          try { setCache("hub:wMini", data); snapSet("wMini", data); } catch {}
-        }
-      } catch {}
-      setLoading(false);
+        const record = await readProfileRecord(supabase, "worker_profiles");
+        if (!live) return;
+        recordRef.current = record;
+        applyRow(record.row || {});
+        try { if (record.row) { setCache("hub:wMini", record.row); snapSet("wMini", record.row); } } catch {}
+      } catch { if (live) setLoadError(true); }
+      finally { if (live) setLoading(false); }
     })();
-  }, []);
+    return () => { live = false; };
+  }, [loadAttempt]);
   // 趣味は数の上限なし（2026-08-28たきと裁定「趣味は無制限しておこう。問題があれば規制する」＝
   // 旧「最大3つ」を撤回。CLAUDE.mdの許可リスト9番の記載もこれに合わせて更新すること）。
   // ★上限を戻すときは、ここと下の項目ページの2箇所だけ直せばよい（保存はそのまま配列を入れる）
@@ -241,7 +236,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
   };
   const handleAvatar = async e => {
     const input = e.target, file = input.files?.[0];
-    if (!file || avatarBusyRef.current || saving) return;
+    if (!file || avatarBusyRef.current || saveBusyRef.current || saving) return;
     avatarBusyRef.current = true;
     setUploading(true);
     try {
@@ -264,7 +259,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     finally { avatarBusyRef.current = false; setUploading(false); input.value = ""; }
   };
   const handleDeleteAvatar = async () => {
-    if (!avatarUrl || avatarBusyRef.current || saving) return;
+    if (!avatarUrl || avatarBusyRef.current || saveBusyRef.current || saving) return;
     avatarBusyRef.current = true;
     setUploading(true);
     try {
@@ -424,107 +419,44 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
     } catch {}
   };
   const save = async (stay = false) => {
-    if (saving || avatarBusyRef.current) return;
+    if (saveBusyRef.current || avatarBusyRef.current || loading || loadError) return;
     if (editBox === "avatar") { closeEditBox(); return; }
-    setSaving(true); setSaved(false);
+    saveBusyRef.current = true; setSaving(true); setSaved(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      // ★保存を無言で終わらせない（2026-08-14たきと指示「保存したら即反映」＝失敗も必ず喋らせる）。
-      // 従来はセッション切れだと何も言わずreturn＝「保存しました」も「失敗」も出ない迷子だった
-      if (!session) { setSaving(false); alert("ログインが確認できませんでした。ページを開き直して、もう一度保存してください。"); return; }
-      // 比べる土台を保存の直前に取り直す（2026-08-14たきと報告「応募するたびに自己紹介の申請がくる」）：
-      // 画面を開いたまま運営が承認すると approvedRef が古いままになり、同じ内容をもう一度
-      // 審査に出していた（承認直後は old.pending が null ので 通知トリガーの変更なしスキップも
-      // 効かず、運営に申請メールが毎回届く）。保存は稀な操作ので 1往復の追加を許容。
-      // 取得に失敗した時は手元の控えのまま進める（失敗時は上書きしない・2026-08-07規則）。
-      // 同じ壁はDB側にもある（trg_wp_review_dedupe＝承認済みと同一内容は審査に入れない）＝二重の壁
-      const freshRes = await supabase.from("worker_profiles")
-        .select("pr,pr_qa,pr_pending,pr_qa_pending,pr_submitted_at")
-        .eq("auth_id", session.user.id).maybeSingle();
-      if (!freshRes.error && freshRes.data) {
-        const f = freshRes.data;
-        approvedRef.current = { pr: f.pr || "", pr_qa: Array.isArray(f.pr_qa) ? f.pr_qa : [] };
-        pendingRef.current = { pr: f.pr_pending ?? null, pr_qa: Array.isArray(f.pr_qa_pending) ? f.pr_qa_pending : null, submitted_at: f.pr_submitted_at ?? null };
-      }
-      // 自由記述(pr/pr_qa)は運営確認後に公開。pr_pending/pr_qa_pendingに保存し、
-      // 公開版のpr/pr_qaは書かない(承認RPC/48時間cronだけが書く)。選択式項目は従来どおり即時保存
-      // 審査に出すのは「承認済みと中身が違う」時だけ（2026-07-27）。同じなら pending を空にする＝
-      // 何も変えていない保存で審査待ちに戻さない／本文を承認済みの状態へ戻した時は審査依頼が取り下がる
-      const qaKey = (arr) => JSON.stringify((Array.isArray(arr) ? arr : []).map(x => ({ q: x?.q || "", a: (x?.a || "").trim() })));
-      const oneQa = (x) => JSON.stringify({ q: x?.q || "", a: (x?.a || "").trim() });
-      const prChanged = pr.trim() !== (approvedRef.current.pr || "").trim();
-      const qaChanged = qaKey(prQa) !== qaKey(approvedRef.current.pr_qa);
-      // 空にする（消す）だけの変更は審査に出さず、その場で公開版を消す（2026-08-03たきと指示
-      // 「入力項目を空にするなら審査は必要ない」）。審査が守るのは新しく公開される文字ので、
-      // 消すだけなら見るものが無い。従来は消しても承認まで公開版が残り続けていた
-      const approvedQa = new Set((Array.isArray(approvedRef.current.pr_qa) ? approvedRef.current.pr_qa : []).map(oneQa));
-      const qaOnlyRemoved = qaChanged && prQa.every(x => approvedQa.has(oneQa(x))); // 承認済みの部分集合＝削除のみ
-      const prNeedsReview = prChanged && pr.trim() !== "";
-      const qaNeedsReview = qaChanged && !qaOnlyRemoved;
-      const inReview = prNeedsReview || qaNeedsReview;
-      const clearedFields = {};
-      if (prChanged && pr.trim() === "") clearedFields.pr = "";      // 自己紹介を消した＝即反映
-      if (qaChanged && qaOnlyRemoved) clearedFields.pr_qa = prQa;    // Q&Aを消しただけ＝即反映
-      // 審査に出す中身がいま審査中のものと同じなら、申請時刻を据え置く（2026-08-13）＝
-      // 待っている間に他の項目を直して保存しても、審査の列に並び直さない／48時間の自動公開がずれない
-      const nextPrPending = prNeedsReview ? pr.trim() : null;
-      const nextQaPending = qaNeedsReview ? prQa : null;
-      const samePending = inReview
-        && (nextPrPending ?? "") === (pendingRef.current.pr ?? "")
-        && qaKey(nextQaPending) === qaKey(pendingRef.current.pr_qa)
-        && !!pendingRef.current.submitted_at;
-      const reviewFields = inReview
-        ? { pr_pending: nextPrPending, pr_qa_pending: nextQaPending,
-            pr_submitted_at: samePending ? pendingRef.current.submitted_at : new Date().toISOString(),
-            pr_revision_targets: null } // 再提出＝修正依頼の赤帯を解除（2026-07-19）
-        : { pr_pending: null, pr_qa_pending: null, pr_submitted_at: null };
-      const { error } = await supabase.from("worker_profiles").upsert({
-        auth_id: session.user.id, nickname: nickname.trim(),
-        ...clearedFields,
-        ...reviewFields,
-        residence_city: residenceCity.trim(), transport, farm_experience: farmExperience, physical_level: physicalLevel,
+      const change = workerProfileChange(editBox, {
+        nickname: nickname.trim(), residence_city: residenceCity.trim(), transport,
+        farm_experience: farmExperience, physical_level: physicalLevel,
         work_mood: workMood || null, learning_pref: learningPref || null, work_pattern: workPattern || null,
         interests, languages, self_declared: selfDeclared,
         experience_entries: expEntries.map(e => ({ crop:(e.crop||"").trim(), task:e.task||"", duration:e.duration||"" })).filter(e => e.crop).slice(0, 5),
-        experienced_tasks: experiencedTasks,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "auth_id" });
-      setSaving(false);
-      if (!error) {
-        // 仮応募の昇格（第15弾・2026-07-30たきと指示）：保存の直後に一度だけ試す。
-        // 必須がそろっていなければDB側が not_ready を返して何も起きない＝ここでの判定は持たない。
-        // 届いたら成功ページで件数を知らせる（運営の自由記述審査は待たない）
-        const promoted = await promotePendingApplications();
-        if (promoted > 0) {
-          try { sessionStorage.setItem("cb_promoted", String(promoted)); } catch {}
-          window.location.hash = "/apply/done";
-          return;
-        }
-        // 即反映した分は「承認済みの控え」も更新する（次の保存で再び差分と見なさないため）
-        if (clearedFields.pr !== undefined) approvedRef.current.pr = "";
-        if (clearedFields.pr_qa !== undefined) approvedRef.current.pr_qa = prQa;
-        // いま審査に出ている内容の控えも更新（同じ画面で続けて保存しても列に並び直さない・2026-08-13）
-        pendingRef.current = { pr: reviewFields.pr_pending ?? null, pr_qa: reviewFields.pr_qa_pending ?? null,
-                               submitted_at: reviewFields.pr_submitted_at ?? null };
-        setSaved(true);
-        setSavedInReview(inReview);
-        if (inReview) setRevTargets([]); // 赤帯が消えるのは再提出した時だけ（本文を直さない保存では残す）
-        if (typeof onAvatarChange === "function") onAvatarChange({ url: avatarUrl, name: nickname.trim() });
-        if (stay === true) {
-          // 保存→次の未入力ボックスへ（全て入力済みなら閉じる・2026-07-16）。
-          // BOX_ORDER外のボックス（保険=ホームから開く移植分）は次へ送らず閉じる
-          const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
-          if (nxt) replaceEditBox(nxt); else closeEditBox();
-          setTimeout(() => setSaved(false), 2200);
-        }
-        else setTimeout(() => { setSaved(false); if (typeof onDone === "function") onDone(); }, 2200);
+        experienced_tasks: experiencedTasks, pr: pr.trim(), pr_qa: prQa,
+      }, recordRef.current?.row);
+      const record = await saveProfileRecord(supabase, recordRef.current, change.patch, change.options);
+      recordRef.current = record;
+      applyRow(record.row || {});
+      try { setCache("hub:wMini", record.row); snapSet("wMini", record.row); } catch {}
+      setSavedInReview(!!(record.row?.pr_pending || record.row?.pr_qa_pending));
+      if (typeof onAvatarChange === "function") onAvatarChange({ url: record.row?.avatar_url || "", name: record.row?.nickname || "" });
+      let promoted = 0;
+      try { promoted = await promotePendingApplications(); } catch {}
+      if (promoted > 0) {
+        try { sessionStorage.setItem("cb_promoted", String(promoted)); } catch {}
+        window.location.hash = "/apply/done"; return;
       }
-      else { logSaveError(error.message); alert("保存に失敗しました：" + error.message); }
-    } catch (e) { setSaving(false); logSaveError(e?.message || e); alert("保存に失敗しました。"); }
+      setSaved(true);
+      if (stay === true) {
+        const nxt = BOX_ORDER.includes(editBox) ? nextUnfilledBox(editBox) : null;
+        if (nxt) replaceEditBox(nxt); else closeEditBox();
+        setTimeout(() => setSaved(false), 2200);
+      } else setTimeout(() => { setSaved(false); onDone?.(); }, 2200);
+    } catch (e) { logSaveError(e?.message || e); alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    finally { saveBusyRef.current = false; setSaving(false); }
   };
+  if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）
   if (loading) return <AutoSkeleton fallbackHeight={92} fallbackCount={5} />;
   return (
+    <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     <div style={{ marginTop:32, paddingTop:32, borderTop:"1px solid #EEE" }}>
       {/* 雇い手プロフィール編集と同じ構造：見出し・説明文・ページ全体の保存は廃止（2026-07-25／2026-08-03）。
           プレビューは運営チャットと同じ浮遊ボックスへ移植（2026-08-03たきと指示）＝下部に固定・
@@ -914,7 +846,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
       </div>
       )}
 
-      {/* モーダルフッター：保存する（全項目upsert）＋自由記述の注記。
+      {/* モーダルフッター：保存する（この項目の条件付き保存）＋自由記述の注記。
           緊急連絡先だけは別テーブル（emergency_contacts）で、ボックス内の「保存する」がDBに書く。
           両方出すと同じ文言のボタンが2つ並ぶので、ここでは出さない（2026-08-05たきと指示） */}
       {editBox !== "emergency" && (
@@ -941,6 +873,7 @@ export function WorkerProfileEdit({ me, onDone, onCancel, onAvatarChange }) {
         </div>
       )}
     </div>
+    )}</fieldset>
   );
 }
 
