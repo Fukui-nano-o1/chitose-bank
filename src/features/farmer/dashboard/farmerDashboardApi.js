@@ -79,7 +79,6 @@ export const submitFarmerFinalReviewRpc = (applicationId, r) =>
     p_traits: r.traits || [],
     p_favorite: !!r.favorite,
   });
-export const insertAttendanceEvent = (row) => supabase.from('attendance_events').insert(row);
 
 // ── 働き手の情報（承認済み列だけ返すRPC窓口を通す）───────
 export const fetchWorkerProfileForFarmer = (workerId) =>

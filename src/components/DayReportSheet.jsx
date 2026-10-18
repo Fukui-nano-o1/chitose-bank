@@ -25,8 +25,8 @@
 //   textarea のフォーカス・入力中の下書きが消える（LandingFlowのフォーカス消失バグと同族）。
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { supabase } from "../lib/supabase";
-import { fbSuccess, fbError } from "../lib/feedback";
+import { useAttendanceRecord } from "../lib/useAttendanceRecord";
+import { fbSuccess } from "../lib/feedback";
 import { dayReportKinds, ymdLocal } from "../lib/utils";
 import { NavIcon } from "./NavIcons";
 import { Dots } from "./ui";
@@ -38,16 +38,17 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
   const [kind, setKind] = useState("");
   const [detail, setDetail] = useState("");   // 内訳（選択式・kindにsubがある時だけ必須）
   const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [page, setPage] = useState(0);        // 0=説明 / 1=選択肢
   const [imgZoom, setImgZoom] = useState(false); // 説明の図の大画面表示（タップで拡大）
   const viewRef = useRef(null);               // 面の窓（ここでタッチを拾う）
   const trackRef = useRef(null);              // 2面を並べた帯（これを動かす）
   const pageRef = useRef(0); pageRef.current = page;
-  // 開き直したら前回の選択を持ち越さない（別の日・別の相手の記録に前の入力が残らないように）
-  useEffect(() => { setKind(""); setDetail(""); setReason(""); setPage(0); setImgZoom(false); }, [app?.id]);
   const kinds = dayReportKinds(role);
   const day = workDate || ymdLocal(new Date());
+  const record = useAttendanceRecord({ owner: meId, applicationId: app?.id, day, mode: 'daily', onRestore: input => {
+    setKind(input?.kind || ''); setDetail(input?.detail || ''); setReason(input?.reason || ''); setPage(input ? 1 : 0); setImgZoom(false);
+  } });
+  const { submitting } = record;
   const selKind = kinds.find(k => k.v === kind);
   const needsDetail = !!selKind?.sub;
 
@@ -106,21 +107,10 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
     };
   }, [app?.id]);
 
-  const submit = async () => {
-    if (!app || !kind || submitting) return;
-    if (needsDetail && !detail) return;
-    setSubmitting(true);
-    try {
-      const { error } = await supabase.from("attendance_events").insert({
-        application_id: app.id, actor_id: meId, kind,
-        detail: needsDetail ? detail : null,
-        reason: reason.trim() || null, work_date: day,
-      });
-      if (error) { fbError(); alert("記録の保存に失敗しました：" + error.message); setSubmitting(false); return; }
-      fbSuccess();
-      onDone(app.id);
-    } catch { alert("処理に失敗しました。"); }
-    setSubmitting(false);
+  const submit = () => {
+    if (!app || !kind || (needsDetail && !detail)) return;
+    return record.submit({ application_id: app.id, kind, detail: needsDetail ? detail : null,
+      reason: reason.trim() || null, work_date: day }, id => { fbSuccess(); onDone(id); });
   };
   if (!app) return null;
   const dayLabel = (() => {
@@ -146,6 +136,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
           <p className="f-sans" style={{ fontSize:16, fontWeight:800, color:"#222", margin:0 }}>{dayLabel} の記録</p>
         </div>
 
+        {record.readError && <p role="alert">{record.readError}<button onClick={record.reload}>もう一度読み込む</button></p>}
         {/* 面の窓：ここでタッチを拾い、中の帯を指に追従させる */}
         <div ref={viewRef} style={{ flex:1, overflow:"hidden", minHeight:0 }}>
           <div ref={trackRef}
@@ -172,7 +163,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
                   const on = kind === k.v;
                   return (
                     <div key={k.v}>
-                      <button onClick={()=>{ setKind(k.v); setDetail(""); }} className="f-sans"
+                      <button disabled={!record.ready || submitting} onClick={()=>{ setKind(k.v); setDetail(""); }} className="f-sans"
                         style={{ display:"block", width:"100%", textAlign:"left", padding:"12px 14px", borderRadius:12, cursor:"pointer", boxSizing:"border-box",
                           border: on ? "2px solid #E24B4A" : "1px solid #EBEBEB", background: on ? "#FFF5F5" : "#fff" }}>
                         <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222" }}>{k.l}</span>
@@ -185,7 +176,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
                           {k.sub.map(sc => {
                             const son = detail === sc.v;
                             return (
-                              <button key={sc.v} onClick={()=>setDetail(sc.v)} className="f-sans"
+                              <button key={sc.v} disabled={!record.ready || submitting} onClick={()=>setDetail(sc.v)} className="f-sans"
                                 style={{ padding:"8px 12px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
                                   border: son ? "2px solid #E24B4A" : "1px solid #DDD",
                                   background: son ? "#E24B4A" : "#fff", color: son ? "#fff" : "#555" }}>{sc.l}</button>
@@ -197,7 +188,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
                   );
                 })}
               </div>
-              <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3}
+              <textarea disabled={!record.ready || submitting} value={reason} onChange={e=>setReason(e.target.value)} rows={3}
                 placeholder="状況を一言（任意・相手に届きます）"
                 className="f-sans" style={{ width:"100%", border:"1px solid #EBEBEB", borderRadius:8, padding:"8px 10px", fontSize:13, fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", marginBottom:16 }} />
               </div>
@@ -228,7 +219,7 @@ export function DayReportSheet({ app, meId, role, workDate, onClose, onDone }) {
               <button onClick={()=>setPage(0)} disabled={submitting} className="f-sans"
                 style={{ flexShrink:0, padding:"14px 18px", fontSize:14, background:"#fff", color:"#717171", border:"1px solid #EBEBEB", borderRadius:12, cursor:"pointer" }}>← 戻る</button>
               {/* ★押せないボタンにしない（2026-08-03の原則）：未選択なら薄くして理由を添える */}
-              <button onClick={submit} disabled={submitting} className="f-sans"
+              <button onClick={submit} disabled={!record.ready || submitting} className="f-sans"
                 style={{ flex:1, padding:"14px 20px", fontSize:15, fontWeight:700, background:"#E24B4A", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", opacity: (submitting || !ready) ? 0.5 : 1 }}>
                 {submitting ? <>送信中<Dots /></> : "記録する"}
               </button>
