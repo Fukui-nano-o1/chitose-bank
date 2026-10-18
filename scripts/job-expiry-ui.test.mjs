@@ -170,7 +170,9 @@ test('real search/detail UI expires stale cached jobs offline and at the deadlin
     const requests = w.qaRequests.filter(r => r.path.endsWith('/apply_to_job'));
     assert.equal(requests.length, 1);
     assert.deepEqual(Array.from(requests[0].body.p_available_dates), ['2026-09-24', '2026-09-27']);
-    assert.equal(w.document.querySelector('.application-page-footer .btn-primary').disabled, false);
+    // alert is synchronous, while finally's React state update commits later.
+    // Wait for the observable retry control rather than racing that commit.
+    await until(() => w.document.querySelector('.application-page-footer .btn-primary')?.disabled === false, 'failed submission releases retry button');
     w.qaApplyMode = 'success'; clickPage('応募する');
     await until(() => w.location.hash === '#/apply/done', 'existing success route retained');
     assert.equal(w.qaRequests.filter(r => r.path.endsWith('/apply_to_job')).length, 2);

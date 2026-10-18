@@ -1,6 +1,7 @@
 // 分割3-B（2026-07-25）：App.jsxから移動。新規登録①（本人確認・口座名義人情報）。
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { registerAccountHolder } from "../lib/accountHolderRecord";
 import { zipLookup } from "../lib/zipLookup";
 import { ROUTE_CHANGED } from "../lib/pushRoute";
 import { THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION } from "../lib/utils";
@@ -32,10 +33,20 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const busyRef = useRef(false);
 
+  const [sessionRetry, setSessionRetry] = useState(0);
+  const [sessionError, setSessionError] = useState('');
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSess(session ?? null));
-  }, []);
+    let cancelled = false;
+    setSessionError('');
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data?.session) { setSess(null); setSessionError('ログインを確認できません。もう一度確認してください。'); }
+      else setSess(data.session);
+    }, () => { if (!cancelled) { setSess(null); setSessionError('ログインを確認できません。もう一度確認してください。'); } });
+    return () => { cancelled = true; };
+  }, [sessionRetry]);
 
   const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 18);
   const yearOptions = []; for (let y = THIS_YEAR - 18; y >= 1930; y--) yearOptions.push(y);
@@ -98,32 +109,19 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
   };
 
   const submit = async () => {
-    if (!canSubmit || !sess) return;
-    setBusy(true); setErr("");
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setBusy(false);
-      if (onSessionExpired) onSessionExpired();
-      else window.location.hash = "/login";
-      return;
-    }
-    const { error } = await supabase.from("account_holders").insert({
-      auth_id: session.user.id,
-      full_name: fullName.trim(),
-      birth_date: birthDateStr,
-      postal_code: postalCode.trim(),
-      address: (addressAuto.trim() + " " + addressDetail.trim()).trim(),
-      entity_type: entityType,
-      company_name: entityType === "corporate" ? companyName.trim() : null,
-      company_number: entityType === "corporate" ? companyNumber.trim() : null,
-      contact_email: session.user.email || null,
-      contact_phone: session.user.phone || null,
-      agreed_terms_version: TERMS_VERSION,
-      agreed_privacy_version: PRIVACY_VERSION,
-    });
-    setBusy(false);
-    if (error) { setErr("登録に失敗しました：" + error.message); return; }
-    onDone();
+    if (!canSubmit || !sess || busyRef.current) return;
+    busyRef.current = true; setBusy(true); setErr("");
+    try {
+      await registerAccountHolder(supabase, sess.user.id, {
+        full_name: fullName.trim(), birth_date: birthDateStr, postal_code: postalCode.trim(),
+        address: (addressAuto.trim() + " " + addressDetail.trim()).trim(), entity_type: entityType,
+        company_name: entityType === "corporate" ? companyName.trim() : null,
+        company_number: entityType === "corporate" ? companyNumber.trim() : null,
+        agreed_terms_version: TERMS_VERSION, agreed_privacy_version: PRIVACY_VERSION,
+      });
+      onDone();
+    } catch (error) { setErr(error.message || "登録結果を確認できません。入力は残しています。"); }
+    finally { busyRef.current = false; setBusy(false); }
   };
 
   if (sess === undefined) return <div style={{textAlign:"center",padding:"80px 24px"}}><p className="f-sans" style={{fontSize:13,color:"#B0B0B0"}}>確認中<Dots /></p></div>;
@@ -135,6 +133,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
         <div className="cb-auth-body cb-auth-enter">
           <h1 id={`${fieldId}-heading`} className="cb-auth-heading">登録を完了しましょう</h1>
           <p className="cb-auth-description">ご本人の情報を入力してください。</p>
+          {sessionError && <p role="alert">{sessionError}<button onClick={()=>setSessionRetry(n=>n+1)}>ログインを再確認</button></p>}
           <form onSubmit={e => { e.preventDefault(); if (!busy) submit(); }} aria-busy={busy}>
             <fieldset className="cb-account-fields" disabled={busy}>
               <section className="cb-account-section" aria-labelledby={`${fieldId}-type`}>
