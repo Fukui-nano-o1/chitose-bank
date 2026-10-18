@@ -31,7 +31,7 @@ test('worker confirmation, frozen snapshot, message and transactional notificati
    create function qa_notification_failure() returns trigger language plpgsql as $$begin if current_setting('qa.notification_fail',true)='yes' then raise exception 'notification rejected';end if;return new;end$$;
    create trigger qa_notification_failure before insert on notifications for each row execute function qa_notification_failure();`);
   await db.exec(await readFile(new URL('./fixtures/worker-terms-production.sql',import.meta.url),'utf8'));
-  await db.exec(await readFile(new URL('../supabase/migrations/20261018153139_worker_terms_atomic_confirmation.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018153955_worker_terms_atomic_confirmation.sql',import.meta.url),'utf8'));
   const login=async who=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[who]);await db.exec('set role authenticated');};
   const call=async(n,owner=worker)=>(await db.query('select confirm_my_worker_terms($1,$2) r',[owner,aid(n)])).rows[0].r;
   const app=async n=>(await db.query('select to_jsonb(a) r from applications a where id=$1',[aid(n)])).rows[0]?.r;
@@ -57,7 +57,7 @@ test('worker confirmation, frozen snapshot, message and transactional notificati
   });
   await t.test('retired worker branch cannot split save; farmer hiring branch is byte-for-byte preserved and still works',async()=>{
    const before=(await db.query("select prosrc from pg_proc where oid='public.confirm_terms(uuid,boolean)'::regprocedure")).rows[0].prosrc;
-   await db.exec('reset role');await db.exec(await readFile(new URL('../supabase/migrations/20261018153253_retire_split_worker_terms_confirmation.sql',import.meta.url),'utf8'));await login(worker);
+   await db.exec('reset role');await db.exec(await readFile(new URL('../supabase/migrations/20261018154909_retire_split_worker_terms_confirmation.sql',import.meta.url),'utf8'));await login(worker);
    const after=(await db.query("select prosrc from pg_proc where oid='public.confirm_terms(uuid,boolean)'::regprocedure")).rows[0].prosrc;
    assert.equal(after.split('  elsif auth.uid() = v_farmer then')[1],before.split('  elsif auth.uid() = v_farmer then')[1]);
    assert.equal((await db.query('select confirm_terms($1) r',[aid(7)])).rows[0].r.reason,'use_worker_confirmation');assert.equal((await app(7)).terms_confirmed_worker_at,null);

@@ -9,7 +9,7 @@
 | 同意時刻の文字列表現をそのまま比較 | 同一時刻でもUTC/JST、小数秒の表記差により再送・比較元照合が競合になる | DBは`work_video_consent_at`だけを`timestamptz`へ変換して比較。端末は明示された時差を解釈し、マイクロ秒まで一致を確認 |
 | 再送判定にJSON包含演算子`@>`を使用 | 写真の削除・順序変更等まで「既に保存済み」と誤認し、変更せず成功を返す | 送信されたキーごとにJSON値を完全比較。配列の順序・要素数・入れ子の欠落も区別 |
 
-変更ファイル：`src/lib/jobDraftProtocol.js`と`supabase/migrations/20261016123800_job_sync_value_equality.sql`。テストとCI・説明書は補助変更。
+変更ファイル：`src/lib/jobDraftProtocol.js`と`supabase/migrations/20261018142041_job_sync_value_equality.sql`。テストとCI・説明書は補助変更。
 
 日付だけの値・時差なしの時刻・不正日付を、端末が推測で同一時刻と扱うことはしない。1マイクロ秒違う値も別とする。通常の文字列、NULL、配列の比較を時刻扱いに広げない。
 

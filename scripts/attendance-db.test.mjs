@@ -27,7 +27,7 @@ test('attendance UUID receipt preserves existing RLS and notification triggers',
    create function job_ref(integer,text) returns text language sql as $$select 'job '||$1::text$$;
    create function is_account_moderated(uuid) returns boolean language sql as $$select coalesce(current_setting('qa.moderated',true),'no')='yes'$$;`);
   await db.exec(await readFile(new URL('./fixtures/attendance-triggers.sql',import.meta.url),'utf8'));
-  await db.exec(await readFile(new URL('../supabase/migrations/20261018150950_attendance_event_idempotent_save.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018152223_attendance_event_idempotent_save.sql',import.meta.url),'utf8'));
   const login=async who=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[who]);await db.exec('set role authenticated');};
   const call=async(n,p=input,owner=own)=>(await db.query('select record_my_attendance_once($1,$2,$3) r',[owner,id(n),p])).rows[0].r;
   const counts=async()=>{await db.exec('reset role');const r=(await db.query('select (select count(*)::int from attendance_events) events,(select count(*)::int from notifications) notifications,(select count(*)::int from qa_email) emails,(select count(*)::int from qa_admin) admins')).rows[0];await db.exec('set role authenticated');return r;};

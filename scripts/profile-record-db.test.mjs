@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
-const sql=await readFile(new URL('../supabase/migrations/20261018140713_profile_section_compare_and_save.sql',import.meta.url),'utf8');
+const sql=await readFile(new URL('../supabase/migrations/20261018141532_profile_section_compare_and_save.sql',import.meta.url),'utf8');
 
 test('actual profile RPC enforces atomic comparisons, RLS and publication triggers',async t=>{
  const db=new PGlite();
  try {
   await db.exec(await readFile(new URL('./fixtures/profile-schema.sql',import.meta.url),'utf8'));
   await db.exec(sql);
-  await db.exec(await readFile(new URL('../supabase/migrations/20261018145733_profile_save_owner_guard.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018150428_profile_save_owner_guard.sql',import.meta.url),'utf8'));
   const login=async(id,role='authenticated')=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id||'']);await db.exec('set role '+role);};
   const call=async(table,expected,patch)=>(await db.query('select public.save_my_profile_fields($1,$2::jsonb,$3::jsonb,$4::uuid) as result',[table,expected===null?null:JSON.stringify(expected),JSON.stringify(patch),owner])).rows[0].result;
   await login(owner);
@@ -87,7 +87,7 @@ test('owner guard closes a reproduced token-switch write when comparison values 
   const old=(await db.query("select public.save_my_profile_fields('worker_profiles','{\"nickname\":\"same baseline\"}','{\"nickname\":\"input from A\"}') r")).rows[0].r;
   assert.equal(old.ok,true);assert.equal(old.row.auth_id,other);assert.equal(old.row.nickname,'input from A');
   await db.exec('reset role');await db.query('update public.worker_profiles set nickname=$1 where auth_id=$2',['same baseline',other]);
-  await db.exec(await readFile(new URL('../supabase/migrations/20261018145733_profile_save_owner_guard.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20261018150428_profile_save_owner_guard.sql',import.meta.url),'utf8'));
   await db.exec('set role authenticated');
   const guarded=(await db.query("select public.save_my_profile_fields('worker_profiles','{\"nickname\":\"same baseline\"}','{\"nickname\":\"input from A\"}',$1) r",[owner])).rows[0].r;
   assert.equal(guarded.reason,'not_logged_in');assert.equal((await db.query('select nickname from public.worker_profiles')).rows[0].nickname,'same baseline');

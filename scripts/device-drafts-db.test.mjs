@@ -62,7 +62,7 @@ test('real Postgres: own-row RLS, retry identity, stale edit rejection, open-job
       where oid in ('public.sync_my_job_draft(uuid,uuid,jsonb,jsonb)'::regprocedure,
       'public.sync_my_open_job(uuid,uuid,jsonb,jsonb)'::regprocedure) order by proname`)).rows;
     const beforeSecurity = await functionSecurity();
-    const equalityMigration = await readFile(new URL('../supabase/migrations/20261016123800_job_sync_value_equality.sql', import.meta.url), 'utf8');
+    const equalityMigration = await readFile(new URL('../supabase/migrations/20261018142041_job_sync_value_equality.sql', import.meta.url), 'utf8');
     await t.test('migration stops on unexpected definitions and leaves both functions unchanged',async()=>{
       const definitions=async()=>(await db.query(`select pg_get_functiondef(oid) as definition from pg_proc
         where oid in ('public.sync_my_job_draft(uuid,uuid,jsonb,jsonb)'::regprocedure,

@@ -12,7 +12,7 @@ test('consignment bundle executes actual SQL with atomic failure and immutable r
       create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
       grant usage on schema auth to authenticated;
       create table public.app_admins(auth_id uuid primary key);insert into public.app_admins values('${own}');grant select on public.app_admins to authenticated;`);
-    for(const file of ['./fixtures/consignor-prod-schema.sql','./fixtures/consignment-deal-prod-schema.sql','../supabase/migrations/20261018144001_consignment_deal_atomic_save.sql'])await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
+    for(const file of ['./fixtures/consignor-prod-schema.sql','./fixtures/consignment-deal-prod-schema.sql','../supabase/migrations/20261018145244_consignment_deal_atomic_save.sql'])await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
     for(const table of ['consignment_deals','consignment_fields','consignment_profiles'])await db.exec(`alter table public.${table} enable row level security;
       create policy admin_all on public.${table} for all to authenticated using(exists(select 1 from public.app_admins where auth_id=auth.uid())) with check(exists(select 1 from public.app_admins where auth_id=auth.uid()));
       grant select,insert,update on public.${table} to authenticated;`);
