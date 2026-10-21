@@ -79,7 +79,7 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
    await t.test(role+': same field conflict preserves the remote value and local input',async()=>{
     const w=await mount(role),f=w.qaProfile,key=role==='worker'?'residence_city':'recruiter_name';
     f.state.rows[tableOf(role)][key]='他端末の値';await edit(w,role);await save(w);
-    assert.match(w.qaAlerts[0],/別の画面/);assert.equal(f.state.rows[tableOf(role)][key],'他端末の値');
+    assert.match(w.qaAlerts[0],/最新の内容と比べて/);assert.match(w.qaAlerts[0],/入力を控え/);assert.equal(f.state.rows[tableOf(role)][key],'他端末の値');
     assert.equal(w.document.querySelector('input:not([type="file"])').value,'変更後の値');
    });
   }

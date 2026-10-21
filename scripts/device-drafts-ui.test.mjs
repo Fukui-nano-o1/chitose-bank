@@ -64,7 +64,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(d.form.jobDescription,'通信が切れても残す入力');
     button(w,'保存して終了').click();await until(() => /保存して終了しました/.test(w.document.body.textContent), 'local save exit');
     assert.match(w.document.body.textContent,/保存して終了しました/);
-    assert.match(w.document.body.textContent,/この端末に保存済み・同期待ち/);
+    assert.match(w.document.body.textContent,/この端末に保存済み・サーバーへの反映は確認待ち/);
     assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].state,'pending');
     const persisted=snapshot(w);
     w=await mount({url:`https://ui.test/#/work/local/${d.id}`,storage:persisted});
@@ -147,7 +147,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.doesNotMatch(w.document.body.textContent,/掲載完了/);
     assert.equal(w.qaDrafts.listDeviceDrafts(owner).length,1);
     assert.equal(w.qaJob.status,'draft');
-    assert.match(w.document.body.textContent,/掲載処理は確定していません/);
+    assert.match(w.document.body.textContent,/保存を受け付けられませんでした/);
     assert.ok(w.qaCalls.some(r=>r.path==='app_errors' && r.body?.operation==='publish_rpc'));
     w.qaCheckError=false;
     button(w,'同意して掲載する').click();
@@ -156,7 +156,9 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaLosePublishResponse=true;
     await startPublish();
-    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'lost response retained');
+    await until(() => /掲載と確認記録の完了を確認できません/.test(w.document.body.textContent),'lost response retained');
+    assert.match(w.document.body.textContent,/掲載済みの場合もあります/);
+    assert.match(w.document.body.textContent,/同じ端末・ブラウザ/);
     const awaiting=w.qaDrafts.listDeviceDrafts(owner)[0];
     const requestBody=w.qaCalls.find(r=>r.path==='rpc/publish_my_job_with_check').body;
     assert.equal(awaiting.state,'publishing'); assert.equal(w.qaJob.status,'open');
@@ -166,7 +168,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     // openという状態だけ・別の確認記録IDでは完了にしない。
     w.qaReceiptMismatch=true;
     await startPublish();
-    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'wrong receipt retained');
+    await until(() => /掲載と確認記録の完了を確認できません/.test(w.document.body.textContent),'wrong receipt retained');
     assert.equal(w.qaDrafts.readDeviceDraft(owner,awaiting.id).publication.requestId,awaiting.publication.requestId);
     w.qaReceiptMismatch=false;
     button(w,'同意して掲載する').click();
@@ -179,7 +181,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaLosePublishResponse=true;
     await startPublish();
-    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'second lost response retained');
+    await until(() => /掲載と確認記録の完了を確認できません/.test(w.document.body.textContent),'second lost response retained');
     const pendingStorage=snapshot(w),pendingJob=w.qaJob,pendingReceipts=w.qaPublicationReceipts;
     w=await mount({url:'https://ui.test/#/work/new/8',offline:false,storage:pendingStorage,job:pendingJob,receipts:pendingReceipts});
     await change(w,'掲載確認待ちの追加編集');
@@ -198,7 +200,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaLosePublishResponse=true;
     await startPublish();
-    await until(() => /掲載と確認記録の完了を確認できませんでした/.test(w.document.body.textContent),'third lost response retained');
+    await until(() => /掲載と確認記録の完了を確認できません/.test(w.document.body.textContent),'third lost response retained');
     w.qaJob.status='closed';
     button(w,'同意して掲載する').click();
     await until(() => /再掲載は行っていません/.test(w.document.body.textContent),'current closed status respected');
@@ -261,7 +263,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w=await mount({url:'https://ui.test/?case=new#/work/new/12',offline:false});
     w.qaConflictOnce=true;
     await startPublish();
-    await until(() => /同期失敗の分類：保存競合/.test(w.document.body.textContent), 'real conflict is visible');
+    await until(() => /保存済みの内容と差があります/.test(w.document.body.textContent), 'real conflict is visible');
     await until(() => !button(w,'同意して掲載する').disabled, 'failed attempt is not stuck saving');
     const retained=w.qaDrafts.listDeviceDrafts(owner)[0];
     assert.equal(retained.form.jobDescription,'最初の入力');

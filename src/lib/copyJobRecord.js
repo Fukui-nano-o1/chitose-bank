@@ -1,5 +1,6 @@
+import { inputError as fail } from './inputRecovery.js';
 import { createOperationStore } from './operationStore.js';
-const fail = (code, message) => Object.assign(new Error(message), { code });
+
 async function owner(client, expected) {
   const { data, error } = await client.auth.getSession();
   const id = data?.session?.user?.id;
@@ -27,7 +28,7 @@ export async function copyJobRecord(client, jobNumber, options = {}, { store = c
     // The server returned a definite rejection or an intentionally removed copy.
     try { await store.clear(key, intent.requestId); } catch { /* Retrying the same rejection cannot create a duplicate. */ }
     throw fail('COPY_REJECTED', data.reason === 'copy_deleted' ? '前回のコピー先は削除されています。新しく作る場合は、もう一度コピーしてください。'
-      : 'コピーできませんでした。' + (data.reason === 'not_yours' ? 'コピー元の所有者を確認してください。' : '入力は変更していません。'));
+      : 'コピーできませんでした。' + (data.reason === 'not_yours' ? 'コピー元の所有者を確認してください。' : '入力は変更していません。'), data.reason);
   }
   if (data.request_id !== intent.requestId || data.owner !== userId || data.job?.farmer_id !== userId || data.job.job_number !== data.job_number) {
     throw fail('COPY_UNCONFIRMED', 'コピー結果を照合できません。同じ求人のコピーボタンで確認してください。');

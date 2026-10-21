@@ -1,9 +1,10 @@
+import { inputError as fail } from './inputRecovery.js';
 import { uploadAvatarResilient } from "./avatarUpload.js";
 
 const DIRECTORIES = { worker_profiles: "worker", employer_profiles: "employer", consignment_profiles: "consignment" };
 const COLUMNS = "avatar_url,updated_at";
 
-function fail(code, message) { return Object.assign(new Error(message), { code }); }
+
 async function owner(client, userId) {
   const { data, error } = await client.auth.getSession();
   if (error || !userId || data?.session?.user?.id !== userId) {

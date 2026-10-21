@@ -1,4 +1,5 @@
-const error = (code, message) => Object.assign(new Error(message), { code });
+import { inputError as error } from './inputRecovery.js';
+
 const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
 async function owner(client, expected) {
   const { data, error: failed } = await client.auth.getSession();

@@ -56,7 +56,7 @@ test('consignor screen retains drafts until both canonical records are confirmed
       w=await mount({remoteData:remote},stored);await until(()=>button(w,'保存する'),'restored confirm');
       assert.match(w.document.body.textContent,/下書きの作成後に保存済みの情報が変更/);
       button(w,'この情報を委託者情報として使用します').click();await pause(10);await save(w);
-      assert.ok(w.qaAlerts.some(x=>/別の画面/.test(x)));assert.deepEqual(JSON.parse(JSON.stringify(w.qaConsignor.state.rows.consignment_profiles.consignor_data)),remote);
+      assert.ok(w.qaAlerts.some(x=>/最新の内容と比べて/.test(x)));assert.deepEqual(JSON.parse(JSON.stringify(w.qaConsignor.state.rows.consignment_profiles.consignor_data)),remote);
       assert.ok(w.localStorage.getItem(key));
     });
     await t.test('drafts for another account and unscoped legacy drafts are not applied or deleted',async()=>{
