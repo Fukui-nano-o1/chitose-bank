@@ -1,6 +1,7 @@
+import { inputError as fail } from '../../lib/inputRecovery.js';
 import {sameProfileValue} from '../../lib/profileRecord.js';
 import {stripConsignorIdentity} from './model.js';
-const fail=(code,message)=>Object.assign(new Error(message),{code});
+
 async function owner(client,expected){
   const {data,error}=await client.auth.getSession();
   const id=data?.session?.user?.id;

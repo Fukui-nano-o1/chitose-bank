@@ -1,5 +1,6 @@
+import { inputError as fail } from './inputRecovery.js';
 import { createOperationStore } from './operationStore.js';
-const fail = (code, message) => Object.assign(new Error(message), { code });
+
 export const attendanceStore = () => createOperationStore('cb_attendance_requests_v1');
 export const attendanceInput = input => ({ application_id: input.application_id, kind: input.kind,
   reason: input.reason || null, work_date: input.work_date || null, detail: input.detail || null });
@@ -37,7 +38,7 @@ export async function recordAttendance(client, owner, input, mode, { store = att
   if (result?.error || !data || typeof data.ok !== 'boolean') throw fail('ATTENDANCE_UNCONFIRMED', '送信結果を確認できません。同じ画面で再送すると前回の結果を確認します。');
   if (!data.ok) {
     try { await store.clear(key, intent.requestId); } catch { /* A replay of this rejected operation remains safe. */ }
-    throw fail('ATTENDANCE_REJECTED', '記録を保存できませんでした。入力は残しています。');
+    throw fail('ATTENDANCE_REJECTED', '記録を保存できませんでした。入力を控え、対象の仕事と日付を確認してください。続く場合は「ヘルプ・お問い合わせ」へご連絡ください。', data.reason);
   }
   if (data.row?.id !== intent.requestId || data.row?.actor_id !== owner || !equal(intent.input, attendanceInput(data.row))) {
     throw fail('ATTENDANCE_UNCONFIRMED', '送信した内容と保存結果を照合できません。再送して確認してください。');

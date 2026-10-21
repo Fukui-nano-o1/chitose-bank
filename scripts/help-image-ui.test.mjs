@@ -39,6 +39,15 @@ test('actual help and installation screens preserve old images until a confirmed
       const w=await mount('help',{[mode]:true});button(w,'🗑 削除').click();await pause(30);const f=w.qaHelpImage;
       assert.ok(f.state.objects.has('old.png'));if(mode==='dbError'){assert.ok(w.document.querySelector('img'));assert.ok(w.qaAlerts.length);}else{assert.equal(w.document.querySelector('img'),null);assert.equal(f.state.rows[f.slot],undefined);}
     });
+    await t.test('recovery help is reachable, renders seven concrete guides, and opens support without a save',async()=>{
+      const w=await mount('help');w.location.hash='#/help/recovery';
+      await until(()=>w.document.getElementById('help-recovery')?.textContent.includes('サイトデータを削除すると'),'recovery chapter rendered');
+      const section=w.document.getElementById('help-recovery');
+      for(const label of ['「保存結果を確認できません」と出た','画面を閉じても入力は残る？','別の画面の変更と重なった','ログイン・同意の確認が必要','端末に保存できない','「保存済み・確認待ち」と出た','試しても進めない'])assert.ok(section.textContent.includes(label));
+      assert.match(section.textContent,/開き直した後までの保存を保証しません/);
+      [...section.querySelectorAll('button')].find(b=>b.textContent.includes('解決しないときは相談する')).click();
+      assert.equal(w.qaSupportOpened,1);assert.equal(w.qaHelpImage.state.writes,0);assert.deepEqual(w.qaErrors,[]);
+    });
     await t.test('failed read blocks writes and retry restores the current record',async()=>{
       const w=await mount('install',{readError:true});assert.ok([...w.document.querySelectorAll('input')].every(e=>e.disabled));assert.equal(w.qaHelpImage.state.writes,0);
       w.qaOptions.readError=false;button(w,'もう一度読み込む').click();await until(()=>w.document.querySelector('img'),'loaded');assert.ok([...w.document.querySelectorAll('input')].every(e=>!e.disabled));

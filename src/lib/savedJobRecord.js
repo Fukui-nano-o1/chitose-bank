@@ -1,4 +1,5 @@
-const fail = (code, message) => Object.assign(new Error(message), { code });
+import { inputError as fail } from './inputRecovery.js';
+
 const revisions = new Map();
 export const savedJobRevision = owner => revisions.get(owner) || 0;
 async function checkOwner(client, owner) {

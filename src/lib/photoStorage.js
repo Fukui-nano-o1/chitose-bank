@@ -1,5 +1,6 @@
+import { inputError as fail } from './inputRecovery.js';
 import { sameProfileValue } from './profileRecord.js';
-const fail = (code, message) => Object.assign(new Error(message), { code });
+
 export async function photoOwner(client, expected) {
   const { data, error } = await client.auth.getSession();
   const id = data?.session?.user?.id;

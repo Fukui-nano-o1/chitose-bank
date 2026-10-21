@@ -4,6 +4,7 @@
 import { productAnalytics } from "../../../lib/productAnalytics";
 import { logAppError } from "../../../app/diagnostics/errorLog";
 import { safeDraftRebase } from "../../../lib/offlineSync";
+import { jobSaveGuidance } from "../../../lib/inputRecovery.js";
 import { calendarDateFromYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
 import { useState, useEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, prepareDevicePublication, settleDevicePublication, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
@@ -1666,7 +1667,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 const reason = String(saved?.reason || "").toLowerCase();
                 if (saved?.state === "conflict" || reason === "conflict") return "conflict";
                 if (["consent_required","consent_required_version"].includes(reason) || syncOutcome?.consentRequired) return "consent";
-                if (syncOutcome?.authRequired || ["not_logged_in","jwt_expired","42501","pgrst301"].includes(reason)) return "authentication";
+                if (syncOutcome?.authRequired || ["not_logged_in","jwt_expired","pgrst301"].includes(reason)) return "authentication";
                 if (syncOutcome?.retry || globalThis.navigator?.onLine === false || ["pgrst000","57014","timeout","network_error"].includes(reason)) return "communication";
                 if (saved?.state === "blocked" || reason) return "database_rejection";
                 return "unconfirmed";
@@ -1692,8 +1693,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 if (!outcome.confirmed) {
                   reportPublishFailure("publish_rpc", outcome.reason || "unconfirmed", pub.error || (pub.data?.code ? { code: pub.data.code } : null));
                   setPublishIssue((outcome.record && !outcome.record.publication
-                    ? "掲載処理は確定していません。入力はこの端末に残っています。内容を確認して、もう一度お試しください。"
-                    : "掲載と確認記録の完了を確認できませんでした。入力はこの端末に残っています。もう一度押すと同じ操作の結果を確認します。")
+                    ? jobSaveGuidance({ state: outcome.reason === "conflict" ? "conflict" : "blocked", reason: outcome.reason })
+                    : "掲載と確認記録の完了を確認できません。掲載済みの場合もあります。入力はこの端末に残っています。通信が戻ってから、同じ端末・ブラウザで同じ掲載ボタンを押して前回の結果を確認してください。確認が済むまで新しい求人として作り直したり、サイトデータを削除したりしないでください。")
                     + (outcome.reason === "conflict" ? " 別の保存で変更された項目があるため、内容の確認が必要です。" : ""));
                   return;
                 }
@@ -1822,14 +1823,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   const reason = saved?.reason || "sync_unconfirmed";
                   const failureCategory = classifyDraftSyncFailure(saved, lastSyncOutcome);
                   reportPublishFailure("draft_sync", failureCategory + "_" + reason);
-                  const failureMessage = (
-                    saved?.state === "blocked" && reason === "consent_required" ? "プライバシーポリシーの最新版への同意が必要です。画面の案内から同意すると掲載できます。入力はこの端末に残っています。"
-                    : saved?.state === "blocked" && reason === "has_applications" ? "応募が届いている求人は内容を変えられません。コピーして新しい求人として出してください。入力はこの端末に残っています。"
-                    : saved?.state === "blocked" ? "保存できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。" + (isAdmin(session.user) ? `（管理者向け：${reason}）` : "")
-                    : saved?.state === "conflict" ? "保存済みの求人と、この画面の入力内容に差があり、自動で保存し直しても一致を確認できませんでした。入力内容はこの端末に残っています。「保存して終了」を押してから下書きを開き直してください。別のタブや端末で同じ求人を編集している場合は、その画面を閉じてから開き直してください。"
-                    : "入力はこの端末に保存されています。通信の復旧・保存結果の確認後に掲載できます。保存して終了することもできます.");
+                  const failureMessage = jobSaveGuidance(saved, lastSyncOutcome);
                   setDraftMsg(failureMessage);
-                  setPublishIssue("同期失敗の分類：" + ({ conflict:"保存競合",consent:"同意未完了",authentication:"認証",communication:"通信",database_rejection:"DB拒否",unconfirmed:"応答未確定" }[failureCategory] || "不明") + "。 " + failureMessage);
+                  setPublishIssue(failureMessage);
                   return;
                 }
                 deviceDraftRef.current = saved;

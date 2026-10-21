@@ -32,7 +32,7 @@ test('support database: real Postgres authorization, retry, diagnostics, threads
   for(const name of ['20260714081811_feedback_system.sql','20260815060344_feedback_status_admin_update.sql']) await db.exec(await readFile(new URL(`../supabase/migrations/${name}`,import.meta.url),'utf8'));
   await db.exec(`grant select,insert,update on public.feedback to authenticated;
    insert into public.feedback(id,reporter_id,page_hash,category,body,created_at) values('${id(90)}','${owner}','#/search','confusing','以前の報告',now()-interval '2 years');`);
-  await db.exec(await readFile(new URL('../supabase/migrations/20260924144809_support_feedback_flow.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20260924145301_support_feedback_flow.sql',import.meta.url),'utf8'));
   await t.test('guest creation is idempotent, produces a receipt, strips all unexpected diagnostics, and sends no email', async()=>{
    await login(null);
    const data=await create(1,guestToken,{page_hash:'#/login?token=secret',captured_at:'2026-09-24T00:00:00.000Z',viewport:{width:390,height:844,password:'secret'},build_id:'abcdef01',online:true,password:'secret',email:'private@example.com',recent_errors:[{at:'2026-09-24T00:00:00.000Z',source:'client',operation:'auth.signInWithOtp',code:'REQUEST_TIMEOUT',message:'secret',email:'private@example.com'},{source:'evil',operation:'private@example.com',code:'my-password'}]});

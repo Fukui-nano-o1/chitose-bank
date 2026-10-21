@@ -1,7 +1,8 @@
+import { inputError as fail } from '../../lib/inputRecovery.js';
 import {createOperationStore} from '../../lib/operationStore.js';
 import {sameProfileValue} from '../../lib/profileRecord.js';
 import {consignmentOwner} from './consignmentRecord.js';
-const fail=(code,message)=>Object.assign(new Error(message),{code});
+
 export const consignmentAuxStore=()=>createOperationStore('cb_consignment_aux_v1');
 export const auxKey=(owner,operation,target)=>`${owner}:${operation}:${target || 'new'}`;
 export const fieldBase=row=>row?Object.fromEntries(['name','region','area_a','data','updated_at'].map(k=>[k,row[k]])):null;
@@ -26,7 +27,7 @@ export async function saveConsignmentAux(client,{owner,operation,target,expected
   await consignmentOwner(client,owner);
   const data=result?.data;
   if(result?.error||!data||typeof data.ok!=='boolean')throw fail('CONSIGN_AUX_UNCONFIRMED','保存結果を確認できません。同じ操作で前回の結果を確認できます。');
-  if(!data.ok){await store.clear(key,intent.requestId);throw fail('CONSIGN_AUX_REJECTED',data.reason==='conflict'?'別の画面で内容が変更されています。入力を控えて最新情報と照合してください。':'保存できませんでした。入力は残しています。');}
+  if(!data.ok){await store.clear(key,intent.requestId);throw fail('CONSIGN_AUX_REJECTED','保存を受け付けられませんでした。入力を控え、対象の最新状態を確認してください。続く場合は「ヘルプ・お問い合わせ」へご連絡ください。',data.reason);}
   if(data.owner!==owner||data.operation!==operation||data.id!==intent.id||!sameProfileValue(data.input,intent.input))throw fail('CONSIGN_AUX_UNCONFIRMED','保存結果と送信内容を照合できません。再試行してください。');
   if(operation==='field_delete'?data.row!==null:['lend','terms'].includes(operation)?data.row?.auth_id!==owner:data.row?.id!==intent.id)throw fail('CONSIGN_AUX_UNCONFIRMED','保存先の記録を照合できません。再試行してください。');
   return {...data,changed:!sameProfileValue(intent.input,input),acknowledge:()=>store.clear(key,intent.requestId)};
