@@ -1,0 +1,61 @@
+name: Reconcile listing foundation with inspected main
+on:
+  push:
+    branches: [feat/listing-flow-stage1-20261021]
+    paths: [.github/workflows/listing-foundation-integration.yml]
+permissions:
+  contents: write
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Merge the inspected main without overwriting unrelated work
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/feat/listing-flow-stage1-20261021"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin fac440fdb61f54f4b6af0d6687394bbb3e4be47d
+          if ! git merge --no-commit --no-ff fac440fdb61f54f4b6af0d6687394bbb3e4be47d; then
+            test "$(git diff --name-only --diff-filter=U)" = "package.json"
+            node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { execFileSync } from 'node:child_process';
+          import { writeFileSync } from 'node:fs';
+          const read = ref => JSON.parse(execFileSync('git',['show',ref],{encoding:'utf8'}));
+          const ours=read(':2:package.json'), theirs=read(':3:package.json');
+          const withoutTests = p => { const v=structuredClone(p); delete v.scripts['test:critical']; return v; };
+          assert.deepEqual(withoutTests(ours),withoutTests(theirs),'Only the test command may require resolution');
+          const tests = p => { const value=p.scripts['test:critical']; assert.ok(value.startsWith('node --test ')); return value.slice(12).trim().split(/\s+/); };
+          const union=[...new Set([...tests(theirs),...tests(ours)])];
+          assert.ok(union.includes('scripts/input-recovery.test.mjs'));
+          assert.ok(union.includes('scripts/listing-flow-foundation.test.mjs'));
+          assert.ok(union.includes('scripts/listing-frame-ui.test.mjs'));
+          assert.ok(union.every(x=>/^scripts\/[a-z0-9-]+\.test\.mjs$/.test(x)));
+          theirs.scripts['test:critical']='node --test '+union.join(' ');
+          writeFileSync('package.json',JSON.stringify(theirs,null,2)+'\n');
+          NODE
+            git add package.json
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git rm .github/workflows/listing-foundation-integration.yml
+          git diff --cached --check
+      - run: npm ci
+      - name: Validate merged save, publish and UI contracts
+        run: npm run build
+      - name: Commit verified integration to the feature branch only
+        run: |
+          test "$GITHUB_REF" = "refs/heads/feat/listing-flow-stage1-20261021"
+          git commit -m 'merge: preserve concurrent main fixes and verify listing foundation'
+          git push origin HEAD:refs/heads/feat/listing-flow-stage1-20261021
