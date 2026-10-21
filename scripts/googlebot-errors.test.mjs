@@ -45,7 +45,7 @@ test('database notification labels match the UI and crawler throttling cannot su
       create table public.admin_messages(user_id uuid, from_admin boolean, body text, created_at timestamptz default now());
       create table public.app_errors(user_agent text, user_id uuid, message text, component text, source text,
         page text, url text, error_code text, created_at timestamptz default now());`);
-    await db.exec(await readFile(new URL('../supabase/migrations/20261002153118_distinguish_googlebot_error_reports.sql',import.meta.url),'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20261002153325_distinguish_googlebot_error_reports.sql',import.meta.url),'utf8'));
     await db.exec('create trigger report after insert on app_errors for each row execute function app_error_report_to_admin();');
     for (const [i,[ua,expected]] of cases.entries()) {
       await db.query("insert into app_errors(user_agent,message,component,source,page) values($1,'Rejected',$2,'unhandledrejection','/search')",[ua,'case-'+i]);

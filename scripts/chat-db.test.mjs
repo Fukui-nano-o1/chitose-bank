@@ -21,7 +21,7 @@ test('inbox previews return one bounded latest message per permitted application
  insert into applications values('${app}','${owner}','${other}'),('${privateApp}','${stranger}','${stranger}');
  insert into messages(application_id,sender_id,body,created_at) select '${app}','${other}','older-'||n,now()-interval '1 day' from generate_series(1,1200) n;
  insert into messages(application_id,sender_id,body,created_at) values('${app}','${other}',repeat('新',500),now()),('${privateApp}','${stranger}','private',now());`);
- await db.exec(await readFile(new URL('../supabase/migrations/20260924151645_chat_inbox_previews.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/20260924152147_chat_inbox_previews.sql',import.meta.url),'utf8'));
  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[owner]);await db.exec('set role authenticated');
  const data=(await db.query('select * from my_chat_inbox_previews()')).rows;
  assert.equal(data.length,1);assert.equal(data[0].application_id,app);assert.equal(data[0].body,'新'.repeat(240));
