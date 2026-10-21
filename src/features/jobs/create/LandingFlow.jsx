@@ -41,6 +41,7 @@ import { StepDanger } from "./components/StepDanger";
 import { StepWishes } from "./components/StepWishes";
 import { ListingHeader, ListingIntro, ListingDetailsIntro, ListingFooter, LISTING_STAGES, listingStage } from "./components/ListingFrame";
 import { SavedWorkplaceCard, WorkplacePage } from "./components/WorkplacePage";
+import { ListingPage } from "./components/ListingPage";
 import "./listingFlow.css";
 
 // 掲載前の確認（step11）：値がまだ無い区画の代わりに出す空の区画（2026-09-19）。JobDetailBody は値の無い区画を
@@ -1251,9 +1252,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       <div ref={flowScrollRef} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center", ...flowScrollLock }
         : { height:"100%", overflowY:"auto", ...flowScrollLock })}>
-        <div key={step} data-step={step} className={isFarmer ? `listing-page${[0,6,12].includes(step) ? " listing-page-wide" : ""} listing-motion` : (stepAnim || "fade-in")}
-          onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}
-          style={isFarmer ? undefined : { maxWidth: (step === 12 || step === 0 || step === 6) ? 1280 : 480, margin:"0 auto", padding: embedded ? (step > 0 ? "16px 20px 24px" : "0 20px 24px") : (step > 0 ? "calc(64px + env(safe-area-inset-top, 0px)) 20px calc(76px + env(safe-area-inset-bottom, 0px))" : "calc(56px + env(safe-area-inset-top, 0px)) 20px 40px") }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
+        <ListingPage key={step} step={step} isFarmer={isFarmer} embedded={embedded} stepAnim={stepAnim}
+          onAnimationEnd={(e)=>{ if (e.target === e.currentTarget && stepAnim.startsWith("step-in")) setStepAnim(""); }}>{/* 下余白は浮遊ピル(約66px)+10px（2026-07-16・旧140px）。上余白はblack-translucent対応でsafe-area加算（2026-07-31） */}
 
           {isFarmer && (draftMsg || localOnly) && <p role={draftMsg ? "alert" : "status"} style={{ padding:"12px 16px", background:"#eef8f3", lineHeight:1.8 }}>{draftMsg || "同意を送信しています。入力はこの端末に保存されるので、そのまま続けられます。"}</p>}
           {isFarmer && step > 0 && step !== 6 && step <= 12 && <p className="listing-stage-caption">ステップ{listingStage(step) + 1} / 3 · {LISTING_STAGES[listingStage(step)].title}</p>}
@@ -2357,7 +2357,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             </div>
           </>)}
 
-        </div>
+        </ListingPage>
       </div>
 
       {/* 保存中オーバーレイ（下部ナビ「保存」・保存して終了 共通。どのstepでも表示。旧:確認ページ右パネル内） */}
