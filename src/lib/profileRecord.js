@@ -1,5 +1,6 @@
+import { inputError as error } from './inputRecovery.js';
 const TABLES = new Set(['worker_profiles', 'employer_profiles', 'consignment_profiles', 'emergency_contacts']);
-const error = (code, message) => Object.assign(new Error(message), { code });
+
 const stable = value => JSON.stringify(value && typeof value === 'object'
   ? Array.isArray(value) ? value.map(v => JSON.parse(stable(v))) : Object.fromEntries(Object.keys(value).sort().map(k => [k, JSON.parse(stable(value[k]))]))
   : value ?? null);

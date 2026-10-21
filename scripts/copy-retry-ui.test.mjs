@@ -15,6 +15,7 @@ test('the actual shared copy flow reconciles before handing off to the editor',a
   const mount=(options={})=>{dom?.window.close();dom=new JSDOM('<div></div>',{url:'https://ui.test/#/employer',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:new VirtualConsole()});const w=dom.window;Object.assign(w,{qaOptions:options,qaAlerts:[]});w.alert=m=>w.qaAlerts.push(m);w.eval(script);return w;};
   await t.test('response loss preserves intent, retry opens one copy with original date prefill',async()=>{
    const w=mount({lostResponse:true}),dates={date_start:'2026-11-01',date_end:'2026-11-01',holidays:[]};assert.equal((await w.qaCopyJob(1,{presetDates:dates,quietDates:true})).ok,false);assert.equal(w.location.hash,'#/employer');assert.equal(w.qaCopy.state.pending.size,1);
+   assert.match(w.qaAlerts[0],/保存済みの場合もあります/);assert.match(w.qaAlerts[0],/同じ端末・ブラウザ/);
    w.qaOptions.lostResponse=false;assert.equal((await w.qaCopyJob(1)).ok,true);assert.equal(w.qaCopy.state.writes,1);assert.equal(w.location.hash,'#/work/edit/101');assert.equal(JSON.parse(w.sessionStorage.getItem('cb_editJobPresetDates')).date_start,dates.date_start);assert.equal(w.qaCopy.state.pending.size,0);
   });
   await t.test('edited retry target never receives old calendar presets',async()=>{

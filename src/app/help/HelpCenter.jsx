@@ -9,12 +9,14 @@ import { compressImage } from "../../lib/image";
 import { readHelpImages, saveHelpImage } from "../../lib/helpImageRecord";
 import { NavIconInline } from "../../components/NavIcons";
 import { openSupport } from "../../lib/supportDiagnostics";
+import { INPUT_RECOVERY_HELP } from "../../lib/inputRecovery.js";
 
 // ── ヘルプセンター（#/help・#/help/{chapter}） ──────────────────
 // HELP_CONTENT: 章キー→{num,title,items:[{label,body}]}。
 // 画像はここに持たず、help_imagesテーブルからslot_key(章キー+配列index)で引く（管理者アップロード・スロット制）
-const HELP_CHAPTER_KEYS = ["about","farmer","worker","mails","info","faq"];
+const HELP_CHAPTER_KEYS = ["about","farmer","worker","mails","info","faq","recovery"];
 const HELP_CONTENT = {
+  recovery: { num: "第7章", title: "保存・通信で困ったとき", items: INPUT_RECOVERY_HELP },
   about: {
     num: "第1章", title: "chitose-bankとは",
     items: [
@@ -287,7 +289,7 @@ export function HelpCenter({ me, onReportClick = () => openSupport() }) {
               </button>
               {isOpen && (
                 <div style={{ padding:"0 24px 24px", display:"grid", gap:20 }}>
-                  {key === "faq" && (
+                  {["faq","recovery"].includes(key) && (
                     <button onClick={onReportClick} className="f-sans" style={{
                       justifySelf:"start", padding:"9px 18px", fontSize:13, fontWeight:600, color:"#00A86B",
                       background:"#E6F7EF", border:"none", borderRadius:20, cursor:"pointer",

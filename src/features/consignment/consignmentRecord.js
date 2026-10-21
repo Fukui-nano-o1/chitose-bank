@@ -1,6 +1,7 @@
+import { inputError as error } from '../../lib/inputRecovery.js';
 import { sameProfileValue } from '../../lib/profileRecord.js';
 
-const error = (code, message) => Object.assign(new Error(message), { code });
+
 export const consignmentPendingKey = (owner, id) => `cb_consignmentSave_v1:${owner}:${id || 'new'}`;
 export const consignmentBase = row => row ? Object.fromEntries(['spec', 'status', 'notes', 'updated_at'].map(k => [k, row[k]])) : null;
 const termsKeys = ['cmn_pay_due', 'cmn_fee_bearer', 'cmn_inspect', 'cmn_cancel'];
@@ -48,13 +49,13 @@ export async function saveConsignmentRecord(client, { owner, row, patch, fields,
     const conflict = ['conflict', 'field_conflict', 'terms_conflict', 'not_found'].includes(data.reason);
     throw error(conflict ? 'CONSIGNMENT_CONFLICT' : 'CONSIGNMENT_SAVE', conflict
       ? '別の画面で案件・圃場・標準条件が変更されています。入力は残しています。内容を控えて最新情報と照合してください。'
-      : '保存できませんでした。案件・圃場・標準条件はまとめて取り消されています。入力を確認して再試行してください。');
+      : '今回の保存を受け付けられませんでした。入力を控え、案件・圃場・標準条件の最新状態を確認してください。続く場合は「ヘルプ・お問い合わせ」へご連絡ください。', data.reason);
   }
   if (data.request_id !== request.p_request_id || data.owner !== owner || data.row?.id !== request.p_deal_id
     || !sameProfileValue(data.row.spec, request.p_patch.spec) || data.row.status !== request.p_patch.status || data.row.notes !== request.p_patch.notes) {
     throw error('CONSIGNMENT_UNCONFIRMED', '保存結果と送信内容を照合できません。入力と保存操作を残しています。');
   }
   try { storage.removeItem(key); if (storage.getItem(key)) throw Error('Still pending'); }
-  catch { throw error('CONSIGNMENT_UNCONFIRMED', '保存は確認できましたが、端末の保存操作を片付けられません。保存ボタンで再確認してください。'); }
+  catch { throw error('CONSIGNMENT_ACK', '保存は確認できましたが、端末の保存操作を片付けられません。保存ボタンで再確認してください。'); }
   return { ...data, changed: !sameProfileValue(request.p_patch, patch) || !sameProfileValue(request.p_terms, desiredTerms) };
 }

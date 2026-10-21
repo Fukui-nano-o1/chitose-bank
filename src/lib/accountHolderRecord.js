@@ -1,7 +1,8 @@
+import { inputError as fail } from './inputRecovery.js';
 const fields = ['full_name', 'birth_date', 'postal_code', 'address', 'entity_type', 'company_name', 'company_number',
   'contact_email', 'contact_phone', 'agreed_terms_version', 'agreed_privacy_version'];
 const columns = ['auth_id', ...fields].join(',');
-const fail = (code, message) => Object.assign(new Error(message), { code });
+
 async function sessionFor(client, owner) {
   const { data, error } = await client.auth.getSession();
   if (error || !owner || data?.session?.user?.id !== owner) throw fail('ACCOUNT_SESSION', 'ログイン中のアカウントを確認できません。画面を開き直してください。');

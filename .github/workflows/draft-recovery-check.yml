@@ -5,6 +5,10 @@ on:
   pull_request:
     paths:
       - src/lib/deviceDrafts.js
+      - src/lib/inputRecovery.js
+      - src/lib/errorCatalog.js
+      - src/app/help/HelpCenter.jsx
+      - scripts/input-recovery.test.mjs
       - src/lib/offlineSync.js
       - src/lib/jobDraftProtocol.js
       - src/lib/jobInputFields.js

@@ -1,4 +1,5 @@
 // エラーの辞書・分類・グループ化（2026-08-07切り出し）：
+import { inputRecovery } from './inputRecovery.js';
 // AdminSystemRoom（システムページのエラー面）が使う唯一のソース。ここに置くのは
 // React/DOM/supabase 非依存の純関数のみ（lib層の規則）。
 // ★運営チャットへの投函（旧 AdminErrorChatReporter）は2026-08-31にDBトリガーへ移した
@@ -64,26 +65,26 @@ export const KNOWN_ERRORS = [
     title: "地図部品（Leaflet）の内部エラー",
     cause: "地図の表示中に部品が片付いた等のタイミング問題で起きる型。",
     action: "件数が少なければ実害小。急増したら地図画面の操作手順を確認。" },
-  { match: m => m.includes("row-level security"),
-    title: "DBがRLSで書き込みを拒否",
-    cause: "その利用者に許可されていない書き込みが実行された＝UIの出し分けとDBの権限がズレている可能性。",
-    action: "発生ページと操作を確認し、RLSポリシーと画面の条件を突き合わせる。" },
+  { match: (m, e) => e.error_code === '42501' || m.includes("row-level security"),
+    title: "保存に必要な権限を確認できない",
+    cause: "DBが権限の条件により操作を拒否した。意図した制限か設定の問題かは、この記録だけでは確認できない。",
+    action: "利用者にはアカウントと対象の確認を案内。時間をおく・ログインを繰り返すだけで直るとは案内しない。運営は対象操作と権限条件を照合する。" },
   { match: m => m.includes("duplicate key") || m.includes("unique constraint"),
     title: "重複データの書き込みを拒否",
     cause: "同じ組み合わせの行が既にある（二重応募のUNIQUE等、意図した壁のことが多い）。",
-    action: "発生ページと操作を確認。壁として正しければ画面側の二重送信ガードを見る。" },
+    action: "発生ページと操作を確認。保存済みの内容と今回の入力が一致するかを照合する。重複エラーだけで成功や対応不要とは判断しない。" },
   { match: m => m.includes("statement timeout"),
     title: "DBの応答が時間切れ",
-    cause: "nanoインスタンスのコールドスパイク（数秒かかる型）で起きることがある。",
-    action: "同時刻に連発していなければ一過性。連発ならDB負荷を確認（2026-08-07応募取り消しの型）。" },
+    cause: "DBの処理が制限時間を超えた。負荷・ロック待ち・処理内容のどれが原因かは、この記録だけでは確認できない。",
+    action: "利用者には入力を控えたうえで画面の確認手順を案内。運営は同時刻の発生と対象処理を確認し、反復する場合は調査する。" },
   { match: m => m.includes("api key is invalid") || m.includes("gomail") || m.includes("error sending"),
     title: "メール送信の失敗（SMTP設定）",
     cause: "Supabase AuthのSMTP鍵が無効だと、認証コードのメールが1通も送れない。",
     action: "ダッシュボードのSMTP設定と送信テストを確認（2026-08-04記録の型）。" },
   { match: m => m.includes("failed to fetch") || m.includes("load failed") || m.includes("networkerror"),
-    title: "通信が届かなかった",
-    cause: "電波の切れ目・圏外・サーバーの一時不調。利用者の端末側が大半。",
-    action: "特定の時刻に集中していたらサーバー側（DB不調等）を疑う。散発なら様子見。" },
+    title: "通信結果を受け取れなかった",
+    cause: "通信・サーバー応答・ブラウザの制約などで結果を取得できなかった。原因や、保存処理が実行済みかは、この記録だけでは確認できない。",
+    action: "保存操作なら結果未確認として扱い、画面にある同じ操作の確認手順を案内。新規データの作り直しやサイトデータ削除は勧めない。運営は集中発生や復帰不能を調査する。" },
 ];
 // 辞書に無いメッセージを、型から日本語へ翻訳（識別子を埋め込んで具体化）。該当なしはnull
 export function translateError(raw) {
@@ -101,6 +102,10 @@ export function translateError(raw) {
   return null;
 }
 export function explainError(e) {
+  const recovery = inputRecovery(e.error_code || e.code, e.reason);
+  if (recovery) return { title: recovery.title,
+    cause: recovery.state + 'この分類だけでは通信・権限・実装のどこが原因かは特定できない。',
+    action: recovery.action + '復帰を確認するまでは解決済みにしない。同じ操作で続く場合は調査する。' };
   const low = (e.message || "").toLowerCase();
   for (const k of KNOWN_ERRORS) if (k.match(low, e)) return k;
   return translateError(e.message || "");
