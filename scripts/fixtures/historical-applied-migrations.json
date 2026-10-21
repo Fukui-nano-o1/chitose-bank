@@ -1,0 +1,538 @@
+{
+  "checkedAt": "2026-10-21T13:46:17.137760+00:00",
+  "project": "aegwepgtmwcnwzybpgsh",
+  "scope": "59 historical files whose executable SQL was verified against applied history; SQL bytes retained; no database execution or history rewrite",
+  "migrations": [
+    {
+      "version": "20260722141020",
+      "appliedName": "chat_partner_initials",
+      "old": "20260722141500_chat_partner_initials.sql",
+      "file": "20260722141020_chat_partner_initials.sql",
+      "localSha256": "2cd2ec61b2a2aa6595806c83a7a61d0622279201de37c533d96d1a02f26a6335",
+      "appliedSqlMd5": "0d401dc0b5bde881fcf87ac843b9c2e2",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260722153240",
+      "appliedName": "calendar_my_role",
+      "old": "20260722160000_calendar_my_role.sql",
+      "file": "20260722153240_calendar_my_role.sql",
+      "localSha256": "acf05e126794dda376ba06963495921ae7249e301b42f5cd9ad403089569e5dd",
+      "appliedSqlMd5": "08d6e7d338cc8dbf77bba407edf9746a",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260723083154",
+      "appliedName": "notify_message_no_throttle",
+      "old": "20260722170000_notify_message_no_throttle.sql",
+      "file": "20260723083154_notify_message_no_throttle.sql",
+      "localSha256": "9b5332080165526be56b2e6b33c7b421007f8296fe627e8d193b179279b018e5",
+      "appliedSqlMd5": "3e0243b73fd78a3cb565e72b9e5f732a",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724040753",
+      "appliedName": "any_dates_no_decide",
+      "old": "20260724130000_any_dates_no_decide.sql",
+      "file": "20260724040753_any_dates_no_decide.sql",
+      "localSha256": "85ef2ac9d11d3cbf43d8afc690cabcff538ca65d1cb0f6c178b9aa3d5bc0b257",
+      "appliedSqlMd5": "f3678707e2e3b192d4f821398e64bda9",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724041414",
+      "appliedName": "no_decide_dates_stage",
+      "old": "20260724140000_no_decide_dates_stage.sql",
+      "file": "20260724041414_no_decide_dates_stage.sql",
+      "localSha256": "ae6eabe56358517096335115694e8d2b581ef94c2593aab99d76dfaa2db3031f",
+      "appliedSqlMd5": "c9a63a1479e34e4622d4a0cc8c35addc",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724041827",
+      "appliedName": "signup_open_general_release",
+      "old": "20260724150000_signup_open_general_release.sql",
+      "file": "20260724041827_signup_open_general_release.sql",
+      "localSha256": "aaf0f3d69ad92f13ed8edeaad95f1efc45b57422f249e7541507bc976bf2f3b2",
+      "appliedSqlMd5": "6d5697245971249cbd1afbcd08025723",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724120520",
+      "appliedName": "employer_trust_split_open_vs_track_record",
+      "old": "20260724150000_employer_trust_split_open_vs_track_record.sql",
+      "file": "20260724120520_employer_trust_split_open_vs_track_record.sql",
+      "localSha256": "d0ffd58b16860fbc876beecb77ec7f6802513dc02b6b01937147489abc28d624",
+      "appliedSqlMd5": "31e4ee00ac13e684140360b7ef380150",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724120652",
+      "appliedName": "copy_job_clear_past_dates",
+      "old": "20260724160000_copy_job_clear_past_dates.sql",
+      "file": "20260724120652_copy_job_clear_past_dates.sql",
+      "localSha256": "62323a21dc4a5577b71f3f8058512dadc5c9631b9884a03d2bef62c2d018985f",
+      "appliedSqlMd5": "8b4bf97e9914c3591dd643c81ae95a9c",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724121021",
+      "appliedName": "employer_trust_active_counts",
+      "old": "20260724153000_employer_trust_active_counts.sql",
+      "file": "20260724121021_employer_trust_active_counts.sql",
+      "localSha256": "5775a07b966d9acb8c24423847f28ee052ce13bc0f95a3a7a1f1b479e2d4b7dc",
+      "appliedSqlMd5": "f6531ee8224fac85671cbb7cdc9cebac",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260724122103",
+      "appliedName": "employer_public_job_counts",
+      "old": "20260724160000_employer_public_job_counts.sql",
+      "file": "20260724122103_employer_public_job_counts.sql",
+      "localSha256": "6f574760c1210f39136f43a5d91a36e28d94226a8aa6a2098b5d78ae8793e96e",
+      "appliedSqlMd5": "a40d945de362ffdf91c4c8c274147906",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725011136",
+      "appliedName": "todo_items_partner_avatar",
+      "old": "20260725100000_todo_items_partner_avatar.sql",
+      "file": "20260725011136_todo_items_partner_avatar.sql",
+      "localSha256": "d611c5b3d053e857c8143afa4005d687c4eba1b7ce2ffacbbafafb7a7748040f",
+      "appliedSqlMd5": "3f6227682924fc751b4e1a396e10b7af",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725032918",
+      "appliedName": "add_insurance_notes",
+      "old": "20260725120000_add_insurance_notes.sql",
+      "file": "20260725032918_add_insurance_notes.sql",
+      "localSha256": "b1c5dde17777b64ed865560fafcebda9698c0fc39c55e6f2f824d4557bc18061",
+      "appliedSqlMd5": "f97d4316959e8d86f62fda35a5477a40",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725121430",
+      "appliedName": "reapply_interview_history_todo",
+      "old": "20260725150000_reapply_interview_history_todo.sql",
+      "file": "20260725121430_reapply_interview_history_todo.sql",
+      "localSha256": "1edd38c65ce00a8cff590111e7247e560b0c1d3171f27d744b4e8d64d4141a3d",
+      "appliedSqlMd5": "5c6fade5e707e58a984a5b57b42586ab",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725123747",
+      "appliedName": "drop_w_waiting",
+      "old": "20260725160000_drop_w_waiting.sql",
+      "file": "20260725123747_drop_w_waiting.sql",
+      "localSha256": "1a101274295aedf51e5a14878d5a769c549b81a99262e55ef82dd4f725ee7eb4",
+      "appliedSqlMd5": "f639ac0edc014def58022d59cd4c9d0d",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725135049",
+      "appliedName": "apply_gate_one_qa_and_on",
+      "old": "20260725170000_apply_gate_one_qa_and_on.sql",
+      "file": "20260725135049_apply_gate_one_qa_and_on.sql",
+      "localSha256": "82c6f90cc95039edee2f9050aa05d337be548a644c3e365a53abfb14c0887ccb",
+      "appliedSqlMd5": "973fc44c1b41eee0631e4dd93daf97dd",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725233831",
+      "appliedName": "drop_chat_todo",
+      "old": "20260725180000_drop_chat_todo.sql",
+      "file": "20260725233831_drop_chat_todo.sql",
+      "localSha256": "59de4e0eb345fd0310f25feb9697e041eaf2a32f5f00b8a3bd228bf025cab235",
+      "appliedSqlMd5": "74deb2a12d975f9e113035d70be293ef",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260725234634",
+      "appliedName": "merge_complete_review_todo",
+      "old": "20260725190000_merge_complete_review_todo.sql",
+      "file": "20260725234634_merge_complete_review_todo.sql",
+      "localSha256": "dcab63525482fcb0d88922d6ab42e76faa838d81f7626f8499eeb2ce76d47088",
+      "appliedSqlMd5": "9e32ffcf20a74bc54a4a506041eac584",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260726021840",
+      "appliedName": "expire_approved_unhired",
+      "old": "20260726100000_expire_approved_unhired.sql",
+      "file": "20260726021840_expire_approved_unhired.sql",
+      "localSha256": "449eaec0b25f61fe38af0869b7b1052c16990a04fc1474495760736facd1062e",
+      "appliedSqlMd5": "5d15534c62868156f4935ce8fbd090b3",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260727132805",
+      "appliedName": "close_others_when_filled",
+      "old": "20260727170000_close_others_when_filled.sql",
+      "file": "20260727132805_close_others_when_filled.sql",
+      "localSha256": "405df074471cdfb1c3a3366e3ab1933b029552c2e708223897d32ad4b92bd63e",
+      "appliedSqlMd5": "8c20388ac22166be58aceaf06ac261c0",
+      "comparison": "reviewed_comments_only"
+    },
+    {
+      "version": "20260727141156",
+      "appliedName": "my_job_actions",
+      "old": "20260727180000_my_job_actions.sql",
+      "file": "20260727141156_my_job_actions.sql",
+      "localSha256": "1b850ab1dca6d8e20ad32677c902b5cfe1d4113f99157e5808efaa84ee7cdc58",
+      "appliedSqlMd5": "6922c79426731c6037bc5ff4efc5ded5",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260729040145",
+      "appliedName": "block_apply_when_filled",
+      "old": "20260727210000_block_apply_when_filled.sql",
+      "file": "20260729040145_block_apply_when_filled.sql",
+      "localSha256": "bfcf56c5a0f5ef41e88d5c99a147940b82f6552f908df0de8ac4d2d25629722b",
+      "appliedSqlMd5": "81d78e4105348f62a27d54e4d234f0a6",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260729043036",
+      "appliedName": "employer_recruiter_info",
+      "old": "20260727220000_employer_recruiter_info.sql",
+      "file": "20260729043036_employer_recruiter_info.sql",
+      "localSha256": "bc83e677b48474ed41d663029c49fe07bf82919419af8037f8389c5f94ec9222",
+      "appliedSqlMd5": "dc1879e4f538c1cd38d473c8e5f8eeb1",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260729045906",
+      "appliedName": "job_employer_profile_recruiter_info",
+      "old": "20260727230000_job_employer_profile_recruiter_info.sql",
+      "file": "20260729045906_job_employer_profile_recruiter_info.sql",
+      "localSha256": "b1118d0ae94a463c128a4e900dd4dca28da563edcf92a920c0923fe4085fe371",
+      "appliedSqlMd5": "84e9bad1c529bc55ad3e7cd2039f677c",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260729050159",
+      "appliedName": "require_recruiter_info_to_open",
+      "old": "20260727240000_require_recruiter_info_to_open.sql",
+      "file": "20260729050159_require_recruiter_info_to_open.sql",
+      "localSha256": "8fb68af53270566983a9bb94c1564b15e94dbc3d7736b290963dbab9e1a378a6",
+      "appliedSqlMd5": "d0f728c6e803011d4e23f15fa54093c4",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260729061751",
+      "appliedName": "require_recruiter_info_on_pending",
+      "old": "20260727270000_require_recruiter_info_on_pending.sql",
+      "file": "20260729061751_require_recruiter_info_on_pending.sql",
+      "localSha256": "9019e97585bfa3f9c8bfeea17ca79ed8f20b9da117bcd228187424114b5be543",
+      "appliedSqlMd5": "65fc8f39b51fea17cfb6cb39a379a47b",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260730053943",
+      "appliedName": "saved_jobs_not_own",
+      "old": "20260729130000_saved_jobs_not_own.sql",
+      "file": "20260730053943_saved_jobs_not_own.sql",
+      "localSha256": "b2199ac6e31ed8382658247296cef45980e50c48e333f267dd5ba07c8e02467d",
+      "appliedSqlMd5": "9eea947c46c4302d96e31ef77ca970c0",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260730073410",
+      "appliedName": "employer_trust_avg_approval_hours",
+      "old": "20260730120000_employer_trust_avg_approval_hours.sql",
+      "file": "20260730073410_employer_trust_avg_approval_hours.sql",
+      "localSha256": "c4297738428e7759905d001802cc69707e43755eaf7b7a7e6a6574cf59145407",
+      "appliedSqlMd5": "33cb739e569541251519138d2d8f36b6",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260803152227",
+      "appliedName": "emergency_contacts",
+      "old": "20260803154500_emergency_contacts.sql",
+      "file": "20260803152227_emergency_contacts.sql",
+      "localSha256": "da814786b7d93e59d5cda5ca50c24157603941d087d262a6aa2816fc035d78a3",
+      "appliedSqlMd5": "b1de54877f0413ccc8c81779aa6cd8a3",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260806165301",
+      "appliedName": "20260806174500_consignment_photos_authenticated_read",
+      "old": "20260806174500_consignment_photos_authenticated_read.sql",
+      "file": "20260806165301_consignment_photos_authenticated_read.sql",
+      "localSha256": "34fdb1b6ffd75c69704bbe6d32e7ed6659ef5aefde891425be62fe8aaac427eb",
+      "appliedSqlMd5": "73f00b45e3ea32d40721b5035069f45a",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260806235921",
+      "appliedName": "purge_page_events_30d",
+      "old": "20260807000034_purge_page_events_30d.sql",
+      "file": "20260806235921_purge_page_events_30d.sql",
+      "localSha256": "b2918cbaa69f64198aca3b9bb01480c001a9006252f28ef26fa12ea0e739e297",
+      "appliedSqlMd5": "11c07c13689221174a299c82c2de186b",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260807021610",
+      "appliedName": "revoke_app_work_dates_from_public",
+      "old": "20260807021723_revoke_app_work_dates_from_public.sql",
+      "file": "20260807021610_revoke_app_work_dates_from_public.sql",
+      "localSha256": "fef8905a926102cd35064de45c001853dec731f652c3c4111bc55db9eeab3945",
+      "appliedSqlMd5": "81c3f1a23d8cbeb556813988f70e1da9",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260807133347",
+      "appliedName": "withdrawal_add_consignment_profiles",
+      "old": "20260807133000_withdrawal_add_consignment_profiles.sql",
+      "file": "20260807133347_withdrawal_add_consignment_profiles.sql",
+      "localSha256": "284acf9cf0e97bbda5890b9a455055fd207a9fee5d99e882fc92948686df9013",
+      "appliedSqlMd5": "f40305bd7a40f0068a78ce23f36aec85",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260808004820",
+      "appliedName": "20260808004900_unpublish_job_rejects_applicants",
+      "old": "20260808004900_unpublish_job_rejects_applicants.sql",
+      "file": "20260808004820_unpublish_job_rejects_applicants.sql",
+      "localSha256": "97db93a38452cb1e375130902cf7b5781f6357ef5a7b023088e21d4f233211db",
+      "appliedSqlMd5": "16dc3c5f5d68a527680a2ded3385d717",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260816050601",
+      "appliedName": "20260816050512_message_mail_layout_v3",
+      "old": "20260816050512_message_mail_layout_v3.sql",
+      "file": "20260816050601_message_mail_layout_v3.sql",
+      "localSha256": "9a47b2ec229377fb8cdf00f8d8936d9bdc158c38fb95797a26eda2b4995d64b1",
+      "appliedSqlMd5": "9aefe098d518a99f76eafa4702fe97a2",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260816051921",
+      "appliedName": "20260816070000_emergency_contact_reminder",
+      "old": "20260816070000_emergency_contact_reminder.sql",
+      "file": "20260816051921_emergency_contact_reminder.sql",
+      "localSha256": "ddb4fb347e6fa8fb6a589cdd9d27c9d1e866ec8235387a7993c38e43377a0836",
+      "appliedSqlMd5": "36b1d0ed665662f9c7f855a85b14aebd",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260816052828",
+      "appliedName": "20260816073000_emergency_contact_reminder_mail_only",
+      "old": "20260816073000_emergency_contact_reminder_mail_only.sql",
+      "file": "20260816052828_emergency_contact_reminder_mail_only.sql",
+      "localSha256": "55e4fea202053d507ed1cad42ebe02c9be2605209c34921beab823fdbe06d42b",
+      "appliedSqlMd5": "74626e844ff8b556060f9c9215d0b4b7",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260816140013",
+      "appliedName": "20260816140000_application_followup_state",
+      "old": "20260816140000_application_followup_state.sql",
+      "file": "20260816140013_application_followup_state.sql",
+      "localSha256": "b5b372b3a29f547f63524dc8a763a53f6f0c1556ce5ea73bb5a328d0ea00b583",
+      "appliedSqlMd5": "9b00b83c509408e1ad4dcce9a506ac9a",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260816140605",
+      "appliedName": "20260816143000_followup_backfill_existing",
+      "old": "20260816143000_followup_backfill_existing.sql",
+      "file": "20260816140605_followup_backfill_existing.sql",
+      "localSha256": "4572bae2736eb873a18f5d4de2693454d30cab28db6cf414f76100276e815632",
+      "appliedSqlMd5": "c64aaa001ad30e1b1462c6b188951782",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260817040519",
+      "appliedName": "20260817040444_pending_apply_hard_gates",
+      "old": "20260817040444_pending_apply_hard_gates.sql",
+      "file": "20260817040519_pending_apply_hard_gates.sql",
+      "localSha256": "be876d98bce6c100c097e5b7436cb63c0cde0f362bc3650cbf286ca121e517c4",
+      "appliedSqlMd5": "61907f18fd23ec613e41a982a6544301",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260817100516",
+      "appliedName": "20260817100444_worker_ready_minimal_four",
+      "old": "20260817100444_worker_ready_minimal_four.sql",
+      "file": "20260817100516_worker_ready_minimal_four.sql",
+      "localSha256": "a7c89455153479ffa8e762ae85c5f1be5050eb54299cf30b84dcf86a2614ec92",
+      "appliedSqlMd5": "3b25f6bba5542347fd97c305f22acfc8",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260817101027",
+      "appliedName": "20260817100956_apply_gate_single_condition",
+      "old": "20260817100956_apply_gate_single_condition.sql",
+      "file": "20260817101027_apply_gate_single_condition.sql",
+      "localSha256": "1df2ff1856307460821f3dcb0b94422cfc8b6d3d1de5c2eb7341592043aa198a",
+      "appliedSqlMd5": "9b70b7b12b7e71ec78046946725066ed",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260817102437",
+      "appliedName": "20260817040000_policy_mail_article_numbers",
+      "old": "20260817040000_policy_mail_article_numbers.sql",
+      "file": "20260817102437_policy_mail_article_numbers.sql",
+      "localSha256": "81242125e978c7a74047cdf9fa6e9cb85e35340e162845b06a9fbf82b021e044",
+      "appliedSqlMd5": "1847bc8819871d0d5415c2cd6288422e",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260818124905",
+      "appliedName": "20260816170000_my_farm_applicants_profiles_via_window",
+      "old": "20260816170000_my_farm_applicants_profiles_via_window.sql",
+      "file": "20260818124905_my_farm_applicants_profiles_via_window.sql",
+      "localSha256": "45c50bafaa5075891249e3340094c093cad2f15cc1a85f5c1c09ee3dd78e43ce",
+      "appliedSqlMd5": "c0032fc1104da1177fa296a03be86a66",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260819043838",
+      "appliedName": "20260819044500_perks_add_raise_and_severance_pay",
+      "old": "20260819044500_perks_add_raise_and_severance_pay.sql",
+      "file": "20260819043838_perks_add_raise_and_severance_pay.sql",
+      "localSha256": "74a0ce4d5b98c59608680e3f0b3eb077222eb4b924a6f66ac3fab36da2a045ab",
+      "appliedSqlMd5": "093835944c38084215554a043ed36557",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260819043922",
+      "appliedName": "20260819043759_remove_interview_question_sets",
+      "old": "20260819043759_remove_interview_question_sets.sql",
+      "file": "20260819043922_remove_interview_question_sets.sql",
+      "localSha256": "cdee768debafadbf4b4bda636cd88ee36f926ed2f3732dd018a5cd22a22c21f8",
+      "appliedSqlMd5": "43924ed2ab8492fefce98a1d223f6168",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260819044045",
+      "appliedName": "20260819045000_consignment_profiles_perks_parity",
+      "old": "20260819045000_consignment_profiles_perks_parity.sql",
+      "file": "20260819044045_consignment_profiles_perks_parity.sql",
+      "localSha256": "4cc38b8a4e9053b8eafc1af2ad01b12762faa0b81036cb9fb8c44a808e672ad8",
+      "appliedSqlMd5": "5f5162f8e7af469a77d99b81c166e65d",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260819052827",
+      "appliedName": "20260819060000_perks_detail_texts_and_consultation_contact",
+      "old": "20260819060000_perks_detail_texts_and_consultation_contact.sql",
+      "file": "20260819052827_perks_detail_texts_and_consultation_contact.sql",
+      "localSha256": "6bffe2fd218aff293327aa64e9eb368b97adfc1f91c39f13a1f42ff9a94e2f90",
+      "appliedSqlMd5": "caf995b6d3350f37a72fb04f9adc53ce",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260824021554",
+      "appliedName": "20260824030000_contract_party_name_hired_without_snapshot",
+      "old": "20260824030000_contract_party_name_hired_without_snapshot.sql",
+      "file": "20260824021554_contract_party_name_hired_without_snapshot.sql",
+      "localSha256": "625b3abe71c267b5e73dd6c918130a715739d5f82bd65f0bf0b33b01eb46193a",
+      "appliedSqlMd5": "3fcac124f865838d922e3992bb506a9a",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260824033718",
+      "appliedName": "20260824050000_emergency_contact_self_from_account",
+      "old": "20260824050000_emergency_contact_self_from_account.sql",
+      "file": "20260824033718_emergency_contact_self_from_account.sql",
+      "localSha256": "b16d6dfd2b7d023aaab8cb8d15dfcdbc314d79a13a683274ed088f756eb6b4d4",
+      "appliedSqlMd5": "054c5c20e0d741b06f716421a58225fd",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260825031019",
+      "appliedName": "20260825010000_calendar_keep_ended_jobs",
+      "old": "20260825010000_calendar_keep_ended_jobs.sql",
+      "file": "20260825031019_calendar_keep_ended_jobs.sql",
+      "localSha256": "a2465cc1671792ccd0f02a114ec60ffc47445265e2af868fff959419e496cd09",
+      "appliedSqlMd5": "06b910428b442c57b221acfb3d61feaf",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260828031155",
+      "appliedName": "20260828010000_calendar_include_applied",
+      "old": "20260828010000_calendar_include_applied.sql",
+      "file": "20260828031155_calendar_include_applied.sql",
+      "localSha256": "9c1273653aca2db9ce007760f5e44a066694f9d03b5857eb0707a74e6c6c17c5",
+      "appliedSqlMd5": "ccc7fc6f7e8928cc5e11dcd736ab6101",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260831140545",
+      "appliedName": "20260831140533_account_reported_count_open_only",
+      "old": "20260831140533_account_reported_count_open_only.sql",
+      "file": "20260831140545_account_reported_count_open_only.sql",
+      "localSha256": "64899bf9a70e0a7926ead2b05541b558a3551cd752f3fc7cdc0d6c1e87f7dbfa",
+      "appliedSqlMd5": "c3d2573e04c4f56355747edff4c54994",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260924145301",
+      "appliedName": "support_feedback_flow",
+      "old": "20260924144809_support_feedback_flow.sql",
+      "file": "20260924145301_support_feedback_flow.sql",
+      "localSha256": "73c6f763c4c724511565fe99e8abafbee1479214ab1a35417cad4745ae48f95c",
+      "appliedSqlMd5": "920d79b792525270ed09d6c15c511400",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260924152147",
+      "appliedName": "chat_inbox_previews",
+      "old": "20260924151645_chat_inbox_previews.sql",
+      "file": "20260924152147_chat_inbox_previews.sql",
+      "localSha256": "c4c9797c0a819e8533d123569c18d1a198a991dece6e2ad3e6186b99dd1dd94f",
+      "appliedSqlMd5": "063af56bc1fe4efe59cd0b6528dab0fa",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20260928095153",
+      "appliedName": "20260928095100_app_errors_rate_limit",
+      "old": "20260928095100_app_errors_rate_limit.sql",
+      "file": "20260928095153_app_errors_rate_limit.sql",
+      "localSha256": "9290c2a0d2957785ff73432ded9c73032b86d5fda0655df816f527d5039cb23d",
+      "appliedSqlMd5": "56b8bf3d1975715cb3ff0f7b5d7fd68c",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20261002153325",
+      "appliedName": "distinguish_googlebot_error_reports",
+      "old": "20261002153118_distinguish_googlebot_error_reports.sql",
+      "file": "20261002153325_distinguish_googlebot_error_reports.sql",
+      "localSha256": "d34521b22bb23fff34adafa2bc1bb647b4152d29413bc01ac791281c01027f39",
+      "appliedSqlMd5": "c07db1ce2c3471de78394a53aaffa9bd",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20261005054633",
+      "appliedName": "shift_existing_job_drafts_for_video_step",
+      "old": "20261005054800_shift_existing_job_drafts_for_video_step.sql",
+      "file": "20261005054633_shift_existing_job_drafts_for_video_step.sql",
+      "localSha256": "6e342ab17bdb4ddc7253bb945c40b3d690419ecdb0d7ef8ae0f69df95f080acf",
+      "appliedSqlMd5": "c5fbc0cbbc80de6e6f91869ff2d4d092",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20261005054958",
+      "appliedName": "add_stable_job_draft_step_id",
+      "old": "20261005060000_add_stable_job_draft_step_id.sql",
+      "file": "20261005054958_add_stable_job_draft_step_id.sql",
+      "localSha256": "1ab8f4825dd27d9892f778c0b3cfa526fef1a95551ade0ce7f30bf095a3ab87a",
+      "appliedSqlMd5": "c98af7c8b8cd1ff914b46cc0533bcdf0",
+      "comparison": "leading_comments_and_outer_whitespace"
+    },
+    {
+      "version": "20261005055405",
+      "appliedName": "allow_stable_draft_step_id_in_sync",
+      "old": "20261005061500_allow_stable_draft_step_id_in_sync.sql",
+      "file": "20261005055405_allow_stable_draft_step_id_in_sync.sql",
+      "localSha256": "b2649e2d2f319a26a58295443b4301f91b237265d1961d51a9420bf8602203da",
+      "appliedSqlMd5": "45a9e797943e6e23d2285fbad6f2dc03",
+      "comparison": "leading_comments_and_outer_whitespace"
+    }
+  ]
+}

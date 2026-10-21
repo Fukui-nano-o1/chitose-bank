@@ -5,6 +5,7 @@ on:
       - supabase/migrations/**
       - scripts/applied-migration-history.test.mjs
       - scripts/fixtures/input-save-applied-migrations.json
+      - scripts/fixtures/historical-applied-migrations.json
       - .github/workflows/applied-migration-history-check.yml
 permissions:
   contents: read
