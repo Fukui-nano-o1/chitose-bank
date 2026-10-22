@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../components/ListingPhoto.jsx";
 // 圃場の登録簿（委託者単位）。第2次構造改革2026-08-17で ConsignmentRoom.jsx から分離・中身は不変。
 import { useEffect, useRef, useState } from "react";
 import { fieldBase, readConsignmentAuxPending, saveConsignmentAux } from "../consignmentAuxRecord";
@@ -109,7 +110,7 @@ export function ConsignFieldsPane({ fields, onReload, ownerId, ready=true }) {
         <label className="lbl f-sans">圃場の写真（1枚）</label>
         {form.photo ? (
           <div style={{ position:"relative", display:"inline-block" }}>
-            <img loading="lazy" src={form.photo} alt="" style={{ width:140, height:140, objectFit:"cover", borderRadius:12, border:"1px solid #111111", display:"block" }} />
+            <ListingPhoto loading="lazy" src={form.photo} alt="" style={{ width:140, height:140, objectFit:"cover", borderRadius:12, border:"1px solid #111111", display:"block" }} />
             <button type="button" onClick={()=>fset("photo", "")} className="f-sans" aria-label="写真を削除" style={{ position:"absolute", top:-8, right:-8, width:26, height:26, borderRadius:"50%", border:"1px solid #111111", background:"#111111", color:"#fff", fontSize:13.2, fontWeight:700, lineHeight:1, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>×</button>
           </div>
         ) : (
@@ -136,7 +137,7 @@ export function ConsignFieldsPane({ fields, onReload, ownerId, ready=true }) {
       {fields.map(f => (
         <div key={f.id} style={{ background:"#fff", border:"1px solid #111111", borderRadius:14, padding:"14px 16px", marginBottom:10, display:"flex", gap:12, alignItems:"flex-start" }}>
           {((f.data || {}).photo || "") && (
-            <img loading="lazy" src={f.data.photo} alt="" style={{ width:64, height:64, objectFit:"cover", borderRadius:10, border:"1px solid #E5E5E5", flexShrink:0 }} />
+            <ListingPhoto loading="lazy" src={f.data.photo} alt="" style={{ width:64, height:64, objectFit:"cover", borderRadius:10, border:"1px solid #E5E5E5", flexShrink:0 }} />
           )}
           <div style={{ flex:1, minWidth:0 }}>
           <p className="f-sans" style={{ fontSize:15.4, fontWeight:800, color:"#111111", margin:0 }}>{f.name}</p>

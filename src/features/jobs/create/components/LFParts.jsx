@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 // LandingFlow 共有UI部品（第2次構造改革2026-08-17で LandingFlow.jsx から分離）。
 // ★【絶対】モジュールレベル定義を維持すること。LandingFlow 内に定義し直すと再レンダリングの
 //   たびに関数参照が変わり、React が別コンポーネントと判定してアンマウントし input の
@@ -143,7 +144,7 @@ export function LFPhotoReorderStrip({ photos, setPhotos }) {
                 WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none",
               }}
             >
-              <img loading="lazy" draggable={false} src={photoThumb(p)} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
+              <ListingPhoto loading="lazy" draggable={false} src={photoThumb(p)} alt={`写真${i + 1}`} style={{ width:"100%", height:"100%", objectFit:"cover", pointerEvents:"none" }} />
               {i === 0 && <span className="f-sans" style={{ position:"absolute", top:4, left:4, fontSize:9, fontWeight:700, color:"#fff", background:"#00A86B", borderRadius:6, padding:"1px 5px" }}>表紙</span>}
             </div>
             <div style={{ display:"flex", gap:4, marginTop:4 }}>

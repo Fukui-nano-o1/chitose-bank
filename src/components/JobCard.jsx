@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // 求人カード（分割・段階2後半・2026-07-24）：さがす一覧・関連求人・いいね一覧で共用。
 // ★Airbnbの型（2026-08-31たきと指示「求人カードの要素もパクれ」）：
 //   写真は素のまま（角丸・左上に白いバッジ・右上に♥）。文字は写真に【重ねない】＝下に4行：
@@ -141,7 +142,7 @@ function StaticJobCard({ job, variant, saved, onToggleSave, onOpen, hideEndLabel
         </div>
       )}
       {topSrc ? (
-        <img className="job-card-cover" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
+        <ListingPhoto className="job-card-cover" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} src={topSrc} alt="" onAnimationEnd={()=>setPhotoPop(false)} style={{ width:"100%", height:photoHeight, objectFit:"cover", display:"block", borderRadius:photoRadius, ...photoAnim }} />
       ) : (
         /* 写真が無い求人は求人者のアイコンを大きく出す（2026-07-30たきと指示・詳細/確認ページと同じ扱い）。
            アイコン未設定なら Avatar が名前の頭文字の丸を出し、名前も無ければ作物の絵文字に落とす */

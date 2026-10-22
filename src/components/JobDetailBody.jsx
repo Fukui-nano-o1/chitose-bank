@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // 求人詳細の本文＝ボックス版（カレンダーのカード・応募者シートなど、面の中に開く求人詳細）。
 // 2026-09-02たきと指示「ボックス展開している求人詳細も同じ構造にしよう」＝求人詳細ページ
 // （JobSearchMapView）と同じ Airbnb の掲載ページの並びにした。区画の部品はページ側と【同じもの】を
@@ -185,7 +186,7 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: emp
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
         }}>
-          <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
+          <ListingPhoto src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
     </div>

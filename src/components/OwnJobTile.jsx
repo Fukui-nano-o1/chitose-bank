@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // あなたの求人（お仕事タブの求人面）のカード＝Airbnbのホストの「リスティング」ページのカードの写し
 // （2026-09-02たきと指示「あなたの求人ページもAirbnbをパクれ」）。
 // Airbnbのホスト側のカードは、客側のカード（写真＋題名＋場所＋金額）とは別物：
@@ -38,7 +39,7 @@ export function OwnJobTile({ title, sub, jobNumber, state, photo, avatarUrl, ava
       className="cb-btn-press" style={{ cursor: "pointer", minWidth: 0, touchAction: onActions ? "pan-y pinch-zoom" : undefined, userSelect: onActions ? "none" : undefined, WebkitUserSelect: onActions ? "none" : undefined, WebkitTouchCallout: onActions ? "none" : undefined }}>
       <div className="cb-own-job-photo" style={{ position: "relative", aspectRatio: "20 / 19", borderRadius: 12, overflow: "hidden", background: "#F0F0F0" }}>
         {photo ? (
-          <img src={photo} alt="" draggable={false} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <ListingPhoto src={photo} alt="" draggable={false} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         ) : (
           // 写真が無い求人＝求人者（自分）のアイコン（2026-08-31）。ダミーの写真は置かない
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#C8C8C8" }}>
