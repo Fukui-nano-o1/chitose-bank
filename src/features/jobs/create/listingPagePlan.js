@@ -1,4 +1,5 @@
-// 分割先の契約。第1弾では実際のページ順序・DB書込に接続しない。
+// 全体の分割先契約。全ページ一括では有効化しない。
+// 第2弾の日程/休日/人数だけをlistingNavigation.jsの実画面順序へ接続済み。
 // 既存の値はそのまま移し、derived/preserved の項目に新しい入力を作らない。
 import { legacyStepId } from "./flowSteps.js";
 const page = (id, title, stage, formFields = [], columns = [], options = {}) => Object.freeze({

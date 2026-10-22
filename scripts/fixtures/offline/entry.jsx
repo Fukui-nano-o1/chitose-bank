@@ -10,7 +10,10 @@ import {PRIVACY_VERSION} from '../../../src/lib/utils';
 import {owner} from './client';
 window.qaDrafts = drafts;
 const scenario = new URLSearchParams(location.search).get('case');
-if (scenario === 'new') {
+if (window.qaListingForm) {
+  const record = drafts.saveDeviceDraft(drafts.newDeviceDraft(owner), window.qaListingForm, {});
+  drafts.activeDeviceDraft(owner, record.id);
+} else if (scenario === 'new') {
   const form = {role:'farmer',farmerStep:8,farmerCropPill:'ブロッコリー',farmerTaskPill:'収穫',farmerPurpose:'post',
     farmerZip:'7793401',farmerPref:'徳島県',farmerCity:'吉野川市',farmerTown:'山川町',farmerAddr:'テスト',jobDateStart:'2026-11-01T00:00:00+09:00',
     jobCount:'3',dailyWageInput:'10000',breakTime:'60分',overtimePolicy:'なし',jobDescription:'最初の入力'};

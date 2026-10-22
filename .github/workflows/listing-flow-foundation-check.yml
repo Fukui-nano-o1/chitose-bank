@@ -6,12 +6,20 @@ on:
       - src/features/jobs/create/**
       - scripts/listing-*.test.mjs
       - scripts/fixtures/listing-frame-entry.jsx
+      - scripts/fixtures/listing-schedule-frame-entry.jsx
+      - scripts/fixtures/offline/**
+      - src/components/CalendarView.jsx
+      - src/App.jsx
       - .github/workflows/listing-flow-foundation-check.yml
   pull_request:
     paths:
       - src/features/jobs/create/**
       - scripts/listing-*.test.mjs
       - scripts/fixtures/listing-frame-entry.jsx
+      - scripts/fixtures/listing-schedule-frame-entry.jsx
+      - scripts/fixtures/offline/**
+      - src/components/CalendarView.jsx
+      - src/App.jsx
       - package.json
       - .github/workflows/listing-flow-foundation-check.yml
 permissions:

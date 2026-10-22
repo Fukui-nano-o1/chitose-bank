@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { ymdLocal } from "../lib/utils";
 
 // 読み書き両用カレンダー（モジュールレベル・入力側と詳細表示側で共有）
-export function CalendarView({ start: startProp, end: endProp, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false, holidays }) {
+export function CalendarView({ start: startProp, end: endProp, readOnly = false, onSelect, accent = "#00A86B", accentSoft = "#E6F7EF", hideHints = false, holidays, isDateDisabled, selectionMode = "range" }) {
   // 休日（2026-08-03）：["YYYY-MM-DD",...]。該当日はグレー＋打ち消し線で「休み」を示す。
   // 開始日・終了日と重なった場合は期間表示を優先（休日は期間の内側にしか置けない設計だが防御）
   const holidaySet = new Set(Array.isArray(holidays) ? holidays : []);
@@ -103,9 +103,9 @@ export function CalendarView({ start: startProp, end: endProp, readOnly = false,
   return (
     <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:14, marginTop:8 }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-        <button onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"‹"}</button>
+        <button type="button" aria-label="前の月" onClick={prevMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"‹"}</button>
         <span className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222" }}>{cvYear}年{cvMonth+1}月</span>
-        <button onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"›"}</button>
+        <button type="button" aria-label="次の月" onClick={nextMo} style={{ background:"#F7F7F7", border:"none", borderRadius:8, padding:"6px 12px", cursor:"pointer", fontSize:14 }}>{"›"}</button>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:8 }}>
         {WD_CV.map(wd => <div key={wd} style={{ textAlign:"center", fontSize:10, color:"#B0B0B0", padding:"3px 0" }}>{wd}</div>)}
@@ -118,8 +118,8 @@ export function CalendarView({ start: startProp, end: endProp, readOnly = false,
           const isToday = ymdLocal(dt) === todayYmdCV;
           const isHoliday = !(isStart||isEnd) && holidaySet.has(ymdLocal(dt));
           return (
-            <button key={dd} onClick={readOnly ? undefined : () => onSelect && onSelect(dt)} style={{
-              padding:"7px 2px", borderRadius:8, border:"none", cursor: readOnly ? "default" : "pointer", fontSize:13, textAlign:"center",
+            <button key={dd} type="button" aria-label={ymdLocal(dt)} aria-pressed={selectionMode === "holidays" ? isHoliday : !!(isStart || isEnd || inRange)} disabled={!!isDateDisabled?.(dt)} onClick={readOnly ? undefined : () => onSelect && onSelect(dt)} style={{
+              padding:"7px 2px", borderRadius:8, border:"none", cursor: readOnly ? "default" : isDateDisabled?.(dt) ? "not-allowed" : "pointer", opacity: isDateDisabled?.(dt) ? 0.45 : 1, fontSize:13, textAlign:"center",
               background: (isStart||isEnd) ? accent : isHoliday ? "#F1F1F1" : inRange ? accentSoft : "transparent",
               color: (isStart||isEnd) ? "#fff" : isHoliday ? "#B0B0B0" : inRange ? accent : "#222",
               fontWeight: (isStart||isEnd) ? 700 : 400,
