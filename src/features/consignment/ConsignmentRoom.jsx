@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../components/ListingPhoto.jsx";
 // 委託 準備室（#/admin/consignment・管理者専用・分割3-Aで切り出し2026-07-24）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
@@ -81,7 +82,7 @@ function ConsignListingPhotos({ photos, badge }) {
       {n > 0 ? (
         <div className="consign-photo-strip" onScroll={onScroll} style={{ display:"flex", width:"100%", height:"100%", overflowX:"auto", overflowY:"hidden", scrollSnapType:"x mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
           {list.map((p, i) => (
-            <img key={i} loading="lazy" src={p.url} alt="" draggable={false} style={{ flex:"0 0 100%", width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", display:"block" }} />
+            <ListingPhoto key={i} loading="lazy" src={p.url} alt="" draggable={false} style={{ flex:"0 0 100%", width:"100%", height:"100%", objectFit:"cover", scrollSnapAlign:"start", display:"block" }} />
           ))}
         </div>
       ) : (
@@ -784,7 +785,7 @@ export function ConsignmentRoom() {
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
               {(spec.photos || []).map((ph, i) => (
                 <div key={i} style={{ position:"relative", width:96, height:96, borderRadius:10, overflow:"hidden", border:"1px solid #E5E5E5" }}>
-                  <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <ListingPhoto loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                   <button type="button" onClick={()=>removePhoto(i)} className="f-sans" style={{ position:"absolute", top:2, right:2, width:22, height:22, borderRadius:"50%", background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", fontSize:15.4, lineHeight:1, cursor:"pointer" }}>×</button>
                 </div>
               ))}
@@ -1406,7 +1407,7 @@ export function ConsignmentRoom() {
                 <div style={{ position:"relative", overflow:"hidden", borderRadius:16, marginBottom:18, border:"1px solid #EBEBEB" }}>
                   <span className="f-sans" style={{ position:"absolute", top:10, left:10, zIndex:2, padding:"4px 12px", borderRadius:8, fontSize:12.1, fontWeight:800, background:st.bg, color:st.fg, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{st.l}</span>
                   {ph0 && ph0.url ? (
-                    <img src={ph0.url} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block" }} />
+                    <ListingPhoto src={ph0.url} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block" }} />
                   ) : (
                     <div style={{ width:"100%", height:220, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", color:"#B0B0B0" }}><NavIcon name="image" size={40} /></div>
                   )}
@@ -1446,7 +1447,7 @@ export function ConsignmentRoom() {
             {(spec.photos || []).length > 0 && (
               <div style={{ display:"flex", gap:6, overflowX:"auto", marginBottom:12 }}>
                 {(spec.photos || []).map((ph, i) => (
-                  <img loading="lazy" key={i} src={ph.url} alt="" style={{ width:84, height:84, objectFit:"cover", borderRadius:10, flexShrink:0, border:"1px solid #E5E5E5" }} />
+                  <ListingPhoto loading="lazy" key={i} src={ph.url} alt="" style={{ width:84, height:84, objectFit:"cover", borderRadius:10, flexShrink:0, border:"1px solid #E5E5E5" }} />
                 ))}
               </div>
             )}
@@ -1751,7 +1752,7 @@ export function ConsignmentRoom() {
                   <span className="f-sans" style={{ position:"absolute", top:186, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:12.1, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{dateChip}</span>
                 )}
                 {photo ? (
-                  <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block", borderRadius:16 }} />
+                  <ListingPhoto loading="lazy" src={photo} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block", borderRadius:16 }} />
                 ) : (
                   <div style={{ width:"100%", height:220, borderRadius:16, background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center" }} />
                 )}

@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // ステータス一覧（#/saved・分割・段階2後半・2026-07-24／2026-07-27に役割を刷新）：
 // 働き手が「いいね」「応募」した求人と、その求人での自分の段階を確認する面。
 // 2026-07-27たきと指示：雇い手の応募者ページと同じ構造（左=求人トップ写真＋タイトル/#No.／右=アイコン）に。
@@ -506,7 +507,7 @@ export function SavedJobsView({ me, embedded, calDay: calDayProp }) {
                     タップ＝ボックス展開（2026-07-27たきと指示。求人ページへの直行はボックス内のボタンが担う） */}
                 <button onClick={()=>setBoxJob(r)} aria-label="この求人の状況を開く" className="f-sans"
                   style={{ flexShrink:0, width:"100%", height:180, padding:0, border:"none", borderBottom:"1px solid #F0F0F0", background:"#F2F2F2", cursor:"pointer", position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, textAlign:"left", pointerEvents:"auto" }}>
-                  {photo ? <img src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : (!emp && <NavIcon name="image" size={30} style={{ color:"#C8C8C8" }} />)}
+                  {photo ? <ListingPhoto src={photo} alt="" loading="lazy" decoding="async" style={{ width:"100%", height:"100%", objectFit:"cover", filter: covered ? "grayscale(70%)" : "none" }} /> : (!emp && <NavIcon name="image" size={30} style={{ color:"#C8C8C8" }} />)}
                   {/* 写真の真ん中に募集主（農家）のアイコン＝雇い手カードの「求人者のアイコン」と対。
                       公開情報（jobs_public の employer_nickname / avatar）だけを使い、掲載が終わって
                       ビューに無い求人では出さない（分からないものを丸で埋めない） */}

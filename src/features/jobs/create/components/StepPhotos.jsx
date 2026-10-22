@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 // 農家 step7: 写真（第2次構造改革2026-08-17で LandingFlow.jsx から分離）。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
 //
@@ -60,7 +61,7 @@ export function PastPhotosPicker({ groups, room, selected, onToggle, onAdd, onCl
                 <button key={p.url} type="button" disabled={disabled} aria-pressed={on} data-past-photo={p.url}
                   onClick={() => onToggle(p)}
                   style={{ position: "relative", padding: 0, border: "none", background: "#F7F7F7", borderRadius: 10, overflow: "hidden", aspectRatio: "1 / 1", cursor: disabled ? "default" : "pointer", boxShadow: on ? "inset 0 0 0 3px #222" : "inset 0 0 0 1px #EEE", opacity: p.inUse ? 0.45 : (disabled ? 0.6 : 1) }}>
-                  <img loading="lazy" src={photoThumb(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <ListingPhoto loading="lazy" src={photoThumb(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {on && (
                     <span aria-hidden="true" style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", background: "#222", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <NavIcon name="tick" size={14} />
@@ -182,7 +183,7 @@ export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUp
           {jobPhotos.length > 0 && (
             <div>
               <div style={{ position:"relative", marginBottom:10 }}>
-                <img loading="lazy" src={photoThumb(jobPhotos[0])} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
+                <ListingPhoto loading="lazy" src={photoThumb(jobPhotos[0])} alt="カバー写真" style={{ width:"100%", height:260, objectFit:"cover", borderRadius:14, border:"1px solid #EEE" }} />
                 <span className="f-sans" style={{ position:"absolute", top:10, left:10, padding:"4px 12px", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, fontWeight:700, borderRadius:8 }}>カバー</span>
                 <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== 0))} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:15, cursor:"pointer", lineHeight:1 }}>×</button>
               </div>
@@ -193,7 +194,7 @@ export function StepPhotos({ jobPhotos, setJobPhotos, photoUploading, setPhotoUp
                     const idx = i + 1;
                     return (
                       <div key={idx} style={{ position:"relative", width:"calc(50% - 4px)" }}>
-                        <img loading="lazy" src={photoThumb(p)} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
+                        <ListingPhoto loading="lazy" src={photoThumb(p)} alt={`写真${idx+1}`} style={{ width:"100%", aspectRatio:"4 / 3", objectFit:"cover", borderRadius:10, border:"1px solid #EEE", display:"block" }} />
                         <button onClick={() => setJobPhotos(prev => prev.filter((_, j) => j !== idx))} style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:"50%", border:"none", background:"#222", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
                     );

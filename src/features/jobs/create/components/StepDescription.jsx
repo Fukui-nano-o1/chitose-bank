@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 // 農家 step8: 作業の説明・写真ごとの説明・作業動画。
 import { useState } from "react";
 import { lfStyles } from "../lfStyles";
@@ -53,7 +54,7 @@ export function StepDescription({ jobDescription, setJobDescription, jobPhotos, 
           <h2>写真ごとに説明を追加</h2>
           <p>写真を横にスワイプして、1枚ずつ説明を入力できます。</p>
           <div className="listing-caption-gallery" onScroll={e => {const w=e.currentTarget.clientWidth;if(w>0)setSelectedPhotoIndex(Math.max(0,Math.min(jobPhotos.length-1,Math.round(e.currentTarget.scrollLeft/w))));}}>
-            {jobPhotos.map((photo,i)=><img key={photo.url || i} src={photoThumb(photo)} alt={`写真${i+1}`} loading="lazy" />)}
+            {jobPhotos.map((photo,i)=><ListingPhoto key={photo.url || i} src={photoThumb(photo)} alt={`写真${i+1}`} loading="lazy" />)}
           </div>
           <p className="listing-caption-counter">{selectedPhotoIndex+1} / {jobPhotos.length}</p>
           <label className="listing-caption-label" htmlFor="listing-caption-input">この写真の説明</label>

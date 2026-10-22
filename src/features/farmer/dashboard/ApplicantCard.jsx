@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../components/ListingPhoto.jsx";
 import { Avatar } from "../../../components/ui";
 import { NavIcon } from "../../../components/NavIcons";
 import { WorkDaysStrip } from "../../../components/WorkDaysStrip";
@@ -94,7 +95,7 @@ export function ApplicantCard({
 
       <button type="button" className="applicant-card-job" onClick={() => onOpenJob(jobNumber)}
         aria-label={`${title}・求人 #${jobNumber}を見る`}>
-        {photo ? <img src={photo} alt="" loading="lazy" decoding="async" />
+        {photo ? <ListingPhoto src={photo} alt="" loading="lazy" decoding="async" />
           : <span className="applicant-card-job-placeholder" aria-hidden="true"><NavIcon name="postJob" size={24} /></span>}
         <span className="applicant-card-job-copy"><strong>{title}</strong><span>求人 #{jobNumber}</span></span>
         <span aria-hidden="true">›</span>
