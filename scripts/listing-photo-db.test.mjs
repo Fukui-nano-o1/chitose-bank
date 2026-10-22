@@ -5,7 +5,7 @@ import {PGlite} from '@electric-sql/pglite';
 const own='00000000-0000-4000-8000-000000000001', other='00000000-0000-4000-8000-000000000002', worker='00000000-0000-4000-8000-000000000003', admin='00000000-0000-4000-8000-000000000004';
 const base='https://aegwepgtmwcnwzybpgsh.supabase.co/storage/v1/object/public/';
 const url=n=>base+'job-photos/'+n;
-const migration=await readFile(new URL('../supabase/migrations/20261022131649_private_listing_photos.sql',import.meta.url),'utf8');
+const migration=await readFile(new URL('../supabase/migrations/20261022223639_private_listing_photos.sql',import.meta.url),'utf8');
 test('private listing storage enforces owner, publication, party, and operation boundaries',async t=>{
  const db=new PGlite();
  try{
