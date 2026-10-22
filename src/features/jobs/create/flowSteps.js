@@ -1,4 +1,4 @@
-// 現在配信する順序。第1弾ではページを増やさず、既存の番号契約を維持する。
+// 保存・旧URLの番号契約。第2弾の実画面順序はlistingNavigation.jsに定義する。
 // 全体計画と各段階の終了条件は docs/uiux/listing-flow-redesign.md。
 export const FARMER_FLOW = Object.freeze([
   "crop", "task", "workplace", "schedule", "terms",
@@ -38,9 +38,9 @@ export function legacyStepId(n, version = "2026-10-05") {
 
 // 画面枠の判定はIDで行う。既存呼出元の番号は入口でのみ変換する。
 export function listingFrameState(value) {
-  const id = value === "intro" || FARMER_FLOW.includes(value) ? value : legacyStepId(value);
+  const id = ["intro", "holidays", "headcount"].includes(value) || FARMER_FLOW.includes(value) ? value : legacyStepId(value);
   const valid = !!id;
-  const n = id === "intro" ? 0 : stepNumber(id);
+  const n = id === "intro" ? 0 : id === "holidays" ? 4 + 1 / 3 : id === "headcount" ? 4 + 2 / 3 : stepNumber(id);
   const details = stepNumber("details_intro"), review = stepNumber(REVIEW_STEP_ID);
   const stage = valid && n >= review ? 2 : valid && n >= details ? 1 : 0;
   const progress = valid ? [

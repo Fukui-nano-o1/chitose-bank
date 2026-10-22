@@ -2,8 +2,8 @@ import { listingFrameState } from "../flowSteps.js";
 
 // 既存の掲載本文を包む共通枠。入力state・保存・通信は持たない。
 // 第1弾ではDOM階層、既存CSS、働き手側の寸法を変えない。
-export function ListingPage({ step, isFarmer = true, embedded = false, stepAnim = "", onAnimationEnd, children }) {
-  const frame = listingFrameState(step);
+export function ListingPage({ step, pageId, isFarmer = true, embedded = false, stepAnim = "", onAnimationEnd, children }) {
+  const frame = listingFrameState(pageId ?? step);
   const workerWide = step === 12 || step === 0 || step === 6;
   return (
     <div data-step={step} data-step-id={isFarmer ? frame.id || undefined : undefined}
