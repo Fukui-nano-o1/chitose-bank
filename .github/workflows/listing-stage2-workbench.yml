@@ -1,0 +1,35 @@
+name: Listing stage 2 isolated workbench
+on:
+  push:
+    branches: [feat/listing-flow-stage2-20261022]
+    paths: [.github/workflows/listing-stage2-workbench.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Export tracked source and installed test dependencies only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/listing-stage2-source
+          git archive HEAD | tar -x -C /tmp/listing-stage2-source
+          rm -f /tmp/listing-stage2-source/.env /tmp/listing-stage2-source/.env.*
+          cp -a node_modules /tmp/listing-stage2-source/node_modules
+          tar -czf /tmp/listing-stage2-source.tgz -C /tmp/listing-stage2-source .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: listing-stage2-source
+          path: /tmp/listing-stage2-source.tgz
+          retention-days: 1
+          compression-level: 0
