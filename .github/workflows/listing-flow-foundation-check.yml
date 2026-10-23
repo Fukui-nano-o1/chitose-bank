@@ -7,6 +7,8 @@ on:
       - scripts/listing-*.test.mjs
       - scripts/fixtures/listing-frame-entry.jsx
       - scripts/fixtures/listing-schedule-frame-entry.jsx
+      - scripts/fixtures/listing-basics-browser-entry.jsx
+      - scripts/listing-basics-browser.mjs
       - scripts/fixtures/offline/**
       - src/components/CalendarView.jsx
       - src/App.jsx
@@ -17,6 +19,8 @@ on:
       - scripts/listing-*.test.mjs
       - scripts/fixtures/listing-frame-entry.jsx
       - scripts/fixtures/listing-schedule-frame-entry.jsx
+      - scripts/fixtures/listing-basics-browser-entry.jsx
+      - scripts/listing-basics-browser.mjs
       - scripts/fixtures/offline/**
       - src/components/CalendarView.jsx
       - src/App.jsx
@@ -44,3 +48,16 @@ jobs:
       - run: npm ci
       - name: Foundation, save and publication regressions, lint and production build
         run: npm run build
+      - name: Install isolated Chromium test runtime
+        run: npx playwright install --with-deps chromium
+      - name: Real browser basic-topic navigation, reload and responsive checks
+        run: node scripts/listing-basics-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/listing-basics-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: listing-basics-browser-evidence
+          path: ${{ runner.temp }}/listing-basics-evidence
+          retention-days: 7
+          if-no-files-found: ignore

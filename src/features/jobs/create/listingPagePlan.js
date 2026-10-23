@@ -1,5 +1,5 @@
 // 全体の分割先契約。全ページ一括では有効化しない。
-// 第2弾の日程/休日/人数だけをlistingNavigation.jsの実画面順序へ接続済み。
+// 第3弾までの基本情報をlistingNavigation.jsに接続済み。詳細・確認の追加分割は未実施。
 // 既存の値はそのまま移し、derived/preserved の項目に新しい入力を作らない。
 import { legacyStepId } from "./flowSteps.js";
 const page = (id, title, stage, formFields = [], columns = [], options = {}) => Object.freeze({
