@@ -20,7 +20,7 @@ export const ACTIVE_LISTING_FLOW = Object.freeze([
 ]);
 export const isListingPage = id => ACTIVE_LISTING_FLOW.includes(id);
 // terms は旧URL専用の別名。実際の入力ページには残さない。
-export const canonicalListingPage = id => id === "terms" ? "work_time" : id;
+export const canonicalListingPage = id => ({terms:"work_time",danger:"danger_places",wishes:"belongings"})[id] || id;
 const isRoutablePage = id => isListingPage(id) && id !== "complete";
 export const isListingInputPage = id => isListingPage(id) && !["intro", "complete"].includes(id);
 const SPLIT_LEGACY_NUMBERS = Object.freeze({ task_scope: 2, place_scope: 3, access: 3,
