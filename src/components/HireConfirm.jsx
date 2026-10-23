@@ -131,6 +131,13 @@ export function HireConfirm({ app, meId, onClose, onHired }) {
       alert("日程の重なる別の求人が見つかりました。警告の内容を確認のうえ、もう一度OKを押すと採用が確定します。");
       return;
     }
+    if (!error && ["closed", "not_approved"].includes(data?.reason)) {
+      alert(data.reason === "closed"
+        ? "この応募はすでに終了しているため、採用できません。応募者一覧で最新の状態をご確認ください。"
+        : "この応募はまだ承認されていません。応募者一覧で応募内容を確認し、承認してから採用してください。");
+      onClose?.(app.application_id, false);
+      return;
+    }
     if (error || !data?.ok) { alert("処理に失敗しました：" + (data?.reason || error?.message || "不明")); return; }
     // 人数に達した場合、残りの応募はDB側（confirm_terms）が見送りにする。件数はそのまま伝える
     const closed = Array.isArray(data.closed_ids) ? data.closed_ids.length : 0;
