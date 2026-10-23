@@ -6,9 +6,9 @@ import { serializeJobForm, jobFormFromRow, jobPayloadFromForm } from '../src/fea
 import { jobInputSample, jobInputOptions } from './fixtures/job-input.js';
 import { JOB_DRAFT_FIELDS } from '../src/lib/jobInputFields.js';
 const range = {start:'2026-12-29',end:'2027-01-03'};
-test('stage 2 adds only holidays and headcount; every saved legacy number retains its meaning', () => {
+test('schedule stays split after stage 3; every saved legacy number retains its meaning', () => {
   assert.ok(Object.isFrozen(ACTIVE_LISTING_FLOW));
-  assert.deepEqual(ACTIVE_LISTING_FLOW.slice(3,8),['workplace','schedule','holidays','headcount','terms']);
+  assert.deepEqual(ACTIVE_LISTING_FLOW.slice(ACTIVE_LISTING_FLOW.indexOf('schedule'),ACTIVE_LISTING_FLOW.indexOf('schedule')+4),['schedule','holidays','headcount','work_time']);
   for(const [number,id] of Object.entries(LEGACY_LISTING_STEPS['2026-10-05'])) assert.equal(legacyNumberForPage(id),Number(number));
   for(const id of ['schedule','holidays','headcount']) { assert.equal(legacyNumberForPage(id),4); assert.equal(listingFrameState(id).valid,true); }
   assert.equal(legacyNumberForPage('terms'),5); assert.equal(legacyNumberForPage('review'),12);
@@ -22,7 +22,7 @@ test('single-day skips only the holidays page; the backwards path uses the same 
   assert.equal(adjacentListingPage('holidays',1,range),'headcount');
   assert.equal(adjacentListingPage('headcount',-1,range),'holidays');
   assert.equal(adjacentListingPage('holidays',-1,range),'schedule');
-  assert.equal(adjacentListingPage('terms',-1,range),'headcount');
+  assert.equal(adjacentListingPage('work_time',-1,range),'headcount');
   assert.equal(adjacentListingPage('future',1,range),null);
 });
 test('new, edit and local URLs are distinct, preserve return-to-review, and reject unknown IDs', () => {
@@ -32,7 +32,7 @@ test('new, edit and local URLs are distinct, preserve return-to-review, and reje
     assert.equal(route.returnToConfirm,!['intro','review','complete'].includes(pageId));
   }
   assert.equal(parseListingRoute('#/work/new/4').pageId,'schedule');
-  assert.equal(parseListingRoute('#/work/new/5').pageId,'terms');
+  assert.equal(parseListingRoute('#/work/new/5').pageId,'work_time');
   assert.equal(parseListingRoute('#/work/new/99').invalid,true);
   assert.equal(parseListingRoute('#/work/new/page/complete').invalid,true);
   assert.equal(parseListingRoute('#/work/new/13').invalid,true);

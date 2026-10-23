@@ -12,11 +12,11 @@ export const supabase = createClient('https://offline-fixture.test', 'fixture-ke
     window.qaCalls.push({path, body});
     if (window.qaOffline) throw new TypeError('Network error');
     let result = null;
-    if (path === 'employer_profiles') result = [profile];
+    if (path === 'employer_profiles') result = [window.qaProfile || profile];
     else if (path === 'account_holders') result = [{ agreed_privacy_version: window.qaConsent ? PRIVACY_VERSION : 'old' }];
     else if (path === 'jobs_public') result = [];
     else if (path === 'jobs') result = window.qaJob ? [window.qaJob] : [];
-    else if (path === 'rpc/get_minimum_wage') result = 1100;
+    else if (path === 'rpc/get_minimum_wage') result = Object.hasOwn(window,'qaMinimumWage') ? window.qaMinimumWage : 1100;
     else if (path === 'rpc/employer_trust_info') result = {ok:true};
     else if (path === 'rpc/save_my_privacy_consent') { window.qaConsent = true; result = { agreed_privacy_version:PRIVACY_VERSION }; }
     else if (path === 'rpc/sync_my_job_draft' || path === 'rpc/sync_my_open_job') {

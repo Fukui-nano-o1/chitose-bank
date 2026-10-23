@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { legacyStepId } from "./flowSteps.js";
-import { isListingPage, legacyNumberForPage, listingPageHash, parseListingRoute, resolveListingResume } from "./listingNavigation.js";
+import { canonicalListingPage, isListingPage, legacyNumberForPage, listingPageHash, parseListingRoute, resolveListingResume } from "./listingNavigation.js";
 
 // 農家フローの画面IDとURLを一対一にする。働き手の番号・保存APIには触れない。
 export function useListingNavigation({ farmer, initialStep = 0, initialForm, ready = true }) {
@@ -27,6 +27,7 @@ export function useListingNavigation({ farmer, initialStep = 0, initialForm, rea
     else window.location.hash = next;
   }, [farmer]);
   const setPage = useCallback((pageId, { replace = false, returnToConfirm = current.current.returnToConfirm } = {}) => {
+    pageId = canonicalListingPage(pageId);
     if (!isListingPage(pageId)) { commit({ ...current.current, error: "unknown_page" }); return; }
     const next = { pageId, returnToConfirm: !!returnToConfirm && !["intro", "review", "complete"].includes(pageId) };
     commit(next);
@@ -61,7 +62,7 @@ export function useListingNavigation({ farmer, initialStep = 0, initialForm, rea
       // 別の求人・別の端末下書きはAppのkeyで再マウントする。今の入力を流用しない。
       if (route?.scope !== scope.current) return;
       if (route.invalid) { commit({ ...current.current, error: "unknown_route" }); return; }
-      if (route.pageId) commit({ pageId: route.pageId, returnToConfirm: route.auxiliary ? current.current.returnToConfirm : route.returnToConfirm });
+      if (route.pageId) commit({ pageId: route.pageId, returnToConfirm: route.auxiliary ? (route.returnToConfirm || current.current.returnToConfirm) : route.returnToConfirm });
       else if (route.scope === "work/new") commit({ pageId: "intro", returnToConfirm: false });
     };
     window.addEventListener("hashchange", sync);

@@ -78,7 +78,7 @@ test('resume translation preserves source data, unknown IDs and old video-era am
   assert.deepEqual(plannedResumeCandidates(draft), ['schedule','holidays','headcount']);
   assert.deepEqual(plannedResumeCandidates({legacyStep:4,legacyVersion:'future'}), []);
 });
-test('live listing uses the common frame and only activates the stage-2 schedule pages', async () => {
+test('live listing uses the common frame and retains independent stage-2 schedule pages', async () => {
   const code = await readFile(new URL('../src/features/jobs/create/LandingFlow.jsx', import.meta.url), 'utf8');
   assert.match(code, /import \{ ListingPage \} from "\.\/components\/ListingPage"/);
   assert.match(code, /<ListingPage key=\{isFarmer \? pageId : step\}/);

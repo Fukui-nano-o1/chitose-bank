@@ -56,7 +56,7 @@ test('stage 2 real listing: one topic per URL, retained input, browser history a
       for(const value of ['0','-1','1.5']){await setCount(w,value);assert.equal(button(w,'次へ').disabled,true);}
       await setCount(w,'4');assert.equal(button(w,'次へ').disabled,false);
       button(w,'戻る').click();await page(w,'holidays');assert.equal(q(w,'[aria-label="2026-11-03"]').getAttribute('aria-pressed'),'true');
-      await next(w,'headcount');assert.equal(q(w,'#listing-headcount').value,'4');await next(w,'terms');
+      await next(w,'headcount');assert.equal(q(w,'#listing-headcount').value,'4');await next(w,'work_time');
       w.history.back();await page(w,'headcount');assert.equal(q(w,'#listing-headcount').value,'4');
       w.history.back();await page(w,'holidays');assert.deepEqual(Array.from(record(w).form.jobHolidays),['2026-11-03']);
       w.history.forward();await page(w,'headcount');
@@ -101,9 +101,9 @@ test('stage 2 real listing: one topic per URL, retained input, browser history a
       }
     });
     await t.test('DB-only legacy step 4 resumes without shifting later pages or inventing holiday confirmation',async()=>{
-      for(const [row,id]of [[dbRow({date_start:null,date_end:null,holidays:[],headcount:null}),'schedule'],[dbRow({date_end:null,holidays:[],headcount:null}),'headcount'],[dbRow(),'holidays'],[dbRow({draft_step:5,draft_step_id:'terms'}),'terms']]){
+      for(const [row,id]of [[dbRow({date_start:null,date_end:null,holidays:[],headcount:null}),'schedule'],[dbRow({date_end:null,holidays:[],headcount:null}),'headcount'],[dbRow(),'holidays'],[dbRow({draft_step:5,draft_step_id:'terms'}),'daily_wage']]){
         const w=await mount({url:'https://ui.test/#/work/edit/42',job:row,offline:false});await page(w,id);
-        assert.equal(record(w).base.draft_step_id,row.draft_step_id);assert.equal(record(w).payload.draft_step,id==='terms'?5:4);
+        assert.equal(record(w).base.draft_step_id,row.draft_step_id);assert.equal(record(w).payload.draft_step,id==='daily_wage'?5:4);
       }
     });
     await t.test('copy prefill and existing open-job edit honor their own named page and keep comparison snapshots unchanged',async()=>{

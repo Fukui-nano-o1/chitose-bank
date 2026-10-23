@@ -1,4 +1,4 @@
-// 保存・旧URLの番号契約。第2弾の実画面順序はlistingNavigation.jsに定義する。
+// 保存・旧URLの番号契約。段階的に分割した実画面順序はlistingNavigation.jsに定義する。
 // 全体計画と各段階の終了条件は docs/uiux/listing-flow-redesign.md。
 export const FARMER_FLOW = Object.freeze([
   "crop", "task", "workplace", "schedule", "terms",
@@ -38,9 +38,11 @@ export function legacyStepId(n, version = "2026-10-05") {
 
 // 画面枠の判定はIDで行う。既存呼出元の番号は入口でのみ変換する。
 export function listingFrameState(value) {
-  const id = ["intro", "holidays", "headcount"].includes(value) || FARMER_FLOW.includes(value) ? value : legacyStepId(value);
+  const splitPosition = { task_scope: 2.5, place_scope: 3 + 1 / 3, access: 3 + 2 / 3,
+    holidays: 4 + 1 / 3, headcount: 4 + 2 / 3, work_time: 5, break_time: 5.25, overtime: 5.5, daily_wage: 5.75 };
+  const id = value === "intro" || Object.hasOwn(splitPosition, value) || FARMER_FLOW.includes(value) ? value : legacyStepId(value);
   const valid = !!id;
-  const n = id === "intro" ? 0 : id === "holidays" ? 4 + 1 / 3 : id === "headcount" ? 4 + 2 / 3 : stepNumber(id);
+  const n = id === "intro" ? 0 : splitPosition[id] ?? stepNumber(id);
   const details = stepNumber("details_intro"), review = stepNumber(REVIEW_STEP_ID);
   const stage = valid && n >= review ? 2 : valid && n >= details ? 1 : 0;
   const progress = valid ? [
@@ -52,7 +54,7 @@ export function listingFrameState(value) {
     id, valid, stage, progress,
     intro: id === "intro", review: id === REVIEW_STEP_ID, complete: id === COMPLETE_STEP_ID,
     wide: ["intro", "details_intro", REVIEW_STEP_ID].includes(id),
-    skipDetails: id === "details_intro" || OPTIONAL_DETAIL_IDS.has(id),
+    skipDetails: id === "access" || id === "details_intro" || OPTIONAL_DETAIL_IDS.has(id),
     lastDetail: nextStepId(id) === REVIEW_STEP_ID,
   };
 }
