@@ -1,0 +1,120 @@
+name: Apply and verify scoped listing stage 3
+on:
+  push:
+    branches: [feat/listing-flow-stage3-20261023]
+    paths: [.github/workflows/listing-stage3-apply.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply inspected stage 3 patch on its feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/feat/listing-flow-stage3-20261023'
+          test -z "$(git status --porcelain)"
+          python3 - <<'PY'
+          import base64, hashlib, lzma, pathlib, re, subprocess
+          data = ''.join(pathlib.Path(f'scripts/.listing-stage3-part{i}').read_text() for i in (1,2,3))
+          patch = lzma.decompress(base64.b64decode(data, validate=True), memlimit=128*1024*1024)
+          assert hashlib.sha256(patch).hexdigest() == '9d8129c5298f364bb68ba9b3f417d14c07eb7837e4fd137e327f1c285c6efebf'
+          expected = '''docs/uiux/listing-flow-redesign.md
+          package.json
+          scripts/device-drafts-ui.test.mjs
+          scripts/fixtures/listing-basics-browser-entry.jsx
+          scripts/fixtures/offline/client.js
+          scripts/listing-basics-browser.mjs
+          scripts/listing-basics-ui.test.mjs
+          scripts/listing-basics.test.mjs
+          scripts/listing-flow-foundation.test.mjs
+          scripts/listing-schedule-ui.test.mjs
+          scripts/listing-schedule.test.mjs
+          src/features/jobs/create/AGENTS.md
+          src/features/jobs/create/LandingFlow.jsx
+          src/features/jobs/create/components/ListingChoiceCards.jsx
+          src/features/jobs/create/components/StepBasicTopics.jsx
+          src/features/jobs/create/components/StepWorkTerms.jsx
+          src/features/jobs/create/flowSteps.js
+          src/features/jobs/create/listingFlow.css
+          src/features/jobs/create/listingNavigation.js
+          src/features/jobs/create/listingPagePlan.js
+          src/features/jobs/create/useListingNavigation.js'''.splitlines()
+          assert re.findall(r'^diff --git a/(.+) b/(.+)$', patch.decode(), re.M) == [(p,p) for p in expected]
+          subprocess.run(['git','apply','--check','--unidiff-zero','-'],input=patch,check=True)
+          subprocess.run(['git','apply','--unidiff-zero','-'],input=patch,check=True)
+          pathlib.Path('/tmp/listing-stage3-paths').write_text('\n'.join(expected))
+          PY
+          git rm scripts/.listing-stage3-part1 scripts/.listing-stage3-part2 scripts/.listing-stage3-part3
+          git diff --check
+      - run: npm ci
+      - name: Full regression tests, lint and production build
+        shell: bash
+        run: |
+          set +e
+          npm run build > "$RUNNER_TEMP/listing-stage3-build.log" 2>&1
+          result=$?
+          set -e
+          grep -E '^# (tests|pass|fail|skipped|cancelled)|problems \(' "$RUNNER_TEMP/listing-stage3-build.log" || true
+          tail -15 "$RUNNER_TEMP/listing-stage3-build.log"
+          if [ "$result" != 0 ]; then tail -200 "$RUNNER_TEMP/listing-stage3-build.log"; fi
+          exit "$result"
+      - name: Install isolated browser runtime
+        run: npx playwright install --with-deps chromium
+      - name: Real browser responsive, history and reload verification
+        run: node scripts/listing-basics-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/listing-basics-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: listing-basics-browser-evidence
+          path: ${{ runner.temp }}/listing-basics-evidence
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Commit verified code only; workflows are cleaned up through the repository connection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/feat/listing-flow-stage3-20261023'
+          python3 - <<'PY'
+          import pathlib, subprocess
+          expected = pathlib.Path('/tmp/listing-stage3-paths').read_text().splitlines()
+          cleanup = [f'scripts/.listing-stage3-part{i}' for i in (1,2,3)]
+          changed = set(subprocess.check_output(['git','diff','HEAD','--name-only'],text=True).splitlines())
+          changed.update(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
+          assert changed == set(expected + cleanup), changed.symmetric_difference(set(expected + cleanup))
+          assert not any(p.startswith('.github/') for p in changed)
+          subprocess.run(['git','add','--',*expected,*cleanup],check=True)
+          PY
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: split listing basic topics while preserving saved inputs and publication gates'
+          cat > "$RUNNER_TEMP/listing-stage3-askpass" <<'SH'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' 'x-access-token' ;;
+            *) printf '%s\n' "$GH_TOKEN" ;;
+          esac
+          SH
+          chmod 700 "$RUNNER_TEMP/listing-stage3-askpass"
+          export GIT_ASKPASS="$RUNNER_TEMP/listing-stage3-askpass"
+          export GIT_TERMINAL_PROMPT=0
+          test "$(git ls-remote origin refs/heads/feat/listing-flow-stage3-20261023 | cut -f1)" = "$GITHUB_SHA"
+          git push origin HEAD:refs/heads/feat/listing-flow-stage3-20261023
+          rm "$RUNNER_TEMP/listing-stage3-askpass"
+          git log -1 --format='%H %s'
