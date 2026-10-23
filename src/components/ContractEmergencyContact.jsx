@@ -17,26 +17,24 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { NavIcon, NavIconInline } from "./NavIcons";
 
-// 採用成立後の値だけキャッシュする（相手が後から登録・修正することがあるので empty はキャッシュしない）
-const CACHE = new Map(); // applicationId -> {ok:true, empty:false, ...}
-
 export default function ContractEmergencyContact({ applicationId, showPending = false, style, asButton = false, accent = "#E24B4A", workWindow = false }) {
-  const [res, setRes] = useState(() => (applicationId && CACHE.get(applicationId)) || null);
+  const [result, setResult] = useState(null);
   const [open, setOpen] = useState(false);   // asButton の開閉
   const [loading, setLoading] = useState(false);
   // 取得：ボタン式は開いた時に1回だけ／従来の置き場所（今日ページ・応募者シート）は表示のたび
   const need = workWindow && (asButton ? open : true);
+  const res = need && result?.applicationId === applicationId ? result.data : null;
   useEffect(() => {
     let live = true;
+    // 確認取消・空欄保存・作業終了を反映するため、開くたびにDBの開示条件を確認する。
+    setResult(null);
     if (!applicationId || !need) return;
-    if (CACHE.has(applicationId)) { setRes(CACHE.get(applicationId)); return; }
     setLoading(true);
     (async () => {
       try {
-        const { data } = await supabase.rpc("contract_emergency_contact", { p_application_id: applicationId });
-        if (data && data.ok && data.empty === false) CACHE.set(applicationId, data);
-        if (live) setRes(data || null);
-      } catch { if (live) setRes(null); }
+        const { data, error } = await supabase.rpc("contract_emergency_contact", { p_application_id: applicationId });
+        if (live) setResult({ applicationId, data: error ? null : data });
+      } catch { if (live) setResult(null); }
       finally { if (live) setLoading(false); }
     })();
     return () => { live = false; };
@@ -48,7 +46,7 @@ export default function ContractEmergencyContact({ applicationId, showPending = 
     if (res && res.ok && res.empty === false) {
       return (
         <div className="f-sans" style={{ background:"#FFF4F4", border:"1px solid #F3C9C9", borderRadius:10, padding:"8px 10px", margin:"6px 0 0", ...(asButton ? null : style) }}>
-          <p style={{ fontSize:11, fontWeight:700, color:"#B03A3A", margin:"0 0 2px" }}><NavIconInline name="phone" size={11} style={{ verticalAlign:"-1.5px" }} />緊急連絡先（採用が決まったため表示）</p>
+          <p style={{ fontSize:11, fontWeight:700, color:"#B03A3A", margin:"0 0 2px" }}><NavIconInline name="phone" size={11} style={{ verticalAlign:"-1.5px" }} />緊急連絡先（確認・保存済み／作業中のみ表示）</p>
           <p style={{ fontSize:13, color:"#222", margin:0, lineHeight:1.6 }}>
             {res.name}{res.relation ? `（${res.relation}）` : ""}
             {res.phone && <>　<a href={`tel:${String(res.phone).replace(/[^0-9+]/g, "")}`} style={{ color:"#B03A3A", fontWeight:700 }}>{res.phone}</a></>}
@@ -72,7 +70,7 @@ export default function ContractEmergencyContact({ applicationId, showPending = 
       <div style={{ ...style }}>
         {/* 背景＝赤・アイコンと文字＝白（2026-08-25たきと指示）。
             NavIcon は stroke="currentColor" なので、color:"#fff" でアイコンも一緒に白くなる */}
-        <button type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} className="f-sans"
+        <button type="button" onClick={() => { setResult(null); setOpen(v => !v); }} aria-expanded={open} className="f-sans"
           style={{ width:"100%", padding:"15px 12px", fontSize:14, fontWeight:800, borderRadius:12, cursor:"pointer",
                    background:accent, color:"#fff", border:"1.5px solid " + accent,
                    pointerEvents:"auto",
