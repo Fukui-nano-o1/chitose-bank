@@ -17,7 +17,7 @@ export function youtubeVideoId(raw) {
 }
 export const isValidYoutubeVideo = raw => /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoId(raw));
 
-export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedConsent, setRelatedConsent, setConsentAt, setConsentVersion, compact = false }) {
+export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedConsent, setRelatedConsent, setConsentAt, setConsentVersion, compact = false, mode = "all" }) {
   const clean = url.trim();
   const valid = !clean || isValidYoutubeVideo(clean);
   const onUrl = value => {
@@ -34,9 +34,9 @@ export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedC
     }
   };
   return (<>
-    {!compact && <h2 className="f-sans" style={lfStyles.stepTitle}>作業動画を追加しますか？</h2>}
+    {!compact && <h2 className="f-sans" style={lfStyles.stepTitle}>{mode === "consent" ? "動画の利用同意" : "YouTube動画を追加しますか？"}</h2>}
     {!compact && <p className="f-sans" style={lfStyles.subtitle}>働き手が仕事をイメージできる動画を追加できます。YouTube動画に対応しています（任意）。URLは下書きに保存できます。求人をコピーした場合は、この求人への掲載同意をもう一度確認してください。</p>}
-    <LFWizCard>
+    {mode !== "consent" && <LFWizCard>
       <label className="f-sans" htmlFor="work-video-url" style={{ display:"block", fontSize:13, fontWeight:700, color:"#222", marginBottom:8 }}>YouTube URL</label>
       <input id="work-video-url" type="url" inputMode="url" value={url} onChange={e=>onUrl(e.target.value)}
         placeholder="https://www.youtube.com/watch?v=..."
@@ -45,8 +45,8 @@ export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedC
       {clean && valid && <div style={{ marginTop:14, aspectRatio:"16 / 9", borderRadius:14, overflow:"hidden", background:"#000" }}>
         <iframe title="作業動画の確認" src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(clean)}`} style={{ width:"100%", height:"100%", border:0 }} allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
       </div>}
-    </LFWizCard>
-    {clean && valid && <>
+    </LFWizCard>}
+    {mode !== "url" && clean && valid && <>
       <LFWizCard>
         <label style={{ display:"flex", alignItems:"flex-start", gap:10, cursor:"pointer" }}>
           <input type="checkbox" checked={jobConsent} onChange={e=>onJobConsent(e.target.checked)} style={{ width:20, height:20, marginTop:2, accentColor:"#00A86B", flexShrink:0 }} />

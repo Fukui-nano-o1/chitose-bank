@@ -39,7 +39,9 @@ export function legacyStepId(n, version = "2026-10-05") {
 // 画面枠の判定はIDで行う。既存呼出元の番号は入口でのみ変換する。
 export function listingFrameState(value) {
   const splitPosition = { task_scope: 2.5, place_scope: 3 + 1 / 3, access: 3 + 2 / 3,
-    holidays: 4 + 1 / 3, headcount: 4 + 2 / 3, work_time: 5, break_time: 5.25, overtime: 5.5, daily_wage: 5.75 };
+    holidays: 4 + 1 / 3, headcount: 4 + 2 / 3, work_time: 5, break_time: 5.25, overtime: 5.5, daily_wage: 5.75,
+    photo_captions: 7.5, video_consent: 9.5, danger_places: 10, danger_tasks: 10.5,
+    belongings: 11, cautions: 11.25, worker_preferences: 11.5, repeat_approval: 11.75 };
   const id = value === "intro" || Object.hasOwn(splitPosition, value) || FARMER_FLOW.includes(value) ? value : legacyStepId(value);
   const valid = !!id;
   const n = id === "intro" ? 0 : splitPosition[id] ?? stepNumber(id);
@@ -54,7 +56,8 @@ export function listingFrameState(value) {
     id, valid, stage, progress,
     intro: id === "intro", review: id === REVIEW_STEP_ID, complete: id === COMPLETE_STEP_ID,
     wide: ["intro", "details_intro", REVIEW_STEP_ID].includes(id),
-    skipDetails: id === "access" || id === "details_intro" || OPTIONAL_DETAIL_IDS.has(id),
-    lastDetail: nextStepId(id) === REVIEW_STEP_ID,
+    skipDetails: id === "access" || id === "details_intro" || OPTIONAL_DETAIL_IDS.has(id) ||
+      ["photo_captions","video_consent","danger_places","danger_tasks","belongings","cautions","worker_preferences","repeat_approval"].includes(id),
+    lastDetail: id === "repeat_approval" || nextStepId(id) === REVIEW_STEP_ID,
   };
 }
