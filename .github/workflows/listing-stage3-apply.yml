@@ -98,7 +98,7 @@ jobs:
           changed.update(subprocess.check_output(['git','ls-files','--others','--exclude-standard'],text=True).splitlines())
           assert changed == set(expected + cleanup), changed.symmetric_difference(set(expected + cleanup))
           assert not any(p.startswith('.github/') for p in changed)
-          subprocess.run(['git','add','--',*expected,*cleanup],check=True)
+          subprocess.run(['git','add','--',*expected],check=True)
           PY
           git diff --cached --check
           git config user.name 'github-actions[bot]'
