@@ -2,6 +2,7 @@
 // 第2次構造改革（2026-08-17）でApp.jsxから移設。2026-09-28に連発の間引きを追加。
 // ★app_errors への記録はプラポリ第3条データ台帳「エラーの記録」の行に対応（保存1年・
 //   purge_old_app_errors が毎日掃除）。記録する項目を増やすときは台帳の改訂が要る。
+import { captureAssetLoadDiagnostic, isAssetLoadError } from "../../lib/assetLoadDiagnostics";
 import { supabase } from "../../lib/supabase";
 import { rememberSupportFailure } from "../../lib/supportDiagnostics";
 import { makeErrorThrottle, MAX_PER_MESSAGE, isOpaqueScriptError, isInjectedWalletError } from "./errorThrottle";
@@ -34,6 +35,10 @@ export async function logAppError({ level = "error", source = "client", page = "
     const message = sanitizeMessage(error?.message || String(error || ""));
     const gate = admitError(message);
     if (!gate.ok) return;   // 同じ文言の連発＝この読み込みでは以後書かない（DBを守る）
+    if (isAssetLoadError(error)) {
+      const diagnostic = await captureAssetLoadDiagnostic(error);
+      metadata = { ...metadata, asset_load: { ...diagnostic, recovery: metadata.asset_recovery || "unknown" } };
+    }
     await supabase.from("app_errors").insert({
       session_id: getSessionId(), user_id: userId, level, source, page, component, action, operation,
       error_code: error?.code || error?.status || null,

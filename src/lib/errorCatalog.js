@@ -1,3 +1,4 @@
+import { isAssetLoadError, assetDiagnosticLines } from "./assetLoadDiagnostics.js";
 // エラーの辞書・分類・グループ化（2026-08-07切り出し）：
 import { inputRecovery } from './inputRecovery.js';
 // AdminSystemRoom（システムページのエラー面）が使う唯一のソース。ここに置くのは
@@ -21,6 +22,10 @@ export function isServiceWorkerRegistrationError(e = {}) {
 
 // matchは小文字化済みメッセージと元の記録を受け取る
 export const KNOWN_ERRORS = [
+  { match: m => isAssetLoadError(m),
+    title: "画面ファイル（JS/CSS）の読み込み失敗",
+    cause: "必要な画面ファイルを取得・読み込みできなかった。通信・配信・ブラウザ制約などの区別は診断情報を確認する。更新や攻撃が原因とは、この文言だけでは判断できない。",
+    action: "発生時のHTTP応答と失敗後の再確認を分けて確認する。再確認で200でも画面復旧は未確認。アクセス元の名乗りは本人性の証明ではない。" },
   { match: (_m, e) => isServiceWorkerRegistrationError(e),
     title: "Service Workerの登録が拒否された",
     cause: "端末・実行環境がオフライン表示やプッシュ通知に使うService Workerの登録を拒否し、旧スクリプトが失敗を処理できなかった。この記録だけでは通常画面の表示停止は確認できない。",
@@ -138,6 +143,7 @@ export function errorPage(e) {
 // 大分類（カテゴリ）→ 種類（部品×発生源×文言の署名）→ 個々の発生、の3階層に束ねる。
 // 同型の連発（例：デプロイ直後の読み込み失敗94件）が1枚に畳まれ、種類ごとにまとめて解決済みにできる
 export const ERROR_CATEGORIES = [
+  { k:"asset", l:"画面ファイルの読み込み失敗", severity:"high", desc:"JS/CSSを読み込めない。発生時と再確認時の応答を分けて調査" },
   { k:"browser", l:"端末・ブラウザ機能", severity:"medium", desc:"追加機能を端末・実行環境が拒否した型。通常の画面表示への影響は別途確認" },
   { k:"deploy",  l:"更新の読み込み失敗", severity:"medium",  desc:"新しいデプロイの直後、開いたままの古い画面が旧ファイルを読みに行った型。再読み込みで直る（実害小）" },
   { k:"render",  l:"画面の表示エラー",   severity:"high",    desc:"画面が真っ白・表示できない型。コードの不具合の可能性が高い" },
@@ -150,6 +156,7 @@ export const ERROR_CATEGORIES = [
 // （Failed to fetch等はunhandledrejection経由で来るため、srcだけで判定すると表示エラーに飲まれる）
 export function errorCategoryKey(e) {
   if (isServiceWorkerRegistrationError(e)) return "browser";
+  if (isAssetLoadError(e.message)) return "asset";
   const msg = (e.message || "").toLowerCase();
   const code = (e.error_code || "").toLowerCase();
   const src = e.source || "";
@@ -223,6 +230,7 @@ export function buildErrorReport(g, catLabel, ex, stackText) {
     "■ 最近の発生（最大5件）:",
     ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${errorPage(e)}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
     ex ? `■ 既知の説明: 原因=${ex.cause}／どうする=${ex.action}` : "■ 既知の説明: なし（辞書未登録の型）",
+    ...assetDiagnosticLines(L).map(line => `■ 診断: ${line}`),
     "■ スタック（最新1件・先頭）:",
     stackText || "（取得できませんでした）",
   ].join("\n");
