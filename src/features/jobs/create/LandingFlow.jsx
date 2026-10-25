@@ -1115,7 +1115,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       ["日給（最低賃金以上）", wageInputOk && !unknownWage && !minWageLoading && !dailyViolation,      "daily_wage"],
       ["休憩時間",                breakTime !== "",                    "break_time"],
       ["時間外労働",              overtimeOk,                          "overtime"],
-      ["作業動画のURL・この求人への掲載同意", !workVideoUrl.trim() || (isValidYoutubeVideo(workVideoUrl) && workVideoJobConsent), 9],
+      ["作業動画のURL", !workVideoUrl.trim() || isValidYoutubeVideo(workVideoUrl), "work_video"],
+      ["作業動画の掲載同意", !workVideoUrl.trim() || workVideoJobConsent, "video_consent"],
     ];
     // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
     // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
