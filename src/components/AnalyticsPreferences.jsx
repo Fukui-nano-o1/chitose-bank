@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { productAnalytics, ANALYTICS_CHOICE_KEY } from "../lib/productAnalytics";
 import { supabase } from "../lib/supabase";
-import { isAdmin } from "../lib/utils";
+import { readAdminMembership } from "../lib/authorization";
 import "./AnalyticsPreferences.css";
 
 export function ProductAnalyticsController({ excluded }) {
@@ -10,7 +10,7 @@ export function ProductAnalyticsController({ excluded }) {
       // Session restoration can finish before App's user state. Exclude the
       // operator at send time as well, and recheck withdrawal after the wait.
       const { data, error } = await supabase.auth.getSession();
-      if (signal.aborted || error || isAdmin(data?.session?.user)) return;
+      if (signal.aborted || error || await readAdminMembership(supabase, data?.session?.user?.id)) return;
       return supabase.from("product_events").insert(rows).abortSignal(signal).retry(false);
     }, excluded);
     const page = () => productAnalytics.page();

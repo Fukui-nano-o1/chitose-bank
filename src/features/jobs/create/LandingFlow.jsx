@@ -11,7 +11,7 @@ import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, s
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
 import { zipLookup } from "../../../lib/zipLookup";
-import { isAdmin, ymdLocal, CROP_OPTIONS, TASK_OPTIONS, farmHostQa, farmIntroTopics, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, CONTRACT_RENEWAL_FIXED, OVERTIME_OPTIONS, overtimeLine, splitTextsForReview, PLACE_CHANGE_OPTIONS, TASK_CHANGE_OPTIONS } from "../../../lib/utils";
+import { ymdLocal, CROP_OPTIONS, TASK_OPTIONS, farmHostQa, farmIntroTopics, PUBLISH_CHECKS, payTermsLine, CURRENT_PAY_POLICY, CONTRACT_RENEWAL_FIXED, OVERTIME_OPTIONS, overtimeLine, splitTextsForReview, PLACE_CHANGE_OPTIONS, TASK_CHANGE_OPTIONS } from "../../../lib/utils";
 // 確認ページ（step11）の本文＝求人詳細ページ・ボックス版・審査プレビューと同じ JobDetailBody（2026-09-19）。
 // 旧・確認ページが自前で描いていた写真カルーセル・主要情報カード・待遇表・危険箇所・地図・カレンダー・保険の
 // 部品（Carousel系/DangerItem/JobLocationMap/JobInsuranceSection ほか）の import はここから消えた
@@ -80,7 +80,7 @@ function resumeListingStep(oldStep, hasVideoFields = false) {
   return n >= 9 && n <= 11 ? n + 1 : Math.max(1, Math.min(n, 12));
 }
 
-export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSaved, onSkip, onLogin, onPublished, onWorkerDone, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
+export function LandingFlow({ ownerId, adminHint = false, localOnly = false, onComplete, onDraftSaved, onSkip, onLogin, onPublished, onWorkerDone, farmersCount = 0, embedded = false, initialRole = "", onStepChange, initialStep }) {
   const AVG_HOURLY = 1180, AVG_DAILY = 8400, AVG_COUNT = 0;
 
   const [_deviceInit] = useState(() => {
@@ -1729,11 +1729,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               }
               setJobSaving(true);
               const finishMeasurement = productAnalytics.begin("publish");
-              let sessionUser = null; // catch 節でも参照する（try の中の const は catch から見えない）
               try {
                 const { data: { session } } = await getSession();
                 if (!session) { saveDraft(); onLogin(); return; }
-                sessionUser = session.user;
                 if (session.user.id !== ownerId) throw new Error("AUTH_REQUIRED");
                 // 応答紛失後は下書き同期・再掲載を始めず、凍結した操作を先に照合する。
                 const awaiting = readDeviceDraft(ownerId, deviceDraftRef.current?.id);
@@ -1848,7 +1846,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 reportPublishFailure("unexpected", e?.code || "exception", e);
                 // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
                 setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
-                  + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
+                  + (adminHint ? `（管理者向け：${e?.message || e}）` : ""));
                 setPublishIssue("掲載処理が失敗しました。入力は保持されています。もう一度お試しください。");
               } finally {
                 finishMeasurement("failure");
