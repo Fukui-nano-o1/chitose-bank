@@ -51,6 +51,14 @@ try {
       const overflow=await page.evaluate(()=>({document:document.documentElement.scrollWidth>innerWidth+1,fields:[...document.querySelectorAll('[data-step-id] input,[data-step-id] select,[data-step-id] textarea')].filter(el=>{const r=el.getBoundingClientRect();return r.width && (r.left < -1 || r.right > innerWidth+1);}).map(el=>el.id||el.getAttribute('aria-label'))}));
       assert.equal(overflow.document,false,`${viewport.width}/${id}: document overflow`);
       assert.deepEqual(overflow.fields,[],`${viewport.width}/${id}: fields overflow`);
+      if (id === 'smoking_policy') {
+        const choices=page.locator('.listing-condition-choices button');
+        assert.ok(await choices.count()>=2,'smoking options use shared choice cards');
+        for (const choice of await choices.all()) {
+          const box=await choice.boundingBox(); assert.ok(box && box.height>=44,'choice card touch target');
+        }
+      }
+      if (id === 'review') assert.equal(await page.locator('.listing-next').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(34, 34, 34)','review uses the same black action button');
       const footer=await page.locator('.listing-footer').boundingBox();
       assert.ok(footer && footer.y>=0 && footer.y+footer.height<=viewport.height+1,`${id}: visible footer`);
       const next=page.locator('.listing-next');if(id==='publish_consent')assert.equal(await next.isEnabled(),false,'unchecked consent cannot publish');else await next.waitFor();

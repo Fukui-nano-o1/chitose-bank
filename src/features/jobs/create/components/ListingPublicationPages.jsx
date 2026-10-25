@@ -1,6 +1,7 @@
 import { lfStyles } from "../lfStyles";
 import { PUBLISH_CHECKS } from "../../../../lib/utils";
 import { RECRUITER_FIELDS } from "../listingPublicationPages";
+import { ListingChoiceCards } from "./ListingChoiceCards";
 
 export function ListingRecruiterPage({ pageId, state }) {
   const field = RECRUITER_FIELDS[pageId];
@@ -13,10 +14,8 @@ export function ListingRecruiterPage({ pageId, state }) {
     {state.status !== "ready" && <button type="button" className="listing-back" disabled={state.busy || state.status === "loading"} onClick={state.reload}>登録情報を再確認</button>}
     <fieldset disabled={state.busy} className="listing-publication-fields">
       {pageId === "smoking_policy" ? <>
-        <div className="listing-choice-grid" role="group" aria-label={field.label}>
-          {["禁煙（喫煙場所なし）", "喫煙場所あり"].map(value => <button key={value} type="button" className={`listing-choice-card${state.values.smoking_policy === value ? " is-selected" : ""}`} aria-pressed={state.values.smoking_policy === value} onClick={() => state.change("smoking_policy", value)}>{value}</button>)}
-        </div>
-        {state.values.smoking_policy && !["禁煙（喫煙場所なし）", "喫煙場所あり"].includes(state.values.smoking_policy) && <p>現在の登録：{state.values.smoking_policy}</p>}
+        <ListingChoiceCards label={field.label} options={["禁煙（喫煙場所なし）", "喫煙場所あり"]}
+          value={state.values.smoking_policy} onChange={value => state.change("smoking_policy", value)} />
         {state.values.smoking_policy === "喫煙場所あり" && <label className="listing-publication-label">喫煙場所の説明<input className="field f-sans" value={state.values.smoking_area} onChange={e => state.change("smoking_area", e.target.value)} maxLength={100} /></label>}
       </> : <>
         <label htmlFor={`listing-${pageId}`} className="listing-publication-label">{field.label}</label>

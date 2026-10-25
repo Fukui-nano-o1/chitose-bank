@@ -81,7 +81,7 @@ export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm,
           {!returnToConfirm && frame.skipDetails && (
             <button type="button" className="listing-skip" onClick={onSkipDetails} disabled={busy}>あとで追加</button>
           )}
-          <button type="button" className={`listing-next${frame.review ? " listing-publish" : ""}`}
+          <button type="button" className="listing-next"
             onClick={frame.review ? onPublish : onNext}
             disabled={!frame.valid || busy || (frame.review ? publishDisabled : !canNext)} data-guide="flow-next">
             {uploading ? "アップロード中…" : busy ? "保存中…" : nextLabel || (frame.intro ? "はじめる" : frame.review ? (editingOpen ? "変更を保存" : "掲載する") : returnToConfirm ? "確認に戻る" : frame.lastDetail ? "確認へ" : "次へ")}
