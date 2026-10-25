@@ -9,11 +9,23 @@ export const supabase = createClient('https://offline-fixture.test', 'fixture-ke
   global: { fetch: async (url, init) => {
     const path = new URL(url).pathname.split('/rest/v1/')[1];
     const body = init.body ? JSON.parse(init.body) : null;
-    window.qaCalls.push({path, body});
+    window.qaCalls.push({path, body, method: init.method || "GET"});
     if (window.qaOffline) throw new TypeError('Network error');
     let result = null;
-    if (path === 'employer_profiles') result = [window.qaProfile || profile];
-    else if (path === 'account_holders') result = [{ agreed_privacy_version: window.qaConsent ? PRIVACY_VERSION : 'old' }];
+    if (path === 'employer_profiles') {
+      if (window.qaProfileReadError && !body) return new Response(JSON.stringify({code:'42501',message:'test profile read failure'}),{status:403,headers:{'Content-Type':'application/json'}});
+      if (body) {
+        if (window.qaProfileWriteError) return new Response(JSON.stringify({code:'42501',message:'test profile save failure'}),{status:403,headers:{'Content-Type':'application/json'}});
+        window.qaProfile = {...(window.qaProfile || profile), ...body};
+        if (window.qaLoseProfileResponse) { window.qaLoseProfileResponse = false; throw new TypeError('Lost profile save response'); }
+        return new Response(null, {status:204});
+      }
+      result = [window.qaProfile || profile];
+    }
+    else if (path === 'account_holders') {
+      if (window.qaDelayRegistration) await new Promise(resolve => { window.qaReleaseRegistration = resolve; });
+      result = [{ ...(window.qaRegistration || {}), agreed_privacy_version: window.qaConsent ? PRIVACY_VERSION : 'old' }];
+    }
     else if (path === 'jobs_public') result = [];
     else if (path === 'jobs') result = window.qaJob ? [window.qaJob] : [];
     else if (path === 'rpc/get_minimum_wage') result = Object.hasOwn(window,'qaMinimumWage') ? window.qaMinimumWage : 1100;
@@ -57,7 +69,7 @@ export const supabase = createClient('https://offline-fixture.test', 'fixture-ke
     return new Response(JSON.stringify(result), {status:200,headers:{'Content-Type':'application/json'}});
   } },
 });
-supabase.auth.getSession = async () => ({data:{session:{user:{id:owner,email:'fixture@example.test'}}}});
+supabase.auth.getSession = async () => ({data:{session:{user:{id:window.qaSessionOwner || owner,email:'fixture@example.test'}}}});
 export const geocodeTown = async () => null;
 // 住所の実在チェック（2026-09-27）：オフラインでは確かめられない＝"error"（止めない側）
 export const verifyTownAddress = async () => "error";

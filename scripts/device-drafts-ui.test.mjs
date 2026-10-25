@@ -47,7 +47,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       w.alert=message=>errors.push(message);w.confirm=()=>true;
       for(const [k,v] of Object.entries(storage)) w.localStorage.setItem(k,v);
       for(const [k,v] of Object.entries(session)) w.sessionStorage.setItem(k,v);
-      w.eval(script); await until(() => w.document.querySelector('textarea[aria-label="作業の説明"], input[aria-label="日給"], input[aria-label="勤務開始時間"]') || [...w.document.querySelectorAll('button')].some(b => ['同意して続ける','掲載する'].includes(b.textContent.trim())), 'initial screen');
+      w.eval(script); await until(() => w.document.querySelector('textarea[aria-label="作業の説明"], input[aria-label="日給"], input[aria-label="勤務開始時間"], [data-step-id="publish_consent"]') || [...w.document.querySelectorAll('button')].some(b => ['同意して続ける','掲載する'].includes(b.textContent.trim())), 'initial screen');
       return w;
     }
     const button = (w,label) => {const found=[...w.document.querySelectorAll('button')].find(b=>b.textContent.trim()===label);assert.ok(found,label);return found;};
@@ -132,8 +132,11 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaCalls.filter(r=>['rpc/publish_my_job','job_publish_checks'].includes(r.path)).length,0);
     assert.equal(Object.keys(w.qaPublicationReceipts).length,1);
     const startPublish = async () => {
-      await until(() => !button(w,'掲載する').disabled, 'publish ready');
-      button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
+      if (!w.document.querySelector('[data-step-id="publish_consent"]')) {
+        await until(() => !button(w,'掲載する').disabled, 'publish ready');
+        button(w,'掲載する').click();
+      }
+      await until(() => w.document.querySelector('#listing-publish-confirmed'), 'publish confirmation');
       w.document.querySelector('input[type="checkbox"]').click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
       button(w,'同意して掲載する').click();
     };

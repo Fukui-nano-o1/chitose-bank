@@ -112,7 +112,7 @@ test('stage 3 real listing: basic topics, navigation, recovery, minimum wage and
         assert.equal(record(w).payload.work_time,row.work_time);assert.equal(record(w).base.draft_step_id,'terms');assert.equal(record(w).payload.draft_step,5);
       }
       const w=await mount({url:'https://ui.test/#/work/new',form:{...form(),listingPageId:'terms',listingNavVersion:'2026-10-22-stage2'}});await page(w,'daily_wage');
-      assert.equal(record(w).form.listingNavVersion,'2026-10-23-stage4');assert.equal(record(w).form.dailyWageInput,'10000');
+      assert.equal(record(w).form.listingNavVersion,'2026-10-26-stage5');assert.equal(record(w).form.dailyWageInput,'10000');
     });
     await t.test('every review edit has its own URL and returns directly to review, including after reload',async()=>{
       let w=await mount({url:'https://ui.test/#/work/edit/42',job:dbRow({draft_step:12}),offline:false});await page(w,'review');

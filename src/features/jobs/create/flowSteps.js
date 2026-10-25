@@ -41,7 +41,7 @@ export function listingFrameState(value) {
   const splitPosition = { task_scope: 2.5, place_scope: 3 + 1 / 3, access: 3 + 2 / 3,
     holidays: 4 + 1 / 3, headcount: 4 + 2 / 3, work_time: 5, break_time: 5.25, overtime: 5.5, daily_wage: 5.75,
     photo_captions: 7.5, video_consent: 9.5, danger_places: 10, danger_tasks: 10.5,
-    belongings: 11, cautions: 11.25, worker_preferences: 11.5, repeat_approval: 11.75 };
+    belongings: 11, cautions: 11.25, worker_preferences: 11.5, repeat_approval: 11.75, recruiter_name: 12, recruiter_address: 12, recruiter_contact: 12, smoking_policy: 12, publish_consent: 12.5 };
   const id = value === "intro" || Object.hasOwn(splitPosition, value) || FARMER_FLOW.includes(value) ? value : legacyStepId(value);
   const valid = !!id;
   const n = id === "intro" ? 0 : splitPosition[id] ?? stepNumber(id);
@@ -50,10 +50,11 @@ export function listingFrameState(value) {
   const progress = valid ? [
     Math.min(n / details, 1),
     Math.max(0, Math.min((n - details) / (review - details), 1)),
-    id === COMPLETE_STEP_ID ? 1 : id === REVIEW_STEP_ID ? 0.5 : 0,
+    id === COMPLETE_STEP_ID ? 1 : id === "publish_consent" ? 0.85 : id === REVIEW_STEP_ID ? 0.5 : 0,
   ] : [0, 0, 0];
   return {
     id, valid, stage, progress,
+    consent: id === "publish_consent", recruiter: ["recruiter_name", "recruiter_address", "recruiter_contact", "smoking_policy"].includes(id),
     intro: id === "intro", review: id === REVIEW_STEP_ID, complete: id === COMPLETE_STEP_ID,
     wide: ["intro", "details_intro", REVIEW_STEP_ID].includes(id),
     skipDetails: id === "access" || id === "details_intro" || OPTIONAL_DETAIL_IDS.has(id) ||

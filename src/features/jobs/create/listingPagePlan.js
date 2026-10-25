@@ -35,6 +35,7 @@ export const SINGLE_TOPIC_PAGES = Object.freeze([
   page("recruiter_name", "募集者の名称", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.recruiter_name" }),
   page("recruiter_address", "募集者の住所", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.recruiter_address" }),
   page("recruiter_contact", "募集者の連絡先", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.recruiter_contact" }),
+  page("smoking_policy", "受動喫煙の状況", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.smoking_policy" }),
   page("review", "求人プレビュー", 2, [], [], { kind: "review" }),
   page("publish_consent", "掲載前の同意", 2, [], [], { kind: "consent", externalRecord: "job_publish_checks" }),
   page("complete", "掲載完了", 2, [], [], { kind: "complete" }),

@@ -9,6 +9,7 @@ on:
       - scripts/fixtures/listing-schedule-frame-entry.jsx
       - scripts/fixtures/listing-basics-browser-entry.jsx
       - scripts/listing-basics-browser.mjs
+      - scripts/listing-publication-browser.mjs
       - scripts/fixtures/offline/**
       - src/components/CalendarView.jsx
       - src/App.jsx
@@ -21,6 +22,7 @@ on:
       - scripts/fixtures/listing-schedule-frame-entry.jsx
       - scripts/fixtures/listing-basics-browser-entry.jsx
       - scripts/listing-basics-browser.mjs
+      - scripts/listing-publication-browser.mjs
       - scripts/fixtures/offline/**
       - src/components/CalendarView.jsx
       - src/App.jsx
@@ -54,10 +56,21 @@ jobs:
         run: node scripts/listing-basics-browser.mjs
         env:
           CB_EVIDENCE_DIR: ${{ runner.temp }}/listing-basics-evidence
+      - name: Real browser publication pages, consent and retry checks
+        run: node scripts/listing-publication-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/listing-publication-evidence
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: listing-basics-browser-evidence
           path: ${{ runner.temp }}/listing-basics-evidence
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: listing-publication-browser-evidence
+          path: ${{ runner.temp }}/listing-publication-evidence
           retention-days: 7
           if-no-files-found: ignore

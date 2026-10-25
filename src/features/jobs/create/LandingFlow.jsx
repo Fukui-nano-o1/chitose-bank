@@ -6,7 +6,7 @@ import { logAppError } from "../../../app/diagnostics/errorLog";
 import { safeDraftRebase } from "../../../lib/offlineSync";
 import { jobSaveGuidance } from "../../../lib/inputRecovery.js";
 import { calendarDateFromYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { activeDeviceDraft, readDeviceDraft, listDeviceDrafts, newDeviceDraft, saveDeviceDraft, queueDeviceDraft, rebaseDeviceDraft, removeDeviceDraft, prepareDevicePublication, settleDevicePublication, DEVICE_DRAFT_EVENT } from "../../../lib/deviceDrafts";
 import { emitConfirmedRefresh, REFRESH_JOBS } from "../../../lib/refreshBus";
 import { fbCelebrate } from "../../../lib/feedback";
@@ -33,10 +33,13 @@ import { getSession, fetchMinimumWage, fetchEmployerProfile, fetchEmployerPlaceA
   fetchJobByNumber, fetchJobStatus, publishMyJobWithCheck,
   countLiveApplications, syncJobDeviceDrafts,
   uploadPhoto } from "./jobCreateApi";
-import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "./components/LFParts";
+import { LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilterRow } from "./components/LFParts";
 import { lfStyles } from "./lfStyles";
 import { StepPhotos } from "./components/StepPhotos";
 import { StepDescription } from "./components/StepDescription";
+import { useListingRecruiter } from "./useListingRecruiter";
+import { isRecruiterPage, RECRUITER_FIELDS, recruiterPageValid } from "./listingPublicationPages";
+import { ListingRecruiterPage, ListingPublishConsent } from "./components/ListingPublicationPages";
 import { StepPhotoCaptions } from "./components/StepPhotoCaptions";
 import { StepWorkVideo, isValidYoutubeVideo } from "./components/StepWorkVideo";
 import { StepDanger } from "./components/StepDanger";
@@ -333,12 +336,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 掲載前の確認（2026-08-07たきと指示「チェックは1つにまとめる」）：4項目は本文として列挙し、
   // 「確認しました」1つのチェックで掲載ボタンを解錠する（旧：4つの個別チェックボックス）
   const [publishConfirmed, setPublishConfirmed] = useState(false);
-  const [publishModal, setPublishModal] = useState(false); // 確認ページ下部ナビ「掲載する」→チェックリストモーダル
-  // 募集者情報（①氏名・名称②住所・所在地③連絡先）が無ければ掲載申請できない（法令の明示事項・2026-07-27たきと指示）。
-  // ページを移動せず、その場でボックスを開いて入力→保存→掲載申請を続行する。
-  // 再開はrefに掴んだ関数を呼ぶ（handleSaveJobは確認ページのIIFE内定義なので、識別子は外から参照できない）
-  const [recruitBox, setRecruitBox] = useState(null); // { name, address, contact, saving }
-  const resumePublishRef = useRef(null);
   // 掲載＝即公開（2026-08-14 承認プロセスの削除・届出受理済み）。運営者本人は直接 open で INSERT、
   // 一般農家は下書き保存→確認記録付き掲載RPCで即 open（RLSは draft/pending のまま＝直接の open 書き込みは不可）。
   // 掲載＝即公開（2026-08-14 承認プロセスの削除）：管理者か一般農家かの体験の分岐（meCanOpen）は廃止。
@@ -373,7 +370,19 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 確認ページのシートは3つとも同じ規格（枠・見出し・スクロール領域・下部ボタン）＝待遇の変更／
   // 農園プロフィール／掲載前の確認（2026-08-09たきと指示「最後の確認ボックスも待遇と同じ規格に」）。
   // 開いている間の扱い（下部ナビを潜らせる・背後のスクロールを止める）もここで一括して決める。
-  const sheetOpen = perksEditOpen || confProfileOpen || publishModal;
+  const recruiter = useListingRecruiter({ ownerId, initialDraft: d.listingRecruiterDraft,
+    onProfile: row => setConfEmployer(previous => ({ ...(previous || {}), ...row })),
+  });
+  const reloadRecruiter = recruiter.reload;
+  const previousProfileEditor = useRef(false);
+  useEffect(() => {
+    const opened = perksEditOpen || confProfileOpen;
+    if (previousProfileEditor.current && !opened) reloadRecruiter();
+    previousProfileEditor.current = opened;
+  }, [perksEditOpen, confProfileOpen, reloadRecruiter]);
+  // 同意は画面の入退場でリセットし、表示後の最初のチェック操作を消さない。
+  useLayoutEffect(() => { setPublishConfirmed(false); }, [pageId]);
+  const sheetOpen = perksEditOpen || confProfileOpen;
   const sheetNavHide = {
     transform: sheetOpen ? "translateY(calc(100% + 24px + env(safe-area-inset-bottom, 0px)))" : "translateY(0)",
     transition: "transform .3s ease",
@@ -552,11 +561,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     }, 400);
   };
   const goNext = () => animateStepChange(() => {
-    if (isFarmer) setPage(adjacentListingPage(pageId, 1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim() }));
+    if (isFarmer) setPage(adjacentListingPage(pageId, 1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim(), missingRecruiter: recruiter.missing }));
     else setStep(s => s + 1);
   }, "fwd");
   const goBack = () => animateStepChange(() => {
-    if (isFarmer) setPage(adjacentListingPage(pageId, -1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim() }) || "intro");
+    if (isFarmer) setPage(adjacentListingPage(pageId, -1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim(), missingRecruiter: recruiter.missing }) || "intro");
     else if (step <= 1) setStep(0); else setStep(s => s - 1);
   }, "back");
   // 全stepスワイプ移動（2026-07-16）：左スワイプ=次へ（バリデーション尊重）／右スワイプ=戻る。
@@ -567,9 +576,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 確認ページ(step11)からの編集ジャンプ中フラグ。trueの間、共通フッターの「次へ／戻る」は
   // 通常の順送りでなく確認ページへ直帰する（Airbnb出品確認の「編集→保存して確認へ戻る」と同型）。
   useEffect(() => {
-    if (step === 12) setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
+    if (pageId === "review") setReturnToConfirm(false); // 確認ページ到達で必ず解除（保険）
     if (step === 13) fbCelebrate(); // 完了ページ到達＝祝祭の音と振動（2026-08-06・画面は既存の完了ページのまま）
-  }, [step, setReturnToConfirm]);
+  }, [step, pageId, setReturnToConfirm]);
 
   useEffect(() => {
     if (onStepChange && role === "farmer" && isListingInputPage(pageId) && !isWorkplaceRoute()) onStepChange(step, pageId);
@@ -701,6 +710,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     const resumeInput = lastPosition?.listingPageId != null ? { ...input,
       listingPageId: lastPosition.listingPageId, listingNavVersion: lastPosition.listingNavVersion,
       listingReturnToReview: lastPosition.listingReturnToReview } : input;
+    if (lastPosition?.listingRecruiterDraft) recruiter.restore(lastPosition.listingRecruiterDraft);
     restorePage(resumeInput, input.farmerStep);
   };
 
@@ -817,6 +827,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 入力の採取は一か所。変換はcodec、保存と同期待ちは既存の各層へ渡す。
   function currentJobForm() {
     return {
+        listingRecruiterDraft: recruiter.draft,
         role: "farmer", farmerStep: step, listingPageId: pageId, listingNavVersion: LISTING_NAV_VERSION, listingReturnToReview: returnToConfirm, job_number: draftJobNumber, // 保存時点の実ステップとupsertキーを記録
         farmerExp, farmerPurpose, farmerDisplayName, farmerRegion,
         farmerZip, farmerPref, farmerCity, farmerTown, farmerAddr, jobPhotos,
@@ -925,7 +936,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 確認ページ到達時：住所からおおよその座標を取得（保存時のgeocodeTownと同じ手順。
   // 取得失敗・住所未入力ならnullのまま＝JobLocationMapが「地図は準備中です」を表示）
   useEffect(() => {
-    if (step !== 11 || role !== "farmer") return;
+    if (pageId !== "review" || role !== "farmer") return;
     let cancelled = false;
     (async () => {
       const geo = await geocodeTown(farmerPref, farmerCity, farmerTown);
@@ -958,7 +969,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // Appルートへ通知（cb:confirmNotice→trigger=confirmのお知らせ展開）。判定項目は農家プロ入口の
   // ボックス格子(boxFilled: avatar/nickname/place/perks/staff/intro/ask/style)と同じ8区分
   useEffect(() => {
-    if (step !== 11 || role !== "farmer") return;
+    if (pageId !== "review" || role !== "farmer") return;
     let cancelled = false;
     (async () => {
       try {
@@ -1013,7 +1024,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       overtimePolicy, overtimeDetail, placeChangeScope, taskChangeScope, jobDescription,
       workVideoUrl, workVideoJobConsent, workVideoRelatedConsent, workVideoConsentAt, workVideoConsentVersion,
       beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
-      jobDateStart, jobDateEnd, jobHolidays, editJobLoading]);
+      jobDateStart, jobDateEnd, jobHolidays, editJobLoading, recruiter.draft]);
 
   const pageScrollPositions = useRef({});
   // ページごとのスクロール位置を保持し、戻る時は見出しへフォーカスだけを戻す。
@@ -1068,6 +1079,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     video_consent: !workVideoUrl.trim() || workVideoJobConsent,
     danger_places: !photoUploading, danger_tasks: !photoUploading,
     belongings: true, cautions: true, worker_preferences: true, repeat_approval: true, review: true,
+    publish_consent: publishConfirmed,
+    ...Object.fromEntries(Object.keys(RECRUITER_FIELDS).map(id => [id, recruiter.status === "ready" && recruiterPageValid(id, recruiter.values)])),
   };
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[pageId] ?? false) : isWorker ? (workerCanNext[step] ?? true) : true;
@@ -1077,7 +1090,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const onFlowTouchEnd = (e) => {
     const s = flowSwipe.current;
     flowSwipe.current = null;
-    if (!s || publishModal || showExitModal || photoCaptionsOpen || placePageOpen) return;
+    if (!s || pageId === "publish_consent" || showExitModal || photoCaptionsOpen || placePageOpen) return;
     if (step === 12) return; // 確認ページは横スワイプ遷移なし（2026-07-16たきと指定・写真カルーセル優先）
     const dx = e.changedTouches[0].clientX - s.x;
     const dy = e.changedTouches[0].clientY - s.y;
@@ -1118,20 +1131,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       ["作業動画のURL", !workVideoUrl.trim() || isValidYoutubeVideo(workVideoUrl), "work_video"],
       ["作業動画の掲載同意", !workVideoUrl.trim() || workVideoJobConsent, "video_consent"],
     ];
-    // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
-    // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
-    // 読めていない時は誤って空扱いにせず、従来どおり掲載時のDBゲート・recruitBoxに任せる。
-    // step=null＝行き先がフロー内に無い（プロフィール編集の項目）ので goToMissingField は案内だけ
-    if (confEmployer) {
-      checks.push(["受動喫煙の状況（プロフィールの「待遇」で設定）", !!(confEmployer.smoking_policy || "").trim(), null]);
-      checks.push(["募集者の氏名・名称", !!(confEmployer.recruiter_name || "").trim(), null]);
-      checks.push(["募集者の住所", !!(confEmployer.recruiter_address || "").trim(), null]);
-      checks.push(["募集者の連絡先", !!(confEmployer.recruiter_contact || "").trim(), null]);
+    if (recruiter.status === "ready") {
+      for (const id of recruiter.missing) checks.push([RECRUITER_FIELDS[id].title, false, id]);
     }
     return checks.filter(([, ok]) => !ok).map(([label, , step]) => ({ label, step }));
   };
   // 足りない欄を伝えて、その欄のページへ送る（案内だけで終わらせない）。戻り先は確認ページ。
-  // プロフィール由来の項目（step=null）しか無い時は案内だけ＝フロー内に行き先が無い
+  // プロフィール由来の必須項目も、同じ固定IDの専用ページへ案内する。
   const goToMissingField = (missing) => {
     setPublishIssue("掲載前に確認が必要です：" + missing.map(m => m.label).join("、"));
     const target = missing.find(m => m.step != null);
@@ -1149,16 +1155,19 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     }
     if (readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
       setPublishIssue("先の掲載と確認記録の結果を、同じ操作IDで確認します。待っている間の追加編集は送りません。");
-      setPublishModal(true);
+        setPublishConfirmed(false);
+      setPage("publish_consent", { returnToConfirm: false });
+      return;
+    }
+    if (recruiter.status !== "ready") {
+      setPublishIssue("掲載に必要な登録情報を確認できません。登録情報を再確認してください。入力は保持されています。");
       return;
     }
     const missing = getPublishMissingFields();
-    // 募集者の項目【だけ】が欠けている時は止めない＝掲載実行時のrecruitBox（新規登録の内容が
-    // 初期値で入った入力ボックス）がその場で開く方が親切（2026-08-07）。他が混ざる時は一覧で知らせる
-    const nonRecruiter = missing.filter(m => !m.label.startsWith("募集者"));
-    if (nonRecruiter.length > 0) { goToMissingField(missing); return; }
+    if (missing.length > 0) { goToMissingField(missing); return; }
     rememberFlowScroll();
-    setPublishModal(true);
+    setPublishConfirmed(false);
+    setPage("publish_consent", { returnToConfirm: false });
     } catch (error) {
       setPublishIssue("掲載前の確認を開始できませんでした。下書きを保存し、再度お試しください。");
       console.error("listing publish preflight failed", error);
@@ -1169,6 +1178,204 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const closeListing = () => {
     if (typeof onSkip === "function") onSkip();
     else window.location.hash = "/profile/employer/drafts";
+  };
+
+  const handleSaveJob = async () => {
+    if (jobSaving || !publishConfirmed || pageId !== "publish_consent") return;
+    setPublishIssue("");
+    const classifyDraftSyncFailure = (saved, syncOutcome) => {
+      const reason = String(saved?.reason || "").toLowerCase();
+      if (saved?.state === "conflict" || reason === "conflict") return "conflict";
+      if (["consent_required","consent_required_version"].includes(reason) || syncOutcome?.consentRequired) return "consent";
+      if (syncOutcome?.authRequired || ["not_logged_in","jwt_expired","pgrst301"].includes(reason)) return "authentication";
+      if (syncOutcome?.retry || globalThis.navigator?.onLine === false || ["pgrst000","57014","timeout","network_error"].includes(reason)) return "communication";
+      if (saved?.state === "blocked" || reason) return "database_rejection";
+      return "unconfirmed";
+    };
+    const reportPublishFailure = (phase, reason = "unknown", error = null) => {
+      const safePhase = ["profile_read","draft_sync","publish_rpc","unexpected"].includes(phase) ? phase : "unexpected";
+      const code = String(error?.code || reason || "unknown").slice(0,80).replace(/[^a-zA-Z0-9_-]/g, "_");
+      void logAppError({
+        component: "ListingFlow", page: "listing_publish", action: "publish",
+        operation: safePhase, error: { message: "求人掲載失敗: " + safePhase + " / " + code, code },
+        metadata: { phase: safePhase, reason_code: code },
+      });
+    };
+    const confirmPublication = async (record, finishMeasurement) => {
+      const operation = record.publication;
+      deviceDraftRef.current = record;
+      let pub;
+      try { pub = await publishMyJobWithCheck(operation); }
+      finally { emitConfirmedRefresh(REFRESH_JOBS); }
+      const outcome = pub.error ? { confirmed: false, reason: pub.error.code }
+        : settleDevicePublication(ownerId, record.id, operation.requestId, pub.data);
+      if (outcome.record) deviceDraftRef.current = outcome.record;
+      if (!outcome.confirmed) {
+        reportPublishFailure("publish_rpc", outcome.reason || "unconfirmed", pub.error || (pub.data?.code ? { code: pub.data.code } : null));
+        setPublishIssue((outcome.record && !outcome.record.publication
+          ? jobSaveGuidance({ state: outcome.reason === "conflict" ? "conflict" : "blocked", reason: outcome.reason })
+          : "掲載と確認記録の完了を確認できません。掲載済みの場合もあります。入力はこの端末に残っています。通信が戻ってから、同じ端末・ブラウザで同じ掲載ボタンを押して前回の結果を確認してください。確認が済むまで新しい求人として作り直したり、サイトデータを削除したりしないでください。")
+          + (outcome.reason === "conflict" ? " 別の保存で変更された項目があるため、内容の確認が必要です。" : ""));
+        return;
+      }
+      const status = outcome.currentStatus;
+      setEditingOpen(status === "open");
+      if (outcome.newerInput || !["open", "pending"].includes(status)) {
+        // 結果未確定・終了済みの記録をページ移動の自動保存で解除しない。
+        const notice = outcome.newerInput
+          ? "先の掲載と確認記録は保存済みです。その後の追加編集は未反映のため、この端末に残しました。内容を確認して保存してください。"
+          : "先の掲載と確認記録は保存済みですが、求人はその後に非公開または掲載終了になっています。再掲載は行っていません。入力はこの端末に残しています。";
+        setPublishConfirmed(false); setPublishIssue(notice); setDraftMsg(notice);
+        return;
+      }
+      completedRef.current = true;
+      removeDeviceDraft(ownerId, record.id);
+      activeDeviceDraft(ownerId, null);
+      try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
+      setDraftJobNumber(null);
+      setPage("review", { returnToConfirm: false });
+      finishMeasurement("success");
+      if (typeof onPublished === "function") onPublished(status === "open", record.jobNumber);
+      else { setPublishedOpen(status === "open"); setStep(13); }
+    };
+    if (localOnly || !ownerId) { handleTopSave(); return; }
+    if (recruiter.status !== "ready" && !readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
+      setPublishIssue("募集者情報を確認できません。確認画面に戻り、登録情報を再確認してください。");
+      return;
+    }
+    const missing = getPublishMissingFields();
+    if (missing.length > 0 && !readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
+      setPublishConfirmed(false);
+      goToMissingField(missing);
+      return;
+    }
+    setJobSaving(true);
+    const finishMeasurement = productAnalytics.begin("publish");
+    let sessionUser = null; // catch 節でも参照する（try の中の const は catch から見えない）
+    try {
+      const { data: { session } } = await getSession();
+      if (!session) { saveDraft(); onLogin(); return; }
+      sessionUser = session.user;
+      if (session.user.id !== ownerId) throw new Error("AUTH_REQUIRED");
+      // 応答紛失後は下書き同期・再掲載を始めず、凍結した操作を先に照合する。
+      const awaiting = readDeviceDraft(ownerId, deviceDraftRef.current?.id);
+      if (awaiting?.publication) { await confirmPublication(awaiting, finishMeasurement); return; }
+      // 掲載直前にも本人の最新値を確認する。補完後に自動で掲載しない。
+      {
+        const { data: info, error: readError } = await fetchEmployerRecruiterInfo(session.user.id);
+        if (readError) {
+          reportPublishFailure("profile_read", "profile_read_failed", readError);
+          setPublishIssue("募集者情報を確認できませんでした。入力は残っています。通信が戻ってから再試行してください。");
+          return;
+        }
+        const field = ["recruiter_name", "recruiter_address", "recruiter_contact"].find(key => !String(info?.[key] || "").trim());
+        if (field) {
+          await recruiter.reload();
+          setPublishConfirmed(false);
+          goToMissingField([{ label: RECRUITER_FIELDS[field].title, step: field }]);
+          return;
+        }
+      }
+      // プロフィール審査中の掲載ブロックは廃止（2026-08-14 承認プロセスの削除。
+      // 自由記述は保存＝即公開になったため「審査待ちの農家」という状態が存在しない）
+      const payload = buildJobPayload(session.user.id, "draft", await geocodeTown(farmerPref, farmerCity, farmerTown));
+      const local = saveDraft(payload);
+      if (!local) return;
+      const originalBase = local.base;
+      // 応答不明の古い保存があれば先に照合し、その後に今の内容を送る。
+      let lastSyncOutcome = null;
+      const syncNow = async () => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const beforeToken = readDeviceDraft(ownerId, local.id)?.pending?.token;
+          const syncOutcome = await syncJobDeviceDrafts(ownerId);
+          lastSyncOutcome = syncOutcome;
+          const latest = readDeviceDraft(ownerId, local.id);
+          if (!latest?.pending || latest.state !== "pending" || latest.pending.token === beforeToken) break;
+        }
+        return readDeviceDraft(ownerId, local.id);
+      };
+      queueDeviceDraft(ownerId, local.id);
+      let saved = await syncNow();
+      // 衝突（conflict）＝DBの行が端末の比較元と違う（コピー直後の受け渡しの食い違い・別タブの保存など）。
+      // 掲載は利用者の明示の操作なので、比較元をDBの行に取り直して【いま画面にある内容】を1回だけ送り直す。
+      // 二度と「別の更新がある」で詰まらせない（2026-09-23・DRAFT_REQUIRES_REVIEW の根治）
+      if (saved?.state === "conflict") {
+        // 競合は利用者に押し直させず、最新DB行を基準に【いま画面にある内容】を自動で再保存する。
+        // 最大2回。毎回DBを取り直すので、古い比較元を同じまま投げ続けるループにはしない。
+        for (let retry = 0; retry < 2 && saved?.state === "conflict"; retry++) {
+          const currentNumber = saved.jobNumber || readDeviceDraft(ownerId, local.id)?.jobNumber;
+          if (!currentNumber) {
+            // A previously existing job must never silently become a new listing.
+            if (originalBase) break;
+            rebaseDeviceDraft(ownerId, local.id, null);
+          } else {
+            const { data: row, error: rowErr } = await fetchJobByNumber(currentNumber);
+            if (rowErr || !row || row.farmer_id !== ownerId) break;
+            const check = safeDraftRebase(originalBase, row, payload);
+            if (!check.safe) {
+              reportPublishFailure("draft_sync", "conflict_" + check.reason);
+              setPublishIssue("別の保存で変更された項目があります。上書きを防ぐため掲載を停止しました。下書きを保存して開き直し、内容を確認してください。");
+              break;
+            }
+            rebaseDeviceDraft(ownerId, local.id, row);
+          }
+          const st = readDeviceDraft(ownerId, local.id)?.base?.status;
+          if (st && st !== "draft" && st !== "pending" && st !== "open") {
+            setPage("review", { returnToConfirm: false });
+            setDraftMsg("この求人はすでに掲載を終えています。入力内容はこの端末に残っています。「保存して終了」で下書きを残し、求人をコピーして新しい求人として掲載してください。");
+            return;
+          }
+          queueDeviceDraft(ownerId, local.id);
+          saved = await syncNow();
+        }
+      }
+      if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
+        const reason = saved?.reason || "sync_unconfirmed";
+        const failureCategory = classifyDraftSyncFailure(saved, lastSyncOutcome);
+        reportPublishFailure("draft_sync", failureCategory + "_" + reason);
+        const failureMessage = jobSaveGuidance(saved, lastSyncOutcome);
+        setDraftMsg(failureMessage);
+        setPublishIssue(failureMessage);
+        return;
+      }
+      deviceDraftRef.current = saved;
+      const _jn = saved.jobNumber;
+      setDraftJobNumber(_jn);
+      if (editingOpen) {
+        completedRef.current = true;
+        removeDeviceDraft(ownerId, local.id);
+        activeDeviceDraft(ownerId, null);
+        setPage("review", { returnToConfirm: false });
+        emitConfirmedRefresh(REFRESH_JOBS);
+        finishMeasurement("success");
+        if (typeof onPublished === "function") onPublished(true, _jn, { edited: true });
+        else { setPublishedOpen(true); setStep(13); }
+        return;
+      }
+      await confirmPublication(prepareDevicePublication(ownerId, local.id,
+        PUBLISH_CHECKS.map(text => ({ text, checked: true }))), finishMeasurement);
+    } catch (e) {
+      reportPublishFailure("unexpected", e?.code || "exception", e);
+      // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
+      setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
+        + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
+      setPublishIssue("掲載処理が失敗しました。入力は保持されています。もう一度お試しください。");
+    } finally {
+      finishMeasurement("failure");
+      setJobSaving(false);
+    }
+  };
+
+  const continueListing = async () => {
+    if (isRecruiterPage(pageId)) {
+      if (!await recruiter.save(pageId)) return;
+      if (returnToConfirm) setPage("review", { returnToConfirm: false });
+      else setPage(adjacentListingPage(pageId, 1, { missingRecruiter: recruiter.missing.filter(id => id !== pageId) }));
+      return;
+    }
+    if (pageId === "publish_consent") { await handleSaveJob(); return; }
+    if (returnToConfirm) setPage("review", { returnToConfirm: false });
+    else goNext();
   };
 
   const wageLookupNotice = unknownWage && <div role="status" style={{ fontSize:14, lineHeight:1.8, padding:12, background:"#F1F8F4", borderRadius:8 }}>
@@ -1214,7 +1421,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     <div className={isFarmer ? `job-listing-flow f-sans${embedded ? " listing-embedded" : ""}` : undefined} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
       <DevBadge label="LandingFlow" />
 
-      {isFarmer && step <= 12 && <ListingHeader step={pageId} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading} onSave={() => handleTopSave({ exit: true })} onExit={closeListing} />}
+      {isFarmer && step <= 12 && <ListingHeader step={pageId} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} onSave={() => handleTopSave({ exit: true })} onExit={closeListing} />}
 
       {/* 働き手フローの進捗バー */}
       {!isFarmer && step > 0 && (
@@ -1553,206 +1760,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
 
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
           {/* ── 農家 Step3: Airbnb風 掲載プレビュー確認 ── */}
-          {isFarmer && step === 12 && (() => {
+          {isFarmer && publishIssue && pageId !== "publish_consent" && <p role="alert" className="listing-publication-error">{publishIssue}</p>}
+          {isFarmer && isRecruiterPage(pageId) && <ListingRecruiterPage pageId={pageId} state={recruiter} />}
+          {isFarmer && pageId === "publish_consent" && <ListingPublishConsent editingOpen={editingOpen}
+            confirmed={publishConfirmed} onConfirm={setPublishConfirmed} issue={publishIssue} busy={jobSaving} />}
+
+          {isFarmer && pageId === "review" && (() => {
 
 
             // jobs INSERT用ペイロードはトップレベルに移設（saveDraftToSupabaseからも参照するため）
-            const handleSaveJob = async () => {
-              if (jobSaving) return;
-              setPublishIssue("");
-              const classifyDraftSyncFailure = (saved, syncOutcome) => {
-                const reason = String(saved?.reason || "").toLowerCase();
-                if (saved?.state === "conflict" || reason === "conflict") return "conflict";
-                if (["consent_required","consent_required_version"].includes(reason) || syncOutcome?.consentRequired) return "consent";
-                if (syncOutcome?.authRequired || ["not_logged_in","jwt_expired","pgrst301"].includes(reason)) return "authentication";
-                if (syncOutcome?.retry || globalThis.navigator?.onLine === false || ["pgrst000","57014","timeout","network_error"].includes(reason)) return "communication";
-                if (saved?.state === "blocked" || reason) return "database_rejection";
-                return "unconfirmed";
-              };
-              const reportPublishFailure = (phase, reason = "unknown", error = null) => {
-                const safePhase = ["profile_read","draft_sync","publish_rpc","unexpected"].includes(phase) ? phase : "unexpected";
-                const code = String(error?.code || reason || "unknown").slice(0,80).replace(/[^a-zA-Z0-9_-]/g, "_");
-                void logAppError({
-                  component: "ListingFlow", page: "listing_publish", action: "publish",
-                  operation: safePhase, error: { message: "求人掲載失敗: " + safePhase + " / " + code, code },
-                  metadata: { phase: safePhase, reason_code: code },
-                });
-              };
-              const confirmPublication = async (record, finishMeasurement) => {
-                const operation = record.publication;
-                deviceDraftRef.current = record;
-                let pub;
-                try { pub = await publishMyJobWithCheck(operation); }
-                finally { emitConfirmedRefresh(REFRESH_JOBS); }
-                const outcome = pub.error ? { confirmed: false, reason: pub.error.code }
-                  : settleDevicePublication(ownerId, record.id, operation.requestId, pub.data);
-                if (outcome.record) deviceDraftRef.current = outcome.record;
-                if (!outcome.confirmed) {
-                  reportPublishFailure("publish_rpc", outcome.reason || "unconfirmed", pub.error || (pub.data?.code ? { code: pub.data.code } : null));
-                  setPublishIssue((outcome.record && !outcome.record.publication
-                    ? jobSaveGuidance({ state: outcome.reason === "conflict" ? "conflict" : "blocked", reason: outcome.reason })
-                    : "掲載と確認記録の完了を確認できません。掲載済みの場合もあります。入力はこの端末に残っています。通信が戻ってから、同じ端末・ブラウザで同じ掲載ボタンを押して前回の結果を確認してください。確認が済むまで新しい求人として作り直したり、サイトデータを削除したりしないでください。")
-                    + (outcome.reason === "conflict" ? " 別の保存で変更された項目があるため、内容の確認が必要です。" : ""));
-                  return;
-                }
-                const status = outcome.currentStatus;
-                setEditingOpen(status === "open");
-                if (outcome.newerInput || !["open", "pending"].includes(status)) {
-                  setPublishModal(false);
-                  setDraftMsg(outcome.newerInput
-                    ? "先の掲載と確認記録は保存済みです。その後の追加編集は未反映のため、この端末に残しました。内容を確認して保存してください。"
-                    : "先の掲載と確認記録は保存済みですが、求人はその後に非公開または掲載終了になっています。再掲載は行っていません。入力はこの端末に残しています。");
-                  return;
-                }
-                completedRef.current = true;
-                removeDeviceDraft(ownerId, record.id);
-                activeDeviceDraft(ownerId, null);
-                try { localStorage.removeItem("landingFlowDraft_v1"); } catch {}
-                setDraftJobNumber(null);
-                setPublishModal(false);
-                finishMeasurement("success");
-                if (typeof onPublished === "function") onPublished(status === "open", record.jobNumber);
-                else { setPublishedOpen(status === "open"); setStep(13); }
-              };
-              if (localOnly || !ownerId) { handleTopSave(); return; }
-              const missing = getPublishMissingFields();
-              // 募集者の項目【だけ】が欠けている時はここで止めない＝この直後のrecruitBox
-              // （新規登録の内容が初期値で入った入力ボックス）がその場で開く方が親切（2026-08-07）
-              const nonRecruiterMissing = missing.filter(m => !m.label.startsWith("募集者"));
-              if (nonRecruiterMissing.length > 0 && !readDeviceDraft(ownerId, deviceDraftRef.current?.id)?.publication) {
-                setPublishModal(false); // チェックリストを閉じてから足りない欄のページへ送る
-                goToMissingField(missing);
-                return;
-              }
-              setJobSaving(true);
-              const finishMeasurement = productAnalytics.begin("publish");
-              let sessionUser = null; // catch 節でも参照する（try の中の const は catch から見えない）
-              try {
-                const { data: { session } } = await getSession();
-                if (!session) { saveDraft(); onLogin(); return; }
-                sessionUser = session.user;
-                if (session.user.id !== ownerId) throw new Error("AUTH_REQUIRED");
-                // 応答紛失後は下書き同期・再掲載を始めず、凍結した操作を先に照合する。
-                const awaiting = readDeviceDraft(ownerId, deviceDraftRef.current?.id);
-                if (awaiting?.publication) { await confirmPublication(awaiting, finishMeasurement); return; }
-                // 募集者情報が揃っていなければ、その場でボックスを開いて入力してもらう（法令の明示事項）。
-                // 未入力の欄は新規登録①の内容を初期値に入れる
-                {
-                  const { data: ep0, error: recruiterError } = await fetchEmployerRecruiterInfo(session.user.id);
-                  if (recruiterError) {
-                    reportPublishFailure("profile_read", "profile_read_failed", recruiterError);
-                    handleTopSave(); setPublishModal(false);
-                    setDraftMsg("下書きはこの端末に保存しました。掲載に必要な情報を確認できませんでした。通信復旧後に、もう一度掲載してください。");
-                    return;
-                  }
-                  let nm = (ep0?.recruiter_name || "").trim();
-                  let ad = (ep0?.recruiter_address || "").trim();
-                  let ct = (ep0?.recruiter_contact || "").trim();
-                  if (!nm || !ad || !ct) {
-                    try {
-                      const { data: ah } = await fetchAccountHolder(session.user.id);
-                      if (ah) {
-                        if (!nm) nm = (ah.company_name || "").trim() || (ah.full_name || "").trim();
-                        if (!ad) ad = [(ah.postal_code || "").trim() ? "〒" + ah.postal_code.trim() : "", (ah.address || "").trim()].filter(Boolean).join(" ");
-                        if (!ct) ct = (ah.contact_phone || "").trim() || (ah.contact_email || "").trim();
-                      }
-                    } catch {}
-                    resumePublishRef.current = handleSaveJob;
-                    setRecruitBox({ name: nm, address: ad, contact: ct, saving: false });
-                    setJobSaving(false);
-                    return;
-                  }
-                }
-                // プロフィール審査中の掲載ブロックは廃止（2026-08-14 承認プロセスの削除。
-                // 自由記述は保存＝即公開になったため「審査待ちの農家」という状態が存在しない）
-                const payload = buildJobPayload(session.user.id, "draft", await geocodeTown(farmerPref, farmerCity, farmerTown));
-                const local = saveDraft(payload);
-                if (!local) return;
-                const originalBase = local.base;
-                // 応答不明の古い保存があれば先に照合し、その後に今の内容を送る。
-                let lastSyncOutcome = null;
-                const syncNow = async () => {
-                  for (let attempt = 0; attempt < 3; attempt++) {
-                    const beforeToken = readDeviceDraft(ownerId, local.id)?.pending?.token;
-                    const syncOutcome = await syncJobDeviceDrafts(ownerId);
-                    lastSyncOutcome = syncOutcome;
-                    const latest = readDeviceDraft(ownerId, local.id);
-                    if (!latest?.pending || latest.state !== "pending" || latest.pending.token === beforeToken) break;
-                  }
-                  return readDeviceDraft(ownerId, local.id);
-                };
-                queueDeviceDraft(ownerId, local.id);
-                let saved = await syncNow();
-                // 衝突（conflict）＝DBの行が端末の比較元と違う（コピー直後の受け渡しの食い違い・別タブの保存など）。
-                // 掲載は利用者の明示の操作なので、比較元をDBの行に取り直して【いま画面にある内容】を1回だけ送り直す。
-                // 二度と「別の更新がある」で詰まらせない（2026-09-23・DRAFT_REQUIRES_REVIEW の根治）
-                if (saved?.state === "conflict") {
-                  // 競合は利用者に押し直させず、最新DB行を基準に【いま画面にある内容】を自動で再保存する。
-                  // 最大2回。毎回DBを取り直すので、古い比較元を同じまま投げ続けるループにはしない。
-                  for (let retry = 0; retry < 2 && saved?.state === "conflict"; retry++) {
-                    const currentNumber = saved.jobNumber || readDeviceDraft(ownerId, local.id)?.jobNumber;
-                    if (!currentNumber) {
-                      // A previously existing job must never silently become a new listing.
-                      if (originalBase) break;
-                      rebaseDeviceDraft(ownerId, local.id, null);
-                    } else {
-                      const { data: row, error: rowErr } = await fetchJobByNumber(currentNumber);
-                      if (rowErr || !row || row.farmer_id !== ownerId) break;
-                      const check = safeDraftRebase(originalBase, row, payload);
-                      if (!check.safe) {
-                        reportPublishFailure("draft_sync", "conflict_" + check.reason);
-                        setPublishIssue("別の保存で変更された項目があります。上書きを防ぐため掲載を停止しました。下書きを保存して開き直し、内容を確認してください。");
-                        break;
-                      }
-                      rebaseDeviceDraft(ownerId, local.id, row);
-                    }
-                    const st = readDeviceDraft(ownerId, local.id)?.base?.status;
-                    if (st && st !== "draft" && st !== "pending" && st !== "open") {
-                      setPublishModal(false);
-                      setDraftMsg("この求人はすでに掲載を終えています。入力内容はこの端末に残っています。「保存して終了」で下書きを残し、求人をコピーして新しい求人として掲載してください。");
-                      return;
-                    }
-                    queueDeviceDraft(ownerId, local.id);
-                    saved = await syncNow();
-                  }
-                }
-                if (saved?.state !== "synced" || saved.revision !== local.revision || !saved.jobNumber) {
-                  const reason = saved?.reason || "sync_unconfirmed";
-                  const failureCategory = classifyDraftSyncFailure(saved, lastSyncOutcome);
-                  reportPublishFailure("draft_sync", failureCategory + "_" + reason);
-                  const failureMessage = jobSaveGuidance(saved, lastSyncOutcome);
-                  setDraftMsg(failureMessage);
-                  setPublishIssue(failureMessage);
-                  return;
-                }
-                deviceDraftRef.current = saved;
-                const _jn = saved.jobNumber;
-                setDraftJobNumber(_jn);
-                if (editingOpen) {
-                  completedRef.current = true;
-                  removeDeviceDraft(ownerId, local.id);
-                  activeDeviceDraft(ownerId, null);
-                  setPublishModal(false);
-                  emitConfirmedRefresh(REFRESH_JOBS);
-                  finishMeasurement("success");
-                  if (typeof onPublished === "function") onPublished(true, _jn, { edited: true });
-                  else { setPublishedOpen(true); setStep(13); }
-                  return;
-                }
-                await confirmPublication(prepareDevicePublication(ownerId, local.id,
-                  PUBLISH_CHECKS.map(text => ({ text, checked: true }))), finishMeasurement);
-              } catch (e) {
-                reportPublishFailure("unexpected", e?.code || "exception", e);
-                // 生の英文（内部の符号）を利用者に見せない。入力は端末に残っている＝押し直しで済む
-                setDraftMsg("掲載できませんでした。入力はこの端末に残っています。時間をおいて、もう一度「掲載する」を押してください。"
-                  + (isAdmin(sessionUser) ? `（管理者向け：${e?.message || e}）` : ""));
-                setPublishIssue("掲載処理が失敗しました。入力は保持されています。もう一度お試しください。");
-              } finally {
-                finishMeasurement("failure");
-                setJobSaving(false);
-              }
-            };
-
             // 一時保存は下部ナビの「保存」ボタン（トップレベルのhandleTopSaveを再利用）に移設（2026-07-13）
 
             // ── 掲載前の確認＝最新の求人詳細と同じ1本（2026-09-19たきと指示「最終確認画面が旧求人のままだ。
@@ -1779,7 +1795,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               count: jobCount ? `${jobCount}名` : "", headcount: Number(jobCount) || null,
               photos: jobPhotos,
               workVideoUrl: workVideoUrl.trim() && workVideoJobConsent ? workVideoUrl.trim() : "",
-              recruiterName: confEmployer?.recruiter_name || "", recruiterAddress: confEmployer?.recruiter_address || "", recruiterContact: confEmployer?.recruiter_contact || "",
+              recruiterName: recruiter.profile?.recruiter_name || "", recruiterAddress: recruiter.profile?.recruiter_address || "", recruiterContact: recruiter.profile?.recruiter_contact || "",
               nearestStation: nearestStation || "", workTime: workHours > 0 ? workTimeLabel : "",
               breakTime: breakTime || "", commuteTime: commuteTime || "",
               jobBody: jobDescription || "", cautions: jobCautions || "",
@@ -1805,7 +1821,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             const goStep = (n) => () => { setReturnToConfirm(true); if (typeof n === "string") setPage(n); else setStep(n); };
             const editBtn = (label, go) => (
               <button key={label} type="button" onClick={go} className="f-sans"
-                style={{ background:"none", border:"none", fontSize:13, fontWeight:700, color:"#00A86B", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>{label}</button>
+                style={{ background:"none", border:"none", fontSize:13, fontWeight:700, color:"#222", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>{label}</button>
             );
             // 区画の末尾に右寄せで置く編集の行。複数の入口がある区画は「編集：」を頭に添える。
             // last＝本文の末尾の区画（知っておくこと）だけ右に64px空ける＝JobDetailBody の右下「トップ」浮遊ボックス
@@ -1821,15 +1837,15 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   <div key={label}>
                     {node}
                     {/* 写真の並び替え（2026-07-19）：◀▶で隣と入れ替え＋長押しドラッグ。先頭が求人カードのカバー */}
-                    {jobPhotos.length > 1 && <LFPhotoReorderStrip photos={jobPhotos} setPhotos={setJobPhotos} />}
+
                     {jobPhotos.length === 0 && <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", textAlign:"center", margin:"8px 0 0" }}>写真は後から登録できます。いまは求人者のアイコンが表紙になります。</p>}
-                    {editRow([editBtn("写真を編集", goStep(7))])}
+                    {editRow([editBtn("写真を編集", goStep("photos")), ...(jobPhotos.length ? [editBtn("写真の説明", goStep("photo_captions"))] : [])])}
                   </div>
                 );
                 case "求人タイトル・募集タグ": return (
                   <div key={label}>
                     {node}
-                    {editRow([editBtn("作物", goStep(1)), editBtn("作業", goStep("task")), editBtn("作業の変更範囲", goStep("task_scope")), editBtn("集合場所", goStep("workplace")), editBtn("場所の変更範囲", goStep("place_scope")), editBtn("アクセス", goStep("access")), editBtn("日程", goStep("schedule")), ...(isMultiDaySchedule(jobDateStart, jobDateEnd) ? [editBtn("休日", goStep("holidays"))] : []), editBtn("採用人数", goStep("headcount")), editBtn("勤務時間", goStep("work_time")), editBtn("休憩時間", goStep("break_time")), editBtn("時間外労働", goStep("overtime")), editBtn("日給", goStep("daily_wage")), editBtn("募集の希望", goStep(10))], "編集：")}
+                    {editRow([editBtn("作物", goStep(1)), editBtn("作業", goStep("task")), editBtn("作業の変更範囲", goStep("task_scope")), editBtn("集合場所", goStep("workplace")), editBtn("場所の変更範囲", goStep("place_scope")), editBtn("アクセス", goStep("access")), editBtn("日程", goStep("schedule")), ...(isMultiDaySchedule(jobDateStart, jobDateEnd) ? [editBtn("休日", goStep("holidays"))] : []), editBtn("採用人数", goStep("headcount")), editBtn("勤務時間", goStep("work_time")), editBtn("休憩時間", goStep("break_time")), editBtn("時間外労働", goStep("overtime")), editBtn("日給", goStep("daily_wage")), editBtn("経験に関する希望", goStep("worker_preferences")), editBtn("リピーターの自動承認", goStep("repeat_approval"))], "編集：")}
                     {/* 農園プロフィール未入力＝募集主の行が出ない。タップで入力ボックスを展開（2026-07-16の入口を維持） */}
                     {!(confEmployer && confEmployer.nickname) && (
                       <div onClick={()=>{ rememberFlowScroll(); setConfProfileOpen(true); }} role="button" style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginTop:16, cursor:"pointer" }}>
@@ -1846,7 +1862,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 case "作業内容": return (
                   <div key={label}>
                     {(jobDescription && jobDescription.trim()) ? node : <ConfEmptySection title="作業内容">未設定</ConfEmptySection>}
-                    {editRow([editBtn("作業内容を編集", goStep(8))])}
+                    {editRow([editBtn("作業内容を編集", goStep("description")), editBtn("YouTube動画", goStep("work_video")), ...(workVideoUrl.trim() ? [editBtn("動画の利用同意", goStep("video_consent"))] : [])])}
                   </div>
                 );
                 case "待遇": return (
@@ -1867,7 +1883,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 case "持ち物・備考・危険箇所・保険": return (
                   <div key={label}>
                     {node}
-                    {editRow([editBtn("持ち物・備考", goStep(10)), editBtn("時間外労働", goStep("overtime")), editBtn("危険箇所", goStep(9))], "編集：", true)}
+                    {editRow([editBtn("持ち物", goStep("belongings")), editBtn("注意事項", goStep("cautions")), editBtn("時間外労働", goStep("overtime")), editBtn("危険な場所", goStep("danger_places")), editBtn("危険な作業", goStep("danger_tasks"))], "編集：", true)}
                   </div>
                 );
                 default: return node;
@@ -1886,6 +1902,27 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 {/* 本文＝求人詳細ページ・ボックス版・審査プレビューと同じ JobDetailBody。募集主の材料（employer／trust）は
                     本人のプロフィールを渡す＝求人番号の無い下書きでも募集主の行・募集主カード・保険が出る。
                     仕事の内容／質問のタブも同じ（質問は draftJobNumber があるときだけ本物の求人Q&A） */}
+                <section className="listing-review-edit-index" aria-label="入力項目を編集">
+                  <h2>入力項目の確認</h2>
+                  <p>変更したい項目だけを編集できます。入力後は、この確認画面に戻ります。</p>
+                  <div>{[["photos","写真"],["photo_captions","写真の説明"],["description","作業の説明"],
+                    ["work_video","YouTube動画"],["video_consent","動画の利用同意"],
+                    ["danger_places","危険な場所"],["danger_tasks","危険な作業"],
+                    ["belongings","持ち物"],["cautions","注意事項"],["worker_preferences","経験に関する希望"],["repeat_approval","リピーターの自動承認"],
+                    ...Object.entries(RECRUITER_FIELDS).map(([id, field]) => [id, field.title])]
+                    .filter(([id]) => (id !== "photo_captions" || jobPhotos.length > 0) && (id !== "video_consent" || !!workVideoUrl.trim()))
+                    .map(([id, title]) => <button type="button" className="listing-review-edit" key={id} data-edit-page={id} onClick={goStep(id)}>
+                      <span>{title}</span><span aria-hidden="true">編集 ›</span>
+                    </button>)}</div>
+                </section>
+                {recruiter.status !== "ready" && <div role="status" className="listing-publication-error">
+                  <p>{recruiter.status === "loading" ? "登録情報を確認しています…" : "登録情報を確認できませんでした。確認できるまで掲載しません。"}</p>
+                  <button type="button" className="listing-back" disabled={recruiter.status === "loading"} onClick={recruiter.reload}>登録情報を再確認</button>
+                </div>}
+                {getPublishMissingFields().length > 0 && <section className="listing-publication-error" aria-label="掲載前に確認が必要な項目">
+                  <h2>掲載前に確認が必要です</h2>
+                  {getPublishMissingFields().map(item => <button key={item.label} type="button" className="listing-review-edit" onClick={() => goToMissingField([item])}>{item.label}を確認</button>)}
+                </section>}
                 <JobDetailBody job={previewJob} me={previewMe} employer={confEmployer} trust={confTrust}
                   onOpenIntro={(confEmployer && confEmployer.nickname) ? () => setConfIntroOpen(true) : undefined}
                   decorate={confDecorate} />
@@ -2030,51 +2067,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
               })()}
 
               {/* ═══ 掲載モーダル（下部ナビ「掲載する」から展開。チェックリスト・同意・掲載・注意文を右パネルから移植） ═══ */}
-              {publishModal && (
-                <div onClick={() => setPublishModal(false)} onTouchStart={e=>e.stopPropagation()} onTouchMove={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:8000, background:"rgba(0,0,0,0.45)", animation:"fadeIn .2s ease" }}>
-                  <div onClick={(e) => e.stopPropagation()} className="cb-sheet-up" style={{ position:"absolute", left:12, right:12, top:"6vh", bottom:"calc(64px + 10px + env(safe-area-inset-bottom, 0px))", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, boxShadow:"0 12px 48px rgba(0,0,0,0.25)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:"1px solid #F0F0F0", flexShrink:0 }}>
-                      <p className="f-sans" style={{ fontSize:14, fontWeight:800, color:"#222", margin:0 }}><NavIconInline name="clipboard" size={14} />{editingOpen ? "変更の確認" : "掲載前の確認"}</p>
-                    </div>
-                    <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", padding:"12px 16px 16px" }}>
-                      <p className="f-sans" style={{ fontSize:13, color:"#717171", marginBottom:8 }}>{editingOpen ? "公開中のまま内容を更新します。以下をもう一度ご確認ください" : "掲載前に、以下をご確認ください"}</p>
-                      {/* 文言は lib/utils の PUBLISH_CHECKS（表示と記録で共用・2026-07-30）。
-                          2026-08-07たきと指示：個別チェックをやめ本文の列挙にし、チェックは下の1つに集約 */}
-                      {PUBLISH_CHECKS.map((text, i) => (
-                        <div key={i} style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"7px 0" }}>
-                          <span aria-hidden="true" style={{ color:"#00A86B", fontWeight:700, flexShrink:0, lineHeight:1.6 }}>・</span>
-                          <span className="f-sans" style={{ fontSize:14, color:"#222", lineHeight:1.6 }}>{text}</span>
-                        </div>
-                      ))}
-                      <p className="f-sans" style={{ fontSize:13, color:"#0E6A52", background:"#F1F8F4", padding:"8px 12px", borderRadius:8, textAlign:"center", margin:"10px 0 0" }}>{editingOpen ? "「変更を保存する」を押すと、働き手には新しい内容で表示されます。" : "「掲載する」を押すと、働き手に公開されます。"}</p>
-                      </div>
-                    {/* 下部の固定ボタン（待遇の変更ボックスと同じ規格）。まとめて1つの確認チェックはボタンの直上 */}
-                    <div style={{ padding:"10px 12px calc(10px + env(safe-area-inset-bottom, 0px))", borderTop:"1px solid #F0F0F0", flexShrink:0 }}>
-                      {publishIssue && <p role="alert" style={{fontSize:14,color:"#B42318",lineHeight:1.6,padding:"10px 12px",background:"#FFF1F0",borderRadius:10,margin:"0 0 10px"}}>{publishIssue}</p>}
-                      <label style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, padding:"2px 0 8px", cursor:"pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={publishConfirmed}
-                          onChange={() => setPublishConfirmed(v => !v)}
-                          style={{ width:20, height:20, flexShrink:0, accentColor:"#00A86B", cursor:"pointer" }}
-                        />
-                        <span className="f-sans" style={{ fontSize:15, fontWeight:700, color: publishConfirmed ? "#00A86B" : "#222" }}>確認しました</span>
-                      </label>
-                      <button
-                        onClick={handleSaveJob}
-                        disabled={jobSaving || !publishConfirmed}
-                        className="btn-primary"
-                        style={{ width:"100%", padding:"13px", fontSize:14, fontWeight:700, borderRadius:12, ...(!publishConfirmed ? { background:"#EBEBEB", color:"#717171" } : {}) }}
-                      >
-                        {jobSaving ? <>保存中<Dots /></> : editingOpen ? "変更を保存する" : "同意して掲載する"}
-                      </button>
-                      {!publishConfirmed && (
-                        <p style={{ fontSize:13, color:"#717171", textAlign:"center", margin:"8px 0 0" }}>{editingOpen ? "「確認しました」にチェックすると保存できます" : "「確認しました」にチェックすると掲載できます"}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </>);
           })()}
 
@@ -2275,65 +2267,17 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
 
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
-      {/* 募集者情報の入力ボックス（2026-07-27たきと指示）：掲載申請が止まった時、ページを変えずにここで入力する。
-          cb-lock-scroll＝展開中は背後スクロール固定（2026-08-15）。このボックスは flowScrollRef の外側のでこれだけで足りる
-          （553行の「2枚で塞ぐ」が要るのはスクロール領域の内側に開くモーダルの話） */}
-      {recruitBox && (
-        <div onClick={()=>{ if (!recruitBox.saving) setRecruitBox(null); }} className="cb-box-overlay cb-lock-scroll" style={{ zIndex:10500 }}>
-          <div onClick={e=>e.stopPropagation()} className="cb-sheet-up cb-notice-sheet">
-            <p className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222", margin:0 }}>掲載には募集者情報が必要です</p>
-            <div style={{ height:1, background:"#E5E5E5", margin:"12px 0" }} />
-            <p className="f-sans" style={{ fontSize:13, color:"#555", lineHeight:1.7, margin:"0 0 14px" }}>
-              労働者の募集広告には、募集者の氏名または名称・住所・連絡先の明示が必要です。
-              入力すると、あなたの求人ページに「募集者情報」として表示されます。
-            </p>
-            {[["氏名・名称", "name", "例：山田 太郎 ／ 千歳農園"],
-              ["住所・所在地", "address", "例：〒779-3401 徳島県吉野川市山川町〇〇1-2-3"],
-              ["連絡先", "contact", "例：088-000-0000"]].map(([label, key, ph]) => (
-              <div key={key} style={{ marginBottom:12 }}>
-                <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:4 }}>{label}</label>
-                <input value={recruitBox[key]} onChange={e=>setRecruitBox(v => ({ ...v, [key]: e.target.value }))} placeholder={ph}
-                  className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box" }} />
-              </div>
-            ))}
-            <button
-              disabled={recruitBox.saving || !recruitBox.name.trim() || !recruitBox.address.trim() || !recruitBox.contact.trim()}
-              onClick={async ()=>{
-                setRecruitBox(v => ({ ...v, saving: true }));
-                try {
-                  const { data: { session } } = await getSession();
-                  if (!session) { setRecruitBox(v => ({ ...v, saving: false })); return; }
-                  const { error } = await upsertEmployerProfile({
-                    auth_id: session.user.id,
-                    recruiter_name: recruitBox.name.trim(),
-                    recruiter_address: recruitBox.address.trim(),
-                    recruiter_contact: recruitBox.contact.trim(),
-                    updated_at: new Date().toISOString(),
-                  });
-                  if (error) { alert("保存に失敗しました：" + error.message); setRecruitBox(v => ({ ...v, saving: false })); return; }
-                  setRecruitBox(null);
-                  const resume = resumePublishRef.current;
-                  resumePublishRef.current = null;
-                  if (typeof resume === "function") resume(); // そのまま掲載申請を続ける
-                } catch { alert("保存に失敗しました"); setRecruitBox(v => ({ ...v, saving: false })); }
-              }}
-              className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:15, fontWeight:700, borderRadius:12, marginTop:4 }}>
-              {recruitBox.saving ? <>保存中<Dots /></> : "保存して掲載を続ける"}
-            </button>
-          </div>
-        </div>
-      )}
-
       {isFarmer && step <= 12 && <ListingFooter
-        step={pageId} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading} uploading={photoUploading}
+        step={pageId} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} uploading={photoUploading}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
-        publishDisabled={!localOnly && unknownWage && !deviceDraftRef.current?.publication}
-        hidden={sheetOpen || photoCaptionsOpen || !!recruitBox}
-        onBack={step === 0 ? closeListing : returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack}
-        onNext={returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goNext}
-        onSkipDetails={pageId === "access" ? goNext : () => animateStepChange(() => setStep(12), "fwd")} onPublish={openPublish}
+        publishDisabled={!localOnly && !deviceDraftRef.current?.publication && (unknownWage || recruiter.status === "loading")}
+        hidden={sheetOpen || photoCaptionsOpen}
+        onBack={step === 0 ? closeListing : pageId === "publish_consent" ? () => setPage("review", { returnToConfirm: false }) : returnToConfirm ? () => { setStep(12); setReturnToConfirm(false); } : goBack}
+        onNext={continueListing}
+        nextLabel={pageId === "publish_consent" ? (editingOpen ? "変更を保存する" : "同意して掲載する") : isRecruiterPage(pageId) ? (returnToConfirm ? "保存して確認に戻る" : "保存して次へ") : undefined}
+        onSkipDetails={pageId === "details_intro" ? () => animateStepChange(() => setStep(12), "fwd") : goNext} onPublish={openPublish}
       />}
-      {!isFarmer && step > 0 && step < TOTAL && step !== 13 && !publishModal && (
+      {!isFarmer && step > 0 && step < TOTAL && step !== 13 && (
         embedded ? (
         <div style={{
           background:"#fff", borderTop:"1px solid #EBEBEB", padding:"16px 8px",
