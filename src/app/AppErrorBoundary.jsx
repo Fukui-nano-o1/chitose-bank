@@ -1,3 +1,4 @@
+import { isAssetLoadError } from "../lib/assetLoadDiagnostics";
 // 画面が真っ暗になるのを止める最後の壁（第2次構造改革2026-08-17でApp.jsxから移設・中身は不変）。
 import { Component } from "react";
 import { clearCache } from "../lib/viewCache";
@@ -15,7 +16,7 @@ export class AppErrorBoundary extends Component {
   static getDerivedStateFromError(error) {
     const msg = String(error?.message || error || "");
     // 動的importの失敗＝古いチャンクを掴んだまま（デプロイ直後に起きる）。文言を分ける
-    const chunk = /importing a module script failed|failed to fetch dynamically imported module|error loading dynamically imported module/i.test(msg);
+    const chunk = isAssetLoadError(msg);
     return { failed: true, chunk };
   }
   componentDidCatch(error, info) {
@@ -26,10 +27,10 @@ export class AppErrorBoundary extends Component {
     return (
       <>
       <div className="f-sans" style={{ maxWidth:420, margin:"64px auto", padding:"28px 24px", textAlign:"center", background:"#fff", border:"1px solid #EBEBEB", borderRadius:16 }}>
-        <p style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{this.state.chunk ? "新しい版に更新されました" : "画面を表示できませんでした"}</p>
+        <p style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 8px" }}>{this.state.chunk ? "画面ファイルを読み込めませんでした" : "画面を表示できませんでした"}</p>
         <p style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:"0 0 18px" }}>
           {this.state.chunk
-            ? "アプリが更新されたため、古い画面のままでは開けません。再読み込みすると最新の画面になります。"
+            ? "接続を確認してから再読み込みしてください。繰り返す場合は、この画面を報告してください。"
             : "一時的な不具合の可能性があります。再読み込みしても直らない場合は、この画面を報告してください。"}
         </p>
         <button onClick={async ()=>{

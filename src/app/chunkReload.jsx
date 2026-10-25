@@ -1,5 +1,7 @@
 // ルート分割の自己修復（第2次構造改革2026-08-17でApp.jsxから移設・中身は不変）。
 // アプリの入口の裏方＝どのfeatureにも属さないので app/ に置く。
+import { logAppError } from "./diagnostics/errorLog";
+import { isAssetLoadError } from "../lib/assetLoadDiagnostics";
 import { lazy } from "react";
 import { Dots } from "../components/ui";
 import { createModuleLoader } from "../lib/moduleLoader";
@@ -68,7 +70,7 @@ export function ChunkUpdating() {
   return (
     <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
       <div style={{ width: 28, height: 28, border: "3px solid #E8E8E8", borderTopColor: "#00A86B", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
-      <p className="f-sans" style={{ fontSize: 14, color: "#717171", margin: 0 }}>新しいバージョンに更新しています<Dots /></p>
+      <p className="f-sans" style={{ fontSize: 14, color: "#717171", margin: 0 }}>画面を読み込み直しています<Dots /></p>
     </div>
   );
 }
@@ -79,13 +81,28 @@ export function lazyChunk(factory) {
       if (chunkReloadAllowed(Date.now())) {
         // reloadは裏で進め、画面には「更新中」を出す（awaitで止めるとSuspenseのfallbackが
         // 消えたまま白画面になる時間が生まれるため、先につなぎの部品を返す）
-        (async () => { try { await prepareFreshReload(); } catch {} window.location.reload(); })();
+        (async () => {
+          // Record before navigation destroys this JS context. Diagnostics may never block recovery.
+          if (isAssetLoadError(err)) {
+            let timer;
+            try {
+              await Promise.race([
+                logAppError({ source: "client", component: "app", action: "asset_load_failed", error: err, metadata: { asset_recovery: "scheduled" } }),
+                new Promise(resolve => { timer = setTimeout(resolve, 2000); }),
+              ]);
+            } catch {} finally { clearTimeout(timer); }
+          }
+          try { await prepareFreshReload(); } catch {} window.location.reload();
+        })();
         return { default: ChunkUpdating };
       }
     } catch {}
     throw err;
   }));
   // 先読みの失敗だけでは操作中のページをリロードしない。表示時の失敗だけが自己修復の対象。
-  Component.preload = () => load().catch(() => null);
+  Component.preload = () => load().catch(error => {
+    if (isAssetLoadError(error)) void logAppError({ source: "client", component: "app", action: "asset_preload_failed", error, metadata: { asset_recovery: "not_requested" } });
+    return null;
+  });
   return Component;
 }

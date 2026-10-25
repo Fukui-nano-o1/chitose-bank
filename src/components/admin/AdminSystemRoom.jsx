@@ -1,3 +1,4 @@
+import { assetDiagnosticLines } from "../../lib/assetLoadDiagnostics";
 // システム専用ページ（#/admin/system・管理者専用・2026-08-03たきと指示「システムページを作れ。
 // システムタップで遷移。全て横スワイプで切り替えられるように」）：
 // 管理タブ「その他＞システム」のポップアップ＋区画表示（エラー／画像軽量化）を独立ページ化。
@@ -116,12 +117,12 @@ export function AdminSystemRoom() {
   // （保存は先頭15行＝コピー報告文用。画面表示は先頭6行に切って出す）
   const [stackBySig, setStackBySig] = useState({});
   const fetchStack = async (g) => {
-    const res = await supabase.from("app_errors").select("stack").eq("id", g.latest.id).maybeSingle();
+    const res = await supabase.from("app_errors").select("stack,metadata").eq("id", g.latest.id).maybeSingle();
     const stack = (!res.error && res.data?.stack) ? res.data.stack.split("\n").slice(0, 15).join("\n") : "";
     setStackBySig(prev => ({ ...prev, [g.sig]: stack }));
     // 一覧取得は軽いまま保ち、詳細取得後にスタックを使った説明・分類へ更新する。
-    setAppErrors(prev => prev?.map(row => row.id === g.latest.id ? { ...row, stack } : row) ?? prev);
-    return stack;
+    setAppErrors(prev => prev?.map(row => row.id === g.latest.id ? { ...row, stack, metadata: res.data?.metadata } : row) ?? prev);
+    return { stack, metadata: res.data?.metadata };
   };
   const loadStack = (g) => {
     if (stackBySig[g.sig] !== undefined) return;
@@ -147,9 +148,10 @@ export function AdminSystemRoom() {
   const [copiedSig, setCopiedSig] = useState(null);
   const copyGroup = async (g, catLabel, ex) => {
     let stack = stackBySig[g.sig];
-    if (stack === undefined || stack === null) { try { stack = await fetchStack(g); } catch { stack = ""; } }
+    let metadata = g.latest.metadata;
+    if (stack === undefined || stack === null) { try { ({ stack, metadata } = await fetchStack(g)); } catch { stack = ""; } }
     // 初回コピーは再描画より先に進むため、この場でも取得済みスタックを反映する。
-    const latest = { ...g.latest, stack };
+    const latest = { ...g.latest, stack, metadata };
     const category = ERROR_CATEGORIES.find(c => c.k === errorCategoryKey(latest));
     const text = buildErrorReport({ ...g, latest }, category?.l || catLabel, explainError(latest) || ex, stack);
     try {
@@ -262,6 +264,9 @@ export function AdminSystemRoom() {
                 <p>端末・アクセス元：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
                 <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
               </div>
+              {assetDiagnosticLines(g.latest).map((line, index) => (
+                <p key={index} className="f-sans" style={{ fontSize:11, color:"#555", lineHeight:1.9, overflowWrap:"anywhere" }}>{line}</p>
+              ))}
               <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
               <div style={{ display:"grid", gap:2 }}>
                 {g.rows.slice(0, 5).map(e => (
