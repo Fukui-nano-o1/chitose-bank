@@ -8,8 +8,8 @@ import { jobInputSample, jobInputOptions } from './fixtures/job-input.js';
 import { JOB_DRAFT_FIELDS } from '../src/lib/jobInputFields.js';
 const topics=['task','task_scope','workplace','place_scope','access','work_time','break_time','overtime','daily_wage'];
 
-test('stage 3 activates only basic topics and retains stage 2 and all later page ordering',()=>{
-  assert.deepEqual(ACTIVE_LISTING_FLOW, ['intro','crop','task','task_scope','workplace','place_scope','access','schedule','holidays','headcount','work_time','break_time','overtime','daily_wage','details_intro','photos','description','work_video','danger','wishes','review','complete']);
+test('stage 4 retains basic topics and expands details into single-topic pages',()=>{
+  assert.deepEqual(ACTIVE_LISTING_FLOW, ['intro','crop','task','task_scope','workplace','place_scope','access','schedule','holidays','headcount','work_time','break_time','overtime','daily_wage','details_intro','photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','repeat_approval','review','complete']);
   assert.ok(!ACTIVE_LISTING_FLOW.includes('terms'));
   for(const [n,id] of FARMER_FLOW.entries()) assert.equal(legacyNumberForPage(id), n+1);
   assert.equal(legacyNumberForPage('task_scope'),2);
