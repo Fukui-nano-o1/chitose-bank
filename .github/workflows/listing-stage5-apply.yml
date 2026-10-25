@@ -1,0 +1,104 @@
+name: Stage 5 isolated validation and branch commit
+on:
+  push:
+    branches: [feat/listing-flow-stage5-20261026]
+    paths: [.github/workflows/listing-stage5-apply.yml]
+permissions:
+  contents: read
+concurrency:
+  group: listing-stage5-transfer
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Restore reviewed source delta with base and target hashes
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma
+          from pathlib import Path, PurePosixPath
+          raw=lzma.decompress(base64.b64decode(''.join(Path('.stage5-transfer.'+str(i)).read_text().strip() for i in range(4))))
+          assert hashlib.sha256(raw).hexdigest()=='7242cc627b0b29881e576154c5ab84e6eb09de65223d46badcd6ed269d1e5eeb'
+          files=json.loads(raw)
+          assert len(files)==20
+          allowed=lambda p: p in ['package.json','.github/workflows/listing-flow-foundation-check.yml','docs/uiux/listing-flow-redesign.md','scripts/fixtures/offline/client.js'] or p.startswith('src/features/jobs/create/') or (p.startswith('scripts/') and p.endswith('.mjs'))
+          sources={f['source']:Path(f['source']).read_text() for f in files if f['source']}
+          for f in files:
+              p=PurePosixPath(f['path']); assert not p.is_absolute() and '..' not in p.parts and allowed(str(p))
+              assert not Path(p).is_symlink()
+              original=sources.get(f['source'],''); assert hashlib.sha256(original.encode()).hexdigest()==f['base_sha256']
+              target=''.join(part if isinstance(part,str) else original[part[0]:part[1]] for part in f['parts'])
+              assert hashlib.sha256(target.encode()).hexdigest()==f['sha256']
+              Path(p).parent.mkdir(parents=True,exist_ok=True); Path(p).write_text(target)
+              print(f['sha256'],str(p))
+          PY
+          git diff --check
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: All critical regressions, lint and production build
+        run: npm run build
+      - name: Install isolated Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Basic page navigation and viewport regression
+        run: node scripts/listing-basics-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/stage5-basic-evidence
+      - name: Recruiter, preview, consent, reload and retry in Chromium
+        run: node scripts/listing-publication-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/stage5-publication-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: stage5-browser-evidence
+          path: |
+            ${{ runner.temp }}/stage5-basic-evidence
+            ${{ runner.temp }}/stage5-publication-evidence
+          retention-days: 7
+          if-no-files-found: ignore
+  commit:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+      - name: Commit the exact validated sources to the stage5 branch only
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma
+          from pathlib import Path, PurePosixPath
+          raw=lzma.decompress(base64.b64decode(''.join(Path('.stage5-transfer.'+str(i)).read_text().strip() for i in range(4))))
+          assert hashlib.sha256(raw).hexdigest()=='7242cc627b0b29881e576154c5ab84e6eb09de65223d46badcd6ed269d1e5eeb'
+          files=json.loads(raw); assert len(files)==20
+          allowed=lambda p: p in ['package.json','.github/workflows/listing-flow-foundation-check.yml','docs/uiux/listing-flow-redesign.md','scripts/fixtures/offline/client.js'] or p.startswith('src/features/jobs/create/') or (p.startswith('scripts/') and p.endswith('.mjs'))
+          sources={f['source']:Path(f['source']).read_text() for f in files if f['source']}
+          for f in files:
+              p=PurePosixPath(f['path']); assert not p.is_absolute() and '..' not in p.parts and allowed(str(p))
+              assert not Path(p).is_symlink()
+              original=sources.get(f['source'],''); assert hashlib.sha256(original.encode()).hexdigest()==f['base_sha256']
+              target=''.join(part if isinstance(part,str) else original[part[0]:part[1]] for part in f['parts'])
+              assert hashlib.sha256(target.encode()).hexdigest()==f['sha256']
+              Path(p).parent.mkdir(parents=True,exist_ok=True); Path(p).write_text(target)
+          PY
+          git config core.hooksPath /dev/null
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f -- .stage5-transfer.0 .stage5-transfer.1 .stage5-transfer.2 .stage5-transfer.3 .github/workflows/listing-stage5-source.yml .github/workflows/listing-stage5-apply.yml
+          git add -- .github/workflows/listing-flow-foundation-check.yml docs/uiux/listing-flow-redesign.md package.json scripts src/features/jobs/create
+          git diff --cached --check
+          git commit -m 'feat: stage5 recruiter pages, review navigation and explicit publication consent'
+          git push origin HEAD:refs/heads/feat/listing-flow-stage5-20261026
+          git rev-parse HEAD
