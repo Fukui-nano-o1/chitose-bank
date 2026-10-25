@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
+import { useAdminMembership } from "./hooks/useAdminMembership";
+import { readAdminMembership } from "./lib/authorization";
 import { supabase, clearBrowserAuthSession } from "./lib/supabase";
 import { createDeviceLogout } from "./lib/authSession";
 import { captureSupportContext, clearSupportDiagnostics, openSupport } from "./lib/supportDiagnostics";
@@ -339,7 +341,11 @@ export default function App(){
   // セッション復元は従来どおり裏で走り、本物のme/停止判定/ログアウト検知で後から上書きされる
   const [loaded,setLoaded]=useState(() => !!snapGet("me"));
   const [badgeCnt,setBadgeCnt]=useState(0);
-  const [me,setMe]=useState(() => snapGet("me"));
+  const [sessionMe,setMe]=useState(() => snapGet("me"));
+  const adminMembership = useAdminMembership(supabase, sessionMe?.id);
+  const me = useMemo(() => sessionMe ? { ...sessionMe, authorization: {
+    subject: sessionMe.id, admin: adminMembership,
+  } } : null, [sessionMe, adminMembership]);
   useEffect(() => { if (loaded) return warmNavigation(!!me?.id); }, [loaded, me?.id]);
   const [blockedAccount,setBlockedAccount]=useState(false); // 停止／追放されたアカウントの制限画面（2026-07-19）
   useEffect(() => { if (me?.id) snapSet("me", me); }, [me]);
@@ -698,7 +704,7 @@ export default function App(){
         if ((badges?.applicants_pending || 0) > 0 && stillOnDefault()) { window.location.hash = "/new-applicants"; return; }
       } catch { /* 失敗時は通常の着地のまま（応募者ページ・今日ページからも辿れる） */ }
       // ── ② まもなく開始（管理者）
-      if (!isAdmin(me)) return;
+      if (!await readAdminMembership(supabase, me.id)) return;
       try {
         const { data } = await supabase.rpc("admin_working_jobs");
         // 結果をキャッシュに置く（2026-08-02・更新時間の短縮）：着地先のまもなく開始／仕事中ページが
@@ -1208,7 +1214,7 @@ export default function App(){
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "admin_messages" }, onDm)
       .subscribe() : null;
     return () => { window.removeEventListener("hashchange", refreshOnNav); window.removeEventListener("cb:unreadRefresh", refresh); if (ch) supabase.removeChannel(ch); };
-  }, [me?.id, realtimeBootReady]); // eslint-disable-line react-hooks/exhaustive-deps -- isAdmin(me)はme.email参照＝idが同じなら不変。オブジェクトの identityで購読を張り直さない
+  }, [me?.id, adminMembership, realtimeBootReady]); // eslint-disable-line react-hooks/exhaustive-deps -- membership refresh must update the subscription closure
   // 画面の復帰で再取得の合図を出す（2026-08-18 Speed-1B／1B.1で二重発火を除去）。
   // バックグラウンドに置いている間はRealtimeのWebSocketが凍結・切断され、イベントを取りこぼす
   // （iOS PWAで顕著。チャットが2026-07-27に同じ理由で復帰再読込を入れている）。
@@ -2158,6 +2164,7 @@ export default function App(){
           ここで起きた時にReactがツリー全体を落とし、復帰ボタンも無い白画面になる */}
       {!me&&showLanding&&(
         <AppErrorBoundary userId={me?.id || null}><Suspense fallback={null}><LandingFlow
+          adminHint={isAdmin(me)}
           onComplete={()=>setShowLanding(false)}
           onSkip={()=>{setShowLanding(false);setTab("search");}}
           onLogin={()=>{setShowLanding(false);setTab("login");}}
@@ -2167,6 +2174,7 @@ export default function App(){
       )}
       {me&&showJobPost&&(!needsPrivacyReconsent || deviceSync.pending)&&(
         <AppErrorBoundary userId={me?.id || null}><Suspense fallback={<FlowLoading />}><LandingFlow
+          adminHint={isAdmin(me)}
           key={me.id + (window.location.hash.match(/work\/(?:local\/[^/]+|edit\/\d+)/)?.[0] || "new")}
           ownerId={me.id}
           localOnly={needsPrivacyReconsent}
@@ -2183,6 +2191,7 @@ export default function App(){
       )}
       {me&&showDevJump&&(
         <AppErrorBoundary userId={me?.id || null}><Suspense fallback={null}><LandingFlow
+          adminHint={isAdmin(me)}
           onComplete={()=>setShowDevJump(false)}
           onSkip={()=>setShowDevJump(false)}
           onLogin={()=>setShowDevJump(false)}

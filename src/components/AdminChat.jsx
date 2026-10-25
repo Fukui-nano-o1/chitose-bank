@@ -1,3 +1,4 @@
+import { readAdminMembership } from '../lib/authorization';
 // 運営チャット（運営DM）＝一覧の行（AdminChatRow）と、そのスレッドのページ（AdminChatPage）。
 // 2026-08-24たきと指示「運営だけボックス展開はおかしい。ページ遷移だ。運営チャットは新しいリンクを」＝
 // ポップアップ（2026-07-16〜）をやめ、当事者チャットと同じ【ページ】にした。リンクは #/chat/admin
@@ -15,7 +16,7 @@
 import { useState, useEffect, useRef } from "react";
 import { closeReadNotifications } from "../lib/push";
 import { supabase } from "../lib/supabase";
-import { fmtJstShort, isAdmin } from "../lib/utils";
+import { fmtJstShort } from "../lib/utils";
 import { useSwipeBack } from "../lib/swipeBack";
 import { LinkifiedText, Dots, Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD, CHAT_ROW_DIVIDER } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -92,7 +93,7 @@ export function AdminDmInboxRows({ query = "", unreadOnly = false }) {
   const load = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session || !isAdmin(session.user)) return;
+      if (!session || !await readAdminMembership(supabase, session.user.id)) { setThreads([]); return; }
       const { data, error } = await supabase.from("admin_messages")
         .select("id,user_id,from_admin,body,read_at,created_at").order("created_at", { ascending: true });
       if (error || !data) return; // 失敗時は手元の値を上書きしない
@@ -182,7 +183,7 @@ export function AdminChatPage({ onBack, targetUserId }) {
       const result = await chatDeadline(fetchDm(targetUserId));
       if (!alive.current) return;
       if (!result) throw new Error("load");
-      if (targetUserId && !isAdmin(result.user)) { setDenied(true); return; }
+      if (targetUserId && !await readAdminMembership(supabase, result.user?.id)) { setDenied(true); return; }
       if (!uidRef.current) {
         const draft = readChatDraft(result.uid, thread);
         setText(draft.text); setPending(draft.pending); pendingRef.current = draft.pending;

@@ -12,7 +12,7 @@ export const msgSnippet = (s, max = 40) => {
 };
 
 export const ADMIN_EMAIL = "t5fki6643qty@gmail.com";
-export const isAdmin = (user) => user?.email === ADMIN_EMAIL;
+export { isAdmin } from './authorization.js';
 
 // ローカル時刻基準の "YYYY-MM-DD"（toISOString はUTC変換でJSTでは前日にズレる＝date_start保存バグの原因。必ずこちらを使う）
 export const ymdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
