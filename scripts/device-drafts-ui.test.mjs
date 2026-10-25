@@ -331,13 +331,13 @@ test('actual consent and listing components continue offline, restore new/edit/c
     await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoUrl===videoCopy.work_video_url),'copied URL retained');
     await until(()=>button(w,'掲載する')&&!button(w,'掲載する').disabled,'video copy publish ready');
     button(w,'掲載する').click();
-    await until(()=>w.document.querySelector('#work-video-url'),'missing consent opens video step');
-    assert.equal(w.document.querySelector('#work-video-url').value,videoCopy.work_video_url);
+    await until(()=>w.document.querySelector('[data-step-id="video_consent"]'),'missing consent opens consent page');
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].form.workVideoUrl,videoCopy.work_video_url);
     const consent=w.document.querySelector('input[type="checkbox"]');assert.equal(consent.checked,false);
     assert.equal(w.qaJob.status,'draft');
     assert.equal(w.document.querySelector('[data-guide="flow-next"]').disabled,true);
     w.document.querySelector('[data-guide="flow-next"]').click();
-    assert.ok(w.document.querySelector('#work-video-url'),'cannot continue without consent');
+    assert.ok(w.document.querySelector('[data-step-id="video_consent"]'),'cannot continue without consent');
     consent.click();
     await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoJobConsent===true),'fresh consent persisted');
     w.document.querySelector('[data-guide="flow-next"]').click();

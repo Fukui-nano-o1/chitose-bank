@@ -37,6 +37,7 @@ import { LFPhotoReorderStrip, LFMultiPill, LFWageNote, LFWageCompare, LFFakeFilt
 import { lfStyles } from "./lfStyles";
 import { StepPhotos } from "./components/StepPhotos";
 import { StepDescription } from "./components/StepDescription";
+import { StepPhotoCaptions } from "./components/StepPhotoCaptions";
 import { StepWorkVideo, isValidYoutubeVideo } from "./components/StepWorkVideo";
 import { StepDanger } from "./components/StepDanger";
 import { StepWishes } from "./components/StepWishes";
@@ -551,11 +552,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     }, 400);
   };
   const goNext = () => animateStepChange(() => {
-    if (isFarmer) setPage(adjacentListingPage(pageId, 1, { start: jobDateStart, end: jobDateEnd }));
+    if (isFarmer) setPage(adjacentListingPage(pageId, 1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim() }));
     else setStep(s => s + 1);
   }, "fwd");
   const goBack = () => animateStepChange(() => {
-    if (isFarmer) setPage(adjacentListingPage(pageId, -1, { start: jobDateStart, end: jobDateEnd }) || "intro");
+    if (isFarmer) setPage(adjacentListingPage(pageId, -1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim() }) || "intro");
     else if (step <= 1) setStep(0); else setStep(s => s - 1);
   }, "back");
   // 全stepスワイプ移動（2026-07-16）：左スワイプ=次へ（バリデーション尊重）／右スワイプ=戻る。
@@ -1062,9 +1063,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     schedule: validSchedule(jobDateStart, jobDateEnd), holidays: validSchedule(jobDateStart, jobDateEnd), headcount: validHeadcount(jobCount),
     work_time: workHours > 0, break_time: breakTime !== "", overtime: overtimeOk,
     daily_wage: farmerPurpose !== "post" || (workHours > 0 && wageInputOk && (unknownWage || !dailyViolation) && breakTime !== ""),
-    details_intro: true, photos: true, description: true,
-    work_video: !workVideoUrl.trim() || (isValidYoutubeVideo(workVideoUrl) && workVideoJobConsent),
-    danger: true, wishes: true, review: true,
+    details_intro: true, photos: !photoUploading, photo_captions: true, description: true,
+    work_video: !workVideoUrl.trim() || isValidYoutubeVideo(workVideoUrl),
+    video_consent: !workVideoUrl.trim() || workVideoJobConsent,
+    danger_places: !photoUploading, danger_tasks: !photoUploading,
+    belongings: true, cautions: true, worker_preferences: true, repeat_approval: true, review: true,
   };
   const workerCanNext = [true, !!workerExp, !!workerPurpose, true, true, true, true, true, true];
   const canGoNext = isFarmer ? (farmerCanNext[pageId] ?? false) : isWorker ? (workerCanNext[step] ?? true) : true;
@@ -1112,7 +1115,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       ["日給（最低賃金以上）", wageInputOk && !unknownWage && !minWageLoading && !dailyViolation,      "daily_wage"],
       ["休憩時間",                breakTime !== "",                    "break_time"],
       ["時間外労働",              overtimeOk,                          "overtime"],
-      ["作業動画のURL・この求人への掲載同意", !workVideoUrl.trim() || (isValidYoutubeVideo(workVideoUrl) && workVideoJobConsent), 9],
+      ["作業動画のURL", !workVideoUrl.trim() || isValidYoutubeVideo(workVideoUrl), "work_video"],
+      ["作業動画の掲載同意", !workVideoUrl.trim() || workVideoJobConsent, "video_consent"],
     ];
     // プロフィール由来の掲載必須（2026-08-07たきと承認＝「掲載を押して初めて要求される」の予防）。
     // confEmployer（farm:empMiniキャッシュ＝step11で最新化）が読めている時だけ判定＝
@@ -1513,23 +1517,26 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           {/* ── 農家 step6: グループ2 説明ページ（step0と同じ2カラム構造） ── */}
           {isFarmer && step === 6 && <ListingDetailsIntro crop={farmerCrop} task={farmerTask} region={farmerPref + farmerCity} dates={jobDateLabel} wage={dailyWage} />}
 
-          {/* ── 農家 step7: 写真 ── */}
-          {isFarmer && step === 7 && <StepPhotos ownerId={ownerId} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
-
-          {/* ── 農家 step8: 作業説明文 ── */}
-          {isFarmer && step === 8 && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} selectedPhotoIndex={selectedPhotoIndex} setSelectedPhotoIndex={setSelectedPhotoIndex} photoCaptionsOpen={photoCaptionsOpen} setPhotoCaptionsOpen={setPhotoCaptionsOpen} captionTextareaRef={captionTextareaRef} workVideoUrl={workVideoUrl} setWorkVideoUrl={setWorkVideoUrl} workVideoJobConsent={workVideoJobConsent} setWorkVideoJobConsent={setWorkVideoJobConsent} workVideoRelatedConsent={workVideoRelatedConsent} setWorkVideoRelatedConsent={setWorkVideoRelatedConsent} setWorkVideoConsentAt={setWorkVideoConsentAt} setWorkVideoConsentVersion={setWorkVideoConsentVersion} />}
-
-          {/* ── 農家 step9: 作業動画（独立ページ・任意） ── */}
-          {isFarmer && step === 9 && <StepWorkVideo url={workVideoUrl} setUrl={setWorkVideoUrl}
-            jobConsent={workVideoJobConsent} setJobConsent={setWorkVideoJobConsent}
-            relatedConsent={workVideoRelatedConsent} setRelatedConsent={setWorkVideoRelatedConsent}
-            setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} />}
-
-          {/* ── 農家 step10: 危険箇所 ── */}
-          {isFarmer && step === 10 && <StepDanger ownerId={ownerId} currentJobNumber={draftJobNumber} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} jobDangerPlaces={jobDangerPlaces} setJobDangerPlaces={setJobDangerPlaces} jobDangerTasks={jobDangerTasks} setJobDangerTasks={setJobDangerTasks} showPlace2={showPlace2} setShowPlace2={setShowPlace2} showTask2={showTask2} setShowTask2={setShowTask2} />}
-
-          {/* ── 農家 step11: 持ち物・備考＋必要経験 ── */}
-          {isFarmer && step === 11 && <StepWishes jobNotes={jobNotes} setJobNotes={setJobNotes} jobCautions={jobCautions} setJobCautions={setJobCautions} beginnerOk={beginnerOk} setBeginnerOk={setBeginnerOk} experiencedPreferred={experiencedPreferred} setExperiencedPreferred={setExperiencedPreferred} instantApproveRepeat={instantApproveRepeat} setInstantApproveRepeat={setInstantApproveRepeat} flagInfoOpen={flagInfoOpen} setFlagInfoOpen={setFlagInfoOpen} />}
+          {/* 第4弾: 詳細は1ページ1種類。親stateと既存保存列を共用する。 */}
+          {isFarmer && pageId === "photos" && <StepPhotos ownerId={ownerId} jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} currentJobNumber={draftJobNumber} />}
+          {isFarmer && pageId === "photo_captions" && <StepPhotoCaptions jobPhotos={jobPhotos} setJobPhotos={setJobPhotos} />}
+          {isFarmer && pageId === "description" && <StepDescription jobDescription={jobDescription} setJobDescription={setJobDescription} />}
+          {isFarmer && pageId === "work_video" && <StepWorkVideo url={workVideoUrl} setUrl={setWorkVideoUrl}
+            jobConsent={workVideoJobConsent} setJobConsent={setWorkVideoJobConsent} relatedConsent={workVideoRelatedConsent} setRelatedConsent={setWorkVideoRelatedConsent}
+            setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} mode="url" />}
+          {isFarmer && pageId === "video_consent" && <StepWorkVideo url={workVideoUrl} setUrl={setWorkVideoUrl}
+            jobConsent={workVideoJobConsent} setJobConsent={setWorkVideoJobConsent} relatedConsent={workVideoRelatedConsent} setRelatedConsent={setWorkVideoRelatedConsent}
+            setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} mode="consent" />}
+          {isFarmer && (pageId === "danger_places" || pageId === "danger_tasks") && <StepDanger
+            mode={pageId === "danger_places" ? "places" : "tasks"} ownerId={ownerId} currentJobNumber={draftJobNumber}
+            photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} jobDangerPlaces={jobDangerPlaces} setJobDangerPlaces={setJobDangerPlaces}
+            jobDangerTasks={jobDangerTasks} setJobDangerTasks={setJobDangerTasks} showPlace2={showPlace2} setShowPlace2={setShowPlace2}
+            showTask2={showTask2} setShowTask2={setShowTask2} />}
+          {isFarmer && ["belongings","cautions","worker_preferences","repeat_approval"].includes(pageId) && <StepWishes
+            mode={{belongings:"belongings",cautions:"cautions",worker_preferences:"preferences",repeat_approval:"repeat"}[pageId]}
+            jobNotes={jobNotes} setJobNotes={setJobNotes} jobCautions={jobCautions} setJobCautions={setJobCautions}
+            beginnerOk={beginnerOk} setBeginnerOk={setBeginnerOk} experiencedPreferred={experiencedPreferred} setExperiencedPreferred={setExperiencedPreferred}
+            instantApproveRepeat={instantApproveRepeat} setInstantApproveRepeat={setInstantApproveRepeat} flagInfoOpen={flagInfoOpen} setFlagInfoOpen={setFlagInfoOpen} />}
 
           {/* ── ページX: 移植待ち退避ブロック（step90=農家フロー非到達。グループ2/3項目をここに貯蔵し、移植先ができ次第移す。退避項目の次へ条件・バリデーションは付けない） ── */}
           {isFarmer && step === 90 && (<>
