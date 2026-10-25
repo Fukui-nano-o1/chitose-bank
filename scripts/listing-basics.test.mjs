@@ -9,7 +9,7 @@ import { JOB_DRAFT_FIELDS } from '../src/lib/jobInputFields.js';
 const topics=['task','task_scope','workplace','place_scope','access','work_time','break_time','overtime','daily_wage'];
 
 test('stage 4 retains basic topics and expands details into single-topic pages',()=>{
-  assert.deepEqual(ACTIVE_LISTING_FLOW, ['intro','crop','task','task_scope','workplace','place_scope','access','schedule','holidays','headcount','work_time','break_time','overtime','daily_wage','details_intro','photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','repeat_approval','review','complete']);
+  assert.deepEqual(ACTIVE_LISTING_FLOW, ['intro','crop','task','task_scope','workplace','place_scope','access','schedule','holidays','headcount','work_time','break_time','overtime','daily_wage','details_intro','photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','repeat_approval','recruiter_name','recruiter_address','recruiter_contact','smoking_policy','review','publish_consent','complete']);
   assert.ok(!ACTIVE_LISTING_FLOW.includes('terms'));
   for(const [n,id] of FARMER_FLOW.entries()) assert.equal(legacyNumberForPage(id), n+1);
   assert.equal(legacyNumberForPage('task_scope'),2);
@@ -75,5 +75,5 @@ test('no obsolete scope overlay or combined terms body remains in the listing',a
   const code=await readFile(new URL('../src/features/jobs/create/LandingFlow.jsx',import.meta.url),'utf8');
   for(const removed of ['taskScopePageOpen','placeScopePageOpen','勤務時間と日給を決めましょう'])assert.ok(!code.includes(removed));
   for(const id of topics)assert.ok(code.includes(`pageId === "${id}"`),id);
-  assert.match(code,/onSkipDetails=\{pageId === "access" \? goNext/);
+  assert.match(code,/onSkipDetails=\{pageId === "details_intro"/);
 });

@@ -1,9 +1,11 @@
-// 第3弾までの画面契約。DBの旧番号と、画面・端末の固定IDを混同しない。
+// 第5弾までの画面契約。DBの旧番号と、画面・端末の固定IDを混同しない。
 import { FARMER_FLOW, legacyStepId, stepNumber } from "./flowSteps.js";
+import { RECRUITER_PAGE_IDS } from "./listingPublicationPages.js";
 import { workDurationHours } from "./jobInputCodec.js";
 import { calendarDateToYmd, restoreDraftCalendarDate } from "../../../lib/calendarDate.js";
 
-export const LISTING_NAV_VERSION = "2026-10-23-stage4";
+export const LISTING_NAV_VERSION = "2026-10-26-stage5";
+export const STAGE4_LISTING_NAV_VERSION = "2026-10-23-stage4";
 export const STAGE3_LISTING_NAV_VERSION = "2026-10-23-stage3";
 export const PREVIOUS_LISTING_NAV_VERSION = "2026-10-22-stage2";
 export const ACTIVE_LISTING_FLOW = Object.freeze([
@@ -16,6 +18,7 @@ export const ACTIVE_LISTING_FLOW = Object.freeze([
     work_video: ["work_video", "video_consent"],
     danger: ["danger_places", "danger_tasks"],
     wishes: ["belongings", "cautions", "worker_preferences", "repeat_approval"],
+    review: [...RECRUITER_PAGE_IDS, "review", "publish_consent"],
   }[id] || [id])),
 ]);
 export const isListingPage = id => ACTIVE_LISTING_FLOW.includes(id);
@@ -26,23 +29,22 @@ export const isListingInputPage = id => isListingPage(id) && !["intro", "complet
 const SPLIT_LEGACY_NUMBERS = Object.freeze({ task_scope: 2, place_scope: 3, access: 3,
   holidays: 4, headcount: 4, work_time: 5, break_time: 5, overtime: 5, daily_wage: 5,
   photo_captions: 7, video_consent: 9, danger_places: 10, danger_tasks: 10,
-  belongings: 11, cautions: 11, worker_preferences: 11, repeat_approval: 11 });
+  belongings: 11, cautions: 11, worker_preferences: 11, repeat_approval: 11, recruiter_name: 12, recruiter_address: 12, recruiter_contact: 12, smoking_policy: 12, publish_consent: 12 });
 export const legacyNumberForPage = id => id === "intro" ? 0 : SPLIT_LEGACY_NUMBERS[id] ?? stepNumber(id);
 const day = value => calendarDateToYmd(value instanceof Date ? value : restoreDraftCalendarDate(value));
 export const validSchedule = (start, end) => !!day(start) && (!end || (!!day(end) && day(end) >= day(start)));
 export const isMultiDaySchedule = (start, end) => validSchedule(start, end) && !!day(end) && day(end) > day(start);
 export const validHeadcount = count => Number.isInteger(Number(count)) && Number(count) > 0;
-export function adjacentListingPage(id, direction, { start, end, photoCount = 0, hasVideo = false } = {}) {
-  const pages = ACTIVE_LISTING_FLOW.filter(page =>
-    (page !== "holidays" || isMultiDaySchedule(start, end)) &&
-    (page !== "photo_captions" || photoCount > 0) &&
-    (page !== "video_consent" || hasVideo));
-  const index = pages.indexOf(id);
-  // 単日への変更後に履歴で休日ページへ戻った場合も、入力を消さず隣へ進める。
-  if (id === "holidays" && index < 0) return direction > 0 ? "headcount" : "schedule";
-  if (id === "photo_captions" && index < 0) return direction > 0 ? "description" : "photos";
-  if (id === "video_consent" && index < 0) return direction > 0 ? "danger_places" : "work_video";
-  return index < 0 ? null : pages[index + (direction > 0 ? 1 : -1)] || null;
+export function adjacentListingPage(id, direction, { start, end, photoCount = 0, hasVideo = false, missingRecruiter = [] } = {}) {
+  const visible = page => (page !== "holidays" || isMultiDaySchedule(start, end)) &&
+    (page !== "photo_captions" || photoCount > 0) && (page !== "video_consent" || hasVideo) &&
+    (!RECRUITER_PAGE_IDS.includes(page) || missingRecruiter.includes(page));
+  const index = ACTIVE_LISTING_FLOW.indexOf(canonicalListingPage(id));
+  if (index < 0) return null;
+  for (let i = index + (direction > 0 ? 1 : -1); i >= 0 && i < ACTIVE_LISTING_FLOW.length; i += direction > 0 ? 1 : -1) {
+    if (visible(ACTIVE_LISTING_FLOW[i])) return ACTIVE_LISTING_FLOW[i];
+  }
+  return null;
 }
 
 export function parseListingRoute(hash = "") {
@@ -73,10 +75,12 @@ export function listingPageHash(scope, pageId, returnToConfirm = false) {
 export function resolveListingResume(form = {}, fallbackStep = 0) {
   if (form.listingPageId != null) {
     const previous = form.listingNavVersion === PREVIOUS_LISTING_NAV_VERSION;
+    const stage4 = form.listingNavVersion === STAGE4_LISTING_NAV_VERSION;
     const stage3 = form.listingNavVersion === STAGE3_LISTING_NAV_VERSION;
     const oldIds = ["intro", ...FARMER_FLOW, "holidays", "headcount"];
     const stage3Ids = ["intro", ...FARMER_FLOW, "task_scope", "place_scope", "access", "holidays", "headcount", "work_time", "break_time", "overtime", "daily_wage"];
-    if ((!previous && !stage3 && form.listingNavVersion !== LISTING_NAV_VERSION) || (previous && !oldIds.includes(form.listingPageId)) || (stage3 && !stage3Ids.includes(form.listingPageId))) return { error: "unknown_saved_page" };
+    const stage4Ids = ACTIVE_LISTING_FLOW.filter(id => !RECRUITER_PAGE_IDS.includes(id) && id !== "publish_consent");
+    if ((!previous && !stage3 && !stage4 && form.listingNavVersion !== LISTING_NAV_VERSION) || (previous && !oldIds.includes(form.listingPageId)) || (stage3 && !stage3Ids.includes(form.listingPageId)) || (stage4 && !stage4Ids.includes(form.listingPageId))) return { error: "unknown_saved_page" };
     const legacyDetail = { danger: "danger_places", wishes: "belongings" };
     const pageId = form.listingPageId === "terms" && (previous || stage3) ? resumeTermsPage(form) :
       (previous || stage3) ? (legacyDetail[form.listingPageId] || canonicalListingPage(form.listingPageId)) : canonicalListingPage(form.listingPageId);
