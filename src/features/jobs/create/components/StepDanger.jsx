@@ -9,7 +9,7 @@ import { LFWizCard } from "../../../../components/ui";
 import { uploadPhoto } from "../jobCreateApi";
 import { NavIcon } from "../../../../components/NavIcons";
 
-export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks, setJobDangerTasks, showPlace2, setShowPlace2, showTask2, setShowTask2, photoUploading, setPhotoUploading, ownerId, currentJobNumber }) {
+export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks, setJobDangerTasks, showPlace2, setShowPlace2, showTask2, setShowTask2, photoUploading, setPhotoUploading, ownerId, currentJobNumber, mode = "both" }) {
   const lock = useRef(false), alive = useRef(true), scope = useRef("");
   scope.current = `${ownerId || ""}:${currentJobNumber || "new"}`;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -32,12 +32,12 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
     } finally { lock.current = false; setPhotoUploading(false); }
   };
   return (<>
-    <h2 className="f-sans" style={lfStyles.stepTitle}>危険な作業・場所</h2>
+    <h2 className="f-sans" style={lfStyles.stepTitle}>{mode === "places" ? "危険な場所" : mode === "tasks" ? "危険な作業" : "危険な作業・場所"}</h2>
     <p className="f-sans" style={lfStyles.subtitle}>危険な場所や作業を正直に伝えましょう。写真や補足を添えると正確に伝わります。</p>
     <LFWizCard>
       {photoUploading && <p role="status" className="f-sans">写真を保存しています…</p>}
       <fieldset disabled={photoUploading} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
-      <div style={{ marginBottom:14 }}>
+      {mode !== "tasks" && <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
         <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
         {jobDangerPlaces.slice(0, showPlace2 ? 2 : 1).map((place, i) => (
@@ -68,8 +68,8 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
             ) : (
               <button onClick={() => { setShowPlace2(false); setJobDangerPlaces(prev => prev.map((p, j) => j === 1 ? { ...p, label:"", desc:"", photos:[] } : p)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
             )}
-      </div>
-      <div style={{ marginBottom:14 }}>
+      </div>}
+      {mode !== "places" && <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な作業（任意）</label>
         <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
         {jobDangerTasks.slice(0, showTask2 ? 2 : 1).map((task, i) => (
@@ -100,7 +100,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
             ) : (
               <button onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t, j) => j === 1 ? { ...t, label:"", desc:"", photos:[] } : t)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
             )}
-      </div>
+      </div>}
       </fieldset>
     </LFWizCard>
   </>);

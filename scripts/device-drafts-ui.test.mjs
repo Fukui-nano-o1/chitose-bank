@@ -47,7 +47,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       w.alert=message=>errors.push(message);w.confirm=()=>true;
       for(const [k,v] of Object.entries(storage)) w.localStorage.setItem(k,v);
       for(const [k,v] of Object.entries(session)) w.sessionStorage.setItem(k,v);
-      w.eval(script); await until(() => w.document.querySelector('textarea[aria-label="作業の説明"], input[aria-label="日給"]') || [...w.document.querySelectorAll('button')].some(b => ['同意して続ける','掲載する'].includes(b.textContent.trim())), 'initial screen');
+      w.eval(script); await until(() => w.document.querySelector('textarea[aria-label="作業の説明"], input[aria-label="日給"], input[aria-label="勤務開始時間"], [data-step-id="publish_consent"]') || [...w.document.querySelectorAll('button')].some(b => ['同意して続ける','掲載する'].includes(b.textContent.trim())), 'initial screen');
       return w;
     }
     const button = (w,label) => {const found=[...w.document.querySelectorAll('button')].find(b=>b.textContent.trim()===label);assert.ok(found,label);return found;};
@@ -94,7 +94,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w.qaOffline=false;w.dispatchEvent(new w.Event('online'));await until(() => /同意確認済み/.test(w.document.body.textContent), 'consent confirmed');
     assert.match(w.document.body.textContent,/同意確認済み/);
     // 最低賃金の取得に失敗しても次の入力へ進める。掲載前には再確認が必要。
-    w=await mount({url:'https://ui.test/?case=new#/work/new/5',offline:true});
+    w=await mount({url:'https://ui.test/?case=new#/work/new/page/daily_wage',offline:true});
     await until(() => /最低賃金を確認できませんでした/.test(w.document.body.textContent), 'wage lookup failure');
     assert.equal(button(w,'次へ').disabled,false);
     // 初期値を注入するだけでは入力時の変換ミスを検知できない。実際のinputイベントを通す。
@@ -109,7 +109,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     await changeWage('12000');
     await changeWage('');
     await changeWage('12,000円');
-    w=await mount({url:'https://ui.test/#/work/new/5',storage:snapshot(w),offline:true});
+    w=await mount({url:'https://ui.test/#/work/new/page/daily_wage',storage:snapshot(w),offline:true});
     assert.equal(w.document.querySelector('input[aria-label="日給"]').value,'12000');
     button(w,'次へ').click();
     await until(() => w.document.querySelector('[data-step="6"]'), 'continue drafting without wage lookup');
@@ -132,8 +132,11 @@ test('actual consent and listing components continue offline, restore new/edit/c
     assert.equal(w.qaCalls.filter(r=>['rpc/publish_my_job','job_publish_checks'].includes(r.path)).length,0);
     assert.equal(Object.keys(w.qaPublicationReceipts).length,1);
     const startPublish = async () => {
-      await until(() => !button(w,'掲載する').disabled, 'publish ready');
-      button(w,'掲載する').click();await until(() => w.document.querySelector('input[type="checkbox"]'), 'publish confirmation');
+      if (!w.document.querySelector('[data-step-id="publish_consent"]')) {
+        await until(() => !button(w,'掲載する').disabled, 'publish ready');
+        button(w,'掲載する').click();
+      }
+      await until(() => w.document.querySelector('#listing-publish-confirmed'), 'publish confirmation');
       w.document.querySelector('input[type="checkbox"]').click();await until(() => !button(w,'同意して掲載する').disabled, 'publish enabled');
       button(w,'同意して掲載する').click();
     };
@@ -292,9 +295,13 @@ test('actual consent and listing components continue offline, restore new/edit/c
         await until(()=>clock('勤務開始時間')&&clock('勤務開始時間').value==='','empty legacy controls');
         assert.equal(clock('勤務終了時間').value,'');
         const inputTime=async(label,value)=>{const el=clock(label);Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(el,value);el.dispatchEvent(new w.Event('input',{bubbles:true}));await pause(20);};
+        await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form.listingPageId==='work_time'),'legacy work-time page ready');
+        await pause(30);
+        w.location.hash='/work/edit/42/page/daily_wage';
+        await until(()=>w.document.querySelector('input[aria-label="日給"]'),'separate wage page');
         const wage=w.document.querySelector('input[aria-label="日給"]');Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(wage,'15000');wage.dispatchEvent(new w.Event('input',{bubbles:true}));
         await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.payload.daily_wage==='15000'&&d.payload.work_time===raw),'other edit retains raw time');
-        const stored=snapshot(w);w=await mount({url:'https://ui.test/#/work/edit/42',offline:true,storage:stored,job:row});
+        const stored=snapshot(w);w=await mount({url:'https://ui.test/#/work/edit/42/page/work_time',offline:true,storage:stored,job:row});
         assert.equal(clock('勤務開始時間').value,'');assert.equal(clock('勤務終了時間').value,'');
         assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].payload.work_time,raw);
         await inputTime('勤務開始時間','09:15');assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].payload.work_time,null);
@@ -327,13 +334,13 @@ test('actual consent and listing components continue offline, restore new/edit/c
     await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoUrl===videoCopy.work_video_url),'copied URL retained');
     await until(()=>button(w,'掲載する')&&!button(w,'掲載する').disabled,'video copy publish ready');
     button(w,'掲載する').click();
-    await until(()=>w.document.querySelector('#work-video-url'),'missing consent opens video step');
-    assert.equal(w.document.querySelector('#work-video-url').value,videoCopy.work_video_url);
+    await until(()=>w.document.querySelector('[data-step-id="video_consent"]'),'missing consent opens consent page');
+    assert.equal(w.qaDrafts.listDeviceDrafts(owner)[0].form.workVideoUrl,videoCopy.work_video_url);
     const consent=w.document.querySelector('input[type="checkbox"]');assert.equal(consent.checked,false);
     assert.equal(w.qaJob.status,'draft');
     assert.equal(w.document.querySelector('[data-guide="flow-next"]').disabled,true);
     w.document.querySelector('[data-guide="flow-next"]').click();
-    assert.ok(w.document.querySelector('#work-video-url'),'cannot continue without consent');
+    assert.ok(w.document.querySelector('[data-step-id="video_consent"]'),'cannot continue without consent');
     consent.click();
     await until(()=>w.qaDrafts.listDeviceDrafts(owner).some(d=>d.form?.workVideoJobConsent===true),'fresh consent persisted');
     w.document.querySelector('[data-guide="flow-next"]').click();

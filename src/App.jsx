@@ -2177,7 +2177,6 @@ export default function App(){
           onComplete={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onSkip={()=>{ setShowJobPost(false); window.location.hash = flowBackToRef.current || "/profile/employer"; }}
           onLogin={()=>{ setShowJobPost(false); window.location.hash="/profile/employer"; }}
-          onStepChange={(s)=>{ if(window.location.hash.replace(/^#\/?/,"").startsWith("work/new")) window.location.hash="/work/new/"+s; }}
           initialStep={(()=>{ const m=window.location.hash.replace(/^#\/?/,"").match(/^work\/new\/(\d+)$/); return m?parseInt(m[1],10):undefined; })()}
         /></Suspense></AppErrorBoundary>
       )}

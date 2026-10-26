@@ -1,0 +1,76 @@
+name: Listing flow foundation checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/features/jobs/create/**
+      - scripts/listing-*.test.mjs
+      - scripts/fixtures/listing-frame-entry.jsx
+      - scripts/fixtures/listing-schedule-frame-entry.jsx
+      - scripts/fixtures/listing-basics-browser-entry.jsx
+      - scripts/listing-basics-browser.mjs
+      - scripts/listing-publication-browser.mjs
+      - scripts/fixtures/offline/**
+      - src/components/CalendarView.jsx
+      - src/App.jsx
+      - .github/workflows/listing-flow-foundation-check.yml
+  pull_request:
+    paths:
+      - src/features/jobs/create/**
+      - scripts/listing-*.test.mjs
+      - scripts/fixtures/listing-frame-entry.jsx
+      - scripts/fixtures/listing-schedule-frame-entry.jsx
+      - scripts/fixtures/listing-basics-browser-entry.jsx
+      - scripts/listing-basics-browser.mjs
+      - scripts/listing-publication-browser.mjs
+      - scripts/fixtures/offline/**
+      - src/components/CalendarView.jsx
+      - src/App.jsx
+      - package.json
+      - .github/workflows/listing-flow-foundation-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: listing-foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Foundation, save and publication regressions, lint and production build
+        run: npm run build
+      - name: Install isolated Chromium test runtime
+        run: npx playwright install --with-deps chromium
+      - name: Real browser basic-topic navigation, reload and responsive checks
+        run: node scripts/listing-basics-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/listing-basics-evidence
+      - name: Real browser publication pages, consent and retry checks
+        run: node scripts/listing-publication-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/listing-publication-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: listing-basics-browser-evidence
+          path: ${{ runner.temp }}/listing-basics-evidence
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: listing-publication-browser-evidence
+          path: ${{ runner.temp }}/listing-publication-evidence
+          retention-days: 7
+          if-no-files-found: ignore
