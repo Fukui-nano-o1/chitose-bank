@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // 分割3-B（2026-07-25）：App.jsxから移動。働き手の応募状況ページ（FlowBar・評価モーダル・緊急連絡）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
@@ -336,7 +337,7 @@ export function WorkerApplications({ filter, me }) {
                  border:"none", borderBottom: opts.last ? "none" : "1px solid #EBEBEB", padding:"14px 2px", cursor:"pointer" }}>
         <span style={{ flexShrink:0, width:64, height:64, borderRadius:12, overflow:"hidden", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center" }}>
           {photo
-            ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: opts.past ? "grayscale(50%)" : "none" }} />
+            ? <ListingPhoto loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: opts.past ? "grayscale(50%)" : "none" }} />
             : <CropIcon crop={src.crop} size={30} />}
         </span>
         <span style={{ minWidth:0, flex:1 }}>

@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 import { returnAlongPath, routeReturn, pushAlongPath, goAlongPath } from "../lib/routeTrail";
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -1118,7 +1119,7 @@ export function JobSearchMapView({ onRegister, me }) {
               <button key={p.job_number} onClick={()=>setPendingInfo(true)} aria-label="まもなく公開される求人"
                 className="f-sans" style={{ display:"block", width:"100%", padding:0, border:"none", background:"transparent", cursor:"pointer", position:"relative" }}>
                 <div style={{ position:"relative", borderRadius:16, overflow:"hidden", background:"#F7F7F7" }}>
-                  <img loading="lazy" src={p.photo} alt="" style={{ width:"100%", aspectRatio:"1 / 1", objectFit:"cover", display:"block" }} />
+                  <ListingPhoto loading="lazy" src={p.photo} alt="" style={{ width:"100%", aspectRatio:"1 / 1", objectFit:"cover", display:"block" }} />
                   {/* 白いすりガラスの帯：写真は見せるが「まだ応募できない」ことを目で分からせる */}
                   <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.30)", backdropFilter:"blur(1.5px)", WebkitBackdropFilter:"blur(1.5px)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
                     <span className="f-sans" style={{ background:"rgba(14,138,107,0.92)", color:"#fff", fontSize:12, fontWeight:800, letterSpacing:".04em", padding:"6px 14px", borderRadius:8, boxShadow:"0 2px 8px rgba(0,0,0,0.25)" }}>まもなく公開</span>
@@ -1417,7 +1418,7 @@ export function JobSearchMapView({ onRegister, me }) {
                   const p0 = likeDone.photos?.[0];
                   const src = photoThumb(p0);
                   return src
-                    ? <img loading="lazy" src={src} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }} />
+                    ? <ListingPhoto loading="lazy" src={src} alt="" style={{ width:"100%", height:150, objectFit:"cover", display:"block" }} />
                     : <div style={{ width:"100%", height:150, background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center" }}><CropIcon crop={likeDone.crop} size={44} /></div>;
                 })()}
                 <div style={{ padding:"10px 14px 12px" }}>
@@ -1445,7 +1446,7 @@ export function JobSearchMapView({ onRegister, me }) {
           display:"flex", alignItems:"center", justifyContent:"center",
           cursor:"pointer", animation:"fadeIn .2s ease", padding:16,
         }}>
-          <img src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
+          <ListingPhoto src={dangerLightbox} alt="" onClick={e => e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:8 }} />
         </div>
       )}
 
@@ -1535,7 +1536,7 @@ export function JobSearchMapView({ onRegister, me }) {
                               <div key={r.job_number} style={{ gridColumn:"1 / -1", position:"relative", background:"#F7F7F7", borderRadius:12, padding:10, display:"flex", gap:10, alignItems:"flex-start" }}>
                                 <button onClick={()=>setPastJobsFocus(null)} aria-label="閉じる" style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:"50%", background:"#fff", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><NavIcon name="close" size={12} /></button>
                                 <div style={{ width:84, height:84, borderRadius:10, overflow:"hidden", flexShrink:0, background:"#EBEBEB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>
-                                  {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
+                                  {photo ? <ListingPhoto loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                                 </div>
                                 <div style={{ flex:1, minWidth:0, paddingRight:24 }}>
                                   <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -1556,7 +1557,7 @@ export function JobSearchMapView({ onRegister, me }) {
                           return (
                             <button key={r.job_number} onClick={()=>setPastJobsFocus(r.job_number)} className="f-sans" style={{ display:"block", textAlign:"left", width:"100%", background:"#F7F7F7", border:"none", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                               <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32, overflow:"hidden" }}>
-                                {photo ? <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
+                                {photo ? <ListingPhoto loading="lazy" src={photo} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", ...(ended ? { filter:"grayscale(40%)" } : {}) }} /> : <NavIcon name="image" size={28} style={{ color:"#C8C8C8" }} />}
                                 {/* 状態帯は「すべて」タブでのみ表示。公開中/過去の実績タブは絞り込み済みで帯が冗長（2026-07-24） */}
                                 {pastJobsTab === "all" && <StatusRibbon label={ended ? "終了" : "公開中"} color={ended ? "#9E9E9E" : "#00A86B"} />}
                                 {/* 概要は写真の上に重ねる。黒の半透明グラデで写真の明暗を問わず白文字を読ませる（2026-07-23） */}

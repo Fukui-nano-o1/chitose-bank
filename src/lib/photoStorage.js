@@ -17,6 +17,8 @@ export async function putPhotoBytes(client, owner, bucket, prefix, blob) {
   const hash = Array.from(new Uint8Array(digest), n => n.toString(16).padStart(2, '0')).join('');
   const path = `${owner}/v2/${prefix}${hash}.${extensions[blob.type]}`;
   const storage = client.storage.from(bucket);
+  // Stable identifier compatible with saved drafts and frozen records. The
+  // bucket is private; ListingPhoto resolves this through authenticated download.
   const url = storage.getPublicUrl(path).data?.publicUrl;
   if (!url || !url.startsWith('https://')) throw fail('PHOTO_URL', '画像の保存先を確認できません。');
   await photoOwner(client, owner);

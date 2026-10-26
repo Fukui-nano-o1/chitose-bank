@@ -36,7 +36,10 @@ function firstPhoto(job) {
   const list = Array.isArray(job.photos) ? job.photos : [];
   for (const p of list) {
     const url = typeof p === "string" ? p : (p && p.url);
-    if (typeof url === "string" && url.startsWith("https://")) return url;
+    // Private listing photos require a user session. Link previews use the site
+    // logo instead of exporting a bearer URL or a broken old public URL.
+    if (typeof url === "string" && url.startsWith("https://") &&
+        !/\/storage\/v1\/(?:object|render\/image)\/(?:public|authenticated|sign)\/(?:job-photos|consignment-photos)\//.test(url)) return url;
   }
   return null;
 }

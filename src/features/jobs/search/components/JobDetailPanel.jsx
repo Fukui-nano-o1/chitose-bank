@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 import "./jobWorkVideo.css";
 // 求人詳細の表示部品（第2次構造改革2026-08-18で JobSearchMapView.jsx から分離）。
 // ★ここは【表示だけ】：job（＝job）を受け取って描くのみ。
@@ -519,7 +520,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
 //   動きを止めている端末（prefers-reduced-motion）ではCSS側が最初から見える形に倒す
 function FadeImg({ src, alt, style, onReady }) {
   return (
-    <img src={src} alt={alt || ""} loading="lazy" className="cb-img-in" style={style}
+    <ListingPhoto src={src} alt={alt || ""} loading="lazy" className="cb-img-in" style={style}
       ref={el => { if (el && el.complete) el.classList.add("is-on"); }}
       onLoad={e => { e.currentTarget.classList.add("is-on"); onReady && onReady(); }} />
   );

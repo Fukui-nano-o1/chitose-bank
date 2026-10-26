@@ -1,7 +1,7 @@
 // 緊急連絡先の入力（働き手・雇い手プロフィール編集で共用・2026-08-03たきと指示）。
 // 保管は専用テーブル emergency_contacts（self-only）。他のプロフィール項目とは別テーブルなので、
 // 保存もこの部品の中で完結させる（呼び出し元の save() を汚さない）。
-// 開示は採用成立後・相手方のみ（contract_emergency_contact RPC）＝ContractEmergencyContact が表示側。
+// 開示は内容の確認・保存後、採用成立した相手方に作業中だけ（contract_emergency_contact RPC）。
 import { NavIconInline } from "./NavIcons";
 
 import { useState, useEffect, useRef } from "react";
@@ -57,7 +57,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
     try {
       // confirmed_at＝本人がこの内容を確認して保存した時刻（2026-08-19 裁定D案）。
       // 自動初期登録（seed_emergency_contact）はこの列を書かないのでNULLのまま＝相手方に出ない。
-      // ここで初めて時刻が入り、採用成立時に contract_emergency_contact が中身を返すようになる。
+      // ここで初めて時刻が入り、採用成立・作業中・同意済みの条件も満たす時だけ相手に表示される。
       const record = await saveProfileRecord(supabase, recordRef.current, {
         name: name.trim(), relation: relation.trim(), phone: phone.trim(), confirmed_at: new Date().toISOString(),
       });
@@ -90,7 +90,7 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
         <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:10, lineHeight:1.6 }}>
           作業中のケガや事故など、<b>緊急時に連絡する先</b>です。
           <b>新規登録で入力したお名前と電話番号が、はじめから入っています</b>（関係は「本人」）。
-          ご家族などに<b>変更することもできます（任意）</b>。<b>採用が決まった相手にだけ表示されます</b>
+          ご家族などに<b>変更することもできます（任意）</b>。<b>内容を確認して保存すると、採用が決まった相手に作業中だけ表示されます</b>
           （求人ページや一覧、応募の段階では表示されません）。
         </p>
       )}
@@ -118,6 +118,9 @@ export function EmergencyContactBox({ accent = "#00A86B", onSaved }) {
       <label className="f-sans" style={{ fontSize:11, fontWeight:600, color:"#717171", display:"block", marginBottom:4 }}>電話番号</label>
       <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="例：090-0000-0000" maxLength={30} inputMode="tel"
         className="field f-sans" style={{ width:"100%", fontSize:16, boxSizing:"border-box", marginBottom:14 }} />
+      <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 10px", lineHeight:1.6 }}>
+        ご本人の連絡先も、内容を確認して「保存する」を押すまで相手に表示されません。保存した連絡先は、採用が決まった相手に作業中だけ表示されます。
+      </p>
       <button onClick={save} disabled={saving} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12 }}>{saving ? <>保存中<Dots /></> : "保存する"}</button>
       {saved && <p className="f-sans" style={{ fontSize:12, color:accent, textAlign:"center", marginTop:10 }}>保存しました <NavIconInline name="tick" size={12} style={{ verticalAlign:"-1.5px", marginRight:0 }} /></p>}
       <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 0", lineHeight:1.5 }}>

@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 import { Avatar } from './ui';
 import { ChatSheet } from './ChatSheet';
 import { APP_PHASE_LABEL, calFmtDate, photoThumb } from '../lib/utils';
@@ -11,7 +12,7 @@ export function ChatDetails({ job, jobNumber, status, phase, partner, isWorkerSi
   const photo = photoThumb(job?.photos?.[0]);
   return <ChatSheet title="会話の詳細" onClose={onClose}>
     <button type="button" className="chat-detail-job" disabled={!jobNumber} onClick={onJob} aria-label="求人の詳細を見る">
-      {photo && <img src={photo} alt="" />}
+      {photo && <ListingPhoto src={photo} alt="" />}
       <span><small>求人 #{jobNumber || '確認中'} · {APP_PHASE_LABEL[phase] || '確認中'}</small><strong>{title}</strong></span>
       <span aria-hidden="true">›</span>
     </button>

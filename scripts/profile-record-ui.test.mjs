@@ -70,6 +70,17 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
     assert.equal(f.state.events.filter(e=>e.table===tableOf(surface)&&e.kind!=='read').length,1);assert.deepEqual(w.qaErrors,[]);
    });
   }
+  if(!baseline)await t.test('emergency: self contact is confirmed only by explicit save',async()=>{
+   const w=await mount('emergency'),f=w.qaProfile;
+   assert.match(w.document.body.textContent,/ご本人の連絡先も、内容を確認して「保存する」を押すまで相手に表示されません/);
+   assert.equal(f.state.rows.emergency_contacts.confirmed_at,null);assert.equal(f.state.writes,0);
+   button(w,'本人').click();await pause(20);assert.equal(f.state.writes,0);
+   await save(w);
+   assert.equal(f.state.rows.emergency_contacts.relation,'本人');
+   assert.ok(Number.isFinite(Date.parse(f.state.rows.emergency_contacts.confirmed_at)));
+   assert.equal(f.state.rows.emergency_contacts.name,'元の連絡先');
+   assert.equal(f.state.rows.emergency_contacts.phone,'000-0000-0000');
+  });
   if(!baseline)for(const role of ['worker','employer']) {
    await t.test(role+': another section survives a stale form save',async()=>{
     const w=await mount(role),f=w.qaProfile;f.state.rows[tableOf(role)].transport='他端末の値';await edit(w,role);await save(w);

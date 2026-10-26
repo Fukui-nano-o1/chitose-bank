@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 import { useEffect, useId, useRef, useState } from 'react';
 import { photoThumb } from '../lib/utils';
 import { youtubeEmbedUrl } from '../lib/youtube';
@@ -133,7 +134,7 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
           style={{ display: 'block', position: standaloneVideo ? 'absolute' : undefined, inset: standaloneVideo ? 0 : undefined, width: '100%', height: '100%', border: 0 }} />
           : <button type="button" className="job-video-facade" onClick={start} aria-label="作業動画を再生"
             style={{ display: 'block', position: standaloneVideo ? 'absolute' : 'relative', inset: standaloneVideo ? 0 : undefined, width: '100%', height: '100%', padding: 0, border: 0, color: '#fff', background: '#222', cursor: 'pointer' }}>
-            {!posterFailed && <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt={`${title}の作業動画`}
+            {!posterFailed && <ListingPhoto src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt={`${title}の作業動画`}
               draggable={false} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined}
               onError={() => setPosterFailed(true)}
               style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />}
@@ -151,7 +152,7 @@ export function JobVideoCardMedia({ videoId = '', photos = [], title, height = 2
         tabIndex={active === index + (hasVideo ? 1 : 0) ? 0 : -1}
         draggable={false}
         style={{ display: 'block', flex: '0 0 100%', minWidth: 0, height, scrollSnapAlign: 'start', background: '#f7f7f7' }}>
-        <img src={photoThumb(photo)} alt={typeof photo === 'string' ? `求人写真 ${index + 1}` : photo.caption || `求人写真 ${index + 1}`}
+        <ListingPhoto src={photoThumb(photo)} alt={typeof photo === 'string' ? `求人写真 ${index + 1}` : photo.caption || `求人写真 ${index + 1}`}
           draggable={false} loading={!hasVideo && index === 0 && priority ? 'eager' : 'lazy'}
           fetchPriority={!hasVideo && index === 0 && priority ? 'high' : undefined}
           style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />

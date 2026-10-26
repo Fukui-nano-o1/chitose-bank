@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // さがすページ「委託」タブの一覧（2026-08-03たきと指示）。
 // 表示条件は lib/consignAccess.js の canSeeConsignment が決める＝このコンポーネントは呼ばれた時点で「見せてよい相手」。
 // サーバー側でも consignment_deals のRLSが app_admins 限定ので、フロントの条件を外しただけでは中身は出ない（二重の壁）。
@@ -72,7 +73,7 @@ export function ConsignmentSearchList() {
               <span className="f-sans" style={{ position:"absolute", top:186, right:8, zIndex:2, padding:"4px 10px", borderRadius:20, background:"rgba(255,255,255,0.92)", color:"#222", fontSize:12.1, fontWeight:700, boxShadow:"0 1px 4px rgba(0,0,0,.18)" }}>{chip}</span>
             )}
             {photo ? (
-              <img loading="lazy" src={photo} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block", borderRadius:16 }} />
+              <ListingPhoto loading="lazy" src={photo} alt="" style={{ width:"100%", height:220, objectFit:"cover", display:"block", borderRadius:16 }} />
             ) : (
               <div style={{ width:"100%", height:220, borderRadius:16, background:"#F7F7F7" }} />
             )}

@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../ListingPhoto.jsx";
 // 管理タブ（#/admin・管理者専用・分割3-Aで切り出し2026-07-24）：農家承認・求人審査・質問管理・お知らせ・エラーログ等。
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -604,7 +605,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                 style={{ display:"block", textAlign:"left", width:"100%", background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, padding:0, overflow:"hidden", cursor:"pointer" }}>
                 <div style={{ position:"relative", aspectRatio:"1 / 1", background:"#F7F7F7", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                   {acctDisplay(u).avatar
-                    ? <img loading="lazy" src={acctDisplay(u).avatar} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
+                    ? <ListingPhoto loading="lazy" src={acctDisplay(u).avatar} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter: u.mod_state && u.mod_state !== "active" ? "grayscale(1) opacity(0.6)" : "none" }} />
                     : <Avatar url={null} name={acctDisplay(u).name || "？"} size={64} />}
                   {/* 状態マーク（右上）：停止/追放＞通報＞確認待ち＞未ログインの優先順で1つだけ */}
                   {(u.mod_state && u.mod_state !== "active") ? (
@@ -917,7 +918,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                       <button key={key} onClick={()=>{ if (j.job_number != null) setPreviewJobNumber(j.job_number); }} className="f-sans"
                         style={{ display:"flex", alignItems:"center", gap:10, width:"100%", textAlign:"left", background:"#fff", border:"none", borderBottom:"1px solid #F7F7F7", padding:"10px 0", cursor:"pointer" }}>
                         {thumb
-                          ? <img loading="lazy" src={thumb} alt="" style={{ width:44, height:44, objectFit:"cover", borderRadius:8, flexShrink:0, background:"#F5F5F5" }} />
+                          ? <ListingPhoto loading="lazy" src={thumb} alt="" style={{ width:44, height:44, objectFit:"cover", borderRadius:8, flexShrink:0, background:"#F5F5F5" }} />
                           : <span style={{ width:44, height:44, borderRadius:8, flexShrink:0, background:"#F5F5F5", display:"block" }} />}
                         <span style={{ flex:1, minWidth:0, display:"block" }}>
                           <span style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -1026,7 +1027,7 @@ export function AdminTab({ onJump, onShowAccountForm }) {
                   </div>
                   {Array.isArray(s.photos) && s.photos.length > 0 && (
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:12 }}>
-                      {s.photos.map((p, i) => { const u = typeof p === "string" ? p : p?.url; return u ? <img loading="lazy" key={i} src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} /> : null; })}
+                      {s.photos.map((p, i) => { const u = typeof p === "string" ? p : p?.url; return u ? <ListingPhoto loading="lazy" key={i} src={u} alt="" style={{ width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid #EEE" }} /> : null; })}
                     </div>
                   )}
                 </>

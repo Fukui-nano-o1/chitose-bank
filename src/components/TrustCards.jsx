@@ -1,3 +1,4 @@
+import { ListingPhoto } from "./ListingPhoto.jsx";
 // 信頼カード（分割・段階2後半・2026-07-24）：働き手/雇い手の与信情報カード。プレビュー・応募者カード・確認ページで共用。
 import { Fragment, useState } from "react";
 import { createPortal } from "react-dom";
@@ -12,7 +13,7 @@ import { NavIconInline } from "./NavIcons";
 function AvatarLightbox({ url, onClose }) {
   return createPortal(
     <div onClick={onClose} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:10500, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", animation:"fadeIn .2s ease", padding:16 }}>
-      <img src={url} alt="" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:12 }} />
+      <ListingPhoto src={url} alt="" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain", borderRadius:12 }} />
     </div>,
     document.body
   );

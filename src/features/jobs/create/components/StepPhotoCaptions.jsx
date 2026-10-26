@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 // 第4弾: 写真の説明を独立ページ化。既存 photos 配列の caption のみ更新する。
 import { useState } from "react";
 import { lfStyles } from "../lfStyles";
@@ -12,7 +13,7 @@ export function StepPhotoCaptions({ jobPhotos, setJobPhotos }) {
     <h2 className="f-sans" style={lfStyles.stepTitle}>写真の説明を追加しましょう</h2>
     <p className="f-sans" style={lfStyles.subtitle}>写真ごとに説明できます（任意）。説明を変更しても写真は削除されません。</p>
     <div style={{maxWidth:560,margin:"0 auto",minWidth:0}}>
-      <img src={photoThumb(photo)} alt={`写真${safeIndex+1}`} style={{display:"block",width:"100%",aspectRatio:"4 / 3",objectFit:"cover",borderRadius:16}} />
+      <ListingPhoto src={photoThumb(photo)} alt={`写真${safeIndex+1}`} style={{display:"block",width:"100%",aspectRatio:"4 / 3",objectFit:"cover",borderRadius:16}} />
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,margin:"16px 0"}}>
         <button type="button" disabled={safeIndex===0} onClick={()=>setIndex(i=>Math.max(0,i-1))} className="listing-back">前の写真</button>
         <span className="f-sans" aria-live="polite">{safeIndex+1} / {jobPhotos.length}</span>

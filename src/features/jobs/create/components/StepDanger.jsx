@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 // 農家 step9: 危険な場所・危険な作業（安全配慮義務の告知欄）（第2次構造改革2026-08-17で LandingFlow.jsx から分離）。
 // 写真の選択は同期ロックし、最新の配列で重複と枚数上限を確認してから追加する。
 // ★モジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
@@ -48,7 +49,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
                     const ph = place.photos?.[k];
                     return ph ? (
                       <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
-                        <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                        <ListingPhoto loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                         <button onClick={() => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: p.photos.filter((_, x) => x !== k) } : p))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
                     ) : (
@@ -80,7 +81,7 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
                     const ph = task.photos?.[k];
                     return ph ? (
                       <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
-                        <img loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                        <ListingPhoto loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                         <button onClick={() => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: t.photos.filter((_, x) => x !== k) } : t))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
                       </div>
                     ) : (

@@ -1,3 +1,4 @@
+import { ListingPhoto } from "../../../components/ListingPhoto.jsx";
 import { goAlongPath, returnAlongPath } from "../../../lib/routeTrail";
 import { useEffect } from "react";
 import { openLaborNotice } from "../../../lib/laborNoticeRoute";
@@ -50,7 +51,7 @@ export function ScheduleDetail({ me, role, applicationId }) {
             <h2>{[entry.crop, entry.task].filter(Boolean).join(" ") || "作業の予定"}</h2>
             <p className="schedule-muted">求人 #{entry.job_number}{entry.town ? ` · ${entry.town}` : ""}</p>
           </div>
-          {photo && <img className="schedule-photo" src={photo} alt="" />}
+          {photo && <ListingPhoto className="schedule-photo" src={photo} alt="" />}
         </div>
         <p className="schedule-phase-description">{APP_PHASE_DESC[phase]}</p>
 
