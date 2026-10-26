@@ -117,7 +117,8 @@ test('stage 3 real listing: basic topics, navigation, recovery, minimum wage and
     await t.test('every review edit has its own URL and returns directly to review, including after reload',async()=>{
       let w=await mount({url:'https://ui.test/#/work/edit/42',job:dbRow({draft_step:12}),offline:false});await page(w,'review');
       for(const [label,id]of [['作業','task'],['作業の変更範囲','task_scope'],['集合場所','workplace'],['場所の変更範囲','place_scope'],['アクセス','access'],['勤務時間','work_time'],['休憩時間','break_time'],['時間外労働','overtime'],['日給','daily_wage']]) {
-        button(w,label).click();await page(w,id);assert.match(w.location.hash,/return=review/);
+        button(w,'編集').click();await until(()=>q(w,`[data-edit-page="${id}"]`),`edit entry ${id}`);
+        q(w,`[data-edit-page="${id}"]`).click();await page(w,id);assert.match(w.location.hash,/return=review/);
         const snapshot=storage(w), url=w.location.href;
         w=await mount({url,storage:snapshot,offline:true});await page(w,id);button(w,'確認に戻る').click();await page(w,'review');
       }
