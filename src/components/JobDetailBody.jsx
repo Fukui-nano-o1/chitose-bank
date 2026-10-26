@@ -32,7 +32,7 @@ import { JobPhotoGallery, JobKeyFacts, JobHostRow, JobHighlights, JobDescription
 // employer／trust（任意・2026-09-19）＝親が既に持っている募集主の材料を渡す口（求人作成フローの
 //   掲載前の確認＝まだ求人番号の無い下書きでは job_employer_profile を引けないため）。渡された時は引かない。
 // onOpenIntro（任意）＝募集主の行・募集主カードのタップで農園紹介を開く（確認ページ）。ボックスは渡さない（従来どおり開かない）
-export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: employerPreset, trust: trustPreset, onOpenIntro }) {
+export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: employerPreset, trust: trustPreset, onOpenIntro, reviewEditContent }) {
   const wrap = (label, node) => (decorate ? decorate(label, node) : node);
   const presetGiven = employerPreset !== undefined;
   const [activeSlide, setActiveSlide] = useState(0);
@@ -156,8 +156,8 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: emp
       {noTabs ? body : (
       <ContentQSwipeArea value={tab} onChange={setTab}
         onEdgeSwipe={(d)=>{ if (d === "prev" && onBack) onBack(); }}>
-      <ContentQTabs value={tab} onChange={setTab} />
-      {tab === "questions" ? (
+      <ContentQTabs value={tab} onChange={setTab} reviewEdit={!!reviewEditContent} />
+      {tab === "questions" && reviewEditContent ? reviewEditContent : tab === "questions" ? (
         /* 質問（求人Q&A・詳細/確認ページと同じ部品＝公開Q&A。投稿ゲート・NG検査はサーバー側が従来どおり） */
         <JobQuestions jobNumber={job.id} me={me} />
       ) : body}
