@@ -70,35 +70,34 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
       </div>}
       {mode !== "places" && <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な作業（任意）</label>
-        <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
+        <p className="f-sans" style={{ fontSize:13, color:"#595959", marginBottom:8 }}>働き手に事前に知らせたい危険な作業があれば入力してください。</p>
         {jobDangerTasks.slice(0, showTask2 ? 2 : 1).map((task, i) => (
-          <div key={i} style={{ marginBottom:8 }}>
-            <input value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder={`危険な作業${i + 1}（例：重いコンテナの運搬）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
-            <input value={task.desc} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, desc: e.target.value } : t))} placeholder="補足説明（例：腰を痛めないよう正しい持ち方が必要）" className="field f-sans" style={{ fontSize:13 }} />
-                <div style={{ display:"flex", gap:8, marginTop:6 }}>
-                  {[0,1].map(k => {
-                    const ph = task.photos?.[k];
-                    return ph ? (
-                      <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
-                        <ListingPhoto loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                        <button onClick={() => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, photos: t.photos.filter((_, x) => x !== k) } : t))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
-                      </div>
-                    ) : (
-                      <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
-                        <NavIcon name="camera" size={22} style={{ opacity:0.6 }} />
-                        <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={e => upload(e, "task", i)} />
-                      </label>
-                    );
-                  })}
+          <section key={i} className="listing-danger-card" aria-label={`危険な作業${i + 1}`}>
+            <strong className="listing-danger-card-title">危険な作業 {i + 1}</strong>
+            <label className="listing-danger-label" htmlFor={`danger-task-name-${i}`}>作業の名前</label>
+            <input id={`danger-task-name-${i}`} value={task.label} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, label: e.target.value } : t))} placeholder="例：重いコンテナの運搬" className="field f-sans listing-danger-input" />
+            <label className="listing-danger-label" htmlFor={`danger-task-detail-${i}`}>どのような危険がありますか？</label>
+            <textarea id={`danger-task-detail-${i}`} value={task.desc} onChange={e => setJobDangerTasks(prev => prev.map((t, j) => j === i ? { ...t, desc: e.target.value } : t))} placeholder="例：腰を痛めないよう正しい持ち方が必要" rows={3} className="field f-sans listing-danger-input listing-danger-textarea" />
+            <div className="listing-danger-photo-row">
+              {(task.photos || []).map((ph,k) => (
+                <div key={ph.url || k} className="listing-danger-photo">
+                  <ListingPhoto loading="lazy" src={ph.url} alt={`危険な作業${i+1}の写真${k+1}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
+                  <button type="button" aria-label={`写真${k+1}を削除`} onClick={() => setJobDangerTasks(prev => prev.map((t,j) => j === i ? {...t,photos:t.photos.filter((_,x)=>x!==k)} : t))} className="listing-danger-remove-photo">×</button>
                 </div>
-          </div>
+              ))}
+              {(task.photos?.length || 0) < 2 && <label className="listing-danger-photo-add">
+                <NavIcon name="camera" size={20} />
+                <span>写真を追加</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label={`危険な作業${i+1}の写真を追加`} onChange={e=>upload(e,"task",i)} />
+              </label>}
+            </div>
+          </section>
         ))}
-            {!showTask2 ? (
-              <button onClick={() => setShowTask2(true)} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"10px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600 }}>＋ 危険な作業をもう1つ追加</button>
-            ) : (
-              <button onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t, j) => j === 1 ? { ...t, label:"", desc:"", photos:[] } : t)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
-            )}
+        {!showTask2 ? (
+          <button type="button" onClick={() => setShowTask2(true)} className="listing-danger-add-another">＋ もう1件追加</button>
+        ) : (
+          <button type="button" onClick={() => { setShowTask2(false); setJobDangerTasks(prev => prev.map((t,j)=>j===1?{...t,label:"",desc:"",photos:[]}:t)); }} className="listing-danger-delete-second">2件目を削除</button>
+        )}
       </div>}
       </fieldset>
     </LFWizCard>
