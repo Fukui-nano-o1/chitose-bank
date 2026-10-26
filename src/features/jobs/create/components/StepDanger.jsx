@@ -39,35 +39,34 @@ export function StepDanger({ jobDangerPlaces, setJobDangerPlaces, jobDangerTasks
       <fieldset disabled={photoUploading} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
       {mode !== "tasks" && <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な場所（任意）</label>
-        <p className="f-sans" style={{ fontSize:13, color:"#B0B0B0", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
+        <p className="f-sans" style={{ fontSize:13, color:"#595959", marginBottom:8 }}>働き手に事前に知らせたい危険な場所があれば入力してください。</p>
         {jobDangerPlaces.slice(0, showPlace2 ? 2 : 1).map((place, i) => (
-          <div key={i} style={{ marginBottom:8 }}>
-            <input value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder={`危険な場所${i + 1}（例：ぬかるみ）`} className="field f-sans" style={{ fontSize:14, marginBottom:4 }} />
-            <input value={place.desc} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, desc: e.target.value } : p))} placeholder="補足説明（例：雨上がりは特に滑りやすい）" className="field f-sans" style={{ fontSize:13 }} />
-                <div style={{ display:"flex", gap:8, marginTop:6 }}>
-                  {[0,1].map(k => {
-                    const ph = place.photos?.[k];
-                    return ph ? (
-                      <div key={k} style={{ position:"relative", flex:1, height:90, borderRadius:10, overflow:"hidden", border:"1px solid #EEE" }}>
-                        <ListingPhoto loading="lazy" src={ph.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                        <button onClick={() => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, photos: p.photos.filter((_, x) => x !== k) } : p))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:"50%", border:"none", background:"rgba(0,0,0,0.65)", color:"#fff", fontSize:12, cursor:"pointer", lineHeight:1 }}>×</button>
-                      </div>
-                    ) : (
-                      <label key={k} style={{ flex:1, height:90, border:"2px dashed #D8D8D8", borderRadius:10, background:"#FAFAFA", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
-                        <NavIcon name="camera" size={22} style={{ opacity:0.6 }} />
-                        <span className="f-sans" style={{ fontSize:10, color:"#B0B0B0" }}>写真を追加</span>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple style={{ display:"none" }} onChange={e => upload(e, "place", i)} />
-                      </label>
-                    );
-                  })}
+          <section key={i} className="listing-danger-card" aria-label={`危険な場所${i + 1}`}>
+            <strong className="listing-danger-card-title">危険な場所 {i + 1}</strong>
+            <label className="listing-danger-label" htmlFor={`danger-place-name-${i}`}>場所の名前</label>
+            <input id={`danger-place-name-${i}`} value={place.label} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} placeholder="例：ぬかるみ" className="field f-sans listing-danger-input" />
+            <label className="listing-danger-label" htmlFor={`danger-place-detail-${i}`}>どのような危険がありますか？</label>
+            <textarea id={`danger-place-detail-${i}`} value={place.desc} onChange={e => setJobDangerPlaces(prev => prev.map((p, j) => j === i ? { ...p, desc: e.target.value } : p))} placeholder="例：雨上がりは特に滑りやすい" rows={3} className="field f-sans listing-danger-input listing-danger-textarea" />
+            <div className="listing-danger-photo-row">
+              {(place.photos || []).map((ph,k) => (
+                <div key={ph.url || k} className="listing-danger-photo">
+                  <ListingPhoto loading="lazy" src={ph.url} alt={`危険な場所${i+1}の写真${k+1}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
+                  <button type="button" aria-label={`写真${k+1}を削除`} onClick={() => setJobDangerPlaces(prev => prev.map((p,j) => j === i ? {...p,photos:p.photos.filter((_,x)=>x!==k)} : p))} className="listing-danger-remove-photo">×</button>
                 </div>
-          </div>
+              ))}
+              {(place.photos?.length || 0) < 2 && <label className="listing-danger-photo-add">
+                <NavIcon name="camera" size={20} />
+                <span>写真を追加</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label={`危険な場所${i+1}の写真を追加`} onChange={e=>upload(e,"place",i)} />
+              </label>}
+            </div>
+          </section>
         ))}
-            {!showPlace2 ? (
-              <button onClick={() => setShowPlace2(true)} className="f-sans" style={{ background:"none", border:"1px dashed #C8C8C8", borderRadius:10, padding:"10px", width:"100%", fontSize:13, color:"#00A86B", cursor:"pointer", fontWeight:600 }}>＋ 危険な場所をもう1つ追加</button>
-            ) : (
-              <button onClick={() => { setShowPlace2(false); setJobDangerPlaces(prev => prev.map((p, j) => j === 1 ? { ...p, label:"", desc:"", photos:[] } : p)); }} className="f-sans" style={{ background:"none", border:"none", padding:"6px", fontSize:12, color:"#B0B0B0", cursor:"pointer" }}>× 2つ目を削除</button>
-            )}
+        {!showPlace2 ? (
+          <button type="button" onClick={() => setShowPlace2(true)} className="listing-danger-add-another">＋ もう1件追加</button>
+        ) : (
+          <button type="button" onClick={() => { setShowPlace2(false); setJobDangerPlaces(prev => prev.map((p,j)=>j===1?{...p,label:"",desc:"",photos:[]}:p)); }} className="listing-danger-delete-second">2件目を削除</button>
+        )}
       </div>}
       {mode !== "places" && <div style={{ marginBottom:14 }}>
         <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>危険な作業（任意）</label>
