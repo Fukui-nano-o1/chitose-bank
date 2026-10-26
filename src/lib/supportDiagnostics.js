@@ -76,6 +76,6 @@ export function captureSupportContext() {
 export function openSupport(request = {}) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("cb:open-support", { detail: {
-    topic: request.topic, view: request.view || (request.topic ? "guide" : "home"), context: captureSupportContext(),
+    guide: request.guide, topic: request.topic, view: request.view || (request.guide ? "article" : request.topic ? "guide" : "home"), context: captureSupportContext(),
   } }));
 }

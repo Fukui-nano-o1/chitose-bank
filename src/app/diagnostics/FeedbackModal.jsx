@@ -4,6 +4,7 @@ import { useVisualViewportFit } from '../../lib/visualViewportFit';
 import { captureSupportContext } from '../../lib/supportDiagnostics';
 import { SUPPORT_TOPICS, SUPPORT_IMPACTS, supportTopicLabel, supportStatusLabel, supportReceipt, supportDate } from '../../lib/supportModel';
 import { supportId, readSupportDraft, saveSupportDraft, clearSupportDraft, prepareSupportRequest, submitSupport, listSupport, getSupport, replySupport, supportErrorMessage, supportStorageAvailable, forgetGuestSupport, readSupportReply, saveSupportReply, clearSupportReply } from '../../lib/supportClient';
+import { supportGuide, searchSupportGuides, searchSupportTopics } from '../../lib/supportGuides';
 import './FeedbackModal.css';
 
 const CATEGORIES = [['broken','動かない'], ['confusing','分かりにくい'], ['typo','誤字・表示'], ['suggestion','提案'], ['other','その他']];
@@ -15,8 +16,14 @@ export function FeedbackModal({ open, onClose, userId = null, initialRequest = {
   return open ? <SupportSession key={userId || 'guest'} onClose={onClose} userId={userId} initialRequest={initialRequest} /> : null;
 }
 function SupportSession({ onClose, userId, initialRequest }) {
-  const [draft, setDraft] = useState(() => readSupportDraft(userId) || newDraft(initialRequest.topic, initialRequest.context));
-  const [view, setView] = useState(initialRequest.view || (initialRequest.topic ? 'guide' : 'home'));
+  const [draft, setDraft] = useState(() => readSupportDraft(userId) || newDraft(supportGuide(initialRequest.guide)?.topic || initialRequest.topic, initialRequest.context));
+  const [view, setView] = useState((initialRequest.view === 'article' && !supportGuide(initialRequest.guide) ? 'home' : initialRequest.view) || (supportGuide(initialRequest.guide) ? 'article' : initialRequest.topic ? 'guide' : 'home'));
+  const [query, setQuery] = useState(''), [audience, setAudience] = useState('all');
+  const [guideId, setGuideId] = useState(initialRequest.guide || null);
+  const article = supportGuide(guideId);
+  const draftGuide = supportGuide(draft.guideId);
+  const results = searchSupportGuides(query, audience);
+  const topicResults = searchSupportTopics(query);
   const [topic, setTopic] = useState(initialRequest.topic || draft.topic);
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(false), [error, setError] = useState('');
   const [items, setItems] = useState(null), [detail, setDetail] = useState(null), [sent, setSent] = useState(null);
@@ -32,7 +39,7 @@ function SupportSession({ onClose, userId, initialRequest }) {
     overlayRef.current?.querySelector('button')?.focus({ preventScroll: true });
     return () => { mounted.current = false; sequence.current += 1; if (previous?.isConnected) previous.focus({ preventScroll: true }); };
   }, []);
-  useEffect(() => { scrollRef.current?.scrollTo?.({ top: 0 }); }, [view]);
+  useEffect(() => { scrollRef.current?.scrollTo?.({ top: 0 }); overlayRef.current?.querySelector('#support-title')?.focus({ preventScroll: true }); }, [view]);
   useEffect(() => {
     if (draft.body || draft.expected || draft.pending) saveSupportDraft(userId, draft);
     else if (readSupportDraft(userId)?.id === draft.id) clearSupportDraft(userId);
@@ -54,7 +61,7 @@ function SupportSession({ onClose, userId, initialRequest }) {
   }, []);
   const change = patch => setDraft(previous => ({ ...previous, ...patch }));
   const go = next => { sequence.current += 1; setLoading(false); setError(''); setCopyText(''); setCopied(false); setView(next); };
-  const back = () => { if (view === 'home') onClose(); else if (view === 'detail') loadHistory(); else go(view === 'compose' ? 'guide' : 'home'); };
+  const back = () => { if (view === 'home') onClose(); else if (view === 'detail') loadHistory(); else go(view === 'compose' ? (article ? 'article' : 'guide') : 'home'); };
   function onKeyDown(event) {
     if (event.key === 'Escape') { event.stopPropagation(); onClose(); return; }
     if (event.key !== 'Tab') return;
@@ -106,21 +113,44 @@ function SupportSession({ onClose, userId, initialRequest }) {
   const report = detail?.report;
   return createPortal(<div className="support-overlay cb-lock-scroll f-sans" ref={overlayRef} onKeyDown={onKeyDown}>
     <section className="support-panel" role="dialog" aria-modal="true" aria-labelledby="support-title">
-      <header className="support-header"><button type="button" className="support-icon-button" aria-label="前の画面に戻る" onClick={back}>←</button><h2 id="support-title">{view === 'history' ? '相談履歴' : view === 'detail' ? '相談の状況' : 'ヘルプ・お問い合わせ'}</h2><button type="button" className="support-icon-button" aria-label="元の画面に戻る" onClick={onClose}>×</button></header>
+      <header className="support-header"><button type="button" className="support-icon-button" aria-label="前の画面に戻る" onClick={back}>←</button><h2 id="support-title" tabIndex={-1}>{view === 'history' ? '相談履歴' : view === 'detail' ? '相談の状況' : 'ヘルプ・お問い合わせ'}</h2><button type="button" className="support-icon-button" aria-label="元の画面に戻る" onClick={onClose}>×</button></header>
       <div className="support-scroll" ref={scrollRef}>
-        {view === 'home' && <><p className="support-kicker">SUPPORT</p><h3>何にお困りですか？</h3><p className="support-muted">元の画面を開いたまま、解決方法の確認や運営への相談ができます。</p>
+        {view === 'home' && <>
+          <p className="support-kicker">CHITOSE BANK · ヘルプセンター</p><h3>どんなことでお困りですか？</h3>
+          <p className="support-muted">仕事のことも、使い方のことも。解決方法を探すか、運営に相談できます。</p>
+          <label className="support-search">ヘルプを検索<input type="search" placeholder="例：欠勤、報酬、ログイン" value={query} onChange={event => setQuery(event.target.value)} /></label>
+          <div className="support-audiences" aria-label="案内の対象">{[['all','すべて'],['worker','働き手の方'],['farmer','求人者の方']].map(([value,label]) => <button key={value} aria-pressed={audience === value} onClick={() => setAudience(value)}>{label}</button>)}</div>
+          <div className="support-quick-actions"><button className="support-secondary" onClick={() => { setGuideId(null); go('compose'); }}>運営に相談する</button><button className="support-secondary" onClick={loadHistory}>相談履歴</button></div>
+          <p className="support-save-hint">相談の続き・運営からの返信は「相談履歴」へ。</p>
           {(draft.body || draft.expected || draft.pending) && <button className="support-secondary" onClick={() => go('compose')}>下書きを続ける</button>}
-          <div className="support-choice-list">{SUPPORT_TOPICS.map(item => <button className="support-choice" key={item.value} onClick={() => { setTopic(item.value); if (!draft.pending) change({ topic: item.value }); go('guide'); }}><span>{item.label}</span><span aria-hidden="true">›</span></button>)}</div>
-          <button className="support-secondary" onClick={loadHistory}>相談履歴</button><p className="support-save-hint">運営からの返信も、相談履歴で確認できます。</p></>}
+          <h4>{query.trim() ? '検索結果' : '困りごとから探す'}</h4>
+          {query.trim() && <p role="status" className="support-muted">{results.length + topicResults.length}件の案内</p>}
+          <div className="support-guide-grid">{results.map(item => <button className="support-guide-card" key={item.id} onClick={() => { setGuideId(item.id); go('article'); }}><strong>{item.title}</strong><small>{item.summary}</small><span aria-hidden="true">読む →</span></button>)}</div>
+          {!results.length && !topicResults.length && <p className="support-notice">該当する案内がありません。別の言葉で検索するか、そのまま運営に相談できます。</p>}
+          {topicResults.length > 0 && <><h4>操作・使い方の案内</h4><div className="support-choice-list">{topicResults.map(item => <button className="support-choice" key={item.value} onClick={() => { setGuideId(null); setTopic(item.value); if (!draft.pending) change({ topic: item.value }); go('guide'); }}><span>{item.label}</span><span aria-hidden="true">›</span></button>)}</div></>}
+        </>}
+        {view === 'article' && article && <>
+          <p className="support-kicker">{article.audience === 'worker' ? '働き手の方へ' : article.audience === 'farmer' ? '求人者の方へ' : '働き手・求人者の方へ'}</p>
+          <h3>{article.title}</h3><ol className="support-help-steps">{article.steps.map(step => <li key={step}>{step}</li>)}</ol>
+          <div className="support-contact-card"><h4>解決しない場合は</h4><p>{article.prompt}</p>
+          <button className="support-primary" onClick={() => {
+            setTopic(article.topic);
+            if (!draft.body && !draft.expected && !draft.pending) change({ topic: article.topic, guideId: article.id, category: 'other', includeDiagnostics: false, body: `相談したいこと：${article.title}\n\n` });
+            go('compose');
+          }}>{draft.body || draft.expected || draft.pending ? '下書きを続けて相談する' : 'この件を運営に相談する'}</button>
+          {(draft.body || draft.expected || draft.pending) && <p className="support-save-hint">書きかけの相談を残しています。内容を確認してから送信してください。</p>}
+          <button className="support-link" onClick={loadHistory}>すでに相談した方は相談履歴へ</button></div>
+          <button className="support-secondary" onClick={() => go('home')}>ほかの解決方法を探す</button><button className="support-link" onClick={onClose}>元の操作に戻る</button>
+        </>}
         {view === 'guide' && <><p className="support-kicker">{activeTopic.label}</p><h3>まず確認できること</h3><ol className="support-help-steps">{activeTopic.steps.map(step => <li key={step}>{step}</li>)}</ol>
           <button className="support-primary" onClick={() => { if (!draft.pending) change({ topic }); go('compose'); }}>この内容で相談する</button><button className="support-secondary" onClick={onClose}>元の操作に戻る</button><button className="support-link" onClick={loadHistory}>相談履歴を見る</button></>}
         {view === 'compose' && <form onSubmit={send}>
-          <p className="support-kicker">{supportTopicLabel(draft.topic)}</p><h3>困ったことを教えてください</h3><p className="support-muted">小さな迷いや改善の提案も、運営が確認します。</p>
+          <p className="support-kicker">{draftGuide?.title || supportTopicLabel(draft.topic)}</p><h3>困ったことを教えてください</h3><p className="support-muted">仕事上の困りごとや、操作の相談を運営が確認します。返信は「相談履歴」に届きます。</p>
           <p className="support-notice">報告を送ると、開いていた画面の種類も自動で運営に届きます。スクリーンショットや元の画面の入力内容は添付されません。</p>
-          <fieldset className="support-impact" disabled={Boolean(draft.pending)}><legend>今の状況</legend>{SUPPORT_IMPACTS.map(item => <label key={item.value}><input type="radio" name="support-impact" value={item.value} checked={draft.impact === item.value} onChange={() => change({ impact: item.value, category: item.value === 'suggestion' ? 'suggestion' : item.value === 'blocked' ? 'broken' : 'confusing' })} />{item.label}</label>)}</fieldset>
-          <label className="support-field">報告の種類<select name="support-category" disabled={Boolean(draft.pending)} value={draft.category} onChange={event => change({ category: event.target.value })}>{CATEGORIES.map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="support-field">どこで、どうなりましたか？<small>例：PDFを作るボタンを押すと、作成中のまま進みません。</small><textarea name="support-body" required maxLength={3000} rows={4} disabled={Boolean(draft.pending)} value={draft.body} onChange={event => change({ body: event.target.value })} placeholder="気づいたことを、そのまま書いてください" /><small>{draft.body.length}/3000文字。パスワード・認証コード・個人の連絡先は書かないでください。</small></label>
-          <label className="support-field">どうなればよかったですか？ <span className="support-muted">任意</span><input name="support-expected" maxLength={1000} disabled={Boolean(draft.pending)} value={draft.expected} onChange={event => change({ expected: event.target.value })} placeholder="例：PDFをスマホに保存したかった" /></label>
+          <fieldset className="support-impact" disabled={Boolean(draft.pending)}><legend>今の状況</legend>{SUPPORT_IMPACTS.map(item => <label key={item.value}><input type="radio" name="support-impact" value={item.value} checked={draft.impact === item.value} onChange={() => change({ impact: item.value, category: draftGuide ? 'other' : item.value === 'suggestion' ? 'suggestion' : item.value === 'blocked' ? 'broken' : 'confusing' })} />{draftGuide ? ({ blocked: '仕事・手続きを進められない', difficult: '確認・相談したい', suggestion: '改善を提案したい' }[item.value]) : item.label}</label>)}</fieldset>
+          {!draftGuide && <label className="support-field">報告の種類<select name="support-category" disabled={Boolean(draft.pending)} value={draft.category} onChange={event => change({ category: event.target.value })}>{CATEGORIES.map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>}
+          <label className="support-field">どこで、どうなりましたか？<small>{draftGuide ? draftGuide.prompt : "例：仕事名・作業日、起きたこと、確認してほしいこと。操作の相談は画面名と状況を教えてください。"}</small><textarea name="support-body" required maxLength={3000} rows={4} disabled={Boolean(draft.pending)} value={draft.body} onChange={event => change({ body: event.target.value })} placeholder="気づいたことを、そのまま書いてください" /><small>{draft.body.length}/3000文字。パスワード・認証コード・個人の連絡先は書かないでください。</small></label>
+          <label className="support-field">どうなればよかったですか？ <span className="support-muted">任意</span><input name="support-expected" maxLength={1000} disabled={Boolean(draft.pending)} value={draft.expected} onChange={event => change({ expected: event.target.value })} placeholder={draftGuide ? "例：欠勤の記録を確認してほしい" : "例：PDFをスマホに保存したかった"} /></label>
           <div className="support-diagnostics"><label><input type="checkbox" name="support-diagnostics" checked={draft.includeDiagnostics} disabled={Boolean(draft.pending)} onChange={event => change({ includeDiagnostics: event.target.checked })} /><span>原因の確認に必要な技術情報を添付する</span></label><p>時刻・画面幅・アプリの版・直近のエラー識別子。入力内容や操作の録画は含みません。</p>{draft.includeDiagnostics && <details><summary>添付する内容を見る</summary><pre>{JSON.stringify(draft.context,null,2)}</pre></details>}<p>相談は本人と運営が確認できます。</p></div>
           <label className="support-honeypot" aria-hidden="true">会社名<input tabIndex={-1} autoComplete="off" value={trap} onChange={event => setTrap(event.target.value)} /></label>
           {draft.pending && !busy && <p className="support-notice">送信の確認が終わるまで内容を保持しています。同じ内容で再送するか、相談履歴を確認できます。</p>}

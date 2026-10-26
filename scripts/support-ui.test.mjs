@@ -81,6 +81,52 @@ test('support preserves the original task while reports, replies and recovery wo
       await until(() => button(w, '運営に送信する'), 'report composer');
     }
 
+    await t.test('search, audience filters and no-results retain direct access to support', async () => {
+      const w = mount();
+      await until(() => w.document.querySelector('input[type="search"]'), 'search');
+      await fill(w, 'input[type="search"]', 'ＰＤＦ');
+      assert.ok(button(w, '労働条件通知書・PDF'), 'search includes the existing operation guides and normalizes width');
+      await fill(w, 'input[type="search"]', '欠勤');
+      assert.ok(w.document.querySelector('.support-guide-card').textContent.includes('欠勤'));
+      button(w, '求人者の方').click(); await pause(15);
+      assert.equal([...w.document.querySelectorAll('.support-guide-card')].some(el => el.textContent.includes('心当たり')), false);
+      await fill(w, 'input[type="search"]', '該当しない検索語');
+      assert.equal(w.document.querySelectorAll('.support-guide-card').length, 0);
+      assert.match(dialog(w).textContent, /該当する案内がありません/);
+      button(w, '運営に相談する').click();
+      await until(() => sendButton(w), 'contact without a matching article');
+      assert.equal(w.qaRequests.length, 0, 'reading and searching never creates a report');
+    });
+    await t.test('unknown absence time opens guidance and creates a reviewable support case', async () => {
+      const w = mount({ qaInitialRequest: { guide: 'absence-time' } });
+      await until(() => button(w, 'この件を運営に相談する'), 'absence guide');
+      assert.match(dialog(w).textContent, /訂正を保証するものではありません/);
+      button(w, 'この件を運営に相談する').click();
+      await until(() => sendButton(w), 'absence composer');
+      assert.match(w.document.querySelector('textarea[name="support-body"]').value, /通知時刻を確認できず/);
+      await fill(w, 'textarea[name="support-body"]', w.document.querySelector('textarea[name="support-body"]').value + '10月20日の収穫作業に出勤しました。通知日時は不明です。');
+      sendButton(w).click(); await until(() => button(w, '相談の状況を見る'), 'receipt');
+      assert.equal(Object.keys(w.qaReports).length, 1);
+      assert.equal(w.qaRequests[0].name, 'support_create');
+      assert.match(w.qaRequests[0].args.p_body, /通知日時は不明/);
+      button(w, '相談の状況を見る').click();
+      await until(() => button(w, '追記を送信する'), 'follow up in same case');
+    });
+    await t.test('a contextual guide preserves an existing draft and pending payload', async () => {
+      const draft = { id: '20000000-0000-4000-8000-000000000009', topic: 'pdf', body: 'PDFの件で書きかけの相談', expected: 'PDFを保存したい', savedAt: Date.now() };
+      const w = mount({ qaUserId: userA, qaInitialRequest: { guide: 'absence-time' }, qaStored: { [`cb_support_v1:draft:user:${userA}`]: draft } });
+      await until(() => button(w, '下書きを続けて相談する'), 'existing draft warning');
+      button(w, '下書きを続けて相談する').click();
+      await until(() => sendButton(w), 'existing draft composer');
+      assert.equal(w.document.querySelector('textarea[name="support-body"]').value, draft.body);
+      assert.equal(w.document.querySelector('input[name="support-expected"]').value, draft.expected);
+    });
+    await t.test('an invalid contextual guide returns to the help home', async () => {
+      const w = mount({ qaInitialRequest: { guide: 'not-a-guide', view: 'article' } });
+      await until(() => button(w, '運営に相談する'), 'safe help fallback');
+      assert.ok(w.document.querySelector('input[type="search"]'));
+    });
+
     // Each scenario below uses synthetic records only; no production network is available.
     await t.test('the modal closes back to the untouched task and restores keyboard focus', async () => {
       const w = mount({ qaOpen: false });
