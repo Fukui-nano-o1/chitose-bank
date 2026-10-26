@@ -1819,6 +1819,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             // 本人（ログイン中）は番地・評価を見られる。未ログインの下書き（localOnly）は訪問者と同じ見え方
             const previewMe = ownerId ? { id: ownerId } : null;
             const goStep = (n) => () => { setReturnToConfirm(true); if (typeof n === "string") setPage(n); else setStep(n); };
+            // 旧プレビュー区画の編集リンク構築は残し、表示のみ編集タブへ集約する。
+            // confDecorate の既存参照を壊さない。
+            const editBtn = (label, go) => <button key={label} type="button" onClick={go}>{label}</button>;
             // 確認画面の編集入口は「編集」タブに集約する。
             const editRow = () => null;
             const confDecorate = (label, node) => {
