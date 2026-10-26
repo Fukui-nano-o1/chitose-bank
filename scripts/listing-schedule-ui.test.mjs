@@ -119,9 +119,11 @@ test('stage 2 real listing: one topic per URL, retained input, browser history a
     });
     await t.test('review exposes separate edit links and missing headcount lands only on the headcount page',async()=>{
       let w=await mount({url:'https://ui.test/#/work/edit/42',job:dbRow({draft_step:12,draft_step_id:'review'}),offline:false});await page(w,'review');
-      button(w,'採用人数').click();await page(w,'headcount');assert.match(w.location.hash,/return=review/);
+      button(w,'編集').click();await until(()=>q(w,'[data-edit-page="headcount"]'),'edit tab: headcount');
+      q(w,'[data-edit-page="headcount"]').click();await page(w,'headcount');assert.match(w.location.hash,/return=review/);
       await setCount(w,'6');button(w,'確認に戻る').click();await page(w,'review');
-      button(w,'休日').click();await page(w,'holidays');button(w,'確認に戻る').click();await page(w,'review');
+      button(w,'編集').click();await until(()=>q(w,'[data-edit-page="holidays"]'),'edit tab: holidays');
+      q(w,'[data-edit-page="holidays"]').click();await page(w,'holidays');button(w,'確認に戻る').click();await page(w,'review');
       w=await mount({url:'https://ui.test/#/work/edit/42',job:dbRow({draft_step:12,draft_step_id:'review',headcount:null}),offline:false});await page(w,'review');
       await until(()=>!button(w,'掲載する').disabled,'minimum wage loaded');button(w,'掲載する').click();await page(w,'headcount');
       assert.equal(q(w,'[aria-label="2026-12-01"]'),null);assert.equal(record(w).payload.date_start,'2026-12-01');

@@ -110,13 +110,13 @@ export function explainError(e) {
   for (const k of KNOWN_ERRORS) if (k.match(low, e)) return k;
   return translateError(e.message || "");
 }
-// UAによる表示上の区別。Googleによる接続元の検証や権限判定には使わない。
+// UAの自己申告を検出するだけ。Googleによる接続元の検証や権限判定には使わない。
 export function isGooglebot(ua) {
   return /(?:^|[^a-z0-9_-])googlebot(?:-[a-z]+)?(?:\/|[\s;)]|$)/i.test(ua || "");
 }
 // 端末・アクセス元の内訳。巡回はAndroid等の判定より先に区別する。
 export function deviceLabel(ua) {
-  if (isGooglebot(ua)) return "Googlebot（自動巡回）";
+  if (isGooglebot(ua)) return "Googlebot申告・未検証";
   const s = (ua || "").toLowerCase();
   if (!s) return "不明";
   if (s.includes("iphone") || s.includes("ipad")) return "iPhone/iPad";
@@ -188,20 +188,23 @@ export function groupAppErrors(rows) {
 
 // 種類の具体的な事実（展開表示とコピー報告文の両方が使う唯一のソース）
 export function groupFacts(g) {
-  const visitors = g.rows.filter(r => !isGooglebot(r.user_agent));
-  const botN = g.rows.length - visitors.length;
-  const userN = new Set(visitors.filter(r => r.user_id).map(r => r.user_id)).size;
-  const anonN = visitors.filter(r => !r.user_id).length;
+  // 自称クローラーも利用者への影響から除外しない。過去の自己申告IDを認証済みと数えない。
+  const verified = g.rows.filter(r => r.identity_verified === true);
+  const unknownN = g.rows.length - verified.length;
+  const botN = g.rows.filter(r => isGooglebot(r.user_agent)).length;
+  const userN = new Set(verified.filter(r => r.user_id).map(r => r.user_id)).size;
+  const anonN = verified.filter(r => !r.user_id).length;
   const tally = (fn) => {
     const t = {};
     g.rows.forEach(r => { const k = fn(r); t[k] = (t[k] || 0) + 1; });
     return Object.entries(t).sort((a, b) => b[1] - a[1]);
   };
-  return { userN, anonN, botN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => errorPage(r)) };
+  return { userN, anonN, unknownN, botN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => errorPage(r)) };
 }
-export function errorImpactLabel({ userN, anonN, botN }) {
-  return `ログイン利用者${userN}人・未ログインの発生${anonN}件` +
-    (botN > 0 ? `・Googlebot（自動巡回）${botN}件` : "");
+export function errorImpactLabel({ userN, anonN, unknownN = 0, botN }) {
+  return `認証確認済みの利用者${userN}人・未ログインの発生${anonN}件` +
+    (unknownN > 0 ? `・認証状態を確認できない旧記録${unknownN}件` : "") +
+    (botN > 0 ? `（うちGooglebot申告・未検証${botN}件）` : "");
 }
 // 状況の報告文（2026-08-07たきと指示「コピーボタンを各エラーに設置。君にどんな状況か説明できる状態にする」）：
 // AIや開発者にそのまま貼れる自己完結のテキスト。個人情報は入れない（user_idは人数のみ・メール等なし）

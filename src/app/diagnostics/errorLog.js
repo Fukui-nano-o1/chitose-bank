@@ -22,7 +22,7 @@ export function sanitizeMessage(msg = "") {
   return String(msg).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]").replace(/\d{2,4}-\d{2,4}-\d{3,4}/g, "[phone]").slice(0, 1000);
 }
 
-export async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {}, userId = null }) {
+export async function logAppError({ level = "error", source = "client", page = "", component = "", action = "", operation = "", error, metadata = {} }) {
   rememberSupportFailure({ source, action, operation, error });
   // 中身の見えない「Script error.」（外部スクリプト起因）は app_errors に書かない（2026-09-29・
   // 詳細は errorThrottle.js）。端末内の診断メモ（上の rememberSupportFailure）には残る
@@ -35,7 +35,8 @@ export async function logAppError({ level = "error", source = "client", page = "
     const gate = admitError(message);
     if (!gate.ok) return;   // 同じ文言の連発＝この読み込みでは以後書かない（DBを守る）
     await supabase.from("app_errors").insert({
-      session_id: getSessionId(), user_id: userId, level, source, page, component, action, operation,
+      // 利用者ID・受付日時・対応状態はDBが確定する。古い呼び出しのuserIdは使用しない。
+      session_id: getSessionId(), level, source, page, component, action, operation,
       error_code: error?.code || error?.status || null,
       message,
       stack: sanitizeMessage(error?.stack || ""),

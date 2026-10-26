@@ -106,7 +106,7 @@ export function AdminSystemRoom() {
     (async () => {
       try {
         const { data } = await supabase.from("app_errors")
-          .select("id,created_at,source,page,url,component,action,operation,error_code,message,status,user_id,user_agent")
+          .select("id,created_at,source,page,url,component,action,operation,error_code,message,status,user_id,user_agent,identity_verified")
           .order("created_at", { ascending: false }).limit(500);
         setAppErrors(data || []);
       } catch { setAppErrors([]); }
@@ -230,7 +230,7 @@ export function AdminSystemRoom() {
             ...(isOpen ? {} : { display:"-webkit-box", WebkitLineClamp: ex ? 1 : 2, WebkitBoxOrient:"vertical", overflow:"hidden" }),
           }}>{g.latest.message || "(メッセージなし)"}</p>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-            {facts.botN > 0 && <span className="tag" style={{ background:"#E6F7EF", color:"#1B7A54" }}>Googlebot（自動巡回）{facts.botN}件</span>}
+            {facts.botN > 0 && <span className="tag" style={{ background:"#FFF4DF", color:"#805B17" }}>Googlebot申告・未検証{facts.botN}件</span>}
             {g.latest.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.component}</span>}
             {g.latest.source && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.source}</span>}
             {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
