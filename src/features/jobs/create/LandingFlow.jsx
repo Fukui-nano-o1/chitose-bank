@@ -1819,15 +1819,9 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             // 本人（ログイン中）は番地・評価を見られる。未ログインの下書き（localOnly）は訪問者と同じ見え方
             const previewMe = ownerId ? { id: ownerId } : null;
             const goStep = (n) => () => { setReturnToConfirm(true); if (typeof n === "string") setPage(n); else setStep(n); };
-            const editBtn = (label, go) => (
-              <button key={label} type="button" onClick={go} className="f-sans"
-                style={{ background:"none", border:"none", fontSize:13, fontWeight:700, color:"#222", textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer", padding:0 }}>{label}</button>
-            );
-            // 区画の末尾に右寄せで置く編集の行。複数の入口がある区画は「編集：」を頭に添える。
-            // last＝本文の末尾の区画（知っておくこと）だけ右に64px空ける＝JobDetailBody の右下「トップ」浮遊ボックス
-            // （56px）が本文の末尾に自然に着地したとき、リンクの上に重ならないように
-            const editRow = () => null; // 編集操作は確認画面の「編集」タブに集約
-                        const confDecorate = (label, node) => {
+            // 確認画面の編集入口は「編集」タブに集約する。
+            const editRow = () => null;
+            const confDecorate = (label, node) => {
               switch (label) {
                 case "写真": return (
                   <div key={label}>
