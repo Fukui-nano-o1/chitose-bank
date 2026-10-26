@@ -213,3 +213,21 @@
 
 /* 第5弾: 確認・募集者情報・掲載同意の共通ページ。 */
 .listing-publication-section{min-width:0;width:100%}.listing-publication-fields{border:0;padding:0;margin:24px 0;min-width:0}.listing-publication-fields input:not([type=checkbox]){box-sizing:border-box;width:100%;min-width:0;font-size:16px}.listing-publication-label{display:block;font-weight:600;margin:16px 0 8px}.listing-publication-error{padding:16px;border:1px solid #f1d0cc;border-radius:12px;background:#fff7f6;color:#a32619;line-height:1.7;margin:16px 0;overflow-wrap:anywhere}.listing-publication-checks{padding-left:22px;line-height:1.8}.listing-publication-checks li{margin-bottom:18px}.listing-publication-consent{display:flex;align-items:center;gap:14px;padding:20px;border:1px solid #222;border-radius:12px;font-weight:600}.listing-publication-consent input{width:22px;height:22px;accent-color:#222;flex:none}.listing-review-edit-index{padding:24px 0;border-bottom:1px solid #ebebeb;margin-bottom:24px}.listing-review-edit-index>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.listing-review-edit{font:inherit;color:#222;display:flex;justify-content:space-between;gap:12px;text-align:left;width:100%;min-width:0;box-sizing:border-box;background:#fff;border:1px solid #ddd;border-radius:12px;padding:16px;cursor:pointer}.listing-review-edit span{min-width:0;overflow-wrap:anywhere}.listing-review-edit span:last-child{flex-shrink:0}.listing-review-edit:focus-visible{outline:2px solid #222;outline-offset:2px}@media(max-width:600px){.listing-review-edit-index>div{grid-template-columns:minmax(0,1fr)}}
+
+
+/* 危険な場所: 一件ごとの入力カード。写真の公開権限は既存ListingPhotoを維持。 */
+.listing-danger-card{border:1px solid #ddd;border-radius:18px;padding:18px;margin:16px 0 12px;background:#fff;min-width:0}
+.listing-danger-card-title{display:block;color:#222;font-size:17px;margin-bottom:18px}
+.listing-danger-label{display:block;color:#222;font-size:14px;font-weight:650;margin:14px 0 8px}
+.listing-danger-input{display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;border:1px solid #858585!important;border-radius:12px!important;padding:14px!important;font-size:16px!important;color:#222!important;background:#fff!important}
+.listing-danger-input::placeholder{color:#767676;opacity:1}
+.listing-danger-input:focus{outline:2px solid #222!important;outline-offset:0}
+.listing-danger-textarea{resize:vertical;min-height:100px}
+.listing-danger-photo-row{display:flex;align-items:stretch;flex-wrap:wrap;gap:10px;margin-top:16px}
+.listing-danger-photo{width:92px;height:92px;position:relative;overflow:hidden;border-radius:12px}
+.listing-danger-remove-photo{position:absolute;top:5px;right:5px;width:30px;height:30px;background:#222;color:#fff;border:0;border-radius:50%;font-size:20px;cursor:pointer}
+.listing-danger-photo-add{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 16px;border:1px solid #222;border-radius:12px;background:#fff;color:#222;font-size:14px;font-weight:650;cursor:pointer}
+.listing-danger-photo-add input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.listing-danger-photo-add:focus-within{outline:2px solid #222;outline-offset:3px}
+.listing-danger-add-another{display:block;width:100%;min-height:48px;background:#fff;color:#222;border:1px solid #222;border-radius:12px;font-size:15px;font-weight:650;cursor:pointer}
+.listing-danger-delete-second{background:none;border:0;text-decoration:underline;color:#222;min-height:44px;cursor:pointer}
