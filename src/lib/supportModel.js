@@ -6,7 +6,7 @@ export const SUPPORT_TOPICS = [
   { value: 'post', label: '求人の掲載・途中保存', steps: ['入力が残っている場合は、この画面を閉じると元の操作に戻れます。', '保存や掲載後に応答がない場合は、保存済み・掲載済みになっていないか確認してください。', '進めなかった項目や操作を報告してください。内容を消してやり直す必要はありません。'] },
   { value: 'pdf', label: '労働条件通知書・PDF', steps: ['通知書の内容が画面で確認できるか、PDF作成だけが止まっているかを確認してください。', 'すでに保存されていないか、端末のダウンロード一覧を確認できます。', '作成中から進まない、保存できない場合は、その状態を報告してください。'] },
   { value: 'chat', label: 'チャット・連絡', steps: ['相手と仕事が合っているか、チャットの見出しを確認してください。', '送信できたか不明なときは、同じ内容を続けて送る前に履歴を確認してください。', '個人の連絡先や会話の全文を書かず、困った操作を報告できます。'] },
-  { value: 'other', label: '表示・使い方・改善の提案', steps: ['分かりにくかった言葉、見つからなかったボタンなどを教えてください。', '「何をしようとしたか」と「どうなったか」が分かると改善に役立ちます。', '改善の提案も、この相談から受け付けています。'] },
+  { value: 'other', label: '仕事・使い方・その他の相談', steps: ['欠勤の記録、報酬、仕事上のトラブルも、ここから運営に相談できます。', '仕事の相談は仕事名・作業日・起きたことを、操作の相談は画面名と状況を教えてください。', '相談後の回答や追加のやり取りは、相談履歴で確認できます。改善の提案も受け付けています。'] },
 ];
 export const SUPPORT_IMPACTS = [
   { value: 'blocked', label: '操作が止まっている' },
@@ -14,7 +14,7 @@ export const SUPPORT_IMPACTS = [
   { value: 'suggestion', label: '改善を提案したい' },
 ];
 export const SUPPORT_STATUSES = { open: '受付', checking: '確認中', answered: '回答あり', resolved: '対応済み' };
-export const supportTopicLabel = value => SUPPORT_TOPICS.find(item => item.value === value)?.label || '画面についての相談';
+export const supportTopicLabel = value => SUPPORT_TOPICS.find(item => item.value === value)?.label || '運営への相談';
 export const supportImpactLabel = value => SUPPORT_IMPACTS.find(item => item.value === value)?.label || '影響の記録なし';
 export const supportStatusLabel = value => SUPPORT_STATUSES[value] || '受付';
 export const supportReceipt = id => `CB-${String(id || '').slice(0, 8).toUpperCase()}`;

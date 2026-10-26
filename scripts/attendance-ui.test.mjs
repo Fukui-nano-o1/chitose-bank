@@ -44,6 +44,14 @@ test('actual attendance and dispute screens recover pending reports and never cl
     const w=await mount(mode,{readError:true});assert.ok(w.document.querySelector('textarea').disabled);assert.equal(w.qaAttendance.state.calls.length,0);w.qaOptions.readError=false;button(w,'もう一度読み込む').click();await until(()=>!w.document.querySelector('textarea').disabled,'retry read');await fill(w);w.qaOptions.rejected=true;send(w).click();await until(()=>w.qaAlerts.length,'rejected');assert.equal(w.qaDone.length,0);assert.equal(w.document.querySelector('textarea').value,'連絡内容');assert.equal(w.qaAttendance.state.writes,0);
    });
   }
+  await t.test('dispute support opens the relevant guide while leaving the reason untouched',async()=>{
+   const w=await mount('dispute');await fill(w,'出勤しています。記録の確認をお願いします。');
+   let request;w.addEventListener('cb:open-support',event=>{request=event.detail;});
+   button(w,'通知時刻が分からない・申立できないとき').click();
+   assert.equal(request.guide,'absence-time');assert.equal(request.view,'article');
+   assert.equal(w.document.querySelector('textarea').value,'出勤しています。記録の確認をお願いします。');
+   assert.equal(w.qaAttendance.state.writes,0);assert.equal(w.qaDone.length,0);
+  });
   await t.test('changed reason after unknown send is not falsely acknowledged as saved',async()=>{
    const w=await mount('dispute',{lostResponse:true});await fill(w,'元の内容');send(w).click();await until(()=>w.qaAlerts.length,'unknown');setText(w,'変更後の内容');await pause(10);w.qaOptions.lostResponse=false;send(w).click();await until(()=>w.qaAlerts.length===2,'changed warning');assert.equal(w.qaDone.length,0);assert.equal(w.document.querySelector('textarea').value,'変更後の内容');assert.equal(w.qaAttendance.state.writes,1);assert.match(w.qaAlerts[1],/まだ送信していません/);
   });
