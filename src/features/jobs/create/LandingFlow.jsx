@@ -1826,12 +1826,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             // 区画の末尾に右寄せで置く編集の行。複数の入口がある区画は「編集：」を頭に添える。
             // last＝本文の末尾の区画（知っておくこと）だけ右に64px空ける＝JobDetailBody の右下「トップ」浮遊ボックス
             // （56px）が本文の末尾に自然に着地したとき、リンクの上に重ならないように
-            const editRow = (links, prefix, last) => (
-              <div className="f-sans" style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", flexWrap:"wrap", gap:"4px 12px", marginTop:10, fontSize:12, color:"#B0B0B0", paddingRight: last ? 64 : 0 }}>
-                {prefix && <span>{prefix}</span>}{links}
-              </div>
-            );
-            const confDecorate = (label, node) => {
+            const editRow = () => null; // 編集操作は確認画面の「編集」タブに集約
+                        const confDecorate = (label, node) => {
               switch (label) {
                 case "写真": return (
                   <div key={label}>
@@ -1902,19 +1898,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                 {/* 本文＝求人詳細ページ・ボックス版・審査プレビューと同じ JobDetailBody。募集主の材料（employer／trust）は
                     本人のプロフィールを渡す＝求人番号の無い下書きでも募集主の行・募集主カード・保険が出る。
                     仕事の内容／質問のタブも同じ（質問は draftJobNumber があるときだけ本物の求人Q&A） */}
-                <section className="listing-review-edit-index" aria-label="入力項目を編集">
-                  <h2>入力項目の確認</h2>
-                  <p>変更したい項目だけを編集できます。入力後は、この確認画面に戻ります。</p>
-                  <div>{[["photos","写真"],["photo_captions","写真の説明"],["description","作業の説明"],
-                    ["work_video","YouTube動画"],["video_consent","動画の利用同意"],
-                    ["danger_places","危険な場所"],["danger_tasks","危険な作業"],
-                    ["belongings","持ち物"],["cautions","注意事項"],["worker_preferences","経験に関する希望"],["repeat_approval","リピーターの自動承認"],
-                    ...Object.entries(RECRUITER_FIELDS).map(([id, field]) => [id, field.title])]
-                    .filter(([id]) => (id !== "photo_captions" || jobPhotos.length > 0) && (id !== "video_consent" || !!workVideoUrl.trim()))
-                    .map(([id, title]) => <button type="button" className="listing-review-edit" key={id} data-edit-page={id} onClick={goStep(id)}>
-                      <span>{title}</span><span aria-hidden="true">編集 ›</span>
-                    </button>)}</div>
-                </section>
                 {recruiter.status !== "ready" && <div role="status" className="listing-publication-error">
                   <p>{recruiter.status === "loading" ? "登録情報を確認しています…" : "登録情報を確認できませんでした。確認できるまで掲載しません。"}</p>
                   <button type="button" className="listing-back" disabled={recruiter.status === "loading"} onClick={recruiter.reload}>登録情報を再確認</button>
@@ -1923,7 +1906,28 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   <h2>掲載前に確認が必要です</h2>
                   {getPublishMissingFields().map(item => <button key={item.label} type="button" className="listing-review-edit" onClick={() => goToMissingField([item])}>{item.label}を確認</button>)}
                 </section>}
-                <JobDetailBody job={previewJob} me={previewMe} employer={confEmployer} trust={confTrust}
+                <JobDetailBody reviewEditContent={(
+                  <section className="listing-review-edit-index" aria-label="入力項目を編集">
+                    <h2>入力項目を編集</h2>
+                    <p>変更したい項目を選んでください。編集後は確認画面へ戻ります。</p>
+                    <div>{[
+                  ["crop","作物"],["task","作業"],["task_scope","作業の変更範囲"],
+                  ["workplace","集合場所"],["place_scope","場所の変更範囲"],["access","アクセス"],
+                  ["schedule","日程"],...(isMultiDaySchedule(jobDateStart,jobDateEnd)?[["holidays","期間内の休日"]]:[]),
+                  ["headcount","採用人数"],["work_time","勤務時間"],["break_time","休憩時間"],
+                  ["overtime","時間外労働"],["daily_wage","日給"],
+                  ["photos","写真"],...(jobPhotos.length?[["photo_captions","写真の説明"]]:[]),
+                  ["description","作業の説明"],["work_video","YouTube動画"],
+                  ...(workVideoUrl.trim()?[["video_consent","動画の利用同意"]]:[]),
+                  ["danger_places","危険な場所"],["danger_tasks","危険な作業"],
+                  ["belongings","持ち物"],["cautions","注意事項"],
+                  ["worker_preferences","経験に関する希望"],["repeat_approval","リピーターの自動承認"],
+                  ...Object.entries(RECRUITER_FIELDS).map(([id, field])=>[id,field.title]),
+                  ["smoking_policy","受動喫煙の状況"]
+                ].map(([id,title])=><button type="button" className="listing-review-edit" key={id} data-edit-page={id} onClick={goStep(id)}><span>{title}</span><span aria-hidden="true">編集 ›</span></button>)}</div>
+                    <button type="button" className="listing-review-edit" onClick={openPerksEdit}><span>待遇</span><span aria-hidden="true">編集 ›</span></button>
+                  </section>
+                )} job={previewJob} me={previewMe} employer={confEmployer} trust={confTrust}
                   onOpenIntro={(confEmployer && confEmployer.nickname) ? () => setConfIntroOpen(true) : undefined}
                   decorate={confDecorate} />
                 {/* 報酬バー＝求人詳細ページの下の応募バー（報酬＋支払条件）に当たる部分（審査プレビューと同じ置き方）。
@@ -1935,7 +1939,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                     {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
                     <span className="f-sans" style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.5, marginTop:2 }}>{payTermsLine(CURRENT_PAY_POLICY)}</span>
                   </div>
-                  {editBtn("日給を編集", goStep("daily_wage"))}
+                  
                 </div>
               </div>
 
