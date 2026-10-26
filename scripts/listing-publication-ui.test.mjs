@@ -128,6 +128,7 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
       let w=await mount({url:'https://ui.test/#/work/edit/42',job:dbRow({draft_step:12}),offline:false});await page(w,'review');
       const details=['photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','repeat_approval'];
       for(const id of details){
+        button(w,'編集').click();await until(()=>q(w,`[data-edit-page="${id}"]`),'edit tab: '+id);
         assert.ok(q(w,`[data-edit-page="${id}"]`),id);q(w,`[data-edit-page="${id}"]`).click();await page(w,id);assert.match(w.location.hash,/return=review/);
         w=await mount({url:w.location.href,storage:storage(w),job:w.qaJob,offline:false});await page(w,id);
         button(w,'確認に戻る').click();await page(w,'review');assert.equal(publications(w).length,0);

@@ -59,9 +59,8 @@ export default function PrivacyReconsent({ authId, onAgreed, onPending, onShowPr
       <div style={{ background:"#F7F7F7", border:"1px solid #EBEBEB", borderRadius:16, padding:"18px 20px", marginBottom:18 }}>
         <p style={{ fontSize:13, fontWeight:700, color:"#222", margin:"0 0 10px" }}>おもな改訂の内容</p>
         <ul style={{ margin:0, paddingLeft:18, fontSize:13, color:"#444", lineHeight:1.9 }}>
-          <li>仕事の評価は、最終作業の終了から72時間だけ入力できます。</li>
-          <li>相手が提出したかにかかわらず、公開は72時間後です。片方だけの評価も保存されます。</li>
-          <li>良い点は件数に集計して表示し、悪い点や自分用のメモは相手に表示しません。</li>
+          <li>不具合の記録では、利用者の取り違えを防ぐため、ログイン状態を認証情報で確認します。</li>
+          <li>この確認の有無も記録し、運営者だけが不具合の調査と修理に使用します。</li>
         </ul>
       </div>
 
