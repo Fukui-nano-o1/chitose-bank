@@ -122,10 +122,10 @@ export function ContentQSwipeArea({ value, onChange, children, onEdgeSwipe }) {
 }
 
 // 「仕事の内容」「質問」タブバー（第10弾・2026-07-22）：求人詳細・確認ページの写真下に置く
-export function ContentQTabs({ value, onChange }) {
+export function ContentQTabs({ value, onChange, reviewEdit = false }) {
   // 保険タブは廃止（2026-08-19たきと指示）＝保険カードはカレンダーの下（JobInsuranceSection）へ移植。
   // タブを足す時はここと ContentQSwipeArea の keys を必ず同じ並びで直す（横スワイプの行き先がずれる）
-  const tabs = [["content", "仕事の内容"], ["questions", "質問"]];
+  const tabs = [["content", "仕事の内容"], ["questions", reviewEdit ? "編集" : "質問"]];
   return (
     <div style={{ display:"flex", gap:4, borderBottom:"1px solid #EEE", marginBottom:20 }}>
       {tabs.map(([k, l]) => (
