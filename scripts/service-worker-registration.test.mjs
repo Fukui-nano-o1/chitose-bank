@@ -52,12 +52,12 @@ for (const kind of ['promise', 'synchronous', 'getter']) {
   });
 }
 
-test('reported stack gets an explanation; unrelated Rejected errors remain visible as render errors', () => {
+test('reported stack gets an explanation; unrelated Rejected errors remain visible as async errors', () => {
   const row = { message: 'Rejected', source: 'unhandledrejection', component: 'global',
     stack: 'Error: Rejected\n at wrsParams.serviceWorkers.navigator.serviceWorker.register (<anonymous>:12:648)\n at https://www.chitose-bank.com/registerSW.js:1:98' };
   assert.equal(errorCategoryKey(row), 'browser');
   assert.match(explainError(row).title, /Service Worker/);
   const unrelated = { ...row, stack: 'Error: Rejected\n at saveApplication (app.js:1:2)' };
-  assert.equal(errorCategoryKey(unrelated), 'render');
-  assert.equal(explainError(unrelated), null);
+  assert.equal(errorCategoryKey(unrelated), 'async');
+  assert.match(explainError(unrelated).title, /原因未特定/);
 });

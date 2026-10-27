@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 // エラーの辞書・分類・グループ化は lib/errorCatalog に集約（2026-08-07・画面上部の管理者帯と共有）
-import { explainError, deviceLabel, errorPage, groupAppErrors, groupFacts, errorImpactLabel, buildErrorReport, errorCategoryKey, ERROR_CATEGORIES } from "../../lib/errorCatalog";
+import { explainError, diagnoseError, deviceLabel, errorPage, groupAppErrors, groupFacts, errorImpactLabel, buildErrorReport } from "../../lib/errorCatalog";
 import { Dots } from "../ui";
 import { NavIconInline } from "../NavIcons";
 
@@ -97,37 +97,28 @@ export function AdminSystemRoom() {
   };
 
   // ── エラーログ（app_errors・RLSで管理者のみ読める。null=読み込み中）
-  // グループ集計のため直近500件（stackは重いので取らない・必要列のみ）
+  // 保存済みスタックを含む直近500件で分類する（既存ログは最大1000文字）。
+  // 展開するまで誤分類したり、同じ短文の別原因をまとめて解決しない。
   const [appErrors, setAppErrors] = useState(null);
+  const [errorLoadFailed, setErrorLoadFailed] = useState(false);
+  const [errorReload, setErrorReload] = useState(0);
   const [expandedSig, setExpandedSig] = useState(null);
   const [errBulkBusy, setErrBulkBusy] = useState("");
   const [errFilter, setErrFilter] = useState("all");   // 重要度（all/high/medium/unknown）
   useEffect(() => {
+    let active = true;
+    setErrorLoadFailed(false);
     (async () => {
       try {
-        const { data } = await supabase.from("app_errors")
-          .select("id,created_at,source,page,url,component,action,operation,error_code,message,status,user_id,user_agent,identity_verified")
+        const { data, error } = await supabase.from("app_errors")
+          .select("id,created_at,source,page,url,component,action,operation,error_code,message,stack,status,user_id,user_agent,identity_verified")
           .order("created_at", { ascending: false }).limit(500);
-        setAppErrors(data || []);
-      } catch { setAppErrors([]); }
+        if (error) throw error;
+        if (active) setAppErrors(data || []);
+      } catch { if (active) setErrorLoadFailed(true); }
     })();
-  }, []);
-  // スタックは重いので一覧では取らず、種類を展開・コピーした時に最新1件だけ取りにいく
-  // （保存は先頭15行＝コピー報告文用。画面表示は先頭6行に切って出す）
-  const [stackBySig, setStackBySig] = useState({});
-  const fetchStack = async (g) => {
-    const res = await supabase.from("app_errors").select("stack").eq("id", g.latest.id).maybeSingle();
-    const stack = (!res.error && res.data?.stack) ? res.data.stack.split("\n").slice(0, 15).join("\n") : "";
-    setStackBySig(prev => ({ ...prev, [g.sig]: stack }));
-    // 一覧取得は軽いまま保ち、詳細取得後にスタックを使った説明・分類へ更新する。
-    setAppErrors(prev => prev?.map(row => row.id === g.latest.id ? { ...row, stack } : row) ?? prev);
-    return stack;
-  };
-  const loadStack = (g) => {
-    if (stackBySig[g.sig] !== undefined) return;
-    setStackBySig(prev => ({ ...prev, [g.sig]: null }));   // null=取得中
-    fetchStack(g);
-  };
+    return () => { active = false; };
+  }, [errorReload]);
   // 合図（cb_sysErrorFocus）を持って来た時は、まず【該当のエラーだけ】をフォーカス表示する
   // （2026-08-07たきと指示「遷移先に該当するエラーをまず出して。解決した、もしくは閉じるで
   // システムのエラーへ遷移」）。1回で消費。500件の窓に無い時はフォーカスせず通常の一覧に着地
@@ -137,21 +128,16 @@ export function AdminSystemRoom() {
     let sig = null;
     try { sig = sessionStorage.getItem("cb_sysErrorFocus"); if (sig) sessionStorage.removeItem("cb_sysErrorFocus"); } catch {}
     if (!sig) return;
-    const g = groupAppErrors(appErrors).flatMap(c => c.groups).find(x => x.sig === sig);
-    if (g) { setFocusSig(sig); setExpandedSig(sig); loadStack(g); }
-    // loadStack/stackBySigはこの1回の消費にだけ使う（依存に入れると展開のたび再走するため外す）
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const groups = groupAppErrors(appErrors).flatMap(c => c.groups);
+    const matches = groups.filter(x => x.sig === sig || x.notificationSig === sig);
+    // 旧通知が複数の原因に分かれた場合は一覧で確認する。
+    if (matches.length === 1) { setFocusSig(matches[0].sig); setExpandedSig(matches[0].sig); }
   }, [appErrors]);
-  // 状況をコピー（各種類カードの📋）。スタック未取得なら1件だけ取ってから報告文を作る
-  // ※awaitを挟んでもiOSのユーザー操作猶予（約5秒）内ので clipboard は通る。失敗時はalertで案内
+  // 一覧とコピーは同じ記録・同じ分類を使う。コピー直前の追加通信は不要。
   const [copiedSig, setCopiedSig] = useState(null);
   const copyGroup = async (g, catLabel, ex) => {
-    let stack = stackBySig[g.sig];
-    if (stack === undefined || stack === null) { try { stack = await fetchStack(g); } catch { stack = ""; } }
-    // 初回コピーは再描画より先に進むため、この場でも取得済みスタックを反映する。
-    const latest = { ...g.latest, stack };
-    const category = ERROR_CATEGORIES.find(c => c.k === errorCategoryKey(latest));
-    const text = buildErrorReport({ ...g, latest }, category?.l || catLabel, explainError(latest) || ex, stack);
+    const stack = String(g.latest.stack || "").split("\n").slice(0, 15).join("\n");
+    const text = buildErrorReport(g, catLabel, ex, stack);
     try {
       await navigator.clipboard.writeText(text);
       setCopiedSig(g.sig);
@@ -193,11 +179,12 @@ export function AdminSystemRoom() {
     const open = g.openIds.length;
     const isOpen = expandedSig === g.sig;
     const ex = explainError(g.latest);
+    const diagnosis = diagnoseError(g.latest);
     const facts = groupFacts(g);
     return (
-      <div key={g.sig} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
+      <div key={g.sig} data-error-kind={diagnosis.key} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
         {/* ヘッダーは div＋onClick（📋ボタンを入れ子にするため。button入れ子は不正HTML） */}
-        <div onClick={() => { setExpandedSig(isOpen ? null : g.sig); if (!isOpen) loadStack(g); }}
+        <div onClick={() => setExpandedSig(isOpen ? null : g.sig)}
           style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", cursor:"pointer" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:6 }}>
             <span style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -225,6 +212,9 @@ export function AdminSystemRoom() {
           {ex && (
             <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:4 }}>{ex.title}</p>
           )}
+          <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:6 }}>
+            {diagnosis.confidence} · {diagnosis.impact}
+          </p>
           <p className="f-mono" style={{
             fontSize: ex ? 10 : 11, color: ex ? "#999" : "#444", wordBreak:"break-all", marginBottom:6,
             ...(isOpen ? {} : { display:"-webkit-box", WebkitLineClamp: ex ? 1 : 2, WebkitBoxOrient:"vertical", overflow:"hidden" }),
@@ -243,23 +233,30 @@ export function AdminSystemRoom() {
         </div>
         {isOpen && (() => {
           // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
-          const { devs, pages } = facts;
-          const stackFull = stackBySig[g.sig];
+          const { devs, browsers, pages } = facts;
+          const stackFull = g.latest.stack;
           // 保存は15行（コピー用）・画面は先頭6行だけ見せる
           const stack = stackFull ? stackFull.split("\n").slice(0, 6).join("\n") : stackFull;
           return (
             <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F3F3F3" }}>
               {ex && (
-                <div style={{ padding:"10px 12px", background:"#E6F7EF", borderRadius:8, borderLeft:"3px solid #00A86B", margin:"12px 0 0" }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#1B7A54", lineHeight:1.7 }}>
-                    <b>原因</b>：{ex.cause}<br /><b>どうする</b>：{ex.action}
+                <div style={{ padding:"10px 12px", background:"#F7F7F7", borderRadius:8, borderLeft:"3px solid #999", margin:"12px 0 0" }}>
+                  <p className="f-sans" style={{ fontSize:11, color:"#444", lineHeight:1.7 }}>
+                    <b>細分類</b>：{diagnosis.title}<br />
+                    <b>判定の確度</b>：{diagnosis.confidence}<br />
+                    <b>判定の根拠</b>：{diagnosis.evidence}<br />
+                    <b>発生元</b>：{diagnosis.origin}<br />
+                    <b>表示への影響</b>：{diagnosis.impact}<br />
+                    <b>原因・確認状況</b>：{ex.cause}<br /><b>どうする</b>：{ex.action}
                   </p>
+                  {diagnosis.reference && <a href={diagnosis.reference} target="_blank" rel="noreferrer" style={{ display:"inline-block", marginTop:8, fontSize:11, color:"#444" }}>参考資料（2026-10-27照合）</a>}
                 </div>
               )}
               <div className="f-sans" style={{ fontSize:11, color:"#555", lineHeight:1.9, margin:"12px 0 0" }}>
                 <p>期間：{new Date(g.first.created_at).toLocaleString("ja-JP")} 〜 {new Date(g.latest.created_at).toLocaleString("ja-JP")}</p>
                 <p>影響：{errorImpactLabel(facts)}</p>
                 <p>端末・アクセス元：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
+                <p>ブラウザ（申告）：{browsers.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
                 <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
               </div>
               <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
@@ -309,7 +306,7 @@ export function AdminSystemRoom() {
         /* ── 帯から来た時のフォーカス表示：まず該当のエラーだけを出す（2026-08-07たきと指示）。
               「解決した」＝この種類の未解決をfixedにして一覧へ／「閉じる」＝そのまま一覧へ ── */
         <div className="appear">
-          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:2 }}>いま発生中のエラー</p>
+          <p className="f-sans" style={{ fontSize:14, fontWeight:700, color:"#222", marginBottom:2 }}>確認するエラー記録</p>
           <p className="f-sans" style={{ fontSize:11, color:"#999", marginBottom:12 }}>
             内容を確認して「解決した」か「閉じる」を押すと、エラー一覧に進みます。
           </p>
@@ -350,7 +347,12 @@ export function AdminSystemRoom() {
 
         {/* ── 面1：エラー（グループ細分化：大分類→種類→個々の発生・2026-08-07） ── */}
         <div style={paneStyle}>
-          {appErrors === null ? (
+          {errorLoadFailed ? (
+            <div role="alert" style={{ padding:"32px 8px", textAlign:"center" }}>
+              <p>エラー記録を読み込めませんでした。エラーがないとは確認できません。</p>
+              <button type="button" onClick={() => setErrorReload(n => n + 1)} style={{ marginTop:12, padding:"10px 16px" }}>もう一度読み込む</button>
+            </div>
+          ) : appErrors === null ? (
             <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"40px 0" }}>読み込み中<Dots /></p>
           ) : appErrors.length === 0 ? (
             <div style={{ textAlign:"center", padding:"48px 0", color:"#B0B0B0" }}>

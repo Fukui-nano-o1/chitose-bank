@@ -1,5 +1,7 @@
 // エラーの辞書・分類・グループ化（2026-08-07切り出し）：
 import { inputRecovery } from './inputRecovery.js';
+import { diagnoseError, browserLabel, isServiceWorkerRegistrationError } from './errorDiagnosis.js';
+export { diagnoseError, browserLabel, isServiceWorkerRegistrationError };
 // AdminSystemRoom（システムページのエラー面）が使う唯一のソース。ここに置くのは
 // React/DOM/supabase 非依存の純関数のみ（lib層の規則）。
 // ★運営チャットへの投函（旧 AdminErrorChatReporter）は2026-08-31にDBトリガーへ移した
@@ -14,10 +16,6 @@ import { inputRecovery } from './inputRecovery.js';
 // ②辞書に無いものも translateError が型から日本語へ翻訳する（識別子を埋め込んで具体化）
 // 「Rejected」だけでは原因を特定できない。登録APIと当サイトの登録スクリプトが
 // 両方あるスタックだけを対象とし、別の未処理例外を巻き込まない。
-export function isServiceWorkerRegistrationError(e = {}) {
-  const stack = e.stack || "";
-  return /serviceWorker\.register\b/i.test(stack) && /\bregisterSW\.js\b/i.test(stack);
-}
 
 // matchは小文字化済みメッセージと元の記録を受け取る
 export const KNOWN_ERRORS = [
@@ -102,13 +100,15 @@ export function translateError(raw) {
   return null;
 }
 export function explainError(e) {
+  const diagnosis = diagnoseError(e);
+  if (['chrome_ios_translate_request', 'chrome_ios_translate_candidate', 'css_resource', 'js_resource'].includes(diagnosis.key)) return diagnosis;
   const recovery = inputRecovery(e.error_code || e.code, e.reason);
   if (recovery) return { title: recovery.title,
     cause: recovery.state + 'この分類だけでは通信・権限・実装のどこが原因かは特定できない。',
     action: recovery.action + '復帰を確認するまでは解決済みにしない。同じ操作で続く場合は調査する。' };
   const low = (e.message || "").toLowerCase();
   for (const k of KNOWN_ERRORS) if (k.match(low, e)) return k;
-  return translateError(e.message || "");
+  return translateError(e.message || "") || diagnosis;
 }
 // UAの自己申告を検出するだけ。Googleによる接続元の検証や権限判定には使わない。
 export function isGooglebot(ua) {
@@ -135,30 +135,22 @@ export function errorPage(e) {
 }
 
 // ── エラーのグループ細分化（2026-08-07たきと指示「エラーのグループを細分化する」）：
-// 大分類（カテゴリ）→ 種類（部品×発生源×文言の署名）→ 個々の発生、の3階層に束ねる。
+// 大分類（カテゴリ）→ 種類（部品×発生源×文言×細分類）→ 個々の発生、の3階層に束ねる。
 // 同型の連発（例：デプロイ直後の読み込み失敗94件）が1枚に畳まれ、種類ごとにまとめて解決済みにできる
 export const ERROR_CATEGORIES = [
-  { k:"browser", l:"端末・ブラウザ機能", severity:"medium", desc:"追加機能を端末・実行環境が拒否した型。通常の画面表示への影響は別途確認" },
-  { k:"deploy",  l:"更新の読み込み失敗", severity:"medium",  desc:"新しいデプロイの直後、開いたままの古い画面が旧ファイルを読みに行った型。再読み込みで直る（実害小）" },
-  { k:"render",  l:"画面の表示エラー",   severity:"high",    desc:"画面が真っ白・表示できない型。コードの不具合の可能性が高い" },
+  { k:"render",  l:"画面の描画失敗",     severity:"high",    desc:"描画失敗をエラー境界で捕捉した記録。全画面の停止や原因の特定とは区別します" },
+  { k:"runtime", l:"JavaScript実行エラー", severity:"high", desc:"実行時の例外。画面の表示停止を確認した記録とは区別します" },
+  { k:"async",   l:"非同期処理のエラー", severity:"unknown", desc:"未処理の非同期エラー。失敗した機能と画面への影響を確認する必要があります" },
+  { k:"browser", l:"端末・ブラウザ機能", severity:"medium", desc:"Service Worker・ブラウザ翻訳など。原因候補と確認できた事実を分けて表示します" },
+  { k:"deploy",  l:"JS・CSSの読み込み失敗", severity:"medium", desc:"必要なファイルの読み込み失敗。更新・通信・配信のどこに原因があるかは個別に確認します" },
   { k:"db",      l:"DB・権限",           severity:"high",    desc:"データベースの拒否・重複・タイムアウト" },
-  { k:"network", l:"通信エラー",         severity:"medium",  desc:"電波・接続の一時的な問題が多い" },
+  { k:"network", l:"通信エラー",         severity:"medium",  desc:"通信失敗・中断。端末・回線・サーバーのどこに原因があるかは未確定です" },
   { k:"auth",    l:"ログイン・メール",   severity:"high",    desc:"認証コードの送信失敗など、入口の事故" },
-  { k:"other",   l:"その他",             severity:"unknown", desc:"" },
+  { k:"other",   l:"原因未特定",         severity:"unknown", desc:"既知の判定条件に一致しない記録。影響なしとは判断していません" },
 ];
-// 判定順が大事：通信・DB・メールを先に拾い、最後に発生源ベースの表示エラーで受ける
-// （Failed to fetch等はunhandledrejection経由で来るため、srcだけで判定すると表示エラーに飲まれる）
+// 細分類と同じ診断から大分類を決める。未処理Promiseだけで描画失敗とは判定しない。
 export function errorCategoryKey(e) {
-  if (isServiceWorkerRegistrationError(e)) return "browser";
-  const msg = (e.message || "").toLowerCase();
-  const code = (e.error_code || "").toLowerCase();
-  const src = e.source || "";
-  if (msg.includes("importing a module script failed") || msg.includes("dynamically imported module") || msg.includes("loading chunk") || msg.includes("loading css chunk")) return "deploy";
-  if (msg.includes("failed to fetch") || msg.includes("load failed") || msg.includes("networkerror") || msg.includes("network error")) return "network";
-  if (msg.includes("row-level security") || msg.includes("permission denied") || msg.includes("statement timeout") || msg.includes("duplicate key") || msg.includes("violates") || ["42501","42p13","57014","23505","22p02"].includes(code) || code.startsWith("pgrst")) return "db";
-  if (msg.includes("smtp") || msg.includes("gomail") || msg.includes("magic link") || msg.includes("otp") || msg.includes("error sending") || (e.component || "") === "LoginScreen") return "auth";
-  if (src === "error_boundary" || src === "window.onerror" || src === "unhandledrejection" || msg.includes("minified react error") || msg.includes("is not a function") || msg.includes("is not defined") || msg.includes("can't find variable") || msg.includes("cannot read propert") || msg.includes("undefined is not an object") || msg.includes("before initialization")) return "render";
-  return "other";
+  return diagnoseError(e).category;
 }
 // 種類の署名＝部品×発生源×文言。UUID・4桁以上の数字列だけ伏せて同型を束ねる
 // （短い数字は残す＝React error #310 と #31 を別の種類として混ぜない）
@@ -172,13 +164,19 @@ export function errorSignature(e) {
 export function groupAppErrors(rows) {
   const bySig = new Map();
   for (const e of rows || []) {
-    const sig = errorSignature(e);
+    const notificationSig = errorSignature(e); // DB通知の互換性を維持する。
+    const diagnosis = diagnoseError(e);
+    // 同じLa/Rejectedでも原因・発生経路が異なる記録を一括解決しない。
+    const sig = `${notificationSig}|${diagnosis.category}|${diagnosis.key}`;
     let g = bySig.get(sig);
-    if (!g) { g = { sig, cat: errorCategoryKey(e), rows: [], openIds: [] }; bySig.set(sig, g); }
+    if (!g) { g = { sig, notificationSig, cat: diagnosis.category, rows: [], openIds: [] }; bySig.set(sig, g); }
     g.rows.push(e);
     if (e.status === "open") g.openIds.push(e.id);
   }
-  const groups = [...bySig.values()].map(g => ({ ...g, latest: g.rows[0], first: g.rows[g.rows.length - 1] }));
+  const groups = [...bySig.values()].map(g => {
+    const sorted = [...g.rows].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return { ...g, rows: sorted, latest: sorted[0], first: sorted[sorted.length - 1] };
+  });
   return ERROR_CATEGORIES.map(c => ({
     ...c,
     groups: groups.filter(g => g.cat === c.k)
@@ -199,7 +197,7 @@ export function groupFacts(g) {
     g.rows.forEach(r => { const k = fn(r); t[k] = (t[k] || 0) + 1; });
     return Object.entries(t).sort((a, b) => b[1] - a[1]);
   };
-  return { userN, anonN, unknownN, botN, devs: tally(r => deviceLabel(r.user_agent)), pages: tally(r => errorPage(r)) };
+  return { userN, anonN, unknownN, botN, devs: tally(r => deviceLabel(r.user_agent)), browsers: tally(r => browserLabel(r.user_agent)), pages: tally(r => errorPage(r)) };
 }
 export function errorImpactLabel({ userN, anonN, unknownN = 0, botN }) {
   return `認証確認済みの利用者${userN}人・未ログインの発生${anonN}件` +
@@ -212,20 +210,28 @@ export function buildErrorReport(g, catLabel, ex, stackText) {
   const f = groupFacts(g);
   const jp = (d) => new Date(d).toLocaleString("ja-JP");
   const L = g.latest;
+  const d = diagnoseError(L);
   return [
     "【エラー状況の報告】chitose-bank 管理・システムページから生成",
     `■ 種類: ${ex ? ex.title : "（辞書に該当なし）"}`,
     `■ 大分類: ${catLabel}`,
+    `■ 細分類: ${d.title}`,
+    `■ 判定の確度: ${d.confidence}`,
+    `■ 判定の根拠: ${d.evidence}`,
+    `■ 発生元: ${d.origin}`,
+    `■ 表示への影響: ${d.impact}`,
     `■ 状態: 未解決${g.openIds.length}件／記録${g.rows.length}件（直近500件の集計）`,
     `■ 生メッセージ: ${L.message || "(なし)"}`,
-    `■ 発生場所: 部品=${L.component || "-"}／発生源=${L.source || "-"}／操作=${L.operation || "-"}／エラーコード=${L.error_code || "-"}`,
+    `■ 発生場所: 部品=${L.component || "-"}／発生源=${L.source || "-"}／操作=${L.operation || L.action || "-"}／エラーコード=${L.error_code || "-"}`,
     `■ 期間: ${jp(g.first.created_at)} 〜 ${jp(L.created_at)}`,
     `■ 影響: ${errorImpactLabel(f)}`,
     `■ 端末・アクセス元: ${f.devs.map(([k, n]) => `${k} ${n}件`).join("・")}`,
+    `■ ブラウザ（申告）: ${f.browsers.map(([k, n]) => `${k} ${n}件`).join("・")}`,
     `■ ページ: ${f.pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}${f.pages.length > 5 ? " ほか" : ""}`,
     "■ 最近の発生（最大5件）:",
     ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${errorPage(e)}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
     ex ? `■ 既知の説明: 原因=${ex.cause}／どうする=${ex.action}` : "■ 既知の説明: なし（辞書未登録の型）",
+    ...(d.reference ? [`■ 参考資料: ${d.reference}（照合日：2026-10-27）`] : []),
     "■ スタック（最新1件・先頭）:",
     stackText || "（取得できませんでした）",
   ].join("\n");
