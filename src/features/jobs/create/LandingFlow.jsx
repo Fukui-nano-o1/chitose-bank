@@ -305,16 +305,19 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const captionTextareaRef = useRef(null);
   const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
   const [reviewBarsHidden, setReviewBarsHidden] = useState(false);
+  const [reviewScrolled, setReviewScrolled] = useState(false);
   const reviewScrollLast = useRef(0);
   useEffect(() => {
     reviewScrollLast.current = 0;
     setReviewBarsHidden(false);
+    setReviewScrolled(false);
   }, [pageId]);
   const onListingScroll = (event) => {
     const el = event.currentTarget;
     pageScrollPositions.current[pageId] = el.scrollTop;
     if (pageId !== "review") return;
     const top = Math.max(0, el.scrollTop);
+    setReviewScrolled(top > 160);
     const delta = top - reviewScrollLast.current;
     reviewScrollLast.current = top;
     if (top < 48 || el.scrollHeight - top - el.clientHeight < 80 || delta < -8) {
@@ -1923,7 +1926,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
                   <h2>掲載前に確認が必要です</h2>
                   {getPublishMissingFields().map(item => <button key={item.label} type="button" className="listing-review-edit" onClick={() => goToMissingField([item])}>{item.label}を確認</button>)}
                 </section>}
-                <JobDetailBody reviewEditContent={(
+                <JobDetailBody hideTopButton reviewEditContent={(
                   <section className="listing-review-edit-index" aria-label="入力項目を編集">
                     <h2>入力項目を編集</h2>
                     <p>変更したい項目を選んでください。編集後は確認画面へ戻ります。</p>
@@ -2281,6 +2284,13 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         <div className="f-sans" style={{ position:"fixed", left:"50%", transform:"translateX(-50%)", bottom:"calc(84px + env(safe-area-inset-bottom, 0px))", zIndex:9998, background:"rgba(34,34,34,0.92)", color:"#fff", fontSize:13, fontWeight:700, padding:"10px 18px", borderRadius:20, boxShadow:"0 4px 16px rgba(0,0,0,0.2)", pointerEvents:"none" }}>
           保存しました
         </div>
+      )}
+
+      {isFarmer && pageId === "review" && reviewScrolled && !sheetOpen && (
+        <button type="button" className={`listing-review-top-button${reviewBarsHidden ? " listing-review-top-button-expanded" : ""}`}
+          aria-label="ページの先頭へ戻る" onClick={() => flowScrollRef.current?.scrollTo({ top:0, behavior:"smooth" })}>
+          <span aria-hidden="true">↑</span><span>トップ</span>
+        </button>
       )}
 
       {/* 開催期間カレンダー📅の浮遊ボタン＋モーダルは削除（2026-07-24・誰も展開しないため）。
