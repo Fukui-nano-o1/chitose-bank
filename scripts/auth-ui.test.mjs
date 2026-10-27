@@ -27,15 +27,53 @@ test('real authentication UI handles failures and guides returning accounts with
       name: 'auth-fixture', enforce: 'pre', resolveId(id) {
         if (/(?:^|\/)supabase(?:\.js)?$/.test(id)) return path.join(root, 'scripts/fixtures/auth/client.js');
       },
+      load(id) {
+        if (id.endsWith('/src/lib/zipLookup.js')) return 'export const zipLookup=async()=>({ok:true,prefecture:"徳島県",city:"吉野川市"});';
+      },
     }, react()], build: { outDir: output, lib: { entry: path.join(root, 'scripts/fixtures/auth/entry.jsx'), name: 'AuthQA', formats: ['iife'], fileName: 'fixture' }, minify: false } });
     const script = await readFile(path.join(output, 'fixture.iife.js'), 'utf8');
+    const registrationScript = await readFile(path.join(root, 'public/registerSW.js'), 'utf8');
+    const html = await readFile(path.join(root, 'index.html'), 'utf8');
+    const bootScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]).find(s => s.includes('cb_bootReload'));
+    function optionalFailure(w, fault) {
+      w.qaOptionalAttempts = 0; w.qaSWReadyReads = 0; w.qaCacheAttempts = 0;
+      w.localStorage.setItem('fixture-input-draft', 'keep');
+      const sw = { register() {
+        w.qaOptionalAttempts++;
+        if (fault === 'throw') throw new Error('Registration denied');
+        if (fault === 'reject') return Promise.reject(new Error('Registration denied'));
+        if (fault === 'pending') return new Promise(() => {});
+        return Promise.resolve({});
+      }, get ready() { w.qaSWReadyReads++; return new Promise(() => {}); } };
+      if (fault === 'getter') Object.defineProperty(w.navigator, 'serviceWorker', { get() { w.qaOptionalAttempts++; throw new Error('Service Worker inaccessible'); } });
+      else if (fault !== 'unsupported') Object.defineProperty(w.navigator, 'serviceWorker', { value: sw });
+      w.caches = { delete() {
+        w.qaCacheAttempts++;
+        if (fault === 'cache-reject') return Promise.reject(new Error('Cache denied'));
+        if (fault === 'cache-pending') return new Promise(() => {});
+        return Promise.resolve(true);
+      } };
+      w.eval(bootScript);
+      if (fault !== 'script-load-failure') {
+        w.eval(registrationScript);
+        w.dispatchEvent(new w.Event('load'));
+      }
+      w.qaFailOptionalScript = () => {
+        const el = w.document.createElement('script');
+        el.src = '/registerSW.js'; w.document.head.append(el);
+        el.dispatchEvent(new w.Event('error'));
+      };
+    }
     function mount(mode, profile = false, settings = {}) {
       dom?.window.close();
-      dom = new JSDOM('<div id="root"></div>', { url: profile ? 'https://ui.test/#/profile/worker' : 'https://ui.test/#/login', runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+      const errors = [], console = new VirtualConsole();
+      console.on('jsdomError', error => errors.push(error.message));
+      dom = new JSDOM('<div id="root"></div>', { url: profile ? 'https://ui.test/#/profile/worker' : 'https://ui.test/#/login', runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: console });
       const w = dom.window;
       Object.assign(w, { Response, Request, Headers, ReadableStream, AbortController, AbortSignal, TextEncoder, TextDecoder });
       w.qaMode = mode; w.qaProfile = profile; w.qaRequests = [];
       Object.assign(w, settings);
+      w.qaRuntimeErrors = errors;
       w.confirm = () => false;
       w.fetch = () => { throw new Error('Unexpected real network'); };
       w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
@@ -43,14 +81,16 @@ test('real authentication UI handles failures and guides returning accounts with
       w.HTMLElement.prototype.scrollIntoView = () => {};
       w.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
       w.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+      if (settings.qaOptionalFault) optionalFailure(w, settings.qaOptionalFault);
       w.eval(script);
       return w;
     }
     async function fill(w, selector, value) {
       const input = w.document.querySelector(selector);
       assert.ok(input, selector);
-      Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype, 'value').set.call(input, value);
-      input.dispatchEvent(new w.Event('input', { bubbles: true }));
+      const select = input.tagName === 'SELECT';
+      Object.getOwnPropertyDescriptor(select ? w.HTMLSelectElement.prototype : w.HTMLInputElement.prototype, 'value').set.call(input, value);
+      input.dispatchEvent(new w.Event(select ? 'change' : 'input', { bubbles: true }));
       await pause(10);
     }
     async function openCode(w, reset = false) {
@@ -232,6 +272,105 @@ test('real authentication UI handles failures and guides returning accounts with
       assert.equal(w.qaRequests.some(r => r.path === '/rest/v1/account_holders'), false);
       assert.equal(button(w, 'ログインして続ける'), undefined);
       assert.equal(w.qaLoggedIn, undefined);
+    });
+    async function setNewPassword(w) {
+      await until(() => button(w, '設定して続ける'), 'password setup');
+      await fill(w, 'input[name="new-password"]', 'fixture-password');
+      await fill(w, 'input[name="confirm-password"]', 'fixture-password');
+      button(w, '設定して続ける').click();
+      await until(() => w.document.querySelector('[autocomplete="name"]'), 'account holder form');
+    }
+    async function fillAccount(w, allowed = true) {
+      for (const [name, value] of [['name', '試験 太郎'], ['bday-year', '2000'], ['bday-month', '1'], ['bday-day', '2'], ['postal-code', '7793303']]) {
+        await fill(w, `[autocomplete="${name}"]`, value);
+      }
+      button(w, '住所を検索').click();
+      await until(() => w.document.querySelector('[autocomplete="address-line1"]').value, 'address');
+      await fill(w, '[autocomplete="address-line2"]', '山川町1');
+      w.document.querySelector('input[type="checkbox"]').click();
+      await until(() => allowed
+        ? button(w, '同意して登録する') && !button(w, '同意して登録する').disabled
+        : button(w, '準備中'), 'registration permission checked');
+    }
+    const writes = w => w.qaRequests.filter(r => r.path === '/rest/v1/account_holders' && r.method === 'POST');
+    const faults = ['unsupported', 'reject', 'throw', 'getter', 'pending', 'script-load-failure', 'cache-reject', 'cache-pending'];
+    for (const fault of faults) {
+      for (const journey of ['password', 'returning-otp', 'registration']) {
+        await t.test(`${journey} completes with optional browser failure: ${fault}`, async () => {
+          const w = mount('success', false, { qaOptionalFault: fault, qaRegistered: journey !== 'registration', qaCompleteRegistration: journey === 'registration' });
+          if (journey === 'password') {
+            await until(() => button(w, 'ログイン'), 'password screen');
+            await fill(w, 'input[type="email"]', 'person@fixture.test');
+            await fill(w, 'input[name="password"]', 'fixture-password');
+            if (fault === 'script-load-failure') w.qaFailOptionalScript();
+            button(w, 'ログイン').click();
+            await until(() => w.qaLoggedIn, 'password login succeeds');
+            assert.equal(otpCalls(w).length, 0);
+          } else {
+            await openCode(w);
+            if (fault === 'script-load-failure') w.qaFailOptionalScript();
+            await verify(w);
+            if (journey === 'returning-otp') {
+              await until(() => button(w, 'ログインして続ける'), 'verified returning account');
+              button(w, 'ログインして続ける').click();
+              await until(() => w.qaLoggedIn, 'OTP login succeeds');
+              assert.equal(updates(w).length, 0);
+            } else {
+              await setNewPassword(w); await fillAccount(w);
+              button(w, '同意して登録する').click();
+              await until(() => w.qaRegistrationDone, 'verified account save completes registration');
+              assert.equal(w.qaRegistrationDone, 1);
+              assert.equal(writes(w).length, 1);
+              assert.equal(w.qaAccountRow.auth_id, w.qaLoggedIn.id);
+              assert.equal(w.qaAccountRow.full_name, '試験 太郎');
+              assert.equal(updates(w).length, 1);
+            }
+            assert.equal(otpCalls(w).length, 1);
+            assert.equal(w.qaRequests.filter(r => r.path === '/auth/v1/verify').length, 1);
+          }
+          assert.equal(w.qaSWReadyReads, 0, 'authentication must not wait for a ready Service Worker');
+          assert.equal(w.qaOptionalAttempts, ['unsupported', 'script-load-failure'].includes(fault) ? 0 : 1);
+          assert.equal(w.qaCacheAttempts, 1);
+          assert.equal(w.localStorage.getItem('fixture-input-draft'), 'keep');
+          assert.equal(w.sessionStorage.getItem('cb_bootReload'), null, 'optional failures do not reload the form');
+          if (fault.startsWith('cache-')) assert.equal(w.localStorage.getItem('cb_pagesCachePurge_v1'), null);
+          assert.deepEqual(w.qaRuntimeErrors, []);
+        });
+      }
+    }
+    await t.test('optional failure never bypasses invalid credentials or OTP checks', async () => {
+      let w = mount('success', false, { qaOptionalFault: 'reject', qaInvalidPassword: true });
+      await until(() => button(w, 'ログイン'), 'login ready');
+      await fill(w, 'input[type="email"]', 'person@fixture.test');
+      await fill(w, 'input[name="password"]', 'wrong-fixture-password');
+      button(w, 'ログイン').click();
+      await until(() => w.document.querySelector('[role="alert"]'), 'invalid credentials');
+      assert.equal(w.qaLoggedIn, undefined); assert.equal(writes(w).length, 0);
+      assert.equal(w.qaRequests.filter(r => r.path === '/auth/v1/token').length, 1);
+      w = mount('success', false, { qaOptionalFault: 'pending', qaVerifyError: true });
+      await openCode(w); await verify(w);
+      await until(() => w.document.querySelector('[role="alert"]'), 'invalid OTP');
+      assert.equal(w.qaLoggedIn, undefined); assert.equal(writes(w).length, 0);
+    });
+    await t.test('optional failure never turns an unconfirmed account save into successful registration', async () => {
+      const w = mount('success', false, { qaOptionalFault: 'cache-reject', qaRegistered: false, qaCompleteRegistration: true, qaAccountWriteError: true });
+      await openCode(w); await verify(w); await setNewPassword(w); await fillAccount(w);
+      button(w, '同意して登録する').click();
+      await until(() => w.document.querySelector('[role="alert"]'), 'save rejected');
+      assert.equal(w.qaRegistrationDone, undefined); assert.equal(w.qaAccountRow, undefined);
+      assert.equal(w.document.querySelector('[autocomplete="name"]').value, '試験 太郎');
+      assert.equal(writes(w).length, 1);
+      w.qaAccountWriteError = false; button(w, '同意して登録する').click();
+      await until(() => w.qaRegistrationDone, 'confirmed retry completes registration');
+      assert.equal(w.qaRegistrationDone, 1);
+    });
+    await t.test('optional failure never overrides the account registration permission gate', async () => {
+      const w = mount('success', false, { qaOptionalFault: 'reject', qaRegistered: false, qaCompleteRegistration: true, qaAccountAllowed: false });
+      await openCode(w); await verify(w); await setNewPassword(w); await fillAccount(w, false);
+      assert.equal(button(w, '準備中').disabled, true);
+      w.document.querySelector('form').dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+      await pause(20);
+      assert.equal(writes(w).length, 0); assert.equal(w.qaRegistrationDone, undefined);
     });
     const w = mount('success', true);
     await until(() => button(w, 'ログアウト›'), 'profile logout button');

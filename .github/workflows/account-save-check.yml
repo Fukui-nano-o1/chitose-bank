@@ -4,6 +4,14 @@ on:
     paths:
       - src/lib/accountHolderRecord.js
       - src/components/AccountHolderForm.jsx
+      - src/components/LoginScreen.jsx
+      - src/main.jsx
+      - src/app/browserStartup.js
+      - public/registerSW.js
+      - index.html
+      - scripts/auth-ui.test.mjs
+      - scripts/service-worker-registration.test.mjs
+      - scripts/fixtures/auth/**
       - scripts/account-save-*.test.mjs
       - scripts/fixtures/account-save-*
       - package.json

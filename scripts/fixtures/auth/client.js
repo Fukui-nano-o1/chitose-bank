@@ -14,15 +14,24 @@ export const supabase = createClient('https://auth-fixture.test', 'fixture-key',
       window.qaRequests.push({ path, query: parsed.search, method: options.method || 'GET',
         authorization: new Headers(options.headers).get('Authorization'), body: options.body ? JSON.parse(options.body) : null });
       if (path === '/rest/v1/rpc/signup_open') return json(window.qaSignupOpen ?? true);
+      if (path === '/rest/v1/rpc/am_i_account_allowed') return json(window.qaAccountAllowed ?? true);
       if (path === '/rest/v1/app_errors') return new Response(null, { status: 201 });
       if (window.qaProfile) return new Response('[]');
       if (path === '/auth/v1/verify') return window.qaVerifyError
         ? json({ msg: 'Token has expired or is invalid', error_code: 'otp_expired' }, 403) : json(session());
-      if (path === '/auth/v1/token') return json(session());
+      if (path === '/auth/v1/token') return window.qaInvalidPassword
+        ? json({ msg: 'Invalid login credentials', error_code: 'invalid_credentials' }, 400) : json(session());
       if (path === '/auth/v1/user' && options.method === 'PUT') return json({ user: user() });
-      if (path === '/rest/v1/account_holders') return window.qaLookupError
-        ? json({ code: 'fixture_error', message: 'Unable to read account' }, 400)
-        : json(window.qaRegistered === false ? [] : [{ id: 'fixture-account-holder' }]);
+      if (path === '/rest/v1/account_holders') {
+        if (options.method === 'POST') {
+          if (window.qaAccountWriteError) return json({ code: '42501', message: 'Permission denied' }, 403);
+          window.qaAccountRow = { ...JSON.parse(options.body), id: 'fixture-account-holder' };
+          return json(window.qaAccountRow, 201);
+        }
+        return window.qaLookupError
+          ? json({ code: 'fixture_error', message: 'Unable to read account' }, 400)
+          : json(window.qaAccountRow ? [window.qaAccountRow] : window.qaRegistered === false ? [] : [{ id: 'fixture-account-holder' }]);
+      }
       if (path === '/rest/v1/farmers') return window.qaFarmerError
         ? json({ code: 'fixture_error', message: 'Unable to read profile' }, 400)
         : json(window.qaFarmer ? [window.qaFarmer] : []);
