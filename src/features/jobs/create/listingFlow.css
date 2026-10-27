@@ -251,3 +251,16 @@
   .job-listing-flow .listing-header,
   .job-listing-flow .listing-footer { transition:none; }
 }
+
+
+/* 掲載前確認専用。本文末尾ではなく画面右下に固定し、下部バーとの重なりを防ぐ。 */
+.job-listing-flow .listing-review-top-button{
+ position:absolute;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(120px + env(safe-area-inset-bottom,0px));
+ z-index:5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1;
+ width:56px;height:56px;border-radius:50%;border:1px solid #ddd;background:#fff;color:#222;
+ box-shadow:0 3px 12px rgba(0,0,0,.14);font-size:11px;font-weight:700;cursor:pointer;
+ transition:bottom .18s ease;
+}
+.job-listing-flow .listing-review-top-button span:first-child{font-size:19px;line-height:1}
+.job-listing-flow .listing-review-top-button-expanded{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+@media (prefers-reduced-motion:reduce){.job-listing-flow .listing-review-top-button{transition:none}}
