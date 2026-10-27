@@ -304,6 +304,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 本文が JobDetailBody（求人詳細と同じギャラリー部品）になり、写真の送り・ループはそちらが持つ
   const captionTextareaRef = useRef(null);
   const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
+  const pageScrollPositions = useRef({});
   const [reviewBarsHidden, setReviewBarsHidden] = useState(false);
   const [reviewScrolled, setReviewScrolled] = useState(false);
   const reviewScrollLast = useRef(0);
@@ -1049,7 +1050,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       beginnerOk, instantApproveRepeat, jobPerks, experiencedPreferred,
       jobDateStart, jobDateEnd, jobHolidays, editJobLoading, recruiter.draft]);
 
-  const pageScrollPositions = useRef({});
+
   // ページごとのスクロール位置を保持し、戻る時は見出しへフォーカスだけを戻す。
   useEffect(() => {
     try {
