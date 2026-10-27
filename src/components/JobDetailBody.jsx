@@ -32,7 +32,7 @@ import { JobPhotoGallery, JobKeyFacts, JobHostRow, JobHighlights, JobDescription
 // employer／trust（任意・2026-09-19）＝親が既に持っている募集主の材料を渡す口（求人作成フローの
 //   掲載前の確認＝まだ求人番号の無い下書きでは job_employer_profile を引けないため）。渡された時は引かない。
 // onOpenIntro（任意）＝募集主の行・募集主カードのタップで農園紹介を開く（確認ページ）。ボックスは渡さない（従来どおり開かない）
-export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: employerPreset, trust: trustPreset, onOpenIntro, reviewEditContent }) {
+export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: employerPreset, trust: trustPreset, onOpenIntro, reviewEditContent, hideTopButton = false }) {
   const wrap = (label, node) => (decorate ? decorate(label, node) : node);
   const presetGiven = employerPreset !== undefined;
   const [activeSlide, setActiveSlide] = useState(0);
@@ -168,7 +168,7 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: emp
       {/* 右下の「トップ」浮遊ボックス（2026-08-08たきと指示）：sticky＝面のスクロールに合わせて
           右下に留まる（position:fixedは親のtransform（面の横スライド）で基準がずれるため使わない）。
           高さ0の帯にぶら下げる＝レイアウトの高さを増やさない */}
-      <div style={{ position:"sticky", bottom:16, height:0, zIndex:5 }}>
+      {!hideTopButton && <div style={{ position:"sticky", bottom:16, height:0, zIndex:5 }}>
         <button onClick={scrollToTop} aria-label="先頭に戻る" className="f-sans"
           style={{ position:"absolute", right:0, bottom:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1,
             width:56, height:56, borderRadius:16, background:"rgba(255,255,255,0.96)", border:"1px solid #EBEBEB",
@@ -176,7 +176,7 @@ export function JobDetailBody({ job, me, onBack, noTabs, decorate, employer: emp
           <span style={{ fontSize:18, lineHeight:1 }}>↑</span>
           <span style={{ fontSize:10, fontWeight:800 }}>トップ</span>
         </button>
-      </div>
+      </div>}
 
       {/* 危険箇所の写真ライトボックス（全画面拡大） */}
       {dangerLightbox && (
