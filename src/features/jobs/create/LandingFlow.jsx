@@ -308,8 +308,10 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [reviewBarsHidden, setReviewBarsHidden] = useState(false);
   const [reviewScrolled, setReviewScrolled] = useState(false);
   const reviewScrollLast = useRef(0);
+  const reviewScrollTravel = useRef(0);
   useEffect(() => {
     reviewScrollLast.current = 0;
+    reviewScrollTravel.current = 0;
     setReviewBarsHidden(false);
     setReviewScrolled(false);
   }, [pageId]);
@@ -321,13 +323,23 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     setReviewScrolled(top > 160);
     const delta = top - reviewScrollLast.current;
     reviewScrollLast.current = top;
-    if (top < 48 || el.scrollHeight - top - el.clientHeight < 80 || delta < -8) {
+    // 小さな指の揺れでは開閉しない。方向を変えたら移動距離を測り直す。
+    if (Math.abs(delta) < 2) return;
+    if (Math.sign(delta) !== Math.sign(reviewScrollTravel.current)) reviewScrollTravel.current = 0;
+    reviewScrollTravel.current = Math.max(-120, Math.min(120, reviewScrollTravel.current + delta));
+    const nearTop = top < 56;
+    const nearBottom = el.scrollHeight - top - el.clientHeight < 90;
+    if (nearTop || nearBottom) {
+      reviewScrollTravel.current = 0;
       setReviewBarsHidden(false);
-    } else if (delta > 8 && top > 100) {
+    } else if (reviewScrollTravel.current <= -36) {
+      reviewScrollTravel.current = 0;
+      setReviewBarsHidden(false);
+    } else if (top > 130 && reviewScrollTravel.current >= 64) {
+      reviewScrollTravel.current = 0;
       setReviewBarsHidden(true);
     }
   };
-
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
