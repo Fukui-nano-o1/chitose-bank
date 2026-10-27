@@ -304,6 +304,26 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // 本文が JobDetailBody（求人詳細と同じギャラリー部品）になり、写真の送り・ループはそちらが持つ
   const captionTextareaRef = useRef(null);
   const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
+  const [reviewBarsHidden, setReviewBarsHidden] = useState(false);
+  const reviewScrollLast = useRef(0);
+  useEffect(() => {
+    reviewScrollLast.current = 0;
+    setReviewBarsHidden(false);
+  }, [pageId]);
+  const onListingScroll = (event) => {
+    const el = event.currentTarget;
+    pageScrollPositions.current[pageId] = el.scrollTop;
+    if (pageId !== "review") return;
+    const top = Math.max(0, el.scrollTop);
+    const delta = top - reviewScrollLast.current;
+    reviewScrollLast.current = top;
+    if (top < 48 || el.scrollHeight - top - el.clientHeight < 80 || delta < -8) {
+      setReviewBarsHidden(false);
+    } else if (delta > 8 && top > 100) {
+      setReviewBarsHidden(true);
+    }
+  };
+
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
   useEffect(() => {
@@ -1421,7 +1441,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     <div className={isFarmer ? `job-listing-flow f-sans${embedded ? " listing-embedded" : ""}` : undefined} style={embedded ? { position:"relative", background:"#fff" } : { position:"fixed", inset:0, background:"#fff", zIndex:9998 }}>
       <DevBadge label="LandingFlow" />
 
-      {isFarmer && step <= 12 && <ListingHeader step={pageId} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} onSave={() => handleTopSave({ exit: true })} onExit={closeListing} />}
+      {isFarmer && step <= 12 && <ListingHeader step={pageId} autoHidden={pageId === "review" && reviewBarsHidden} saving={draftSaving} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} onSave={() => handleTopSave({ exit: true })} onExit={closeListing} />}
 
       {/* 働き手フローの進捗バー */}
       {!isFarmer && step > 0 && (
@@ -1466,7 +1486,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       )}
 
       {/* スクロール領域（全stepスワイプで次へ/戻る・2026-07-16） */}
-      <div ref={flowScrollRef} onScroll={isFarmer ? event => { pageScrollPositions.current[pageId] = event.currentTarget.scrollTop; } : undefined} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
+      <div ref={flowScrollRef} onScroll={isFarmer ? onListingScroll : undefined} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center", ...flowScrollLock }
         : { height:"100%", overflowY:"auto", ...flowScrollLock })}>
         <ListingPage key={isFarmer ? pageId : step} step={step} pageId={pageId} isFarmer={isFarmer} embedded={embedded} stepAnim={stepAnim}
@@ -2269,7 +2289,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       {/* 下部ナビのバーは削除（2026-07-16）：戻る／次へは浮遊固定ボックス（スクロール追従）に。
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
       {isFarmer && step <= 12 && <ListingFooter
-        step={pageId} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} uploading={photoUploading}
+        step={pageId} autoHidden={pageId === "review" && reviewBarsHidden} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} uploading={photoUploading}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
         publishDisabled={!localOnly && !deviceDraftRef.current?.publication && (unknownWage || recruiter.status === "loading")}
         hidden={sheetOpen || photoCaptionsOpen}
