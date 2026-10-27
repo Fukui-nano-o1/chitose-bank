@@ -312,20 +312,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     setReviewBarsHidden(false);
     setReviewScrolled(false);
   }, [pageId]);
-  const onListingScroll = (event) => {
-    const el = event.currentTarget;
-    pageScrollPositions.current[pageId] = el.scrollTop;
-    if (pageId !== "review") return;
-    const top = Math.max(0, el.scrollTop);
-    setReviewScrolled(top > 160);
-    const delta = top - reviewScrollLast.current;
-    reviewScrollLast.current = top;
-    if (top < 48 || el.scrollHeight - top - el.clientHeight < 80 || delta < -8) {
-      setReviewBarsHidden(false);
-    } else if (delta > 8 && top > 100) {
-      setReviewBarsHidden(true);
-    }
-  };
 
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
@@ -1050,6 +1036,20 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       jobDateStart, jobDateEnd, jobHolidays, editJobLoading, recruiter.draft]);
 
   const pageScrollPositions = useRef({});
+  const onListingScroll = (event) => {
+    const el = event.currentTarget;
+    pageScrollPositions.current[pageId] = el.scrollTop;
+    if (pageId !== "review") return;
+    const top = Math.max(0, el.scrollTop);
+    setReviewScrolled(top > 160);
+    const delta = top - reviewScrollLast.current;
+    reviewScrollLast.current = top;
+    if (top < 48 || el.scrollHeight - top - el.clientHeight < 80 || delta < -8) {
+      setReviewBarsHidden(false);
+    } else if (delta > 8 && top > 100) {
+      setReviewBarsHidden(true);
+    }
+  };
   // ページごとのスクロール位置を保持し、戻る時は見出しへフォーカスだけを戻す。
   useEffect(() => {
     try {
