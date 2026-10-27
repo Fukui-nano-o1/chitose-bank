@@ -119,11 +119,25 @@
       window.addEventListener('error', function (e) {
         var t = e && e.target;
         if (!t || t.tagName !== 'SCRIPT') return;
+        // 補助用SWスクリプトの読み込み失敗で、ログイン・登録の入力を再読込しない。
+        try {
+          var failedScript = new URL(t.src, location.href);
+          if (failedScript.origin === location.origin && failedScript.pathname === '/registerSW.js') return;
+        } catch (_) {}
         try {
           if (sessionStorage.getItem('cb_bootReload')) return;
           sessionStorage.setItem('cb_bootReload', '1');
         } catch (_) { return; }
-        var reload = function () { location.reload(); };
+        // 必須スクリプトの復旧も、補助APIの応答を待ち続けない。遅れた完了で二重に戻さない。
+        var reloaded = false;
+        var cleanupTimer;
+        var reload = function () {
+          if (reloaded) return;
+          reloaded = true;
+          clearTimeout(cleanupTimer);
+          location.reload();
+        };
+        cleanupTimer = setTimeout(reload, 2000);
         try {
           var jobs = [];
           if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {

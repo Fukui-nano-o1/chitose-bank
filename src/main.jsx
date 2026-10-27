@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import { restoreLastRoute } from './lib/lastRoute'
 import { installRoutePreloading } from './app/routes'
+import { clearLegacyPageCache } from './app/browserStartup'
 
 // Service Workerの登録はここでは行わない（2026-08-18 Speed-1A）。
 // vite-plugin-pwa が index.html に入れる registerSW.js が唯一の登録経路＝経路を1本に保つ。
@@ -15,12 +16,7 @@ import { installRoutePreloading } from './app/routes'
 // 直したはずの端末で黒が再発する。1度だけこのキャッシュを捨てて確実に新しいHTMLへ移す。
 // 以後は通常どおりNetworkFirstで運用される（設計は変えない）。
 // ★もう一度全端末に捨てさせたい時は、この版キー(v1)の数字を上げるだけでよい
-try {
-  const KEY = 'cb_pagesCachePurge_v1'
-  if (window.caches && !localStorage.getItem(KEY)) {
-    caches.delete('pages-cache').finally(() => { try { localStorage.setItem(KEY, '1') } catch { /* 保存できなくても実害なし */ } })
-  }
-} catch { /* CacheStorage非対応・プライベートモード等では何もしない */ }
+void clearLegacyPageCache()
 
 // 前回見ていた画面へ戻す（2026-08-26 Speed-4A）。PWAの start_url は '/'＝ハッシュ無しなので、
 // iOSが前回のWebViewを捨てて起動すると、以前はどの画面に居ても既定（さがす）へ着地していた。
