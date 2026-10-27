@@ -5,13 +5,13 @@ import "../listingControls.css";
 export const LISTING_STAGES = LISTING_STAGE_INFO;
 export function listingStage(step) { return listingFrameState(step).stage; }
 
-export function ListingHeader({ step, saving, busy, onSave, onExit }) {
+export function ListingHeader({ step, saving, busy, onSave, onExit, autoHidden = false }) {
   const frame = listingFrameState(step);
   const canSave = !frame.intro && typeof onSave === "function";
   const onAction = canSave ? onSave : onExit;
   const actionLabel = canSave ? (saving ? "保存中…" : "保存して終了") : frame.intro ? "終了" : "閉じる";
   return (
-    <header className="listing-header">
+    <header className={`listing-header${autoHidden ? " listing-review-bar-collapsed" : ""}`}>
       <span className="listing-brand">chitose-bank</span>
       <span className="listing-header-title">求人の掲載</span>
       <button type="button" className="listing-save" onClick={onAction} disabled={busy || typeof onAction !== "function"}>
@@ -63,10 +63,10 @@ export function ListingDetailsIntro({ crop, task, region, dates, wage }) {
   );
 }
 
-export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, publishDisabled = false, onBack, onNext, onSkipDetails, onPublish, hidden, nextLabel, backLabel }) {
+export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, publishDisabled = false, onBack, onNext, onSkipDetails, onPublish, hidden, nextLabel, backLabel, autoHidden = false }) {
   const frame = listingFrameState(step);
   return (
-    <footer className="listing-footer" hidden={hidden}>
+    <footer className={`listing-footer${autoHidden ? " listing-review-bar-collapsed" : ""}`} hidden={hidden}>
       <ol className="listing-progress" aria-label="求人掲載の進捗">
         {LISTING_STAGES.map((item, index) => (
           <li key={item.title} aria-current={index === frame.stage ? "step" : undefined}>
