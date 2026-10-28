@@ -24,7 +24,7 @@ export function savedJobFixture(options={}){
   }
   if(p==='rpc/my_job_actions'){const rows=state.saved||options.application?[{...job,liked:state.saved,application_id:options.application?'application':null}]:[];await options.beforeList?.();return json(rows);}
   if(p==='jobs_public')return json([job]);
-  if(p==='signup_surveys')return json([{auth_id:uid}]);
+  if(p==='user_onboarding_survey')return json([{auth_id:uid}]);
   if(p==='rpc/get_job_view_counts')return json([]);
   if(p==='rpc/signup_is_open')return json(false);
   if(p==='worker_profiles'||p==='account_holders')return json([]);
