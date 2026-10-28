@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { chatReadWatermarks } from '../src/lib/chatReadWatermarks.js';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +36,26 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  await t.test('drafts survive navigation, templates append without sending, Enter only adds a newline',async()=>{const w=mount({qaRoute:app});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','先に入力した文');button(w,'定型文').click();await until(()=>button(w,'持ち物'),'templates');button(w,'持ち物').click();await until(()=>input(w).value.includes('持ち物'),'append');assert.ok(input(w).value.startsWith('先に入力した文'));input(w).dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.equal(w.qaRequests.filter(r=>r.op==='insert').length,0);w.qaNavigate(past);await until(()=>w.document.body.textContent.includes('この仕事は完了'),'past thread');w.qaNavigate(app);await until(()=>input(w)?.value.includes('持ち物'),'draft restored');assert.equal(w.qaData.messages.length,2);assert.equal(Object.keys(w.localStorage).some(k=>String(w.localStorage.getItem(k)).includes('先に入力した文')),false);});
  await t.test('lost send response and double clicks retry the same UUID exactly once',async()=>{const w=mount({qaRoute:app,qaSendMode:'lost'});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','受信済みでも二重送信しない');button(w,'送信').click();button(w,'送信')?.click();await until(()=>button(w,'同じ内容で再送'),'failed');assert.equal(input(w).value,'受信済みでも二重送信しない');assert.equal(input(w).readOnly,true);button(w,'同じ内容で再送').click();await until(()=>input(w).value==='','acknowledged');const sent=w.qaData.messages.filter(m=>m.body==='受信済みでも二重送信しない');assert.equal(sent.length,1);const requests=w.qaRequests.filter(r=>r.op==='insert');assert.equal(new Set(requests.map(r=>r.value.id)).size,1);assert.equal(w.document.querySelectorAll('.chat-bubble').length,2);});
  await t.test('send deadline unblocks controls and late results cannot contaminate another thread',async()=>{const w=mount({qaRoute:app,qaSendMode:'hold'});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','送信後に別の会話へ移動');button(w,'送信').click();await until(()=>button(w,'同じ内容で再送'),'bounded timeout');w.qaNavigate(past);await until(()=>w.document.body.textContent.includes('この仕事は完了'),'switched');w.qaResolveSend();await pause(30);assert.doesNotMatch(w.document.querySelector('.chat-messages').textContent,/送信後に別の会話へ移動/);w.qaNavigate(app);await until(()=>input(w)?.value==='','confirmed by fetch');assert.equal(w.qaData.messages.filter(m=>m.body==='送信後に別の会話へ移動').length,1);});
- await t.test('hidden conversations are not marked read and failure retains visible history',async()=>{const w=mount({qaRoute:app,qaFailRead:'messages'});Object.defineProperty(w.document,'visibilityState',{configurable:true,value:'hidden'});await until(()=>button(w,'再読み込み'),'read error');assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='update').length,0);w.qaFailRead=null;button(w,'再読み込み').click();await until(()=>w.document.querySelector('.chat-bubble'),'history recovered');assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='update').length,0);});
+ await t.test('hidden conversations are not marked read and failure retains visible history',async()=>{const w=mount({qaRoute:app,qaFailRead:'messages'});Object.defineProperty(w.document,'visibilityState',{configurable:true,value:'hidden'});await until(()=>button(w,'再読み込み'),'read error');assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='update').length,0);w.qaFailRead=null;button(w,'再読み込み').click();await until(()=>w.document.querySelector('.chat-bubble'),'history recovered');assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='update').length,0);assert.equal(w.qaData.chat_reads.length,0);});
+ await t.test('status changes after the last message become read, and later changes stay unread until reloaded',async()=>{
+  const data=records();data.applications[1].status_changed_at='2026-10-15T00:00:00.328748Z';
+  const w=mount({qaRoute:past,qaData:data});
+  await until(()=>w.qaData.chat_reads.some(r=>r.application_id===past),'status receipt');
+  const receipt=w.qaData.chat_reads.find(r=>r.application_id===past && r.reader_id===user);
+  assert.equal(receipt.last_read_at,'2026-10-15T00:00:00.328748Z');
+  w.qaData.applications[1].status_changed_at='2026-10-16T00:00:00Z';
+  assert.ok(Date.parse(receipt.last_read_at)<Date.parse(w.qaData.applications[1].status_changed_at));
+  w.dispatchEvent(new w.Event('focus'));
+  await until(()=>receipt.last_read_at==='2026-10-16T00:00:00Z','status-only refresh without 60 second delay');
+ });
+ await t.test('status-only conversations are read; failed receipt writes retry on the next load',async()=>{
+  const data=records();data.messages=[];data.applications[1].status_changed_at='2026-10-15T00:00:00Z';
+  const w=mount({qaRoute:past,qaData:data,qaFailUpsert:'chat_reads'});
+  await until(()=>w.qaRequests.some(r=>r.table==='chat_reads'&&r.op==='upsert'),'failed receipt attempted');
+  assert.equal(w.qaData.chat_reads.length,0);w.qaFailUpsert=null;w.dispatchEvent(new w.Event('focus'));
+  await until(()=>w.qaData.chat_reads.length,'receipt retried');
+  assert.equal(w.qaData.chat_reads[0].last_read_at,'2026-10-15T00:00:00Z');
+ });
  await t.test('closed threads remain readable and cannot send; screen reports stay available',async()=>{const w=mount({qaRoute:past});await until(()=>w.document.body.textContent.includes('この仕事は完了'),'closed');assert.equal(input(w),null);assert.match(w.document.querySelector('.chat-messages').textContent,/ありがとうございました/);button(w,'詳細').click();await until(()=>button(w,'この画面を報告'),'screen report');let report;w.addEventListener('cb:open-support',event=>report=event.detail);button(w,'この画面を報告').click();assert.equal(report.view,'compose');assert.equal(report.topic,'chat');});
  await t.test('detail rows go straight to this job, participant, schedule and map while preserving the draft',async()=>{
   const w=mount({qaRoute:app}); await until(()=>input(w)&&!input(w).disabled,'loaded');
@@ -117,4 +137,16 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  });
  assert.deepEqual(errors,[]);
  }finally{dom?.window.close();await rm(output,{recursive:true,force:true});}
+});
+
+test('read watermarks isolate jobs, preserve prior reads and keep sub-millisecond status updates',()=>{
+ const base={scope:[app,past],readerId:user,statusApplicationId:app,
+ messages:[{application_id:app,created_at:'2026-08-19T05:19:22.449947Z'},{application_id:past,created_at:'2026-07-01T00:00:00Z'}],
+ applications:[{id:app,status_changed_at:'2026-10-15T00:00:00.328748Z'},{id:past,status_changed_at:'2026-10-20T00:00:00Z'}],reads:[]};
+ const rows=chatReadWatermarks(base);
+ assert.equal(rows[0].last_read_at,'2026-10-15T00:00:00.328748Z');
+ assert.equal(rows[1].last_read_at,'2026-07-01T00:00:00Z','another job status is not displayed and remains unread');
+ base.reads=[{application_id:app,reader_id:user,last_read_at:'2026-10-15T00:00:00.328749Z'}];
+ assert.equal(chatReadWatermarks(base)[0].last_read_at,'2026-10-15T00:00:00.328749Z','existing read cannot regress within a millisecond');
+ assert.deepEqual(chatReadWatermarks({...base,messages:[],applications:[],reads:[]}),[]);
 });
