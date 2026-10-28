@@ -2,13 +2,15 @@ name: Saved job confirmation checks
 on:
   pull_request:
     paths:
+      - src/features/jobs/favorites/**
       - src/lib/savedJobRecord.js
       - src/lib/useSavedJobMutation.js
-      - src/components/SavedJobsView.jsx
       - src/components/LikedJobs.jsx
+      - src/components/SavedJobsView.jsx
+      - src/components/ProfileHub.jsx
       - src/components/JobSearchMapView.jsx
       - src/features/jobs/search/jobSearchApi.js
-      - scripts/saved-job-*.test.mjs
+      - scripts/saved-job-*.mjs
       - scripts/fixtures/saved-job-*
       - package.json
       - package-lock.json
@@ -34,3 +36,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Install isolated Chromium runtime
+        run: npx playwright install --with-deps chromium
+      - name: Saved-job browser regressions (synthetic data, no production access)
+        run: node scripts/saved-job-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/saved-job-browser-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: saved-job-browser-evidence
+          path: ${{ runner.temp }}/saved-job-browser-evidence
+          retention-days: 7
+          if-no-files-found: ignore
