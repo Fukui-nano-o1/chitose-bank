@@ -41,6 +41,7 @@ try {
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
     for (const mode of ['liked', 'status', 'search']) {
+      console.log(JSON.stringify({ width: viewport.width, mode, stage: 'start' }));
       const context = await browser.newContext({ viewport, locale: 'ja-JP', timezoneId: 'Asia/Tokyo' });
       const errors = [];
       await context.route('**/*', route => {
