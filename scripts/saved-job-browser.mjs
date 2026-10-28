@@ -15,6 +15,65 @@ const evidence = process.env.CB_EVIDENCE_DIR || path.join(tmpdir(), 'saved-job-b
 const origin = 'https://saved-job-browser.test';
 const results = [];
 let browser;
+
+async function checkSearchInteractions(page, errors) {
+  const fab = page.locator('.cb-search-fab');
+  const overlay = page.locator('.cb-search-overlay');
+  const jobLink = page.locator('a[href="#/work/job/17"]');
+  await fab.click();
+  await overlay.getByRole('button', { name: '試験野菜', exact: true }).click();
+  await overlay.getByRole('button', { name: /^どこで/ }).click();
+  await overlay.getByRole('button', { name: '徳島県吉野川市', exact: true }).click();
+  await overlay.getByRole('button', { name: '1件を表示', exact: true }).waitFor();
+  // Dismissing the panel is not Cancel: current conditions survive close/reopen and reload.
+  await overlay.click({ position: { x: 2, y: 2 } });
+  await overlay.waitFor({ state: 'detached' });
+  assert.equal(await jobLink.count(), 1);
+  assert.match(await fab.innerText(), /試験野菜.*徳島県吉野川市/s);
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('cb_searchFilters'))), {
+    w: ['試験野菜'], r: ['徳島県吉野川市'], d: null,
+  });
+  await fab.click();
+  await overlay.getByRole('button', { name: '1件を表示', exact: true }).click();
+  await page.reload();
+  await jobLink.waitFor();
+  assert.match(await fab.innerText(), /試験野菜.*徳島県吉野川市/s);
+  await fab.click();
+  const numberInput = overlay.getByRole('textbox', { name: '求人番号でさがす' });
+  await numberInput.fill('No.17x');
+  assert.equal(await numberInput.inputValue(), '17');
+  await overlay.getByRole('button', { name: '1件を表示', exact: true }).waitFor();
+  await numberInput.fill('999');
+  await overlay.getByRole('button', { name: '0件を表示', exact: true }).click();
+  await page.getByText('No.999 は募集中の一覧にありません', { exact: true }).waitFor();
+  assert.equal(await jobLink.count(), 0);
+  await fab.click();
+  await overlay.getByRole('button', { name: 'すべてクリア', exact: true }).click();
+  assert.equal(await numberInput.inputValue(), '');
+  await overlay.getByRole('button', { name: '1件を表示', exact: true }).click();
+  await jobLink.waitFor();
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('cb_searchFilters'))), { w: [], r: [], d: null });
+  // Search cards intentionally open another tab; closing it leaves the original search intact.
+  const [detail] = await Promise.all([page.waitForEvent('popup'), jobLink.click()]);
+  detail.on('pageerror', error => errors.push(error.message));
+  await detail.waitForURL(`${origin}/#/work/job/17`);
+  const returnToList = detail.getByRole('button', { name: '一覧に戻る', exact: true });
+  await returnToList.waitFor();
+  await detail.getByRole('button', { name: 'いいねを解除', exact: true }).waitFor();
+  await returnToList.click();
+  await detail.waitForURL(`${origin}/#/search`);
+  await detail.locator('.cb-search-fab').waitFor();
+  await detail.goBack();
+  await detail.waitForURL(`${origin}/#/work/job/17`);
+  await returnToList.waitFor();
+  await detail.goForward();
+  await detail.waitForURL(`${origin}/#/search`);
+  await detail.locator('.cb-search-fab').waitFor();
+  await detail.close();
+  assert.equal(page.url(), `${origin}/#/search`);
+  await jobLink.waitFor();
+  await page.getByRole('button', { name: 'いいねを解除', exact: true }).waitFor();
+}
 try {
   await mkdir(evidence, { recursive: true });
   await build({
@@ -108,9 +167,10 @@ try {
         await page.goBack();
         await page.waitForURL(`${origin}/${startHash}`);
       }
+      if (mode === 'search') await checkSearchInteractions(page, errors);
       await page.screenshot({ path: path.join(evidence, `${viewport.width}-${mode}.png`), fullPage: true });
       assert.deepEqual(errors, [], `${viewport.width}/${mode}: page errors`);
-      results.push({ width: viewport.width, mode, deniedWrite: true, delayedDoubleClick: true, lostResponseRetry: true, routeBackForward: mode === 'liked', pageErrors: 0 });
+      results.push({ width: viewport.width, mode, deniedWrite: true, delayedDoubleClick: true, lostResponseRetry: true, routeBackForward: mode !== 'status', searchFilters: mode === 'search', searchDismissAndRestore: mode === 'search', searchNewTabReturn: mode === 'search', pageErrors: 0 });
       await context.close();
     }
   }

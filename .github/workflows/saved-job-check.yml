@@ -9,7 +9,10 @@ on:
       - src/components/SavedJobsView.jsx
       - src/components/ProfileHub.jsx
       - src/components/JobSearchMapView.jsx
-      - src/features/jobs/search/jobSearchApi.js
+      - src/features/jobs/search/**
+      - src/lib/searchJobs.js
+      - scripts/search-jobs.test.mjs
+      - scripts/fixtures/search-jobs-*
       - scripts/saved-job-*.mjs
       - scripts/fixtures/saved-job-*
       - package.json

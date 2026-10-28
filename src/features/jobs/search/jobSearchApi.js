@@ -5,8 +5,8 @@
 //   表・RPC・列・絞り込み・戻り値の形は移設前と1文字も変えていない（薄い通し口だけ）。
 // ★エラー処理は呼び出し側に残してある（{data,error} をそのまま返す）＝
 //   「res.error を見て、失敗時は手元の値を上書きしない」規則（2026-08-07）を呼び出し側で守る。
-// ★一覧そのものの取得（jobs_public 全件）は lib/searchJobs.js の fetchPublicJobs が担う。
-//   玄関（#/visit）の先読みと共有するため lib に置いたままにしてある＝ここには持ってこない。
+// ★一覧そのものの取得（jobs_public 全件）は同じ feature の searchJobs.js の fetchPublicJobs が担う。
+//   玄関（#/visit）の先読みと一覧で共有するため、取得中の状態もその窓口だけが持つ。
 import { measureApplicationRequest } from "../../../lib/productAnalytics";
 import { supabase } from "../../../lib/supabase";
 import { fetchJobRowForMe } from "../../../lib/jobForMe";
