@@ -6,10 +6,12 @@ import {LikedJobs as FeatureLikedJobs} from '../../src/features/jobs/favorites/L
 import {useSavedJobMutation as legacyMutation} from '../../src/lib/useSavedJobMutation.js';
 import {useSavedJobMutation as featureMutation} from '../../src/features/jobs/favorites/useSavedJobMutation.js';
 import {JobSearchMapView} from '../../src/components/JobSearchMapView.jsx';
+import {JobSearchMapView as FeatureJobSearchMapView} from '../../src/features/jobs/search/JobSearchMapView.jsx';
 import {setCache,getCache} from '../../src/lib/viewCache.js';
 import {job,uid} from './saved-job-client.mjs';
 import {mapJobPublicRow} from '../../src/lib/utils.js';
 if(LikedJobs!==FeatureLikedJobs||legacyMutation!==featureMutation)throw new Error('Favorites compatibility exports must share the feature implementation');
+if(JobSearchMapView!==FeatureJobSearchMapView)throw new Error('Search compatibility export must share the feature implementation');
 setCache('saved:rows',[job]);setCache('search:jobs',[mapJobPublicRow(job)]);setCache('search:myJobNums',[]);
 window.qaGetCache=getCache;
 const me={id:uid};

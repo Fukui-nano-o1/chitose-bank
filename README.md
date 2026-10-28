@@ -5,7 +5,7 @@
 - [管理の8原則](docs/repository-management.md)：配置・公開範囲・検証・完了報告の共通ルール（正本）。
 - [AGENTS.md](AGENTS.md)：このリポジトリで作業する際の安全・作業指示。
 - `src/App.jsx` / `src/components/`：アプリの組み立て・既存画面・共用UI。既存画面は一括移動しない。
-- `src/features/`：機能ごとの実装。求人は `jobs/` 配下（`create/`、[search/](src/features/jobs/search/)（一覧取得・並び・先読み）、[favorites/](src/features/jobs/favorites/)）。
+- `src/features/`：機能ごとの実装。求人は `jobs/` 配下（`create/`、[search/](src/features/jobs/search/)（検索画面・一覧取得・並び・先読み）、[favorites/](src/features/jobs/favorites/)）。
 - `src/lib/`：複数機能で使う基盤・共用処理。機能専用の処理は所有する feature に置く。
 - `api/` / `supabase/migrations/`：サーバー境界とDB変更履歴。適用済み migration は書き換えない。
 - `scripts/` / `docs/`：合成データの検証と設計・運用文書。[PR確認項目](.github/pull_request_template.md)も参照。

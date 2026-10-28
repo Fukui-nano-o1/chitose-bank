@@ -98,7 +98,7 @@ test('real job cards: facade loads on tap only, native controls, preserved photo
     const panel = await readFile(path.join(root, 'src/features/jobs/search/components/JobDetailPanel.jsx'), 'utf8');
     const video = panel.slice(panel.indexOf('export function JobWorkVideo('), panel.indexOf('export function JobThingsToKnow('));
     assert.doesNotMatch(video, /タップして音声を再生|postMessage|setVolume|unMute|<button/);
-    const search = await readFile(path.join(root, 'src/components/JobSearchMapView.jsx'), 'utf8');
+    const search = await readFile(path.join(root, 'src/features/jobs/search/JobSearchMapView.jsx'), 'utf8');
     assert.match(search, /variant="list" priority=/);
     const cardSource = await readFile(path.join(root, 'src/components/JobCard.jsx'), 'utf8');
     assert.doesNotMatch(cardSource, /props\.videoPreview|props\.variant === "list" \? youtubeVideoId/);
