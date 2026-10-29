@@ -11,7 +11,7 @@ const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { CSS } from './src/appStyles.js';
-import { JobSearchMapView } from './src/components/JobSearchMapView.jsx';
+import { JobSearchMapView } from './src/features/jobs/search/JobSearchMapView.jsx';
 import { setCache } from './src/lib/viewCache.js';
 import { ADMIN_EMAIL } from './src/lib/utils';
 import { CONSIGN_TERMS_VERSION } from './src/lib/consignAccess';

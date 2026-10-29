@@ -19,8 +19,6 @@ import path from "node:path";
 
 // 検索の意味論を持つファイル。分割で移動したらここを直す（＝移動そのものは差分に出さない）
 const FILES = [
-  "src/components/JobSearchMapView.jsx",
-  "src/lib/searchJobs.js",
   "src/components/JobCard.jsx",
   "src/components/JobLocationMap.jsx",
   "src/components/SearchLaneTabs.jsx",
@@ -370,7 +368,7 @@ function collect() {
   }
 
   // ── api:call（2026-08-18・4-A2.1で追加）────────────────────────
-  // 窓口（jobSearchApi.js／lib/searchJobs.js）の各関数を、画面側が何回呼ぶか。
+  // 窓口（jobSearchApi.js／searchJobs.js）の各関数を、画面側が何回呼ぶか。
   // data:* を「形の集合」にしたことで失った回数の検出力を、構造分割に耐える位置で取り戻す：
   // 同じ問い合わせを誤って2回発火させる／呼ぶのをやめる、が差分に出る。
   const apiNames = new Set();

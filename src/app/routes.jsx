@@ -31,7 +31,7 @@ export const LoginScreen = lazyChunk(() => import("../components/LoginScreen").t
 export const AccountHolderForm = lazyChunk(() => import("../components/AccountHolderForm").then(m => ({ default: m.AccountHolderForm })));
 export const ProfileModal = lazyChunk(() => import("../components/ProfileModal").then(m => ({ default: m.ProfileModal })));
 export const OnboardingModal = lazyChunk(() => import("../components/OnboardingModal").then(m => ({ default: m.OnboardingModal })));
-export const JobSearchMapView = lazyChunk(() => import("../components/JobSearchMapView").then(m => ({ default: m.JobSearchMapView })));
+export const JobSearchMapView = lazyChunk(() => import("../features/jobs/search/JobSearchMapView").then(m => ({ default: m.JobSearchMapView })));
 export const WorkerExperiencePage = lazyChunk(() => import("../components/WorkerExperiencePage").then(m => ({ default: m.WorkerExperiencePage })));
 export const HelpCenter = lazyChunk(() => import("../app/help/HelpCenter").then(m => ({ default: m.HelpCenter })));
 export const InstallGuide = lazyChunk(() => import("../app/help/HelpCenter").then(m => ({ default: m.InstallGuide })));

@@ -12,7 +12,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const row = (id, extra = {}) => ({ job_number: id, crop: '合成作物', task: '収穫',
   date_start: '2099-01-01', work_time: '08:00〜17:00', headcount: 2, ...extra });
 
-test('search feature relocation preserves data, cache and compatibility contracts', async t => {
+test('search feature preserves data and shared cache contracts', async t => {
   const output = await mkdtemp(path.join(tmpdir(), 'search-jobs-test-'));
   let dom;
   try {
@@ -33,11 +33,9 @@ test('search feature relocation preserves data, cache and compatibility contract
       return dom.window;
     };
 
-    await t.test('old and feature imports share every export and the same in-flight request', async () => {
-      const w = mount(), { legacy, feature } = w.qaSearch;
-      assert.deepEqual(Object.keys(legacy).sort(), Object.keys(feature).sort());
-      for (const key of Object.keys(legacy)) assert.equal(legacy[key], feature[key], key);
-      const request = legacy.fetchPublicJobs();
+    await t.test('repeated feature consumers share the same in-flight request', async () => {
+      const w = mount(), { feature } = w.qaSearch;
+      const request = feature.fetchPublicJobs();
       assert.equal(feature.fetchPublicJobs(), request);
       assert.equal(w.qaSearchRequests.length, 1);
       const query = w.qaSearchRequests[0];
@@ -103,8 +101,8 @@ test('search feature relocation preserves data, cache and compatibility contract
     });
 
     await t.test('prefetch shares the pending list and records only its accepted new rows', async () => {
-      const w = mount(), { feature, legacy, getCache } = w.qaSearch;
-      const prefetch = legacy.prefetchSearchJobs();
+      const w = mount(), { feature, getCache } = w.qaSearch;
+      const prefetch = feature.prefetchSearchJobs();
       const consumer = feature.fetchPublicJobs();
       assert.equal(w.qaSearchRequests.length, 1);
       w.qaSearchRequests[0].resolve({ data: [row(17, { opened_at: new Date().toISOString() })] });
@@ -141,7 +139,7 @@ test('search feature relocation preserves data, cache and compatibility contract
     });
 
     await t.test('view reads and counters retain empty/error handling and local duplicate guards', async () => {
-      const w = mount(), { feature, legacy } = w.qaSearch;
+      const w = mount(), { feature } = w.qaSearch;
       assert.deepEqual(plain(await feature.fetchJobViewCounts([NaN, '17', null])), {});
       assert.equal(w.qaSearchRequests.length, 0);
       const read = feature.fetchJobViewCounts([17, NaN]);
@@ -155,10 +153,10 @@ test('search feature relocation preserves data, cache and compatibility contract
       assert.equal(feature.countJobView(17, false), false);
       assert.equal(w.qaViewCalls.length, 0);
       assert.equal(feature.countJobView(17, true), true);
-      assert.equal(legacy.countJobView(17, true), false);
+      assert.equal(feature.countJobView(17, true), false);
       w.sessionStorage.setItem('cb_jobViewed_17', String(Date.now() - 11 * 60 * 1000));
       w.qaRejectView = true;
-      assert.equal(legacy.countJobView(17, true), true, 'count failure must not interrupt viewing');
+      assert.equal(feature.countJobView(17, true), true, 'count failure must not interrupt viewing');
       await Promise.resolve();
       assert.deepEqual(plain(w.qaViewCalls), [
         { name: 'count_job_view', args: { p_job_number: 17 } },
