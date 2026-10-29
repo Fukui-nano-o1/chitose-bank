@@ -164,14 +164,15 @@ test('App mobile navigation owns presentation and preserves selection behavior',
             await context.route('**/*',route => {
               const url = new URL(route.request().url());
               if (url.origin !== 'https://navigation.test') return route.abort();
-              if (url.pathname === '/') return route.fulfill({contentType:'text/html',body:'<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script src="/fixture.js"></script>'});
-              if (url.pathname === '/fixture.js') return route.fulfill({contentType:'text/javascript',body:script});
+              if (url.pathname === '/') return route.fulfill({contentType:'text/html; charset=utf-8',body:'<!doctype html><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div><script src="/fixture.js"></script>'});
+              if (url.pathname === '/fixture.js') return route.fulfill({contentType:'text/javascript; charset=utf-8',body:script});
               return route.abort();
             });
             await context.addInitScript(() => { sessionStorage.setItem('qaLoads',String(Number(sessionStorage.getItem('qaLoads') || 0)+1)); });
             const page = await context.newPage();
             page.on('pageerror',e=>errors.push(e.message));
             await page.goto('https://navigation.test/#/search');
+            assert.equal(await page.evaluate(()=>document.characterSet),'UTF-8','synthetic document decodes Japanese labels as UTF-8');
             await page.locator('.app-header-mobile-tab').first().waitFor();
             await page.getByRole('button',{name:'入れ方',exact:true}).click();
             await page.waitForURL('**/#/install');
@@ -181,6 +182,7 @@ test('App mobile navigation owns presentation and preserves selection behavior',
             await page.waitForFunction(()=>document.querySelector('.app-header-mobile-tab.active .label')?.textContent==='入れ方');
             assert.equal(await page.locator('.app-header-mobile-tab.active .label').textContent(),'入れ方');
             await page.goForward();await page.waitForURL('**/#/login');
+            await page.waitForFunction(()=>document.querySelector('.app-header-mobile-tab.active .label')?.textContent==='登録・ログイン');
             const before = await page.evaluate(()=>Number(sessionStorage.getItem('qaLoads')));
             await Promise.all([page.waitForEvent('load'),page.getByRole('button',{name:'登録・ログイン',exact:true}).click()]);
             await page.locator('.app-header-mobile-tab').first().waitFor();
