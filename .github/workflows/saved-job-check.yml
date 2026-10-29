@@ -12,6 +12,10 @@ on:
       - src/components/PendingConsentWorkspace.jsx
       - src/components/VisitAndInsurance.jsx
       - scripts/feature-entries.test.mjs
+      - src/components/ui.jsx
+      - src/components/uiPrimitives.jsx
+      - src/components/LFPillSelect.jsx
+      - scripts/pill-select-ui.test.mjs
       - scripts/search-jobs.test.mjs
       - scripts/fixtures/search-jobs-*
       - scripts/saved-job-*.mjs
