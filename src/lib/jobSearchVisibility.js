@@ -1,4 +1,4 @@
-import { isJobEnded } from "./utils.js";
+import { isJobEnded } from "../features/jobs/model/jobStatus.js";
 
 // 終了フラグは保存した時点の写し。表示するときの日本時間で必ず再判定する。
 export function refreshJobExpiry(job, now = Date.now()) {

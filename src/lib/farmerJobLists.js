@@ -1,4 +1,4 @@
-import { isJobEnded, isJobUnpublished } from "./utils.js";
+import { isJobEnded, isJobUnpublished } from "../features/jobs/model/jobStatus.js";
 
 // キャッシュの分類は取得時のもの。毎回現在時刻で仕分け、求人の記録自体は残す。
 export function classifyFarmerJobs(rows, now = Date.now()) {

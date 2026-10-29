@@ -1,3 +1,8 @@
+// 求人モデルの旧import互換。実装はfeatures/jobs/modelのみが所有する。
+// 利用元を直接importへ移行し、参照検索・回帰テスト・buildで旧利用がゼロになったら削除する。
+export { jobEndTimeMs, isJobEnded, isJobUnpublished, isJobDraft } from "../features/jobs/model/jobStatus.js";
+export { payLabel, dateRangeLabel, mapJobPublicRow } from "../features/jobs/model/jobPresentation.js";
+
 // 純粋ヘルパー＋定数（分割・段階1・2026-07-24）：React/DOM/supabaseに依存しない層。
 // ここに置いてよいのは「引数→戻り値」だけで完結する関数と、読み取り専用の定数のみ。
 
@@ -32,56 +37,6 @@ export const startsWithinDays = (item, days = 7) => {
   const limit = new Date(); limit.setDate(limit.getDate() + days);
   return start <= ymdLocal(limit);
 };
-
-// ── 求人の状態の定義（唯一のソース・2026-07-27たきと指示「終了は終了、下書きは下書き」）──
-// 曖昧なまま各所でstatus文字列だけを見ていると、終了した求人が下書き扱いで出る等の食い違いが起きる。
-// 判定はここに集約し、各画面はこの関数を使う。jobs 行と mapJobPublicRow の表示用データの両方を受け取る。
-//
-// 終了（ended）＝作業日程が過ぎた。statusに関係なく最優先（下書きでも審査中でも、日程が過ぎたら終了）
-const JOB_JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const JOB_DAY_MS = 24 * 60 * 60 * 1000;
-
-// 日付列はそのまま使い、古いキャッシュの Date / ISO文字列だけ日本の日付へ戻す。
-// 不正な日付を Date の自動繰り上がり（2/30 → 3/2）で別の日にしない。
-const jobDateYmd = (value) => {
-  let ymd = typeof value === "string" ? value.trim() : "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
-    const ms = value instanceof Date ? value.getTime()
-      : /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/i.test(ymd) ? Date.parse(ymd) : NaN;
-    if (!Number.isFinite(ms)) return null;
-    const japanDate = new Date(ms + JOB_JST_OFFSET_MS);
-    if (!Number.isFinite(japanDate.getTime())) return null;
-    ymd = japanDate.toISOString().slice(0, 10);
-  }
-  const [year, month, day] = ymd.split("-").map(Number);
-  const ms = Date.UTC(year, month - 1, day);
-  return new Date(ms).toISOString().slice(0, 10) === ymd ? ymd : null;
-};
-
-// 終了する瞬間（ミリ秒）。日本の求人日程なので端末のタイムゾーンに依存しない。
-// 終了時刻が未入力・不正なら最終日の翌日0時。日程自体が不明なら null（終了と推測しない）。
-// 同じ値を使って画面側も時刻到来時に再判定できる＝通信やDBの定期処理を待たない。
-export const jobEndTimeMs = (j) => {
-  if (!j) return null;
-  const end = jobDateYmd(j.date_end || j.dateEndRaw || j.dateEnd || j.date_start || j.dateStartRaw || j.dateStart);
-  if (!end) return null;
-  const midnight = Date.parse(`${end}T00:00:00+09:00`);
-  const time = String(j.work_time || j.workTime || "").match(/^\s*(\d{1,2}):(\d{2})\s*[〜～~–-]\s*(\d{1,2}):(\d{2})\s*$/);
-  if (time && Number(time[1]) < 24 && Number(time[2]) < 60 && Number(time[3]) < 24 && Number(time[4]) < 60) {
-    return midnight + (Number(time[3]) * 60 + Number(time[4])) * 60 * 1000;
-  }
-  return midnight + JOB_DAY_MS;
-};
-
-export const isJobEnded = (j, now = new Date()) => {
-  const end = jobEndTimeMs(j);
-  const nowMs = now instanceof Date ? now.getTime() : typeof now === "number" ? now : Date.parse(now);
-  return end !== null && Number.isFinite(nowMs) && nowMs >= end;
-};
-// 一時非公開＝掲載歴（opened_at）があるのに今はdraft。下書きではない（公開中タブに帯付きで残す側）
-export const isJobUnpublished = (j) => !!(j && j.status === "draft" && j.opened_at);
-// 下書き（作成中）＝まだ一度も掲載しておらず、日程も過ぎていないdraft。これ以外をdraftと呼ばない
-export const isJobDraft = (j) => !!(j && j.status === "draft" && !j.opened_at && !isJobEnded(j));
 
 // 作業日当日か（きょうの仕事・当日だけの表示条件などに使用）
 export function isWorkDayToday(dateStart, dateEnd) {
@@ -382,30 +337,6 @@ export const ROLE_ORANGE = "#F76B1C";      // 働き手モードの目印色（�
 export const ROLE_ORANGE_INK = "#B54A0E";  // 小さい橙テキスト用の濃色（生成り背景でも読める・コントラスト約5:1）
 export const ROLE_GREEN = "#00A86B";       // 農家モードの目印色（ブランド緑と同色）
 
-// 給与表示ラベル（時給/日給）。JobSearchMapView・FarmerDashboard共通
-export function payLabel(j) { return j.payType === "hourly" ? `時給${j.pay.toLocaleString()}円` : `日給${j.pay.toLocaleString()}円`; }
-
-// 日程ラベル（確認ページのjobDateLabelと同一仕様・2026-07-16）：
-// 年内に終了なら年を省く。年内かつ同じ月で終了なら終了側は年と月も省く
-export function dateRangeLabel(startStr, endStr) {
-  if (!startStr) return "";
-  const parse = (s) => { const [y, m, d] = String(s).slice(0, 10).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); };
-  const WD = ["日","月","火","水","木","金","土"];
-  const fmt = (d, opts = {}) => {
-    const w = WD[d.getDay()];
-    if (opts.omitYearMonth) return `${d.getDate()}（${w}）`;
-    if (opts.omitYear) return `${d.getMonth()+1}/${d.getDate()}（${w}）`;
-    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}（${w}）`;
-  };
-  const start = parse(startStr);
-  const end = endStr ? parse(endStr) : start;
-  const thisYear = new Date().getFullYear();
-  const inYear = start.getFullYear() === thisYear && end.getFullYear() === thisYear;
-  if (start.toDateString() === end.toDateString()) return fmt(start, { omitYear: inYear });
-  const sameMonth = inYear && start.getMonth() === end.getMonth();
-  return `${fmt(start, { omitYear: inYear })} 〜 ${fmt(end, sameMonth ? { omitYearMonth: true } : { omitYear: inYear })}`;
-}
-
 // カード・サムネ表示用：写真1枚（{url,thumb,caption} または旧string形式）から軽量サムネURLを選ぶ
 // （2026-08-02・転送量対策②）。thumbが無い古い写真は原寸へフォールバック。詳細ページの
 // カルーセル・ライトボックス・審査プレビューは原寸(url)のままにすること（画質が要る画面）
@@ -441,100 +372,6 @@ export function overtimeLine(policy, detail) {
   if (p !== "あり") return p; // 「なし」はそのまま
   const d = String(detail || "").trim();
   return d ? `あり（${d}）` : "あり";
-}
-
-// jobs_public（同一列構成のadmin_preview_jobも含む）の1行を求人詳細表示用オブジェクトへ整形
-// さがす一覧・求人詳細・管理者プレビューで共通利用
-export function mapJobPublicRow(j) {
-  return {
-    id: j.job_number,
-    crop: j.crop || "",
-    task: j.task || "",
-    // date_start/date_endから確認ページと同じ仕様で組み立て。日付列が無い旧データは保存済みラベルへフォールバック
-    dateLabel: dateRangeLabel(j.date_start, j.date_end) || (j.date_label || ""),
-    dateStartRaw: j.date_start || "",
-    dateEndRaw: j.date_end || "",
-    // 新着＝掲載（status→open遷移）から3日間（2026-07-16・jobs.opened_atはDBトリガーが刻む）
-    isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000,
-    payType: j.pay_type === "日給" ? "daily" : "hourly",
-    pay: j.pay_type === "日給" ? Number(j.daily_wage)||0 : Number(j.hourly_wage)||0,
-    town: j.town || "",
-    region: [j.prefecture, j.city, j.town].filter(Boolean).join("") || "",
-    // 町域を外した住所（都道府県＋市区町村）。訪問者の地図はこれを中心にする（2026-08-17たきと指示）＝
-    // 町域の重心を中心にすると、円の中心そのものが町域を指してしまうため
-    cityArea: [j.prefecture, j.city].filter(Boolean).join("") || "",
-    // 集合場所の番地・建物名（2026-08-03たきと指示：会員には番地まで表示）。
-    // jobs_public.work_address は anon に NULL マスク済み（2026-07-31・訪問者開示レベル第1弾）＝
-    // 未ログインには常に空で届く。開示の境界はDB側が正・フロントは届いた値を表示するだけ
-    // j.address フォールバック＝オーナープレビュー等 jobs テーブルを直読みする経路（列名がaddress）用。
-    // jobs_public 経由では address 列が存在しないので訪問者の値が漏れることはない
-    workAddress: j.work_address || j.address || "",
-    // 番地の「有無」だけは訪問者にも届く（jobs_public.has_work_address・2026-08-03）＝
-    // 番地が設定された求人にだけモザイクを出すための判定。番地本文は届かない
-    hasWorkAddress: j.has_work_address != null ? !!j.has_work_address : !!((j.work_address || j.address || "").trim()),
-    // 訪問者に伏せた項目のうち「値が入っているもの」の名前（jobs_public.masked_fields・2026-08-17）。
-    // 値は届かないが、モザイクを描いてよいかの判定に使う＝伏せた項目を画面から消さない。
-    // ログイン後・管理者プレビューは空配列＝マスクなし。番地だけは従来どおり hasWorkAddress が担当
-    maskedFields: Array.isArray(j.masked_fields) ? j.masked_fields : [],
-    experience: j.job_exp || "", // 必要経験の選択式は撤回（2026-07-18）。旧求人の保存値のみ表示・未入力はdispで「ー」
-    lat:    j.lat != null ? Number(j.lat) : null,
-    lng:    j.lng != null ? Number(j.lng) : null,
-    radius: j.geo_radius_m != null ? Number(j.geo_radius_m) : null,
-    count: j.headcount != null ? j.headcount + "名" : "", headcount: j.headcount, photos: j.photos || [],
-    workVideoUrl: j.work_video_url || "",
-    // 募集主の法定表示（2026-07-30・第14弾）：掲載時にjobsへ転写された値をそのまま出す。
-    // 原本（employer_profiles）ではなく求人ごとの控えを見るので、掲載後にプロフィールを直しても
-    // その求人の表示は掲載時点のまま＝広告の記載と食い違わない
-    recruiterName: j.recruiter_name || "",
-    recruiterAddress: j.recruiter_address || "",
-    recruiterContact: j.recruiter_contact || "",
-    nearestStation: j.nearest_station || "", workTime: j.work_time || "",
-    breakTime: j.break_time || "",
-    commuteTime: j.commute_time || "", jobBody: j.notes || "",
-    cautions: j.cautions || "",
-    // 時間外労働（2026-08-03）：有無＋「あり」のときの目安。求人ごとの条件ので jobs 直持ち
-    overtimePolicy: j.overtime_policy || "",
-    overtimeDetail: j.overtime_detail || "",
-    // 労働条件の明示・4項目（2026-08-21）：掲載時にDBトリガー（job_publish_zscope）が凍結した値。
-    // 変更の範囲＝求人入力（未選択は「変更なし」に倒れる）／契約の更新・退職事項＝固定文／
-    // 労災・雇用保険＝プロフィールの申告の掲載時凍結（未申告はNULL＝「ー」表示）
-    placeChangeScope: j.place_change_scope || "",
-    taskChangeScope: j.task_change_scope || "",
-    contractRenewal: j.contract_renewal || "",
-    retirementTerms: j.retirement_terms || "",
-    laborInsuranceStatus: j.labor_insurance_status || "",
-    wanted: "", items: j.belongings || "",
-    // 賃金支払条件（2026-08-02）：掲載申請時にトリガーが固定ポリシーを確定保存した値。表示はコード値→ラベル変換のみ
-    payMethod: j.pay_method || "", payTiming: j.pay_timing || "", wageClosingRule: j.wage_closing_rule || "",
-    dateStart: j.date_start ? new Date(j.date_start) : null,
-    dateEnd: j.date_end ? new Date(j.date_end) : null,
-    holidays: Array.isArray(j.holidays) ? j.holidays : [], // 期間内の休日（"YYYY-MM-DD"配列・2026-08-03）
-
-    dangerPlaces: (j.danger_places || []).filter(p => p && (p.label || p.desc)),
-    dangerTasks: (j.danger_tasks || []).filter(t => t && (t.label || t.desc)),
-    fullPayGuarantee: !!j.full_pay_guarantee,
-    beginnerOk: !!j.beginner_ok,
-    instantApproveRepeat: !!j.instant_approve_repeat,
-    // 待遇（2026-08-02改定）：掲載申請時にDBトリガーがプロフィール10項目＋求人固有上書きを合成して
-    // jobs.perksへ確定保存する＝公開求人はこの値だけを見る（employer_profilesの現在値へのフォールバック禁止）。
-    // NULLは掲載前のdraftのみ（確認ページはプレビューとしてプロフィール待遇を初期値に使う・従来どおり）
-    perks: j.perks || null,
-    // 保険（2026-08-02新設）：掲載申請時に凍結した {items, notes, snapshot_at}。
-    // NULL＝スナップショット導入前のレガシー求人＝「保険情報を確認できません」を表示（現在値への代用禁止）
-    insuranceSnapshot: j.insurance_snapshot || null,
-    profileSnapshotAt: j.profile_snapshot_at || "",
-    // 写真の無い求人の表紙に出す求人者のアイコン（2026-07-30たきと指示）。jobs_publicに2列追加済み。
-    // 公開範囲は増えていない＝同じ2項目は job_employer_profile が求人詳細で既に返している
-    employerName: j.employer_nickname || "",
-    employerAvatar: j.employer_avatar_url || "",
-    experiencedPreferred: !!j.experienced_preferred,
-    // 掲載が終わった求人。履歴・詳細の表示用で、さがすに残すかどうかの判定とは分ける。
-    closed: j.status === "closed",
-    // 終了帯の判定。期間終了は共通の日本時間の判定を使う（キャッシュの復元・表示時にも再判定する）。
-    hiredCount: j.hired_count != null ? Number(j.hired_count) : 0,
-    filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount),
-    expired: isJobEnded(j),
-  };
 }
 
 // 作物リスト（カードを増やすときはここに1行足すだけ）

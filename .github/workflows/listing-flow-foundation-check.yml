@@ -13,6 +13,8 @@ on:
       - scripts/fixtures/offline/**
       - src/components/CalendarView.jsx
       - src/App.jsx
+      - src/app/navigation/**
+      - scripts/app-navigation.test.mjs
       - .github/workflows/listing-flow-foundation-check.yml
   pull_request:
     paths:
@@ -26,6 +28,8 @@ on:
       - scripts/fixtures/offline/**
       - src/components/CalendarView.jsx
       - src/App.jsx
+      - src/app/navigation/**
+      - scripts/app-navigation.test.mjs
       - package.json
       - .github/workflows/listing-flow-foundation-check.yml
 permissions:
@@ -52,6 +56,11 @@ jobs:
         run: npm run build
       - name: Install isolated Chromium test runtime
         run: npx playwright install --with-deps chromium
+      - name: Real browser app navigation, history and input-protection checks
+        run: node --test scripts/app-navigation.test.mjs
+        env:
+          CB_NAV_BROWSER: '1'
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/app-navigation-evidence
       - name: Real browser basic-topic navigation, reload and responsive checks
         run: node scripts/listing-basics-browser.mjs
         env:
@@ -72,5 +81,12 @@ jobs:
         with:
           name: listing-publication-browser-evidence
           path: ${{ runner.temp }}/listing-publication-evidence
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: app-navigation-browser-evidence
+          path: ${{ runner.temp }}/app-navigation-evidence
           retention-days: 7
           if-no-files-found: ignore

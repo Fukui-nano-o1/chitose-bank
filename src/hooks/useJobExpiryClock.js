@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { jobEndTimeMs } from "../lib/utils.js";
+import { jobEndTimeMs } from "../features/jobs/model/jobStatus.js";
 
 // 次の終了時刻だけで描き直す。通信やDBの定期処理に依存せず、停止中も期限を守る。
 export function useJobExpiryClock(jobs, selectedJob = null) {

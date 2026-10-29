@@ -3,7 +3,7 @@
 // 並びの規則（2026-07-24たきと指示）はここが唯一のソース：
 // 新着（掲載3日以内・この端末で初見）を上位に、他はランダム。既読はcb_seenNewJobsに記録。
 import { supabase } from "../../../lib/supabase";
-import { mapJobPublicRow } from "../../../lib/utils";
+import { mapJobPublicRow } from "../model/jobPresentation.js";
 import { visibleSearchJobs } from "../../../lib/jobSearchVisibility";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { getConfirmedRefreshVersion, REFRESH_JOBS } from "../../../lib/refreshBus";
