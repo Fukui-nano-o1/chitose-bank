@@ -1,9 +1,11 @@
 // カレンダー上の日は時刻ではない。保存・通信では YYYY-MM-DD、UIだけローカルDate。
+/** @param {unknown} date */
 export function calendarDateToYmd(date) {
   if (!(date instanceof Date) || !Number.isFinite(date.getTime())) return null;
   return `${String(date.getFullYear()).padStart(4, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+/** @param {unknown} value */
 export function calendarDateFromYmd(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
@@ -14,6 +16,7 @@ export function calendarDateFromYmd(value) {
   return calendarDateToYmd(date) === value ? date : null;
 }
 
+/** @param {string | null | undefined} value @param {unknown} [payloadDate] */
 export function restoreDraftCalendarDate(value, payloadDate) {
   if (!value) return null; // 消した入力を古いpayloadから復活させない。
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return calendarDateFromYmd(value);

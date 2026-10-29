@@ -16,22 +16,28 @@
 //   scripts/search-fingerprint.baseline.txt の末尾に、採取時点のDB実測値を注記として貼ってある。
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { collectSemanticContracts } from "./search-fingerprint-contracts.mjs";
 
 // 検索の意味論を持つファイル。分割で移動したらここを直す（＝移動そのものは差分に出さない）
-const FILES = [
+export const FILES = [
   "src/components/JobCard.jsx",
   "src/components/JobLocationMap.jsx",
   "src/components/SearchLaneTabs.jsx",
   "src/components/ConsignmentSearchList.jsx",
   "src/lib/consignAccess.js",
-  "src/lib/utils.js",            // mapJobPublicRow の派生フラグ（closed/filled/expired/isNew）だけを見る
+  "src/features/jobs/model/jobPresentation.js",
+  "src/features/jobs/model/jobStatus.js",
+  "src/lib/jobSearchVisibility.js",
+  "src/lib/jobForMe.js",
+  "src/lib/farmerJobLists.js",
   "src/features/jobs/search/JobSearchMapView.jsx",
   "src/features/jobs/search/model.js",
-  "src/features/jobs/search/map/JobSearchMap.jsx",
   "src/features/jobs/search/filters/SearchFilterPanel.jsx",
   "src/features/jobs/search/filters/searchFilterStorage.js",
   "src/features/jobs/search/components/JobDetailPanel.jsx",
   "src/features/jobs/search/components/ApplyPanel.jsx",
+  "src/features/jobs/search/components/ApplicationPage.jsx",
   "src/features/jobs/search/searchJobs.js",
   "src/features/jobs/search/jobSearchApi.js",
   // 今日ページ（Phase 4-B・2026-08-18）。検索とは別の面だが、同じ道具で最低限だけ固定する
@@ -41,7 +47,6 @@ const FILES = [
   // 農家のお仕事タブ（Phase 5・2026-08-18）。求人の仕分け・応募者の絞り込み・書き込みRPCだけを固定する
   "src/components/FarmerDashboard.jsx",
   "src/features/farmer/dashboard/farmerDashboardApi.js",
-  "src/features/farmer/dashboard/model.js",
 ];
 
 const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : null);
@@ -85,18 +90,20 @@ const bag = (arr) => {
   return [...m.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, n]) => `${k}  x${n}`);
 };
 
-function collect() {
+export function collect(readSource = read) {
   const sec = {};
   const add = (k, v) => (sec[k] = (sec[k] || []).concat(v));
 
+  collectSemanticContracts(readSource, add);
+
   for (const f of FILES) {
-    let src = read(f);
-    if (src == null) continue;
-    // utils.js は巨大な共有層。検索に効くのは mapJobPublicRow だけので、そこだけを見る
+    let src = readSource(f);
+    if (src == null) throw new Error(`指紋の必須ソースがありません: ${f}`);
+    // 表示モデルの検索に効く部分は mapJobPublicRow だけなので、そこだけを見る
     // （検索と無関係な変更を「検索の差分」として誤検出しないため）
-    if (f.endsWith("lib/utils.js")) {
+    if (f.endsWith("model/jobPresentation.js")) {
       const m = src.match(/export function mapJobPublicRow[\s\S]*?\n\}\n/);
-      if (!m) { console.error("★mapJobPublicRow が見つかりません:", f); process.exit(2); }
+      if (!m) throw new Error(`mapJobPublicRow が見つかりません: ${f}`);
       src = m[0];
     }
 
@@ -129,10 +136,6 @@ function collect() {
 
     // ② 除外・終了判定・並び
     for (const m of src.matchAll(/isEndedJob\s*=\s*\((\w+)\)\s*=>\s*([^;]+);/g)) add("rule:ended", flat(m[2]));
-    // 終了判定の実体＝mapJobPublicRow が付ける派生フラグ。ここが変わると除外の意味が変わる
-    for (const m of src.matchAll(/^\s{4}(closed|filled|isNew):\s*([^\n]+?),\s*$/gm)) add("rule:jobFlag", `${m[1]}: ${flat(m[2])}`);
-    const exp = src.match(/^\s{4}expired:\s*\(\(\) => \{[\s\S]*?\n\s{4}\}\)\(\),/m);
-    if (exp) add("rule:jobFlag", "expired: " + flat(exp[0]));
     // 比較関数つきの sort だけを拾う（引数なしの .sort() は文字列整列＝並び規則ではないので除く）
     for (const m of src.matchAll(/\.sort\(\s*\((\w+),\s*(\w+)\)\s*=>\s*([^;\n]*?)\)(?=[;,.\s)])/g))
       add("rule:sort", flat(`(${m[1]}, ${m[2]}) => ${m[3]}`));
@@ -152,37 +155,8 @@ function collect() {
     for (const m of src.matchAll(/\.addTo\(map\)/g)) add("map:addTo", "addTo(map)");
     for (const m of src.matchAll(/(fitBounds|setView)\(/g)) add("map:view", m[1]);
 
-    // ⑤b 地図の寿命と幾何（2026-08-18・4-A3で追加）
-    // 地図はDBと別種の危険がある：見た目が同じでも、effectの依存・破棄順・座標欠損の扱いが
-    // 変わると壊れる（2026-07-16の _leaflet_pos 真っ暗事故がその型）。
-    // ここは「何が描かれるか」ではなく【いつ作られ・いつ壊され・どこを中心に・どこまで描くか】を見る。
-    // ★アンカーが見つからなければ黙って素通りせず止める（4-A2の取りこぼしを繰り返さない）。
-    if (/JobLocationMap\.jsx$/.test(f)) {
-      const need = (re, key, label) => {
-        const m = src.match(re);
-        if (!m) { console.error(`★地図の不変条件が見つかりません（${label}）:`, f); process.exit(2); }
-        add(key, flat(m[1] !== undefined ? m[1] : m[0]));
-      };
-      // 生成・破棄のタイミング＝全 useEffect の依存配列（地図の再生成条件そのもの）
-      for (const m of src.matchAll(/\n\s*\}, (\[[^\]]*\])\);/g)) add("map:effectDeps", flat(m[1]));
-      // 破棄（remove）と、作り直す前の後始末。片方でも消えると地図が二重に生きる
-      for (const m of src.matchAll(/(mapRef\.current(?:\?)?\.remove\(\))/g)) add("map:cleanup", m[1]);
-      for (const m of src.matchAll(/mapRef\.current = (null|map)\b/g)) add("map:cleanup", `mapRef.current = ${m[1]}`);
-      // 座標が欠けている求人を地図化するか（＝ピンを立ててよいかの判定）
-      need(/if \(lat == null \|\| lng == null \|\| [^\n]*\) return;/, "map:guard", "座標欠損の門番");
-      need(/if \(lat == null \|\| lng == null\) \{/, "map:guard", "座標欠損時の代替表示");
-      need(/if \(visitor && !cityGeo && !cityGeoTried\) return;/, "map:guard", "訪問者の中心が取れるまで描かない");
-      // 円と中心の扱い（訪問者に見せる範囲＝マスクの一部。小さくすると場所が絞られる）
-      need(/const VISITOR_CIRCLE_M = (\d+);/, "map:geometry", "訪問者の円の半径");
-      need(/const center = ([^\n;]+);/, "map:geometry", "中心の決め方");
-      need(/const r = ([^\n;]+);/, "map:geometry", "半径の既定値");
-      need(/const fitM = ([^\n;]+);/, "map:geometry", "表示範囲の広さ");
-      need(/map\.setView\(([^\n;]+)\);/, "map:geometry", "setViewの引数");
-      need(/map\.fitBounds\(([^\n]+)\);/, "map:geometry", "fitBoundsの引数");
-      // 触れる図か否か（marker/circle を interactive にするとタップ経路が生まれる＝現在は無い）
-      for (const m of src.matchAll(/(interactive|keyboard|dragging|scrollWheelZoom|doubleClickZoom|touchZoom|boxZoom|zoomControl|attributionControl):\s*(\w+)/g))
-        add("map:interactive", `${m[1]}:${m[2]}`);
-    }
+    // 地図の寿命・訪問者の非描画は collectSemanticContracts で AST を採る。
+    // 旧「市区町村の円」の anchor は現行のモザイク仕様と異なるため使わない。
 
     // ⑥ イベント登録（Leaflet破棄事故・スワイプ判定の回帰を見る）
     for (const m of src.matchAll(/(add|remove)EventListener\(\s*["'`](\w+)["'`]/g)) add("event:dom", `${m[1]}:${m[2]}`);
@@ -213,88 +187,8 @@ function collect() {
     for (const m of src.matchAll(/const (isOwnJob|ownLoaded|showConsignLane|appPending|myAppLoaded)\s*=\s*([^;]+);/g))
       add("role:derived", `${m[1]} = ${flat(m[2])}`);
 
-    // ⑩ 応募の状態機械（2026-08-18・4-A5b-0で追加）
-    // 応募まわりは「表示は正常なまま、押した先だけ違う」が起こる領域。
-    // 例：myAppStatus==="approved" と "applied" のクリック先を取り違えても、
-    // DB操作の種類も呼び出し回数も変わらないので data:* / api:call では鳴らない。
-    // ここは【条件 → 何になるか】の対応そのものを1本ずつ持つ。
-    // ★アンカーが見つからなければ黙って素通りせず止める。
-    // ★2つに分けて見る（2026-08-18・4-A5b の分割に備えて）：
-    //   状態機械の【定義】（applyBtnLabel 等）は、それを持つファイルで見る＝ファイル名でなく
-    //   中身で判定する。分割で定義がどのファイルへ移っても追随し、移った先に無い anchor を
-    //   探して exit(2) することもない。
-    //   面の番号（applyConfirmStep）のような【使用】は、応募UIを持つどのファイルでも数える。
-    const hasApplyMachine = src.includes("const applyBtnDisabled =");
-    const isApplyUi = /JobSearchMapView\.jsx$|ApplyPanel\.jsx$/.test(f);
-    if (isApplyUi) {
-      // 値の中の // コメントを落とす（文言の推敲で鳴らせない。判定に効くのはコードだけ）
-      const decomment = (t) => t.split("\n").map((l) => l.replace(/(^|[^:])\/\/.*$/, "$1")).join("\n");
-      // 三項の連鎖（cond ? 値 : cond ? 値 : …）を「条件 => 値」の並びにほどく。
-      // ★深さは ( [ { だけで数える。< > を数えると矢印 => の > で深さが壊れ、連鎖を1本も割れなくなる。
-      // ★文字列の中の ? : では割らない。
-      const chain = (text, key) => {
-        const b = decomment(text).slice(decomment(text).indexOf("=") + 1).replace(/;\s*$/, "");
-        let d = 0, q = null, cur = "", parts = [];
-        for (let i = 0; i < b.length; i++) {
-          const ch = b[i];
-          if (q) { cur += ch; if (ch === q && b[i - 1] !== "\\") q = null; continue; }
-          if (ch === '"' || ch === "'" || ch === "`") { q = ch; cur += ch; continue; }
-          if ("([{".includes(ch)) d++;
-          else if (")]}".includes(ch)) d--;
-          if (d === 0 && (ch === "?" || ch === ":")) { parts.push(cur.trim()); cur = ""; continue; }
-          cur += ch;
-        }
-        parts.push(cur.trim());
-        for (let i = 0; i + 1 < parts.length; i += 2) add(key, `${flat(parts[i])} => ${flat(parts[i + 1])}`);
-        if (parts.length % 2 === 1) add(key, `(既定) => ${flat(parts[parts.length - 1])}`);
-      };
-      const need = (re, key, label, asChain) => {
-        const m = src.match(re);
-        if (!m) { console.error(`★応募の不変条件が見つかりません（${label}）:`, f); process.exit(2); }
-        if (asChain) chain(m[0], key); else add(key, flat(decomment(m[0])));
-        return m[0];
-      };
-      // 押せるか・何と書いてあるか・どんな見た目か・押すとどこへ行くか
-      if (hasApplyMachine) {
-      need(/const applyBtnDisabled = [^\n;]+;/, "apply:disabled", "applyBtnDisabled");
-      need(/const applyBtnLabel = [\s\S]*?\n    : "[^"]*";/, "apply:label", "applyBtnLabel", true);
-      need(/const applyBtnStyle = [\s\S]*?\n    : \{\};/, "apply:style", "applyBtnStyle", true);
-      const onClick = need(/const applyBtnOnClick = [\s\S]*?\n    : \(\(\) => \{[^\n]*\}\);/, "apply:onClick", "applyBtnOnClick", true);
-      // 募集終了の判定と、その時に出す言葉
-      need(/const recruitClosed = [^\n;]+;/, "apply:closed", "recruitClosed");
-      need(/const hideApply = [^\n;]+;/, "apply:closed", "hideApply");
-      need(/const closedLabel = [\s\S]*?期間終了）";/, "apply:closed", "closedLabel");
-      need(/const closedLabelShort = [^\n;]+?;/, "apply:closed", "closedLabelShort");
-      // 状態の出どころ
-      need(/const myAppStatus = [^\n;]+;/, "apply:state", "myAppStatus");
-      need(/const myAppLoaded = [^\n;]+;/, "apply:state", "myAppLoaded");
-      need(/const appPending = [^\n;]+;/, "apply:state", "appPending");
-      need(/const isPeriodJob = [^\n;]+;/, "apply:state", "isPeriodJob");
-      // 期間求人の「来られる日」候補（休日を除く）
-      need(/const periodDays = \(\(\) => \{[\s\S]*?\n  \}\)\(\);/, "apply:periodDays", "periodDays");
-      // 求人を切り替えた時の後始末（消えると前の求人の選択が次に持ち越される）
-      need(/useEffect\(\(\) => \{ setApplyConfirmOpen\(false\);[^\n]*\}, \[selectedJob\?\.id\]\);/, "apply:reset", "selectedJob変更時のreset");
-      // 確認ボックスの初期値と面の数
-      for (const m of src.matchAll(/const \[(applyConfirmOpen|applyConfirmStep|applyChoice|applyImgZoom|applyDates)[^\]]*\] = useState\(([^)]*)\);/g))
-        add("apply:initial", `${m[1]} = ${m[2]}`);
-      // 応募まわりの遷移先。★応募に関わる関数の中だけを見る（画面全体の hash は url:hash が持つ）
-      const applyFns = [onClick];
-      for (const re of [/const goPending = async \(\) => \{[\s\S]*?\n  \};/, /const doApply = async \(\) => \{[\s\S]*?\n  \};/,
-                        /const handleApply = async \(\) => \{[\s\S]*?\n  \};/, /const cancelMyApplication = async \(\) => \{[\s\S]*?\n  \};/]) {
-        const m = src.match(re);
-        if (!m) { console.error("★応募の関数が見つかりません:", re, f); process.exit(2); }
-        applyFns.push(m[0]);
-      }
-      for (const body of applyFns) {
-        for (const m of decomment(body).matchAll(/window\.location\.hash = ("[^"]*"(?: \+ [\w.?]+)?)/g)) add("apply:goto", flat(m[1]));
-        for (const m of decomment(body).matchAll(/setApplyReturn\(([^)]*)\)/g)) add("apply:goto", `setApplyReturn(${m[1]})`);
-        for (const m of decomment(body).matchAll(/onRegister\(\)/g)) add("apply:goto", "onRegister()");
-      }
-      } // hasApplyMachine
-      // 面の番号は【使用】＝応募UIを持つどのファイルでも数える（分割で確認ボックスが移っても総数が保たれる）
-      for (const m of src.matchAll(/applyConfirmStep === (\d+)/g)) add("apply:step", `step===${m[1]}`);
-      for (const m of src.matchAll(/setApplyConfirmStep\(([^)]*)\)/g)) add("apply:step", `setStep(${flat(m[1])})`);
-    }
+    // 応募は現行の専用ページ・送信ガード・状態遷移を AST で採る（下記）。
+    // 廃止済み applyConfirmStep / setApplyConfirmOpen の存在は要求しない。
 
     // ⑪ 今日ページの用件と作業の状態（2026-08-18・4-Bで追加・最低限）
     // 「やること」は記録から導出する（表示用の別状態を持たない）＝導出の規則が変わると
@@ -374,14 +268,14 @@ function collect() {
   const apiNames = new Set();
   for (const f of FILES) {
     if (!/Api\.js$|searchJobs\.js$/.test(f)) continue;
-    const src = read(f);
-    if (src == null) continue;
+    const src = readSource(f);
+    if (src == null) throw new Error(`指紋の必須ソースがありません: ${f}`);
     for (const m of src.matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)) apiNames.add(m[1]);
   }
   for (const f of FILES) {
     if (/Api\.js$|searchJobs\.js$/.test(f)) continue; // 窓口の定義自体は数えない
-    let src = read(f);
-    if (src == null) continue;
+    let src = readSource(f);
+    if (src == null) throw new Error(`指紋の必須ソースがありません: ${f}`);
     src = src.replace(/^import[\s\S]*?from\s+["'][^"']+["'];\s*$/gm, ""); // import行は呼び出しではない
     for (const name of apiNames) {
       const n = (src.match(new RegExp(`\\b${name}\\(`, "g")) || []).length;
@@ -391,7 +285,7 @@ function collect() {
   return sec;
 }
 
-function render(sec) {
+export function render(sec) {
   const out = ["# さがす（求人検索）の指紋", ""];
   for (const k of Object.keys(sec).sort()) {
     out.push(`## ${k}`);
@@ -408,25 +302,43 @@ function render(sec) {
 
 const BASE = path.join("scripts", "search-fingerprint.baseline.txt");
 const NOTE_MARK = "# ── 採取時点のDB実測（静的解析では出ない値）";
-const text = render(collect());
 
-if (process.argv.includes("--write")) {
-  const old = read(BASE) || "";
-  const note = old.includes(NOTE_MARK) ? "\n" + old.slice(old.indexOf(NOTE_MARK)) : "";
-  fs.writeFileSync(BASE, text + note);
-  console.log("baseline を更新しました:", BASE);
-} else if (process.argv.includes("--check")) {
-  const old = read(BASE);
-  if (old == null) { console.error("baseline がありません。先に --write で採取してください"); process.exit(1); }
-  const cut = (s) => (s.includes(NOTE_MARK) ? s.slice(0, s.indexOf(NOTE_MARK)) : s).trimEnd();
-  const a = cut(old).split("\n"), b = cut(text).split("\n");
-  const lost = a.filter((l) => !b.includes(l) && l.trim());
-  const gained = b.filter((l) => !a.includes(l) && l.trim());
-  if (!lost.length && !gained.length) { console.log("指紋一致（検索の意味論に差分なし）"); process.exit(0); }
-  console.error("★指紋に差分があります");
-  for (const l of lost) console.error("  - " + l);
-  for (const l of gained) console.error("  + " + l);
-  process.exit(1);
-} else {
-  console.log(text);
+// セクションをまたぐ同じ文字列も別の不変条件。旧来の行全体の集合比較では、
+// ある条件が別セクションに残っているだけで削除を見逃していた。
+export function compareFingerprints(expected, actual) {
+  const entries = (text) => {
+    const lines = text.split(NOTE_MARK)[0].trimEnd().split("\n");
+    let section = "";
+    const out = new Set();
+    for (const line of lines) {
+      if (line.startsWith("## ")) section = line;
+      if (line.trim()) out.add(`${section}\n${line}`);
+    }
+    return out;
+  };
+  const a = entries(expected), b = entries(actual);
+  return { lost: [...a].filter(line => !b.has(line)), gained: [...b].filter(line => !a.has(line)) };
+}
+
+function main() {
+  const text = render(collect());
+  if (process.argv.includes("--write")) {
+    const old = read(BASE) || "";
+    const note = old.includes(NOTE_MARK) ? "\n" + old.slice(old.indexOf(NOTE_MARK)) : "";
+    fs.writeFileSync(BASE, text + note);
+    console.log("baseline を更新しました（差分を必ずレビューしてください）:", BASE);
+  } else if (process.argv.includes("--check")) {
+    const old = read(BASE);
+    if (old == null) throw new Error("baseline がありません。レビュー済みの指紋を保存してください");
+    const { lost, gained } = compareFingerprints(old, text);
+    if (!lost.length && !gained.length) { console.log("指紋一致（追跡対象の静的契約に差分なし）"); return; }
+    console.error("★指紋に差分があります");
+    for (const line of lost) console.error("  - " + line.replace("\n", ": "));
+    for (const line of gained) console.error("  + " + line.replace("\n", ": "));
+    process.exitCode = 1;
+  } else console.log(text);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { main(); } catch (error) { console.error(error.message); process.exitCode = 2; }
 }

@@ -4,11 +4,27 @@
 // 判定はここに集約し、各画面はこの関数を使う。jobs 行と mapJobPublicRow の表示用データの両方を受け取る。
 //
 // 終了（ended）＝作業日程が過ぎた。statusに関係なく最優先（下書きでも審査中でも、日程が過ぎたら終了）
+/**
+ * The date/status fields shared by DB rows and already-mapped display jobs.
+ * Date inputs are unknown because legacy cache values are validated below.
+ * @typedef {object} JobSchedule
+ * @property {unknown} [date_end]
+ * @property {unknown} [dateEndRaw]
+ * @property {unknown} [dateEnd]
+ * @property {unknown} [date_start]
+ * @property {unknown} [dateStartRaw]
+ * @property {unknown} [dateStart]
+ * @property {unknown} [work_time]
+ * @property {unknown} [workTime]
+ * @property {string} [status]
+ * @property {unknown} [opened_at]
+ */
 const JOB_JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const JOB_DAY_MS = 24 * 60 * 60 * 1000;
 
 // 日付列はそのまま使い、古いキャッシュの Date / ISO文字列だけ日本の日付へ戻す。
 // 不正な日付を Date の自動繰り上がり（2/30 → 3/2）で別の日にしない。
+/** @param {unknown} value */
 const jobDateYmd = (value) => {
   let ymd = typeof value === "string" ? value.trim() : "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) {
@@ -27,6 +43,7 @@ const jobDateYmd = (value) => {
 // 終了する瞬間（ミリ秒）。日本の求人日程なので端末のタイムゾーンに依存しない。
 // 終了時刻が未入力・不正なら最終日の翌日0時。日程自体が不明なら null（終了と推測しない）。
 // 同じ値を使って画面側も時刻到来時に再判定できる＝通信やDBの定期処理を待たない。
+/** @param {JobSchedule | null | undefined} j */
 export const jobEndTimeMs = (j) => {
   if (!j) return null;
   const end = jobDateYmd(j.date_end || j.dateEndRaw || j.dateEnd || j.date_start || j.dateStartRaw || j.dateStart);
@@ -39,12 +56,15 @@ export const jobEndTimeMs = (j) => {
   return midnight + JOB_DAY_MS;
 };
 
+/** @param {JobSchedule | null | undefined} j @param {Date | number | string} [now] */
 export const isJobEnded = (j, now = new Date()) => {
   const end = jobEndTimeMs(j);
   const nowMs = now instanceof Date ? now.getTime() : typeof now === "number" ? now : Date.parse(now);
   return end !== null && Number.isFinite(nowMs) && nowMs >= end;
 };
 // 一時非公開＝掲載歴（opened_at）があるのに今はdraft。下書きではない（公開中タブに帯付きで残す側）
+/** @param {JobSchedule | null | undefined} j */
 export const isJobUnpublished = (j) => !!(j && j.status === "draft" && j.opened_at);
 // 下書き（作成中）＝まだ一度も掲載しておらず、日程も過ぎていないdraft。これ以外をdraftと呼ばない
+/** @param {JobSchedule | null | undefined} j */
 export const isJobDraft = (j) => !!(j && j.status === "draft" && !j.opened_at && !isJobEnded(j));

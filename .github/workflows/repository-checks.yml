@@ -1,0 +1,47 @@
+name: Repository checks
+on:
+  pull_request:
+    paths:
+      - src/**
+      - api/**
+      - supabase/functions/**
+      - scripts/search-fingerprint*
+      - scripts/typecheck*
+      - tsconfig*.json
+      - package*.json
+      - .github/workflows/repository-checks.yml
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - api/**
+      - supabase/functions/**
+      - scripts/search-fingerprint*
+      - scripts/typecheck*
+      - tsconfig*.json
+      - package*.json
+      - .github/workflows/repository-checks.yml
+permissions:
+  contents: read
+concurrency:
+  group: repository-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Strict incremental JS/JSX and all existing Edge Function TypeScript
+        run: npm run typecheck
+      - name: Negative proof for the type and search checks
+        run: npm run test:checks
+      - name: Current search invariants
+        run: npm run check:search

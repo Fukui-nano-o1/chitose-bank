@@ -8,6 +8,7 @@
 // ★本文はトリガーからは渡ってこない：pg_netは送信bodyをキュー表に残すため、
 //   会話の中身はここでservice_roleとして引く。
 // ★古い形（{recipient_id}だけ）のリクエストも受ける＝入れ替えの前後で通知が落ちない。
+// @ts-types="npm:@types/web-push@3.6.4"
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -61,7 +62,9 @@ Deno.serve(async (req) => {
         );
         sent++;
       } catch (err) {
-        const code = (err && (err.statusCode || err.status)) as number | undefined;
+        const code = err !== null && typeof err === 'object'
+          ? ('statusCode' in err && err.statusCode) || ('status' in err && err.status)
+          : undefined;
         // 期限切れ/無効な購読は掃除（410 Gone / 404）
         if (code === 410 || code === 404) {
           await supabase.from('push_subscriptions').delete().eq('endpoint', s.endpoint);

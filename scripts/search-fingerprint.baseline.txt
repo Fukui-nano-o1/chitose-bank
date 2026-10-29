@@ -4,147 +4,184 @@
   applyToJob  x1
   approveApplication  x1
   cancelApplication  x1
-  confirmTerms  x1
-  copyJob  x2
+  confirmInsurance  x1
+  countJobView  x1
   countMyJobs  x1
   createPendingApplication  x1
-  decideTimeCorrection  x1
   deleteMyJob  x1
-  deleteQuestionSetRow  x1
   deleteRoster  x2
-  deleteSavedJob  x1
   fetchAccountHolderId  x1
   fetchConsignorConsent  x1
   fetchEmployerPublicJobCounts  x1
   fetchEmployerPublicJobs  x1
   fetchEmployerTrustInfo  x1
-  fetchInterviewQuestions  x1
   fetchJobEmployerProfile  x1
   fetchJobEmployerTrustInfo  x1
+  fetchJobViewCounts  x1
   fetchMyApplicationForJob  x1
   fetchMyApplicationTerms  x1
   fetchMyApplications  x1
   fetchMyCalendarJobs  x1
-  fetchMyEmergencyContact  x2
+  fetchMyEmergencyContact  x1
   fetchMyEmployerProfile  x1
   fetchMyEmployerProfileFull  x1
   fetchMyFarmApplicants  x1
   fetchMyFarmJobs  x2
-  fetchMyJobContext  x1
   fetchMyJobLabel  x1
   fetchMyJobNumbers  x1
   fetchMyPendingApplications  x1
   fetchMyPendingForJob  x1
-  fetchMyPunchFacts  x1
   fetchMyRoster  x1
   fetchMyTodoItems  x1
-  fetchMyWorkerNickname  x1
   fetchMyWorkerProfile  x1
-  fetchPendingCorrections  x1
   fetchPendingJobPreviews  x1
-  fetchPublicJobByNumber  x3
+  fetchPublicJobByNumber  x2
   fetchPublicJobs  x1
+  fetchPublicJobsByNumbers  x3
   fetchSavedJobNumbers  x1
   fetchSignupOpen  x1
   fetchSurveyAnswered  x1
   fetchWorkerCards  x1
   fetchWorkerProfileForFarmer  x1
   fetchWorkerTrustInfo  x1
-  getSession  x6
-  insertAttendanceEvent  x1
+  getSession  x5
   insertJobReport  x1
-  insertMessage  x1
-  insertQuestionSet  x1
-  insertSavedJob  x1
   insertSurvey  x1
   markWorkNoShow  x1
   orderSearchJobs  x1
-  punchStart  x1
   recordSeenNewIds  x1
   rejectApplication  x1
-  runTodoRpc  x1
-  sendInterviewQuestionsRpc  x1
   setAgreedDates  x1
   setApplicationFollowup  x1
-  submitFarmerReviewRpc  x1
+  submitFarmerFinalReviewRpc  x1
   unpublishJob  x2
-  updateQuestionSet  x1
-  upsertInsurance  x1
   upsertRoster  x1
 
-## apply:closed
-  const closedLabel = selectedJob?.filled ? ((selectedJob.closed || selectedJob.expired) ? "この求人は掲載を終了しました（満員）" : "この募集は終了しました（満員）") : selectedJob?.closed ? "この募集は終了しました" : "この募集は終了しました（期間終了）";  x1
-  const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";  x1
-  const hideApply = recruitClosed && myAppLoaded && !myAppStatus;  x1
-  const recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired || selectedJob.closed));  x1
+## apply:contract:appHasAction
+  "appHasAction = myAppStatus === \"applied\" || myAppStatus === \"approved\" || myAppStatus === \"contracted\" || myAppStatus === \"working\" || myAppStatus === \"rejected\" || (!myAppStatus && myPending)"  x1
 
-## apply:disabled
-  const applyBtnDisabled = myAppStatus === "rejected" || appPending;  x1
+## apply:contract:appPending
+  "appPending = !!(me && !myAppLoaded)"  x1
 
-## apply:goto
-  "/account"  x2
-  "/apply/done"  x2
-  "/apply/pending"  x2
-  "/chat/" + myApplication.id  x1
-  onRegister()  x2
-  setApplyReturn(selectedJob.id)  x5
+## apply:contract:applyBtnDisabled
+  "applyBtnDisabled = myAppStatus === \"rejected\" || myAppStatus === \"completed\" || appPending"  x1
 
-## apply:initial
-  applyChoice = null  x1
-  applyConfirmOpen = false  x1
-  applyConfirmStep = 0  x1
-  applyDates = []  x1
-  applyImgZoom = false  x1
+## apply:contract:applyBtnLabel
+  "applyBtnLabel = appPending ? <>確認中<Dots /></> : applying ? (myAppStatus === \"applied\" ? <>取り消し中<Dots /></> : <>送信中<Dots /></>) : myAppStatus === \"approved\" ? \"承認されました — チャットを開く\" : myAppStatus === \"rejected\" ? \"今回は見送りとなりました\" : myAppStatus === \"applied\" ? \"応募済み — 取り消す\" : (myAppStatus === \"contracted\" || myAppStatus === \"working\") ? \"チャットを開く\" : myAppStatus === \"completed\" ? \"この仕事は完了しました\" : (!myAppStatus && myPending) ? \"仮応募中 → プロフィールを仕上げる\" : \"日程の確認\""  x1
 
-## apply:label
-  (!myAppStatus && myPending) => "仮応募中 → プロフィールを仕上げる"  x1
-  (既定) => "日程の確認"  x1
-  appPending => <>確認中<Dots /></>  x1
-  applying => (myAppStatus === "applied" ? <>取り消し中<Dots /></> : <>送信中<Dots /></>)  x1
-  myAppStatus === "applied" => "応募済み — 取り消す"  x1
-  myAppStatus === "approved" => "承認されました — チャットを開く"  x1
-  myAppStatus === "rejected" => "今回は見送りとなりました"  x1
+## apply:contract:applyBtnOnClick
+  "applyBtnOnClick = !me ? (() => { if (selectedJob) setApplyReturn(selectedJob.id); visitorGuide(); }) : (myAppStatus === \"approved\" || myAppStatus === \"contracted\" || myAppStatus === \"working\") ? (() => { window.location.hash = \"/chat/\" + myApplication.id; }) : myAppStatus === \"applied\" ? cancelMyApplication : (!myAppStatus && myPending) ? (() => { window.location.hash = \"/apply/pending\"; }) : openApplicationPage"  x1
 
-## apply:onClick
-  !me => (() => { if (selectedJob) setApplyReturn(selectedJob.id); visitorGuide(); })  x1
-  (!myAppStatus && myPending) => (() => { window.location.hash = "/apply/pending"; })  x1
-  (既定) => (() => { setApplyConfirmStep(0); setApplyChoice(null); setApplyConfirmOpen(true); })  x1
-  myAppStatus === "applied" => cancelMyApplication  x1
-  myAppStatus === "approved" => (() => { window.location.hash = "/chat/" + myApplication.id; })  x1
+## apply:contract:applyBtnStyle
+  "applyBtnStyle = (myAppStatus === \"rejected\" || myAppStatus === \"completed\") ? { background: \"#EBEBEB\", color: \"#717171\" } : myAppStatus === \"applied\" ? { background: \"#F7F7F7\", color: \"#717171\", border: \"1px solid #EBEBEB\" } : (!myAppStatus && myPending) ? { background: \"#C77700\" } : {}"  x1
 
-## apply:periodDays
-  const periodDays = (() => { if (!isPeriodJob) return []; const hs = new Set(Array.isArray(selectedJob.holidays) ? selectedJob.holidays : []); const out = []; const [ys, ms, ds] = selectedJob.dateStartRaw.split("-").map(Number); const start = new Date(ys, ms - 1, ds); const end = new Date(selectedJob.dateEndRaw + "T00:00:00"); let guard = 0; for (let d = new Date(start); d <= end && guard < 400; d.setDate(d.getDate() + 1), guard++) { const y = ymdLocal(d); if (!hs.has(y)) out.push(y); } return out; })();  x1
+## apply:contract:applySubmittingRef
+  "applySubmittingRef = useRef(false)"  x1
 
-## apply:reset
-  useEffect(() => { setApplyConfirmOpen(false); setApplyConfirmStep(0); setApplyChoice(null); setApplyImgZoom(false); setApplyDates([]); applyAvailRef.current = null; }, [selectedJob?.id]);  x1
+## apply:contract:cancelMyApplication
+  "cancelMyApplication = async () => { if (applying || !myApplication) return; if (!window.confirm(\"この応募を取り消しますか？農家にお知らせが届きます\")) return; setApplying(true); try { const { data, error } = await cancelApplication(myApplication.id); setApplying(false); if (!error && data && (data.ok || data.reason === \"not_found\")) { setMyApplication(null); patchMyApp(selectedJob.id, null); emitConfirmedRefresh(REFRESH_APPLICATIONS); } else alert(\"<message>\"); } catch { setApplying(false); alert(\"<message>\"); } }"  x1
 
-## apply:state
-  const appPending = !!(me && !myAppLoaded);  x1
-  const isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw);  x1
-  const myAppLoaded = !me || myAppsLoaded;  x1
-  const myAppStatus = myApplication?.status;  x1
+## apply:contract:closedLabel
+  "closedLabel = selectedJob?.filled ? ((selectedJob.closed || selectedJob.expired) ? \"この求人は掲載を終了しました（満員）\" : \"この募集は終了しました（満員）\") : selectedJob?.closed ? \"この募集は終了しました\" : \"この募集は終了しました（期間終了）\""  x1
 
-## apply:step
-  setStep(0)  x2
-  setStep(3)  x2
-  setStep(s=>s+1)  x1
-  setStep(s=>s-1)  x1
-  step===0  x2
-  step===1  x1
-  step===2  x2
-  step===3  x1
+## apply:contract:closedLabelShort
+  "closedLabelShort = selectedJob?.filled ? \"満員\" : \"募集終了\""  x1
 
-## apply:style
-  (!myAppStatus && myPending) => { background:"#C77700" }  x1
-  (既定) => {}  x1
-  myAppStatus === "applied" => { background:"#F7F7F7", color:"#717171", border:"1px solid #EBEBEB" }  x1
-  myAppStatus === "rejected" => { background:"#EBEBEB", color:"#717171" }  x1
+## apply:contract:doApply
+  "doApply = async () => { if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) { setApplying(false); return; } setApplying(true); try { const { data, error } = await applyToJob(selectedJob.id, applyAvailRef.current); setApplying(false); if (error) { alert(\"<message>\"); return; } if (data && data.reason === \"dates_required\") { alert(\"<message>\"); return; } if (data && data.ok) { emitConfirmedRefresh(REFRESH_APPLICATIONS); try { if (data.already) sessionStorage.setItem(\"cb_applyAlready\", \"1\"); else sessionStorage.removeItem(\"cb_applyAlready\"); } catch { } window.location.hash = \"/apply/done\"; } else if (data && data.reason === \"not_logged_in\") { setApplyReturn(selectedJob.id); if (onRegister) onRegister(); } else if (data && data.reason === \"own_job\") { alert(\"<message>\"); } else if (data && data.reason === \"job_not_open\") { alert(\"<message>\"); } else if (data && data.reason === \"account_suspended\") { alert(\"<message>\"); } else if (data && data.reason === \"profile_incomplete\") { await goPending(); } else if (data && data.reason === \"not_registered\") { setApplyReturn(selectedJob.id); window.location.hash = \"/account\"; } else { alert(\"<message>\"); } } catch { setApplying(false); alert(\"<message>\"); } }"  x1
+
+## apply:contract:goPending
+  "goPending = async () => { if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) { setApplying(false); return true; } const { data: pend, error } = await createPendingApplication(selectedJob.id, applyAvailRef.current); setApplying(false); if (error) return false; if (pend && pend.ok) { emitConfirmedRefresh(REFRESH_APPLICATIONS); try { sessionStorage.setItem(\"cb_pendingNew\", \"1\"); } catch { } window.location.hash = \"/apply/pending\"; return true; } if (pend && pend.reason === \"already_applied\") { emitConfirmedRefresh(REFRESH_APPLICATIONS); window.location.hash = \"/apply/done\"; return true; } if (pend && pend.reason === \"dates_required\") { alert(\"<message>\"); return true; } return false; }"  x1
+
+## apply:contract:handleApply
+  "handleApply = async () => { if (applySubmittingRef.current || applying || !selectedJob || !me || myApplication || myPending || isOwnJob) return; if (selectedJob.closed || selectedJob.filled || isJobEnded(selectedJob)) { return; } applySubmittingRef.current = true; setApplying(true); try { const { data: { session } } = await getSession(); if (!session) { setApplying(false); setApplyReturn(selectedJob.id); if (onRegister) onRegister(); return; } const { data: ah } = await fetchAccountHolderId(session.user.id); if (!ah) { setApplying(false); setApplyReturn(selectedJob.id); window.location.hash = \"/account\"; return; } const ready = await fetchWorkerReady(); if (!ready.ready) { if (!(await goPending())) await doApply(); return; } await doApply(); } catch { setApplying(false); alert(\"<message>\"); } finally { applySubmittingRef.current = false; setApplying(false); } }"  x1
+
+## apply:contract:hideApply
+  "hideApply = recruitClosed && myAppLoaded && !appHasAction"  x1
+
+## apply:contract:isOwnJob
+  "isOwnJob = !!(me && selectedJob && myJobNums.has(selectedJob.id))"  x1
+
+## apply:contract:isPeriodJob
+  "isPeriodJob = !!(selectedJob && selectedJob.dateEndRaw && selectedJob.dateEndRaw !== selectedJob.dateStartRaw)"  x1
+
+## apply:contract:myAppLoaded
+  "myAppLoaded = !me || myAppsLoaded"  x1
+
+## apply:contract:myAppStatus
+  "myAppStatus = myApplication?.status"  x1
+
+## apply:contract:openApplicationPage
+  "openApplicationPage = () => { if (!selectedJob) return; goAlongPath(`/work/job/${selectedJob.id}/apply/intro`, \"求人詳細に戻る\"); }"  x1
+
+## apply:contract:ownLoaded
+  "ownLoaded = !me || myJobNumsLoaded"  x1
+
+## apply:contract:periodDays
+  "periodDays = (() => { if (!isPeriodJob) return []; const hs = new Set(Array.isArray(selectedJob.holidays) ? selectedJob.holidays : []); const out = []; const [ys, ms, ds] = selectedJob.dateStartRaw.split(\"-\").map(Number); const start = new Date(ys, ms - 1, ds); const end = new Date(selectedJob.dateEndRaw + \"T00:00:00\"); let guard = 0; for (let d = new Date(start); d <= end && guard < 400; d.setDate(d.getDate() + 1), guard++) { const y = ymdLocal(d); if (!hs.has(y)) out.push(y); } return out; })()"  x1
+
+## apply:contract:recruitClosed
+  "recruitClosed = !!(selectedJob && (selectedJob.filled || selectedJob.expired || selectedJob.closed))"  x1
+
+## apply:page
+  "if (applicationStep !== null && selectedJob) { return <ApplicationPage key={`${me?.id || \"anon\"}_${selectedJob.id}`} selectedJob={selectedJob} step={Math.min(applicationStep, isPeriodJob ? 3 : 2)} me={me} isPeriodJob={isPeriodJob} periodDays={periodDays} applying={applying} blocked={!me || recruitClosed || !!myApplication || myPending || isOwnJob} checking={!myAppLoaded || !ownLoaded} handleApply={handleApply} applyAvailRef={applyAvailRef}/>; }"  x1
+
+## apply:page:APPLICATION_STEPS
+  "APPLICATION_STEPS = ['intro', 'about', 'dates', 'confirm']"  x1
+
+## apply:page:back
+  "back = () => { if (applying) return; if (!returnAlongPath()) window.location.hash = step > 0 ? path(step - 1) : `/work/job/${selectedJob.id}`; }"  x1
+
+## apply:page:button
+  "onClick={() => setSelection(s => ({ ...s, choice: s.choice === 'any' ? 'dates' : 'any' }))}"  x1
+  "onClick={() => setSelection(s => ({ choice: 'dates', dates: s.dates.includes(d) ? s.dates.filter(x => x !== d) : [...s.dates, d] }))}"  x1
+  "onClick={back}" | "disabled={applying}"  x2
+  "onClick={next}" | "disabled={applying || unavailable || (step === 2 && !validDates)}"  x1
+  "onClick={submit}" | "disabled={applying || unavailable || !validDates}"  x1
+
+## apply:page:dates
+  "dates = selection.dates.filter(d => periodDays.includes(d))"  x1
+
+## apply:page:draftKey
+  "draftKey = `cb_application_dates_v1_${me?.id || 'anon'}_${selectedJob?.id}`"  x1
+
+## apply:page:next
+  "next = () => goAlongPath(path(step + 1), '前の確認ページに戻る')"  x1
+
+## apply:page:path
+  "path = next => `/work/job/${selectedJob.id}/apply/${APPLICATION_STEPS[next]}`"  x1
+
+## apply:page:readApplicationStep
+  "export function readApplicationStep() { const match = window.location.hash.match(/^#\\/?work\\/job\\/\\d+\\/apply\\/(intro|about|dates|confirm)$/); return match ? APPLICATION_STEPS.indexOf(match[1]) : null; }"  x1
+
+## apply:page:selection
+  "[selection, setSelection] = useState(() => { try { const saved = JSON.parse(sessionStorage.getItem(draftKey)); return { choice: saved?.choice === 'any' ? 'any' : 'dates', dates: Array.isArray(saved?.dates) ? saved.dates : [] }; } catch { return { choice: 'dates', dates: [] }; } })"  x1
+
+## apply:page:storage
+  "useEffect(() => { try { sessionStorage.setItem(draftKey, JSON.stringify(selection)); } catch { } }, [draftKey, selection])"  x1
+
+## apply:page:submit
+  "submit = () => { if (!validDates || applying || unavailable) return; applyAvailRef.current = isPeriodJob ? (selection.choice === 'any' ? 'any' : [...dates].sort()) : null; handleApply(); }"  x1
+
+## apply:page:unavailable
+  "unavailable = blocked || checking"  x1
+
+## apply:page:validDates
+  "validDates = !isPeriodJob || selection.choice === 'any' || dates.length > 0"  x1
+
+## apply:panel:button
+  "onClick={() => setOwnMenuOpen(true)}"  x1
+  "onClick={hideApply ? undefined : applyBtnOnClick}" | "disabled={hideApply || applying || applyBtnDisabled}"  x3
+
+## apply:routeEffect
+  "useEffect(() => { const onRoute = () => setApplicationStep(readApplicationStep()); window.addEventListener(\"hashchange\", onRoute); window.addEventListener(\"popstate\", onRoute); window.addEventListener(ROUTE_CHANGED, onRoute); return () => { window.removeEventListener(\"hashchange\", onRoute); window.removeEventListener(\"popstate\", onRoute); window.removeEventListener(ROUTE_CHANGED, onRoute); }; }, [])"  x1
+  "useEffect(() => { if (!selectedJob || !me) return; let sig = null; try { sig = sessionStorage.getItem(\"cb_openApply\"); } catch { } if (!sig || String(sig) !== String(selectedJob.id)) return; if (!myAppLoaded) return; try { sessionStorage.removeItem(\"cb_openApply\"); } catch { } if (myAppStatus || myPending || hideApply || isOwnJob) return; goAlongPath(`/work/job/${selectedJob.id}/apply/intro`, \"求人詳細に戻る\"); }, [selectedJob, me, myAppLoaded, myAppStatus, myPending, hideApply, isOwnJob])"  x1
 
 ## cache:key
   farm:active  x2
   farm:apps  x3
   farm:drafts  x3
-  farm:empMini  x3
+  farm:empMini  x2
   farm:empTrust  x2
   farm:expired  x2
   farm:hasEmergency  x2
@@ -153,32 +190,98 @@
   farm:roster  x2
   farm:trust  x2
   farm:wp  x2
+  saved:rows  x2
   search:consignDeals  x2
   search:consignor  x2
-  search:jobs  x4
+  search:jobs  x5
   search:myApps  x4
   search:myJobNums  x3
   search:myPend  x3
   search:pendingPreviews  x2
-  today:entries  x3
-  today:hired  x2
+  search:viewCounts  x2
+  today:entries  x4
+  today:hired  x4
   today:roles  x3
-  today:todos  x2
-  today:unset  x2
+  today:todos  x4
 
 ## cache:snap
   empMini  x1
-  wMini  x1
+
+## data:contract:farmer
+  "approveApplication = (applicationId) => supabase.rpc('approve_application', { p_application_id: applicationId, p_approve: true })"
+  "deleteMyJob = (jobNumber, farmerId) => supabase.from(\"jobs\").delete().eq(\"job_number\", jobNumber).eq(\"farmer_id\", farmerId)"
+  "deleteRoster = (farmerId, workerId) => supabase.from('repeat_roster').delete().eq('farmer_id', farmerId).eq('worker_id', workerId)"
+  "fetchEmployerTrustInfo = (uid) => supabase.rpc('employer_trust_info', { p_farmer_id: uid }).then(r => r, () => ({ data: null }))"
+  "fetchMyEmergencyContact = (uid) => supabase.from(\"emergency_contacts\").select(\"auth_id\").eq(\"auth_id\", uid).maybeSingle()"
+  "fetchMyEmployerProfileFull = (uid) => supabase.from(\"employer_profiles\").select(\"*\").eq(\"auth_id\", uid).maybeSingle()"
+  "fetchMyFarmApplicants = () => supabase.rpc(\"my_farm_applicants\")"
+  "fetchMyFarmJobs = () => supabase.rpc(\"my_farm_jobs\")"
+  "fetchMyJobContext = (jobNumber, farmerId) => supabase.from(\"jobs\").select(\"crop,task,date_start,work_time\").eq(\"job_number\", jobNumber).eq(\"farmer_id\", farmerId).maybeSingle()"
+  "fetchMyJobLabel = (jobNumber, farmerId) => supabase.from(\"jobs\").select(\"crop,task\").eq(\"job_number\", jobNumber).eq(\"farmer_id\", farmerId).maybeSingle()"
+  "fetchMyRoster = (uid) => supabase.from(\"repeat_roster\").select(\"worker_id,created_at\").eq(\"farmer_id\", uid).order(\"created_at\", { ascending: false })"
+  "fetchPublicJobByNumber = (jobNumber) => fetchJobRowForMe(jobNumber)"
+  "fetchWorkerCards = (workerIds) => supabase.rpc(\"worker_cards_for_farmer\", { p_worker_ids: workerIds })"
+  "fetchWorkerProfileForFarmer = (workerId) => supabase.rpc(\"worker_profile_for_farmer\", { p_worker_id: workerId })"
+  "fetchWorkerTrustInfo = (workerId) => supabase.rpc(\"worker_trust_info\", { p_worker_id: workerId })"
+  "getSession = () => supabase.auth.getSession()"
+  "markWorkNoShow = (applicationId) => supabase.rpc('complete_work', { p_application_id: applicationId, p_attended: false })"
+  "rejectApplication = (applicationId) => supabase.rpc('approve_application', { p_application_id: applicationId, p_approve: false })"
+  "setAgreedDates = (applicationId, dates) => supabase.rpc(\"set_agreed_dates\", { p_application_id: applicationId, p_dates: dates })"
+  "setApplicationFollowup = (applicationId, kind) => supabase.rpc('set_application_followup', { p_application_id: applicationId, p_kind: kind })"
+  "submitFarmerFinalReviewRpc = (applicationId, r) => supabase.rpc('submit_farmer_final_review', { p_application_id: applicationId, p_work_outcome: r.workOutcome, p_want_again_choice: r.wantAgainChoice, p_traits: r.traits || [], p_favorite: !!r.favorite, })"
+  "unpublishJob = (jobNumber) => supabase.rpc(\"unpublish_job\", { p_job_number: jobNumber })"
+  "upsertInsurance = (uid, items, notes) => supabase.from(\"employer_profiles\").upsert({ auth_id: uid, insurance_items: items, insurance_notes: notes, updated_at: new Date().toISOString() }, { onConflict: \"auth_id\" })"
+  "upsertRoster = (farmerId, workerId) => supabase.from('repeat_roster').upsert({ farmer_id: farmerId, worker_id: workerId, notify: true }, { onConflict: 'farmer_id,worker_id' })"
+
+## data:contract:search
+  "applyToJob = (jobNumber, availableDates) => measureApplicationRequest(() => supabase.rpc(\"apply_to_job\", { p_job_number: jobNumber, p_available_dates: availableDates }))"
+  "cancelApplication = (applicationId) => supabase.rpc(\"cancel_application\", { p_application_id: applicationId })"
+  "createPendingApplication = (jobNumber, availableDates) => measureApplicationRequest(() => supabase.rpc(\"create_pending_application\", { p_job: jobNumber, p_available_dates: availableDates }))"
+  "fetchAccountHolderId = (authUid) => supabase.from(\"account_holders\").select(\"id\").eq(\"auth_id\", authUid).maybeSingle()"
+  "fetchConsignorConsent = (authUid) => supabase.from(\"consignment_profiles\") .select(\"consignment_terms_consent,consignment_terms_consent_version\") .eq(\"auth_id\", authUid).maybeSingle()"
+  "fetchEmployerPublicJobCounts = (jobNumber) => supabase.rpc(\"employer_public_job_counts\", { p_job_number: jobNumber })"
+  "fetchEmployerPublicJobs = (jobNumber) => supabase.rpc(\"employer_public_jobs\", { p_job_number: jobNumber })"
+  "fetchJobEmployerProfile = (jobNumber) => supabase.rpc(\"job_employer_profile\", { p_job_number: jobNumber })"
+  "fetchJobEmployerTrustInfo = (jobNumber) => supabase.rpc(\"job_employer_trust_info\", { p_job_number: jobNumber })"
+  "fetchMyApplicationForJob = (jobNumber, workerId) => supabase.from(\"applications\").select(\"id,status\") .eq(\"job_number\", jobNumber).eq(\"worker_id\", workerId).neq(\"status\", \"canceled\").maybeSingle()"
+  "fetchMyApplications = (workerId) => supabase.from(\"applications\").select(\"id,job_number,status\") .eq(\"worker_id\", workerId).neq(\"status\", \"canceled\")"
+  "fetchMyJobNumbers = (farmerId) => supabase.from(\"jobs\").select(\"job_number\").eq(\"farmer_id\", farmerId)"
+  "fetchMyPendingApplications = (workerId) => supabase.from(\"pending_applications\").select(\"job_number\").eq(\"worker_id\", workerId)"
+  "fetchMyPendingForJob = (jobNumber, workerId) => supabase.from(\"pending_applications\").select(\"id\") .eq(\"job_number\", jobNumber).eq(\"worker_id\", workerId).maybeSingle()"
+  "fetchMyWorkerNickname = (authUid) => supabase.from(\"worker_profiles\").select(\"nickname,avatar_url\").eq(\"auth_id\", authUid).maybeSingle()"
+  "fetchPendingJobPreviews = () => supabase.rpc(\"pending_job_previews\")"
+  "fetchPublicJobByNumber = (jobNumber) => fetchJobRowForMe(jobNumber)"
+  "fetchSavedJobNumbers = (workerId) => supabase.from(\"saved_jobs\").select(\"job_number\").eq(\"worker_id\", workerId)"
+  "fetchSignupOpen = () => supabase.rpc(\"signup_open\")"
+  "fetchSurveyAnswered = (authUid) => supabase.from(\"user_onboarding_survey\").select(\"auth_id\").eq(\"auth_id\", authUid).maybeSingle()"
+  "getSession = () => supabase.auth.getSession()"
+  "insertJobReport = (row) => supabase.from(\"job_reports\").insert(row)"
+  "insertSurvey = (row) => supabase.from(\"user_onboarding_survey\").insert(row)"
+  "unpublishJob = (jobNumber) => supabase.rpc(\"unpublish_job\", { p_job_number: jobNumber })"
+
+## data:contract:today
+  "confirmInsurance = (applicationId, items) => supabase.rpc(\"confirm_insurance\", { p_application_id: applicationId, p_items: items || [] })"
+  "countMyJobs = (uid) => supabase.from(\"jobs\").select(\"job_number\", { count: \"exact\", head: true }).eq(\"farmer_id\", uid)"
+  "fetchMyApplicationTerms = (uid) => supabase.from(\"applications\") .select(\"id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at\") .eq(\"worker_id\", uid)"
+  "fetchMyCalendarJobs = () => supabase.rpc(\"get_my_calendar_jobs\")"
+  "fetchMyEmergencyContact = (uid) => supabase.from(\"emergency_contacts\").select(\"auth_id\").eq(\"auth_id\", uid).maybeSingle().then(r => r, () => ({ data: null }))"
+  "fetchMyEmployerProfile = (uid, cols = \"\") => supabase.from(\"employer_profiles\").select([\"auth_id\", cols].filter(Boolean).join(\",\")).eq(\"auth_id\", uid).maybeSingle()"
+  "fetchMyFarmJobs = () => supabase.rpc(\"my_farm_jobs\")"
+  "fetchMyTodoItems = () => supabase.rpc(\"my_todo_items\")"
+  "fetchMyWorkerProfile = (uid, cols = \"\") => supabase.from(\"worker_profiles\").select([\"auth_id\", cols].filter(Boolean).join(\",\")).eq(\"auth_id\", uid).maybeSingle()"
+  "fetchPublicJobByNumber = (jobNumber) => fetchJobRowForMe(jobNumber)"
+  "fetchPublicJobsByNumbers = (nums) => fetchJobRowListForMe(nums)"
+  "getSession = () => supabase.auth.getSession()"
+
+## data:detailWindow
+  "export async function fetchJobRowsForMe(jobNumbers, columns = \"*\") { const nums = [...new Set((jobNumbers || []).map(Number).filter(n => Number.isFinite(n) && n > 0))]; if (nums.length === 0) return { rows: {}, error: null }; const rows = {}; let error = null; try { const res = await supabase.from(\"jobs_public\").select(columns).in(\"job_number\", nums); if (res.error) error = res.error; else if (Array.isArray(res.data)) res.data.forEach(r => { if (r && r.job_number != null) rows[r.job_number] = r; }); } catch (e) { error = e; } const missing = nums.filter(n => !(n in rows)); if (missing.length > 0) { try { const res = await supabase.rpc(\"job_details_for_party\", { p_job_numbers: missing.slice(0, 100) }); if (!res.error && Array.isArray(res.data)) res.data.forEach(r => { if (r && r.job_number != null) rows[r.job_number] = r; }); } catch { } } return { rows, error }; }"
 
 ## data:filter
   eq:auth_id
   eq:farmer_id
-  eq:id
   eq:job_number
-  eq:status
   eq:worker_id
-  in:application_id
-  neq:requested_by
+  in:job_number
   neq:status
 
 ## data:method
@@ -186,75 +289,63 @@
   getSession
   insert
   maybeSingle
-  update
   upsert
 
 ## data:order
   order:created_at:asc=false
-  order:created_at:asc=true
   order:job_number:asc=false
 
 ## data:queryShape
   from:account_holders | eq:auth_id | maybeSingle | select:id
-  from:applications | eq:job_number | eq:worker_id | maybeSingle | neq:status | select:id,status,started_at,time_corrected
-  from:applications | eq:worker_id | neq:status | select:id,job_number,status,started_at,time_corrected
+  from:applications | eq:job_number | eq:worker_id | maybeSingle | neq:status | select:id,status
+  from:applications | eq:worker_id | neq:status | select:id,job_number,status
   from:applications | eq:worker_id | select:id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at
-  from:applications | select:id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected
-  from:attendance_corrections | eq:status | neq:requested_by | order:created_at:asc=false | select:id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)
-  from:attendance_events | insert
   from:consignment_profiles | eq:auth_id | maybeSingle | select:consignment_terms_consent,consignment_terms_consent_version
   from:emergency_contacts | eq:auth_id | maybeSingle | select:auth_id
+  from:employer_profiles | eq:auth_id | maybeSingle
   from:employer_profiles | eq:auth_id | maybeSingle | select:*
-  from:employer_profiles | eq:auth_id | maybeSingle | select:auth_id,
   from:employer_profiles | upsert
-  from:farmer_question_sets | delete | eq:farmer_id | eq:id
-  from:farmer_question_sets | eq:farmer_id | eq:id | update
-  from:farmer_question_sets | insert
   from:job_reports | insert
+  from:job_view_counts | in:job_number | select:job_number,view_count
   from:jobs | delete | eq:farmer_id | eq:job_number
   from:jobs | eq:farmer_id | eq:job_number | maybeSingle | select:crop,task
   from:jobs | eq:farmer_id | eq:job_number | maybeSingle | select:crop,task,date_start,work_time
   from:jobs | eq:farmer_id | select:job_number
-  from:jobs_public | eq:job_number | maybeSingle | select:*
+  from:jobs_public | in:job_number
   from:jobs_public | order:job_number:asc=false | select:*
-  from:messages | in:application_id | order:created_at:asc=true | select:application_id,body,created_at
-  from:messages | insert
   from:pending_applications | eq:job_number | eq:worker_id | maybeSingle | select:id
   from:pending_applications | eq:worker_id | select:job_number
   from:repeat_roster | delete | eq:farmer_id | eq:worker_id
   from:repeat_roster | eq:farmer_id | order:created_at:asc=false | select:worker_id,created_at
   from:repeat_roster | upsert
-  from:saved_jobs | delete | eq:job_number | eq:worker_id
   from:saved_jobs | eq:worker_id | select:job_number
-  from:saved_jobs | insert
   from:user_onboarding_survey | eq:auth_id | maybeSingle | select:auth_id
   from:user_onboarding_survey | insert
-  from:worker_profiles | eq:auth_id | maybeSingle | select:auth_id,
+  from:worker_profiles | eq:auth_id | maybeSingle
   from:worker_profiles | eq:auth_id | maybeSingle | select:nickname,avatar_url
   rpc:apply_to_job | p_available_dates | p_job_number
   rpc:approve_application | p_application_id | p_approve
   rpc:cancel_application | p_application_id
   rpc:complete_work | p_application_id | p_attended
-  rpc:confirm_terms | p_accept_double_booking | p_application_id
-  rpc:copy_job | p_job_number
+  rpc:confirm_insurance | p_application_id | p_items
+  rpc:count_job_view | p_job_number
   rpc:create_pending_application | p_available_dates | p_job
-  rpc:decide_time_correction | p_approve | p_id
   rpc:employer_public_job_counts | p_job_number
   rpc:employer_public_jobs | p_job_number
   rpc:employer_trust_info | p_farmer_id
   rpc:get_my_calendar_jobs
+  rpc:job_details_for_party | p_job_numbers
   rpc:job_employer_profile | p_job_number
+  rpc:job_employer_reviews | p_job_number
   rpc:job_employer_trust_info | p_job_number
   rpc:my_farm_applicants
   rpc:my_farm_jobs
   rpc:my_todo_items
   rpc:pending_job_previews
-  rpc:punch_start | p_application_id
-  rpc:send_interview_questions | p_application_id | p_set_id
   rpc:set_agreed_dates | p_application_id | p_dates
   rpc:set_application_followup | p_application_id | p_kind
   rpc:signup_open
-  rpc:submit_farmer_review | p_application_id | p_entrust | p_favorite | p_private_memo | p_public_comment | p_want_again
+  rpc:submit_farmer_final_review | p_application_id | p_favorite | p_traits | p_want_again_choice | p_work_outcome
   rpc:unpublish_job | p_job_number
   rpc:worker_cards_for_farmer | p_worker_ids
   rpc:worker_profile_for_farmer | p_worker_id
@@ -265,83 +356,74 @@
   rpc:approve_application
   rpc:cancel_application
   rpc:complete_work
-  rpc:confirm_terms
-  rpc:copy_job
+  rpc:confirm_insurance
+  rpc:count_job_view
   rpc:create_pending_application
-  rpc:decide_time_correction
   rpc:employer_public_job_counts
   rpc:employer_public_jobs
   rpc:employer_trust_info
   rpc:get_my_calendar_jobs
+  rpc:job_details_for_party
   rpc:job_employer_profile
+  rpc:job_employer_reviews
   rpc:job_employer_trust_info
   rpc:my_farm_applicants
   rpc:my_farm_jobs
   rpc:my_todo_items
   rpc:pending_job_previews
-  rpc:punch_start
-  rpc:send_interview_questions
   rpc:set_agreed_dates
   rpc:set_application_followup
   rpc:signup_open
-  rpc:submit_farmer_review
+  rpc:submit_farmer_final_review
   rpc:unpublish_job
   rpc:worker_cards_for_farmer
   rpc:worker_profile_for_farmer
   rpc:worker_trust_info
 
 ## data:rpcArg
-  p_accept_double_booking
   p_application_id
   p_approve
   p_attended
   p_available_dates
   p_dates
-  p_entrust
   p_farmer_id
   p_favorite
-  p_id
+  p_items
   p_job
   p_job_number
+  p_job_numbers
   p_kind
-  p_private_memo
-  p_public_comment
-  p_set_id
-  p_want_again
+  p_traits
+  p_want_again_choice
+  p_work_outcome
   p_worker_id
   p_worker_ids
 
 ## data:select
   select:*
-  select:application_id,body,created_at
   select:auth_id
-  select:auth_id,
   select:consignment_terms_consent,consignment_terms_consent_version
   select:crop,task
   select:crop,task,date_start,work_time
   select:id
-  select:id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)
-  select:id,job_number,status,started_at,time_corrected
-  select:id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected
-  select:id,status,started_at,time_corrected
+  select:id,job_number,status
+  select:id,status
   select:id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at
   select:job_number
+  select:job_number,view_count
   select:nickname,avatar_url
   select:worker_id,created_at
 
 ## data:table
   from:account_holders
   from:applications
-  from:attendance_corrections
-  from:attendance_events
   from:consignment_profiles
   from:emergency_contacts
   from:employer_profiles
-  from:farmer_question_sets
   from:job_reports
+  from:job_view_counts
   from:jobs
   from:jobs_public
-  from:messages
   from:pending_applications
   from:repeat_roster
   from:saved_jobs
@@ -349,33 +431,48 @@
   from:worker_profiles
 
 ## event:dom
-  add:hashchange  x3
-  add:popstate  x1
-  add:touchcancel  x2
-  add:touchend  x2
-  add:touchmove  x2
-  add:touchstart  x2
-  remove:hashchange  x3
-  remove:popstate  x1
-  remove:touchcancel  x2
-  remove:touchend  x2
-  remove:touchmove  x2
-  remove:touchstart  x2
+  add:hashchange  x4
+  add:popstate  x3
+  add:resize  x3
+  add:scroll  x3
+  add:touchcancel  x3
+  add:touchend  x3
+  add:touchmove  x3
+  add:touchstart  x4
+  add:transitionend  x1
+  add:wheel  x1
+  remove:hashchange  x4
+  remove:popstate  x3
+  remove:resize  x3
+  remove:scroll  x3
+  remove:touchcancel  x3
+  remove:touchend  x3
+  remove:touchmove  x3
+  remove:touchstart  x4
+  remove:transitionend  x1
+  remove:wheel  x1
 
 ## event:passive
   passive:false  x3
-  passive:true  x6
+  passive:true  x15
 
 ## farmer:appFilter
-  const APP_FILTERS = [ { k:"all", l:"すべて", match: () => true }, ...APP_FILTER_KEYS.filter(k => k !== "all").map(k => ({ k, l: APP_PHASE_LABEL[k], match: (s, a) => appPhaseKey(a) === k })), ];  x1
+  "APP_HIDABLE = [\"rejected\", \"expired\", \"canceled\"]"  x1
+  "shown = dbApplicants.filter(a => !appHidden.includes(appPhaseKey(a)))"  x1
+
+## farmer:classification
+  "export function classifyFarmerJobs(rows, now = Date.now()) { const unique = new Map(); for (const row of rows) { if (!row) continue; const key = row.job_number == null ? row : String(row.job_number); const previous = unique.get(key); if (!previous || (Date.parse(row.updated_at) || 0) > (Date.parse(previous.updated_at) || 0)) unique.set(key, row); } const drafts = [], active = [], expired = []; for (const row of unique.values()) { if (row.status === \"draft\" && !row.opened_at) drafts.push(row); else if (row.status === \"closed\" || isJobEnded(row, now)) expired.push(row); else if (row.status === \"pending\") drafts.push(row); else if (row.status === \"open\" || isJobUnpublished(row)) active.push(row); } return { drafts, active, expired }; }"  x1
 
 ## farmer:jobBucket
-  DbActive = allJobs.filter(j => (j.status === "open" || isUnpublished(j)) && !isPast(j))  x1
+  DbActive = lists.active  x1
+  DbActive = markUnpublished  x1
   DbActive = prev => prev.filter(d => d.job_number !== num)  x1
-  DbActive = prev => prev.map(d => d.job_number === num ? { ...d, status: "draft" } : d)  x1
-  DbDrafts = allJobs.filter(j => (isJobDraft(j) || (j.status === "pending" && !isPast(j))))  x1
+  DbDrafts = lists.drafts  x1
+  DbDrafts = markUnpublished  x1
   DbDrafts = prev => prev.filter(d => d.job_number !== num)  x1
-  DbExpired = allJobs.filter(isPast)  x1
+  DbExpired = lists.expired  x1
+  DbExpired = markUnpublished  x1
+  DbExpired = prev => prev.filter(d => d.job_number !== num)  x1
 
 ## farmer:roster
   delete | eq:farmer_id | eq:worker_id  x1
@@ -386,16 +483,17 @@
   approve_application(p_application_id, p_approve=false)  x1
   approve_application(p_application_id, p_approve=true)  x1
   complete_work(p_application_id, p_attended=false)  x1
-  copy_job(p_job_number)  x1
   employer_trust_info(p_farmer_id)  x1
-  send_interview_questions(p_application_id, p_set_id)  x1
   set_agreed_dates(p_application_id, p_dates)  x1
   set_application_followup(p_application_id, p_kind)  x1
-  submit_farmer_review(p_application_id, p_want_again, p_entrust, p_public_comment, p_private_memo, p_favorite)  x1
+  submit_farmer_final_review(p_application_id, p_work_outcome, p_want_again_choice, p_traits, p_favorite)  x1
   unpublish_job(p_job_number)  x1
   worker_cards_for_farmer(p_worker_ids)  x1
   worker_profile_for_farmer(p_worker_id)  x1
   worker_trust_info(p_worker_id)  x1
+
+## farmer:unpublished
+  "isJobUnpublished = (j) => !!(j && j.status === \"draft\" && j.opened_at)"  x1
 
 ## farmer:workerWindow
   worker_cards_for_farmer  x1
@@ -403,54 +501,37 @@
   worker_trust_info  x1
 
 ## map:addTo
-  addTo(map)  x3
+  addTo(map)  x2
 
-## map:cleanup
-  mapRef.current = map  x1
-  mapRef.current = null  x2
-  mapRef.current.remove()  x1
-  mapRef.current?.remove()  x1
-
-## map:effectDeps
-  [lat, lng, radius, visitor, cityGeo, cityGeoTried]  x1
-  [mapQuery, addressShown]  x1
-  [visitor, cityArea]  x1
-
-## map:geometry
-  10000  x1
-  L.latLng(center.lat, center.lng).toBounds(fitM), { padding: [12, 12], animate: false }  x1
-  Number.isFinite(radius) && radius > 0 ? radius : 800  x1
-  [center.lat, center.lng], 14, { animate: false }  x1
-  visitor ? (cityGeo || { lat, lng }) : { lat, lng }  x1
-  visitor ? VISITOR_CIRCLE_M * 2 : r * 2  x1
-
-## map:guard
-  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;  x1
-  if (lat == null || lng == null) {  x1
-  if (visitor && !cityGeo && !cityGeoTried) return;  x1
-
-## map:interactive
-  attributionControl:true  x1
-  boxZoom:false  x1
-  doubleClickZoom:false  x1
-  dragging:false  x1
-  interactive:false  x2
-  keyboard:false  x2
-  scrollWheelZoom:false  x1
-  touchZoom:false  x1
-  zoomControl:false  x1
+## map:authSource
+  "authAlive = useAuthAlive()"  x1
 
 ## map:leaflet
-  L.circle  x1
   L.divIcon  x1
   L.latLng  x1
   L.map  x1
   L.marker  x1
   L.tileLayer  x1
 
+## map:lifecycle
+  "useEffect(() => { if (isVisitor) return; let cancelled = false; (async () => { if (!ref.current || !Number.isFinite(lat) || !Number.isFinite(lng)) return; let L; try { const [leaflet] = await Promise.all([import(\"leaflet\"), import(\"leaflet/dist/leaflet.css\")]); L = leaflet.default; } catch (e) { console.error(\"leaflet load:\", e); return; } if (cancelled) return; try { if (!ref.current) return; if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return; if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } const r = Number.isFinite(radius) && radius > 0 ? radius : 800; const map = L.map(ref.current, { dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false, zoomControl: false, attributionControl: true, }); mapRef.current = map; map.setView([lat, lng], 14, { animate: false }); try { map.attributionControl.setPosition(\"bottomleft\"); } catch { } L.tileLayer(\"https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png\", { attribution: '<a href=\"https://maps.gsi.go.jp/development/ichiran.html\" target=\"_blank\" rel=\"noreferrer\">国土地理院</a>', maxZoom: 18, }).addTo(map); const pin = L.divIcon({ className: \"\", html: '<div style=\"width:30px;height:42px;transform:translate(-15px,-42px)\">' + '<svg width=\"30\" height=\"42\" viewBox=\"0 0 26 36\" xmlns=\"http://www.w3.org/2000/svg\">' + '<path d=\"M13 0C5.8 0 0 5.8 0 13c0 9.2 11.4 21.6 11.9 22.1a1.5 1.5 0 0 0 2.2 0C14.6 34.6 26 22.2 26 13 26 5.8 20.2 0 13 0z\" fill=\"#E24B4A\"/>' + '<circle cx=\"13\" cy=\"13\" r=\"5\" fill=\"#fff\"/></svg></div>', iconSize: [0, 0], iconAnchor: [0, 0], }); L.marker([lat, lng], { icon: pin, interactive: false, keyboard: false }).addTo(map); map.fitBounds(L.latLng(lat, lng).toBounds(r * 2), { padding: [12, 12], animate: false }); } catch (e) { console.error(\"JobLocationMap:\", e); } })(); return () => { cancelled = true; try { mapRef.current?.remove(); } catch { } mapRef.current = null; }; }, [lat, lng, radius, isVisitor])"  x1
+  "useEffect(() => { setPreciseGeo(null); if (isVisitor || !addressShown || !mapQuery || !mapQuery.trim()) return; let cancelled = false; geocodeAddressPrecise(mapQuery).then((p) => { if (!cancelled && p) setPreciseGeo(p); }); return () => { cancelled = true; }; }, [mapQuery, addressShown, isVisitor])"  x1
+
+## map:missingCoordinates
+  "if (lat == null || lng == null) { return (<div className=\"f-sans\" style={{ padding: \"24px\", textAlign: \"center\", background: \"#F7F7F7\", borderRadius: 12, fontSize: 13, color: \"#717171\" }}>\n        地図は準備中です\n      </div>); }"  x1
+
+## map:session
+  "function useAuthAlive() { const [alive, setAlive] = useState(null); useEffect(() => { let cancelled = false; Promise.resolve() .then(() => supabase.auth.getSession()) .then((res) => { if (!cancelled) setAlive(!!res?.data?.session || !!res?.error); }) .catch(() => { if (!cancelled) setAlive(true); }); return () => { cancelled = true; }; }, []); return alive; }"  x1
+
 ## map:view
   fitBounds  x1
   setView  x1
+
+## map:visitor
+  "isVisitor = !!visitor || authAlive !== true"  x1
+
+## map:visitorRender
+  "if (isVisitor) { return (<div>\n        <div className=\"job-map-mosaic\" data-testid=\"job-map-mosaic\" aria-label=\"地図は会員登録・ログインすると表示されます\" style={{ position: \"relative\", width: \"100%\", height: \"clamp(240px, 42vw, 420px)\", borderRadius: 12, overflow: \"hidden\", border: \"1px solid #EBEBEB\" }}>\n          \n          {authAlive !== null && (<div className=\"f-sans\" style={{ position: \"absolute\", inset: 0, display: \"flex\", flexDirection: \"column\", alignItems: \"center\", justifyContent: \"center\", gap: 8, padding: 16, textAlign: \"center\", pointerEvents: \"none\" }}>\n              <span style={{ width: 44, height: 44, borderRadius: \"50%\", background: \"#fff\", display: \"flex\", alignItems: \"center\", justifyContent: \"center\", boxShadow: \"0 2px 8px rgba(0,0,0,0.12)\", color: \"#222\" }}>\n                <NavIcon name=\"lock\" size={22}/>\n              </span>\n              <span style={{ fontSize: 13, fontWeight: 700, color: \"#222\", background: \"rgba(255,255,255,0.92)\", borderRadius: 20, padding: \"7px 14px\" }}>\n                地図は会員登録・ログインすると表示されます\n              </span>\n            </div>)}\n        </div>\n        <p className=\"f-sans\" style={{ fontSize: 11, color: \"#B0B0B0\", marginTop: 6, lineHeight: 1.6 }}>\n          場所は{cityArea || label || \"市区町村\"}まで。集合場所の地図と正確な位置は、会員登録・ログインすると表示されます\n        </p>\n      </div>); }"  x1
 
 ## role:derived
   appPending = !!(me && !myAppLoaded)  x1
@@ -463,140 +544,140 @@
   isAdmin(me)  x4
 
 ## role:visitor
-  visitor=!me  x1
+  visitor=!me  x2
+
+## rule:dateRange:jobInDateRange
+  "export function jobInDateRange(j, range) { const r = normalizeDateRange(range); if (!r) return true; const s = j?.dateStartRaw, e = j?.dateEndRaw || j?.dateStartRaw; if (typeof s !== \"string\" || !YMD.test(s)) return false; const jobEnd = typeof e === \"string\" && YMD.test(e) ? e : s; if (jobEnd < r.start) return false; if (r.end && s > r.end) return false; return true; }"  x1
+
+## rule:dateRange:normalizeDateRange
+  "export function normalizeDateRange(range) { if (!range || typeof range !== \"object\") return null; const fields = (range); const start = typeof fields.start === \"string\" && YMD.test(fields.start) ? fields.start : null; if (!start) return null; const end = typeof fields.end === \"string\" && YMD.test(fields.end) ? fields.end : null; if (end && end < start) return { start: end, end: start }; return { start, end }; }"  x1
 
 ## rule:ended
   !!(j.closed || j.filled || j.expired)  x1
 
+## rule:expiry:JOB_DAY_MS
+  "JOB_DAY_MS = 24 * 60 * 60 * 1000"  x1
+
+## rule:expiry:JOB_JST_OFFSET_MS
+  "JOB_JST_OFFSET_MS = 9 * 60 * 60 * 1000"  x1
+
+## rule:expiry:isJobEnded
+  "isJobEnded = (j, now = new Date()) => { const end = jobEndTimeMs(j); const nowMs = now instanceof Date ? now.getTime() : typeof now === \"number\" ? now : Date.parse(now); return end !== null && Number.isFinite(nowMs) && nowMs >= end; }"  x1
+
+## rule:expiry:jobDateYmd
+  "jobDateYmd = (value) => { let ymd = typeof value === \"string\" ? value.trim() : \"\"; if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(ymd)) { const ms = value instanceof Date ? value.getTime() : /^\\d{4}-\\d{2}-\\d{2}T.*(?:Z|[+-]\\d{2}:\\d{2})$/i.test(ymd) ? Date.parse(ymd) : NaN; if (!Number.isFinite(ms)) return null; const japanDate = new Date(ms + JOB_JST_OFFSET_MS); if (!Number.isFinite(japanDate.getTime())) return null; ymd = japanDate.toISOString().slice(0, 10); } const [year, month, day] = ymd.split(\"-\").map(Number); const ms = Date.UTC(year, month - 1, day); return new Date(ms).toISOString().slice(0, 10) === ymd ? ymd : null; }"  x1
+
+## rule:expiry:jobEndTimeMs
+  "jobEndTimeMs = (j) => { if (!j) return null; const end = jobDateYmd(j.date_end || j.dateEndRaw || j.dateEnd || j.date_start || j.dateStartRaw || j.dateStart); if (!end) return null; const midnight = Date.parse(`${end}T00:00:00+09:00`); const time = String(j.work_time || j.workTime || \"\").match(/^\\s*(\\d{1,2}):(\\d{2})\\s*[〜～~–-]\\s*(\\d{1,2}):(\\d{2})\\s*$/); if (time && Number(time[1]) < 24 && Number(time[2]) < 60 && Number(time[3]) < 24 && Number(time[4]) < 60) { return midnight + (Number(time[3]) * 60 + Number(time[4])) * 60 * 1000; } return midnight + JOB_DAY_MS; }"  x1
+
 ## rule:filterPredicate
   const filteredList = !searchActive ? jobList : jobList.filter(j => {  x1
-  if (selMonths.length && !selMonths.some(m => jobMonths(j).includes(m))) return false;  x1
+  if (noQuery && !String(j.id).startsWith(noQuery)) return false;  x1
+  if (selRange && !jobInDateRange(j, selRange)) return false;  x1
   if (selRegions.length && !selRegions.includes(j.region || "")) return false;  x1
   if (selWhats.length && !selWhats.some(w => j.crop === w || j.task === w)) return false;  x1
   return true;  x1
   });  x1
 
 ## rule:jobFlag
-  closed: j.status === "closed"  x1
-  expired:  expired: (() => { const end = j.date_end || j.date_start; if (!end) return false; const today = ymdLocal(new Date()); if (end < today) return true; // 最終日が今日で、勤務終了時刻を過ぎていれば終了（例：17:00〜19:00 は19時以降＝終了） if (end === today && j.work_time) { const m = String(j.work_time).match(/〜\s*(\d{1,2}):(\d{2})/); if (m) { const n = new Date(); if (n.getHours()*60 + n.getMinutes() > parseInt(m[1],10)*60 + parseInt(m[2],10)) return true; } } return false; })(),  x1
-  filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount)  x1
-  isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000  x1
+  "closed: j.status === \"closed\""  x1
+  "expired: isJobEnded(j)"  x1
+  "filled: j.headcount != null && j.hired_count != null && Number(j.hired_count) >= Number(j.headcount)"  x1
+  "isNew: !!j.opened_at && (Date.now() - new Date(j.opened_at).getTime()) < 3 * 24 * 60 * 60 * 1000"  x1
+
+## rule:jobs:fetchPublicJobs
+  "export function fetchPublicJobs({ scope = \"anon\", fresh = false } = {}) { const version = getConfirmedRefreshVersion(REFRESH_JOBS); const pending = pendingJobs.get(scope); if (!fresh && pending?.version === version) return pending.request; const request = loadPublicJobs(); const entry = { version, request }; pendingJobs.set(scope, entry); request.finally(() => { if (pendingJobs.get(scope) === entry) pendingJobs.delete(scope); }); return request; }"  x1
+
+## rule:jobs:loadPublicJobs
+  "async function loadPublicJobs() { try { const { data, error } = await supabase.from(\"jobs_public\").select(\"*\").order(\"job_number\", { ascending: false }); if (error || !data) return null; return data.map(mapJobPublicRow); } catch { return null; } }"  x1
+
+## rule:jobs:orderSearchJobs
+  "export function orderSearchJobs(mapped, prev) { mapped = visibleSearchJobs(mapped); const seenSet = new Set(readSeenNewIds()); const active = mapped.filter(j => !isEndedJob(j)); const ended = mapped.filter(isEndedJob); const freshNew = active.filter(j => j.isNew && !seenSet.has(j.id)); const rest = active.filter(j => !(j.isNew && !seenSet.has(j.id))); let list; if (prev && prev.length) { const freshById = new Map(mapped.map(j => [j.id, j])); const kept = prev.filter(j => freshById.has(j.id)).map(j => freshById.get(j.id)); const keptIds = new Set(kept.map(j => j.id)); const added = mapped.filter(j => !keptIds.has(j.id)); list = [ ...shuffleArr(added.filter(j => !isEndedJob(j))), ...kept.filter(j => !isEndedJob(j)), ...kept.filter(isEndedJob), ...shuffleArr(added.filter(isEndedJob)), ]; } else { list = [...shuffleArr(freshNew), ...shuffleArr(rest), ...shuffleArr(ended)]; } return { list, freshNew }; }"  x1
+
+## rule:jobs:prefetchSearchJobs
+  "export async function prefetchSearchJobs() { if (getCache(\"search:jobs\") !== undefined) return; const version = getConfirmedRefreshVersion(REFRESH_JOBS); const mapped = await fetchPublicJobs(); if (!mapped || version !== getConfirmedRefreshVersion(REFRESH_JOBS) || getCache(\"search:jobs\") !== undefined) return; const { list, freshNew } = orderSearchJobs(mapped, null); setCache(\"search:jobs\", list); if (freshNew.length) recordSeenNewIds(freshNew.map(j => j.id)); }"  x1
 
 ## rule:saved
-  savedIds.has  x8
+  savedIds.has  x7
+
+## rule:search
+  "filteredList = !searchActive ? jobList : jobList.filter(j => { if (noQuery && !String(j.id).startsWith(noQuery)) return false; if (selWhats.length && !selWhats.some(w => j.crop === w || j.task === w)) return false; if (selRegions.length && !selRegions.includes(j.region || \"\")) return false; if (selRange && !jobInDateRange(j, selRange)) return false; return true; })"  x1
+  "searchActive = selWhats.length > 0 || selRegions.length > 0 || !!selRange || noQuery.length > 0"  x1
 
 ## rule:sort
-  (a, b) => (a.date_start || ""  x1
   (a, b) => (a.work_time || ""  x1
-  (a, b) => (b.sort_key || ""  x1
-  (a, b) => a - b  x1
-  (a, b) => a.stars - b.stars  x1
-  (a, b) => b.stars - a.stars  x1
+  (a, b) => Number(b.job_number === savedDraftJobNumber  x1
 
 ## rule:statusCompare
-  closed  x2
-  completed  x7
+  closed  x5
+  completed  x5
   done  x1
-  draft  x11
-  expired  x2
-  open  x10
-  pending  x3
-  rejected  x1
-  working  x3
+  draft  x5
+  open  x3
+  pending  x2
+  working  x1
+
+## rule:visibility:isSearchJobVisible
+  "export function isSearchJobVisible(job, now = Date.now()) { return !!job && !job.closed && job.status !== \"closed\" && !isJobEnded(job, now); }"  x1
+
+## rule:visibility:refreshJobExpiry
+  "export function refreshJobExpiry(job, now = Date.now()) { if (!job) return job; const expired = isJobEnded(job, now); return job.expired === expired ? job : { ...job, expired }; }"  x1
+
+## rule:visibility:visibleSearchJobs
+  "export function visibleSearchJobs(jobs, now = Date.now()) { return (jobs || []).filter(job => isSearchJobVisible(job, now)).map(job => refreshJobExpiry(job, now)); }"  x1
 
 ## today:catalog
-  const TODO_STAGE_CATALOG = { farmer: ["t_card", "t_emergency", "revision", "question", "approve", "interview", "hire", "insurance", "confirm_start", "complete"], worker: ["t_card", "t_emergency", "w_revision", "w_interview", "w_review"], };  x1
+  const TODO_STAGE_CATALOG = { // day_report（今日の記録）は complete（バイトの評価）の手前に置く＝正規フロー順（中日→最終日） farmer: ["t_emergency", "revision", "question", "hire", "insurance", "day_report", "complete"], // approve・interviewは削除（2026-08-19） worker: ["t_emergency", "w_revision", "w_day_report", "w_review"], // w_interviewは削除（2026-08-19） };  x1
 
-## today:correction
-  p_id: id, p_approve: approve  x1
+## today:contract:REMOVED_STAGES
+  "REMOVED_STAGES = new Set([\"approve\", \"interview\", \"w_interview\"])"  x1
 
-## today:punchCols
-  id,application_id,proposed_started_at,proposed_ended_at,reason,created_at,applications(job_number)  x1
-  id,started_at,farmer_confirmed_start_at,work_completed_at,worker_confirmed_end_at,started_declared,ended_declared,time_corrected  x1
+## today:contract:TODO_META
+  "TODO_META = { profile: { title: \"プロフィール入力\", btn: \"入力する →\", desc: \"タップすると、まだ入力していない欄が開きます。保存すると次の欄へ進みます。相手はプロフィールを見て応募・承認を決めるので、埋まっているほど選ばれやすくなります。\", boxNav: () => { try { sessionStorage.setItem(\"cb_fillProfile\", \"1\"); } catch { } return role === \"farmer\" ? \"/profile/employer/profile\" : \"/profile/worker/profile\"; } }, t_emergency: { title: \"緊急連絡\", btn: \"緊急連絡 →\", nav: e => \"/emergency/\" + e.application_id, desc: \"遅刻・欠勤・中止など、作業当日の急な連絡をする窓口です。採用が決まった仕事から使えます。\" }, revision: { title: \"求人に修正のお願い\", btn: \"修正する →\", nav: e => \"/work/edit/\" + e.job_number, desc: \"運営から求人内容の修正のお願いが届いたとき、ここから直して再申請します。\" }, question: { title: \"求人の質問\", btn: \"回答する →\", desc: \"あなたの求人に届いた質問に回答します。回答は求人ページに公開されます。\", nav: e => { try { sessionStorage.setItem(\"cb_jobBackTo\", \"/calendar/todo/question\"); } catch { } return \"/work/job/\" + e.job_number + \"/questions\"; } }, hire: { title: \"採用する\", btn: \"採用する →\", desc: \"面接を終えた応募者を採用します。カードをタップすると最終確認が出ます（二重予約の警告つき）。\", nav: (e) => { markHireSheet(e?.application_id); return HIRE_SHEET_PATH; } }, insurance: { title: \"保険の準備の報告\", desc: \"作業前に、保険の準備ができたことを報告します。今回の仕事のために用意した保険のカードをタップ→最終確認のOKで、相手のチャットに届き、報告した時刻が記録に残ります。\" }, complete: { title: \"バイトの評価\", btn: \"完了・評価 →\", flag: \"cb_completeAppId\", to: \"/profile/employer/applicants\", desc: \"作業の完了を記録して、働き手を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。\", before: () => { try { sessionStorage.setItem(\"cb_appFilter\", \"completed\"); } catch { } } }, day_report: { title: \"今日の記録\", btn: \"記録する →\", desc: \"働き手の遅刻・欠勤、会えない、作業の中断など、何かあった日だけ記録します。何もなかった日は入力不要です。作業全体の評価は最終日にお願いします。\" }, w_revision: { title: \"求職に修正のお願い\", btn: \"修正する →\", desc: \"運営から求職内容の修正のお願いが届いたとき、ここから直します。\" }, w_review: { title: \"仕事の評価\", btn: \"評価する →\", desc: \"働いた農園を評価します。これで全部の工程が終わります。最終の作業日から、終わって24時間の間ここに並びます（それより前の日は「今日の記録」へ）。\" }, w_day_report: { title: \"今日の記録\", btn: \"記録する →\", desc: \"遅れる・休む、農家に会えない、予定と違うなど、何かあった日だけ記録します。何もなかった日は入力不要です。仕事全体の評価は最終日にお願いします。\" }, }"  x1
 
-## today:punchField
-  ended_declared  x2
-  farmer_confirmed_start_at  x1
-  started_at  x1
-  started_declared  x3
-  time_corrected  x1
-  work_completed_at  x1
-  worker_confirmed_end_at  x1
-
-## today:todo
-  approve = 新着の応募  x1
-  complete = 完了して評価する  x1
-  confirm_start = 作業の開始を確認  x1
-  hire = 採用する  x1
-  insurance = 保険の準備の報告  x1
-  interview = 面接の質問を送る  x1
-  profile = プロフィールの未入力  x1
-  question = 求人への質問  x1
-  revision = 求人に修正のお願い  x1
-  t_card = カレンダー  x1
-  t_emergency = 緊急連絡  x1
-  w_interview = 面接の回答  x1
-  w_review = 終了を確認して評価  x1
-  w_revision = 求職に修正のお願い  x1
-
-## today:todoRpc
-  confirm_insurance  x1
-  confirm_start  x1
+## today:contract:TODO_STAGE_CATALOG
+  "TODO_STAGE_CATALOG = { farmer: [\"t_emergency\", \"revision\", \"question\", \"hire\", \"insurance\", \"day_report\", \"complete\"], worker: [\"t_emergency\", \"w_revision\", \"w_day_report\", \"w_review\"], }"  x1
 
 ## url:hash
-  #/search  x1
-  #/work/job/  x2
   /account  x2
   /admin/consignment  x1
   /admin/consignment/deal/  x1
+  /admin/timeless  x1
   /apply/done  x2
   /apply/pending  x2
-  /calendar  x1
-  /calendar/todo/  x2
-  /calendar/todo/hire  x1
-  /chat/  x7
-  /emergency/  x1
-  /insurance  x1
+  /calendar/todo/  x1
+  /calendar/todo/insurance  x1
+  /chat/  x4
   /profile/employer  x1
   /profile/employer/active  x1
   /profile/employer/applicants  x1
-  /profile/employer/drafts  x1
   /profile/employer/profile  x1
   /saved  x1
-  /search  x1
-  /work/edit/  x2
-  /work/job/  x7
+  /work/job/  x4
 
 ## url:local
-  cb_celebratedApps  x2
   cb_empTopBack  x2
-  cb_insCardBack  x2
   cb_likeBoxShown  x2
-  cb_qCardBack  x2
-  cb_searchFilters  x2
+  cb_searchFilters  x3
   cb_seenNewJobs  x2
-  cb_todayMemo  x2
 
 ## url:regex
-  JOB_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance))?$/  x1
+  JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance|apply\/(?:intro|about|dates|confirm)))?$/  x1
 
 ## url:session
-  (不明)  x1
-  cb_afterDraftSave  x3
+  (不明)  x5
   cb_agreeAppId  x2
-  cb_appFilter  x5
-  cb_appFilterCur  x2
+  cb_appFilter  x3
+  cb_appHidden_v2  x2
+  cb_applicantsJobNo  x3
   cb_applyAlready  x2
-  cb_applyVisual  x1
   cb_completeAppId  x2
-  cb_editJobPrefill  x2
-  cb_emergencyAppId  x2
   cb_fillProfile  x1
-  cb_insFromApp  x1
-  cb_jobBackTo  x11
-  cb_openApplicantId  x3
-  cb_openCalendar  x3
-  cb_openQSet  x1
+  cb_insuranceAppId  x3
+  cb_jobBackTo  x8
+  cb_openApplicantId  x2
+  cb_openApply  x2
+  cb_openCalendar  x1
   cb_pendingNew  x1
 
 # ── 採取時点のDB実測（静的解析では出ない値）─────────────────────────

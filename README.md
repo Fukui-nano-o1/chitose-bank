@@ -11,6 +11,8 @@
 - `scripts/` / `docs/`：合成データの検証と設計・運用文書。[PR確認項目](.github/pull_request_template.md)も参照。
 
 検証は `npm ci` → `npm run build`（critical tests・lint・production bundle）。
+型と補助チェックは `npm run typecheck` → `npm run test:checks` → `npm run check:search`。
+型チェックは段階導入（全体の型安全を意味しない）。[対象・未対応範囲・全体監査](docs/repository-checks.md)を参照。
 検索の取得・先読み回帰は `node --test scripts/search-jobs.test.mjs`。
 検索・いいねの実ブラウザ検証は `node scripts/saved-job-browser.mjs`（隔離fixture、Chromiumが必要）。
 

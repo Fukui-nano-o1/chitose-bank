@@ -5,11 +5,14 @@
 
 // 応募パネルの「最高額」自動計算（段階2-a・ダミー前提）
 // workTime "8:00〜16:00" を想定。日数は job.dateStart / job.dateEnd（date型）から算出。フォーマット外は null を返す
+/**
+ * @param {{workTime?: string, dateStart?: Date | number | null, dateEnd?: Date | number | null, payType: string, pay: number}} job
+ */
 export function calcMaxPay(job) {
   const timeMatch = /^(\d{1,2}):(\d{2})〜(\d{1,2}):(\d{2})$/.exec(job.workTime || "");
   if (!job.dateStart) return null;
   const end = job.dateEnd || job.dateStart;
-  const days = Math.round((end - job.dateStart) / 86400000) + 1;
+  const days = Math.round((Number(end) - Number(job.dateStart)) / 86400000) + 1;
   if (!Number.isFinite(days) || days <= 0) return null;
 
   if (job.payType === "daily") {
@@ -34,7 +37,9 @@ export function calcMaxPay(job) {
 //   ①何も無い／両方そろっている → その日を【始まり】にする（終わりは空に）＝3回目のタップで始まりに戻る
 //   ②始まりだけある → その日を【終わり】にする。始まりより前の日なら入れ替える（始まり≦終わりを保つ）。
 //     同じ日をもう一度なら1日だけの範囲
+/** @typedef {{start: string, end: string | null}} DateRange */
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
+/** @param {DateRange | null | undefined} range @param {unknown} ymd */
 export function pickDateRange(range, ymd) {
   if (typeof ymd !== "string" || !YMD.test(ymd)) return range ?? null;
   const cur = normalizeDateRange(range);
@@ -43,17 +48,20 @@ export function pickDateRange(range, ymd) {
   return { start: cur.start, end: ymd };
 }
 // 保存や古いキャッシュから来た値を安全な形に倒す（壊れていれば null＝指定なし）
+/** @param {unknown} range @returns {DateRange | null} */
 export function normalizeDateRange(range) {
   if (!range || typeof range !== "object") return null;
-  const start = typeof range.start === "string" && YMD.test(range.start) ? range.start : null;
+  const fields = /** @type {Record<string, unknown>} */ (range);
+  const start = typeof fields.start === "string" && YMD.test(fields.start) ? fields.start : null;
   if (!start) return null;
-  const end = typeof range.end === "string" && YMD.test(range.end) ? range.end : null;
+  const end = typeof fields.end === "string" && YMD.test(fields.end) ? fields.end : null;
   if (end && end < start) return { start: end, end: start };
   return { start, end };
 }
 // 求人の日程（dateStartRaw〜dateEndRaw・"YYYY-MM-DD"）が範囲と1日でも重なるか。
 // 終わりが無い（始まりだけタップした）間は「その日以降に日程がある求人」＝始まり以降を全部残す。
 // ★文字列のまま比べる（"YYYY-MM-DD" は辞書順＝日付順）。Dateに変えない＝時差で1日ずれない
+/** @param {{dateStartRaw?: unknown, dateEndRaw?: unknown} | null | undefined} j @param {unknown} range */
 export function jobInDateRange(j, range) {
   const r = normalizeDateRange(range);
   if (!r) return true;
@@ -65,9 +73,11 @@ export function jobInDateRange(j, range) {
   return true;
 }
 // 要約の文字（ピル・畳んだ行）＝「9/10〜9/20」「9/10〜」「9/10」
+/** @param {unknown} range */
 export function dateRangeLabel(range) {
   const r = normalizeDateRange(range);
   if (!r) return "";
+  /** @param {string} ymd */
   const f = (ymd) => { const [, m, d] = ymd.split("-").map(Number); return `${m}/${d}`; };
   if (!r.end) return f(r.start) + "〜";
   if (r.end === r.start) return f(r.start);
