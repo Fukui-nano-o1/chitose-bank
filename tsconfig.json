@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "noEmit": true,
+    "types": ["react", "react-dom"]
+  },
+  "files": [
+    "src/features/jobs/model/jobStatus.js",
+    "src/features/jobs/search/model.js",
+    "src/lib/jobSearchVisibility.js",
+    "src/lib/calendarDate.js",
+    "src/components/SearchLaneTabs.jsx"
+  ]
+}

@@ -6,6 +6,9 @@
 // 幅（2026-08-03たきと指示「2つしかないから大きくとれる。窮屈だ」）：
 //   レーンが3つまでなら横幅を等分して大きく取る（指で押しやすい・見出しとして目に入る）。
 //   4つ以上に増えたら等分をやめ、内容幅＋横スクロールに切り替える（将来レーンが増えても潰れない）。
+/**
+ * @param {{value: string, onChange: (key: string) => void, lanes?: ReadonlyArray<{k: string, label: import("react").ReactNode}>}} props
+ */
 export function SearchLaneTabs({ value, onChange, lanes }) {
   if (!lanes || lanes.length < 2) return null; // 1つしか無い時はタブを出さない（切替の意味が無い）
   const wide = lanes.length <= 3; // 等分して大きく見せるか
