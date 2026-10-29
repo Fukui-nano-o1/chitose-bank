@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchPublicJobs } from "../lib/searchJobs";
+import { fetchPublicJobs } from "../features/jobs/search/searchJobs";
 import { getCache } from "../lib/viewCache";
 import { DeviceDrafts } from "./DeviceDrafts";
 

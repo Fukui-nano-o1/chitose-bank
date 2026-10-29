@@ -23,7 +23,7 @@ import { savedJobRevision } from "./savedJobRecord";
 import { fetchJobRowListForMe } from "../../../lib/jobForMe";
 import { getCache, setCache } from "../../../lib/viewCache";
 import { mapJobPublicRow, ROLE_ORANGE } from "../../../lib/utils";
-import { fetchJobViewCounts } from "../../../lib/searchJobs";
+import { fetchJobViewCounts } from "../search/searchJobs";
 import { JobCard } from "../../../components/JobCard";
 import { Dots } from "../../../components/ui";
 

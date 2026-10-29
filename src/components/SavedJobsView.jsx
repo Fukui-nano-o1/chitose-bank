@@ -8,8 +8,8 @@ import { ListingPhoto } from "./ListingPhoto.jsx";
 //   含まないため、応募した求人が掲載終了すると一覧から消えていた（＝失効・完了の暗幕が出なかった）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { useSavedJobMutation } from "../lib/useSavedJobMutation";
-import { savedJobRevision } from "../lib/savedJobRecord";
+import { useSavedJobMutation } from "../features/jobs/favorites/useSavedJobMutation";
+import { savedJobRevision } from "../features/jobs/favorites/savedJobRecord";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
 import { ymdLocal, appPhaseKey, phaseLabelNow, phaseColorNow, APP_PHASE_LABEL, APP_PHASE_COLOR, APP_PHASE_DESC, CHAT_ELIGIBLE_STATUSES, photoThumb, mapJobPublicRow, isFinalWorkDone, appWorkDates, workDaysStripData, dayReportOpen, ROLE_GREEN, isWorkWindowOpen, scrollBelowCalendar, ENDED_FACE } from "../lib/utils";
 import { JobDetailBody } from "./JobDetailBody";

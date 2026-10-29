@@ -27,10 +27,11 @@
 `SavedJobsView` は応募・カレンダーも扱うため、今回は移動しない。
 共有UI・RPC・DB・ルート・キャッシュの仕様は変えず、依存先とテストを移動先に追従させる。
 
-既存画面のimportを一度に変えないため、`src/components/LikedJobs.jsx`、
-`src/lib/savedJobRecord.js`、`src/lib/useSavedJobMutation.js` は互換exportだけを残す。
-実装や状態は複製しない。各入口の利用箇所をfeatureへの直接参照に移し、
-参照検索・回帰テスト・buildで旧パス利用がなくなったことを確認した段階で削除する。
+`savedJobRecord` と `useSavedJobMutation` は全呼び出し元をfeatureへの直接参照に移し、
+`src/lib/` の互換入口を削除した。保存処理とrevision状態は引き続きfeature内の一つだけ。
+`src/components/LikedJobs.jsx` は `ProfileHub` が使うため、転送だけの互換exportを維持する。
+この最後の入口は、呼び出し元を直接参照へ移し、参照検索・いいねの回帰テスト・buildで
+旧パス利用がなくなったことを確認してから削除する。
 
 ## 次の整理範囲：求人検索の一覧取得
 
@@ -39,10 +40,9 @@
 `JobSearchMapView`、訪問入口、応募準備、いいね一覧からの呼び出しは維持する。
 取得中の共有状態・並び順・既読記録・キャッシュキー・DB呼び出し・ルートは変更しない。
 
-`src/lib/searchJobs.js` は互換exportのみとし、実装・状態を持たない。
-画面ごとの直接参照移行は別の小さな変更として行い、旧パスの参照がなくなり、
-取得・先読み・検索画面・いいねの回帰テストとbuildが通った段階で削除する。
-大きな検索画面そのものの分割、検索条件や公開・非公開の仕様変更は今回の範囲外。
+一覧取得・閲覧数・訪問入口の先読み・応募準備・いいね一覧をfeatureへの直接参照に移し、
+`src/lib/searchJobs.js` の互換入口を削除した。取得中の共有状態は一つのモジュールに残す。
+大きな検索画面の分割、検索条件や公開・非公開の仕様変更はこの整理の範囲外。
 
 ## 求人検索の画面の所有場所
 
@@ -51,7 +51,9 @@
 今回は配置とimportだけを変更し、画面内部の分割・表示・操作・ルート・キャッシュ・DBの仕様は変えない。
 共用UIは `src/components/`、いいね更新は `src/features/jobs/favorites/` を参照する。
 
-`src/components/JobSearchMapView.jsx` は既存ルートと求人作成プレビューの互換exportのみとする。
-実装や状態を複製せず、合成データの画面テストで新旧importの同一性を確認する。
-呼び出し元をfeatureへの直接参照に移し、旧パスの参照がなくなり、
-検索条件・求人詳細の行き戻り・いいねの回帰テストとbuildが通った段階で互換入口を削除する。
+既存ルートの遅延読込、求人作成プレビュー、合成データの画面検証をfeatureへの直接参照に移し、
+`src/components/JobSearchMapView.jsx` の互換入口を削除した。`lazyChunk` とnamed exportの
+読込契約は変更しない。検索条件・求人詳細の行き戻り・いいねの回帰テストを維持する。
+
+削除済み4入口の再導入・旧パス利用は `scripts/feature-entries.test.mjs` で検出する。
+過去の障害・作業記録中の旧パスは当時の配置を示すため変更しない。

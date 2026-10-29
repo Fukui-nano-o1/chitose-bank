@@ -21,7 +21,7 @@ import { NavIcon, NavIconInline } from "../../../components/NavIcons";
 import { CalendarView } from "../../../components/CalendarView";
 import { FarmerTrustCard } from "../../../components/TrustCards";
 import { EmployerProfileEdit } from "../../../components/EmployerProfileEdit";
-import { JobSearchMapView } from "../../../components/JobSearchMapView";
+import { JobSearchMapView } from "../search/JobSearchMapView";
 import { normalizePhotos, dangerHasSecond, isAllowedPrefecture, isValidStreetAddress, validateMinWage } from "./model";
 import { digitsOnly, wageAmount, selectionValue, workDurationHours, workTimeLabel as formatWorkTime, dateLabel, serializeJobForm, jobFormFromRow, jobPayloadFromForm } from "./jobInputCodec";
 import { geocodeTown } from "./jobCreateGeo";

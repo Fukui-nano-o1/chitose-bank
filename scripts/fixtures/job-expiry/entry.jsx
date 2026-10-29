@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { JobSearchMapView } from '../../../src/components/JobSearchMapView';
-import { orderSearchJobs } from '../../../src/lib/searchJobs';
+import { JobSearchMapView } from '../../../src/features/jobs/search/JobSearchMapView';
+import { orderSearchJobs } from '../../../src/features/jobs/search/searchJobs';
 import { mapJobPublicRow } from '../../../src/lib/utils';
 
 window.qaOrderSearchJobs = orderSearchJobs;

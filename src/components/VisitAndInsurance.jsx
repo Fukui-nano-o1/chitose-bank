@@ -5,7 +5,7 @@ import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
 import { ProfileReadError } from "./ProfileReadError";
 import { supabase } from "../lib/supabase";
 import { INSURANCE_ITEMS, insuranceToggle } from "../lib/utils";
-import { prefetchSearchJobs } from "../lib/searchJobs";
+import { prefetchSearchJobs } from "../features/jobs/search/searchJobs";
 import { ToggleSwitch } from "./ToggleSwitch";
 import { Dots } from "./ui";
 import { NavIconInline } from "./NavIcons";
