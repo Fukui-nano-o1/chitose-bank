@@ -41,7 +41,8 @@ test('Postgres: publication and confirmation are one atomic, owned, replayable o
       create trigger qa_job_update after update on public.jobs for each row execute function public.qa_job_update();
     `);
     for (const file of ['20260814093042_revision_requested_jobs_need_admin_open.sql',
-      '20260731144258_job_publish_checks_record.sql','20261018142043_atomic_job_publish_check.sql']) {
+      '20260731144258_job_publish_checks_record.sql','20261018142043_atomic_job_publish_check.sql',
+      '20261030082026_guard_publication_check_owner.sql']) {
       if (file === '20261018142043_atomic_job_publish_check.sql') {
         await db.exec(await readFile(new URL('./fixtures/job-save-prod-functions-20261018.sql', import.meta.url), 'utf8'));
       }
