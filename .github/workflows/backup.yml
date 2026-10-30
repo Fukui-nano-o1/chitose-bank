@@ -1,8 +1,9 @@
 name: Supabase Weekly Backup
 
 on:
-  schedule:
-    - cron: '0 0 * * 0'
+  # Automatic plaintext backups stopped on 2026-10-30.
+  # Existing artifacts are retained pending a separate safe-handling decision.
+  # Manual execution of this plaintext workflow requires a separate explicit approval.
   workflow_dispatch:
 
 permissions:
