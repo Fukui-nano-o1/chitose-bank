@@ -39,3 +39,16 @@ test('input-save migration files match the applied production identifiers and SQ
   assert.equal(createHash('md5').update(bytes).digest('hex'),row.md5,`applied SQL must remain unchanged: ${row.file}`);
  }
 });
+
+// A frozen, public-safe source identity snapshot. This test never connects to a DB.
+test('applied guard sources retain exact bytes and no candidate-version replay aliases',async()=>{
+ const history=JSON.parse(await readFile(new URL('./fixtures/applied-guards-20261030.json',import.meta.url),'utf8'));
+ const root=new URL('../supabase/migrations/',import.meta.url),files=await readdir(root);
+ assert.equal(history.migrations.length,3);
+ for(const row of history.migrations){
+  assert.equal(row.file,`${row.version}_${row.name}.sql`);
+  assert.equal(files.filter(f=>f.endsWith(`_${row.name}.sql`)).length,1,`only the applied identifier may exist: ${row.name}`);
+  assert.ok(!files.includes(row.old),`candidate version must not replay: ${row.old}`);
+  assert.equal(createHash('sha256').update(await readFile(new URL(row.file,root))).digest('hex'),row.sha256,`applied SQL is immutable: ${row.file}`);
+ }
+});

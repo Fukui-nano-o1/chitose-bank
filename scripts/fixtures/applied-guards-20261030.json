@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-30T09:58:00Z",
+  "scope": "Three already-applied guards only; immutable source identity, not complete database history or a live CI check",
+  "migrations": [
+    {
+      "version": "20261030064218",
+      "name": "guard_first_hiring_confirmation",
+      "file": "20261030064218_guard_first_hiring_confirmation.sql",
+      "old": "20261030060859_guard_first_hiring_confirmation.sql",
+      "sha256": "35fd4b65c96273ea00a50556ec10ff8122546e6f089658ef5439b48100a33cb5"
+    },
+    {
+      "version": "20261030070800",
+      "name": "guard_operator_chat_history",
+      "file": "20261030070800_guard_operator_chat_history.sql",
+      "old": "20261030064750_guard_operator_chat_history.sql",
+      "sha256": "a29ae84c2b206472b0519cc4c4b8ac46df3284707e87670ebdfa4274b37ce0ed"
+    },
+    {
+      "version": "20261030082026",
+      "name": "guard_publication_check_owner",
+      "file": "20261030082026_guard_publication_check_owner.sql",
+      "old": "20261030071150_guard_publication_check_owner.sql",
+      "sha256": "3e713da51c7d782e667793511dd54f3593f0c495ed93d93bc74bc8061e018ec0"
+    }
+  ]
+}
