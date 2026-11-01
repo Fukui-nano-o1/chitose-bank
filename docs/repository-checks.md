@@ -72,6 +72,8 @@ on relevant pull requests and main pushes. The full audit is intentionally a vis
 nonzero local diagnostic command until its backlog is addressed; it is not mislabeled as a
 passing CI job. Existing critical/lint/build workflows remain in place.
 
+The following release note describes the original checks change, not the status or authorization of a new task. See [current guidance](current-guidance.md).
+
 This change needs no migration or data operation. Release only after the duplicate-entry
 cleanup base is present. Rollback is a revert of this checks commit; no database or data
 rollback is involved. Publication, main merge and deployment are separate steps.
