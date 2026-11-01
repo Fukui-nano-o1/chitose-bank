@@ -1,9 +1,15 @@
 # chitose-bank
 
+## 作業前に読む
+
+[現在の作業案内](docs/current-guidance.md)を入口に、共通ルール・機能別契約・過去の記録を区別する。
+日付付きの「次回」「未実装」「本番未反映」は当時の状態であり、現在の作業指示や適用状況とみなさない。
+安全・権限・法的制約の不一致は推測で解除せず、対象作業を止めて確認する。
+
 ## 構成と入口
 
 - [管理の8原則](docs/repository-management.md)：配置・公開範囲・検証・完了報告の共通ルール（正本）。
-- [AGENTS.md](AGENTS.md)：このリポジトリで作業する際の安全・作業指示。
+- [AGENTS.md](AGENTS.md)：安全・作業指示と日付付き履歴が混在する。読み分けと未確認事項は上の作業案内を参照。
 - `src/App.jsx` / `src/components/`：アプリの組み立て・既存画面・共用UI。既存画面は一括移動しない。
 - `src/features/`：機能ごとの実装。求人は `jobs/` 配下（`create/`、[search/](src/features/jobs/search/)（検索画面・一覧取得・並び・先読み）、[favorites/](src/features/jobs/favorites/)）。
 - `src/lib/`：複数機能で使う基盤・共用処理。機能専用の処理は所有する feature に置く。
