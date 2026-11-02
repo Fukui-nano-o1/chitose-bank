@@ -1,7 +1,9 @@
+import { WorkplacePage } from "./components/WorkplacePage.jsx";
+import { readWorkplaceRoute, openWorkplace, returnFromWorkplace, workplaceReturnScroll } from "./workplace.js";
 import { ListingPhoto } from "../../../components/ListingPhoto.jsx";
 import { returnAlongPath, routeReturn, pushAlongPath, goAlongPath } from "../../../lib/routeTrail";
 // 分割3-C（2026-07-25）：App.jsxから移動。「さがす」求人一覧＋求人詳細＋応募パネル。
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { setApplyReturn, clearApplyReturn } from "../../../lib/applyReturn";
 import { fetchWorkerReady } from "../../../lib/workerReady";
 import { openLoginBox } from "../../../lib/previewBus";
@@ -53,7 +55,7 @@ import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobP
 // ★モジュール直下に置く理由：最初の描画の【前】に「いま求人詳細を開こうとしているか」を知りたいため。
 //   effect は描画の後に走るので、そこで初めて selectedJob を入れると1フレームだけ さがす一覧が見える
 //   （2026-08-25たきと報告「更新すると一瞬だけさがすページに遷移する」の原因）。
-const JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance|apply\/(?:intro|about|dates|confirm)))?$/;
+const JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance|workplace|apply\/(?:intro|about|dates|confirm)))?$/;
 const readJobHash = () => {
   try {
     const m = window.location.hash.replace(/^#\/?/, "").match(JOB_DETAIL_HASH_RE);
@@ -80,9 +82,23 @@ export function JobSearchMapView({ onRegister, me }) {
     const h = readJobHash(); if (!h) return null;
     return (readCachedJobs() || []).find(j => j.id === h.jn) || null;
   });
+  const [workplaceJob, setWorkplaceJob] = useState(() => readWorkplaceRoute(window.location.hash));
+  const previousWorkplace = useRef(workplaceJob);
+  useLayoutEffect(() => {
+    const previous = previousWorkplace.current;
+    previousWorkplace.current = workplaceJob;
+    if (workplaceJob) { window.scrollTo(0, 0); return; }
+    if (previous && storedSelectedJob?.id === previous) {
+      const y = workplaceReturnScroll(previous);
+      if (y != null) {
+        const frame = requestAnimationFrame(() => window.scrollTo(0, y));
+        return () => cancelAnimationFrame(frame);
+      }
+    }
+  }, [workplaceJob, storedSelectedJob?.id]);
   const [applicationStep, setApplicationStep] = useState(readApplicationStep);
   useEffect(() => {
-    const onRoute = () => setApplicationStep(readApplicationStep());
+    const onRoute = () => { setApplicationStep(readApplicationStep()); setWorkplaceJob(readWorkplaceRoute(window.location.hash)); };
     window.addEventListener("hashchange", onRoute);
     window.addEventListener("popstate", onRoute);
     window.addEventListener(ROUTE_CHANGED, onRoute);
@@ -585,9 +601,11 @@ export function JobSearchMapView({ onRegister, me }) {
     };
     window.addEventListener("hashchange", onHash);
     window.addEventListener("popstate", onHash);
+    window.addEventListener(ROUTE_CHANGED, onHash);
     return () => {
       window.removeEventListener("hashchange", onHash);
       window.removeEventListener("popstate", onHash);
+      window.removeEventListener(ROUTE_CHANGED, onHash);
     };
   }, [dbJobs]);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -651,11 +669,13 @@ export function JobSearchMapView({ onRegister, me }) {
   }, [selectedJob]);
   const [empEmployer, setEmpEmployer] = useState(null);
   const [empTrust, setEmpTrust] = useState(null);
+  const [workplaceProfile, setWorkplaceProfile] = useState({ jobId: null, employer: null, status: "loading" });
   useEffect(() => {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     // 前回の内容（求人ごとのviewCache）をまず出す→裏で最新に差し替える（SWR・2026-08-14たきと指摘
     // 「求人者と待遇の復元が10秒」＝コールドスパイクのRPC待ちがそのまま画面の待ちだった）。
     setOwnMenuOpen(false); // 求人を切り替えたらあなたの求人メニューは閉じる
+    setWorkplaceProfile({ jobId: selectedJob.id, employer: null, status: "loading" });
     const cacheKey = "search:jobEmp:" + selectedJob.id;
     const cached = getCache(cacheKey);
     setEmpEmployer((cached && cached.emp) || null);
@@ -664,11 +684,12 @@ export function JobSearchMapView({ onRegister, me }) {
     (async () => {
       // 依存のない2本は並列で（2026-08-02・更新時間の短縮：直列2往復→1往復ぶんの待ちに）
       const [profRes, trustRes] = await Promise.all([
-        Promise.resolve(fetchJobEmployerProfile(selectedJob.id)).catch(() => ({ data: null })),
+        Promise.resolve(fetchJobEmployerProfile(selectedJob.id)).catch(() => ({ data: null, error: true })),
         Promise.resolve(fetchJobEmployerTrustInfo(selectedJob.id)).catch(() => ({ data: null })),
       ]);
       if (cancelled) return;
       const emp = (profRes.data && profRes.data[0]) || null;
+      setWorkplaceProfile({ jobId: selectedJob.id, employer: profRes.error ? null : emp, status: profRes.error ? "error" : "ready" });
       const trust = trustRes.data || null;
       // 失敗（null）の時はキャッシュ表示を上書きしない（2026-08-07規則・フェイルオープンにしない）
       if (emp) setEmpEmployer(emp);
@@ -676,7 +697,7 @@ export function JobSearchMapView({ onRegister, me }) {
       if (emp || trust) setCache(cacheKey, { emp: emp || (cached && cached.emp) || null, trust: trust || (cached && cached.trust) || null });
     })();
     return () => { cancelled = true; };
-  }, [selectedJob?.id]);
+  }, [selectedJob?.id, workplaceJob]);
   const [myApplication, setMyApplication] = useState(null);
   // 仮応募中（第15弾・2026-07-30）：意思は預かったがプロフィールがまだ＝応募ボタンを仕上げ導線に変える
   const [myPending, setMyPending] = useState(false);
@@ -1042,6 +1063,14 @@ export function JobSearchMapView({ onRegister, me }) {
   // 「応募する」の位置＝そのままボタンの場所に「満員」（期間終了なら「募集終了」）を出す
   const closedLabelShort = selectedJob?.filled ? "満員" : "募集終了";  // closed も期間終了も同じ短縮語
 
+  if (workplaceJob) {
+    const matchingJob = selectedJob?.id === workplaceJob ? selectedJob : null;
+    const profile = workplaceProfile.jobId === workplaceJob ? workplaceProfile : null;
+    return <WorkplacePage job={matchingJob} employer={profile?.employer || null}
+      status={!matchingJob ? (deepLinkJn ? "loading" : "error") : (profile?.status || "loading")}
+      onBack={() => returnFromWorkplace(workplaceJob)} />;
+  }
+
   if (applicationStep !== null && selectedJob) {
     return <ApplicationPage key={`${me?.id || "anon"}_${selectedJob.id}`} selectedJob={selectedJob}
       step={Math.min(applicationStep, isPeriodJob ? 3 : 2)} me={me} isPeriodJob={isPeriodJob} periodDays={periodDays}
@@ -1287,7 +1316,7 @@ export function JobSearchMapView({ onRegister, me }) {
           <div className="job-detail-2col">
             {/* 左カラム */}
             <div>
-              <JobHostRow job={selectedJob} employer={empEmployer} trust={empTrust} onOpenIntro={setFarmIntroOpen} />
+              <JobHostRow job={selectedJob} employer={empEmployer} trust={empTrust} onOpenWorkplace={() => openWorkplace(selectedJob.id)} />
 
               <JobHighlights job={selectedJob} />
 
@@ -1306,7 +1335,7 @@ export function JobSearchMapView({ onRegister, me }) {
               募集者名・連絡先の常設表示は廃止（データはjobs転写・job_employer_profileに残存＝表示のみの削除） */}
 
           {/* 評価 → 募集主について（Airbnbの Reviews → Meet your host。1部品＝評価の取得を1回にするため） */}
-          <JobReviewsAndHost job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenIntro={setFarmIntroOpen} />
+          <JobReviewsAndHost job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenWorkplace={() => openWorkplace(selectedJob.id)} />
 
           {/* 作業の場所（地図）＝Airbnbの Where you'll be の位置 */}
           <JobLocationSection job={selectedJob} me={me} />
