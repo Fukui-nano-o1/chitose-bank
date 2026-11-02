@@ -174,7 +174,7 @@
   "onClick={hideApply ? undefined : applyBtnOnClick}" | "disabled={hideApply || applying || applyBtnDisabled}"  x3
 
 ## apply:routeEffect
-  "useEffect(() => { const onRoute = () => setApplicationStep(readApplicationStep()); window.addEventListener(\"hashchange\", onRoute); window.addEventListener(\"popstate\", onRoute); window.addEventListener(ROUTE_CHANGED, onRoute); return () => { window.removeEventListener(\"hashchange\", onRoute); window.removeEventListener(\"popstate\", onRoute); window.removeEventListener(ROUTE_CHANGED, onRoute); }; }, [])"  x1
+  "useEffect(() => { const onRoute = () => { setApplicationStep(readApplicationStep()); setWorkplaceJob(readWorkplaceRoute(window.location.hash)); }; window.addEventListener(\"hashchange\", onRoute); window.addEventListener(\"popstate\", onRoute); window.addEventListener(ROUTE_CHANGED, onRoute); return () => { window.removeEventListener(\"hashchange\", onRoute); window.removeEventListener(\"popstate\", onRoute); window.removeEventListener(ROUTE_CHANGED, onRoute); }; }, [])"  x1
   "useEffect(() => { if (!selectedJob || !me) return; let sig = null; try { sig = sessionStorage.getItem(\"cb_openApply\"); } catch { } if (!sig || String(sig) !== String(selectedJob.id)) return; if (!myAppLoaded) return; try { sessionStorage.removeItem(\"cb_openApply\"); } catch { } if (myAppStatus || myPending || hideApply || isOwnJob) return; goAlongPath(`/work/job/${selectedJob.id}/apply/intro`, \"求人詳細に戻る\"); }, [selectedJob, me, myAppLoaded, myAppStatus, myPending, hideApply, isOwnJob])"  x1
 
 ## cache:key
@@ -662,7 +662,7 @@
   cb_seenNewJobs  x2
 
 ## url:regex
-  JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance|apply\/(?:intro|about|dates|confirm)))?$/  x1
+  JOB_DETAIL_HASH_RE = /^work\/job\/(\d+)(?:\/(content|questions|insurance|workplace|apply\/(?:intro|about|dates|confirm)))?$/  x1
 
 ## url:session
   (不明)  x5

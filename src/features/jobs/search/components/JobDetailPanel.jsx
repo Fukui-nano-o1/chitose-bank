@@ -154,14 +154,17 @@ export function JobKeyFacts({ job }) {
 }
 
 // 募集主の小さな行（Airbnbの「Hosted by X」の型・タイトルブロックの直下）。
-// タップ＝農園紹介モーダル（求人者カードと同じ入口＝行き先を増やさない）
-export function JobHostRow({ job, employer, trust, onOpenIntro }) {
+// 求人詳細では下部の募集主カードと同じ職場紹介ページへ。プレビューは既存の紹介を維持。
+export function JobHostRow({ job, employer, trust, onOpenIntro, onOpenWorkplace }) {
   const name = employer?.nickname || job.employerName;
   if (!name) return null;
   return (
     <AirSection>
-      <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button"
-        style={{ display:"flex", alignItems:"center", gap:14, cursor: onOpenIntro ? "pointer" : "default" }}>
+      <div onClick={() => onOpenWorkplace ? onOpenWorkplace() : onOpenIntro?.(true)} role="button"
+        tabIndex={onOpenWorkplace || onOpenIntro ? 0 : undefined}
+        aria-label={onOpenWorkplace ? "職場紹介を見る" : undefined}
+        onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && (onOpenWorkplace || onOpenIntro)) { e.preventDefault(); if (onOpenWorkplace) onOpenWorkplace(); else onOpenIntro(true); } }}
+        style={{ display:"flex", alignItems:"center", gap:14, cursor: onOpenWorkplace || onOpenIntro ? "pointer" : "default" }}>
         <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={48} />
         <div style={{ minWidth:0 }}>
           <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>募集主：{name}さん</p>
@@ -420,7 +423,7 @@ export function JobThingsToKnow({ job, onPhoto }) {
 // ★募集主カードに出すのは アイコン／名称／数字／代表より だけ（2026-08-25たきと指示）。
 //   氏名・住所・連絡先は出さない（2026-08-03に募集者情報ボックスを削除した判断のまま＝
 //   それらは農園紹介の信頼カードが伏せ字つきで担う。ここで復活させない）
-export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
+export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro, onOpenWorkplace }) {
   const [reviews, setReviews] = useState(null);
   useEffect(() => {
     // 求人番号の無い下書き（掲載前の確認ページ）は引けない＝「読み込み中」に固めず空として描く（2026-09-19）
@@ -470,11 +473,14 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
         {/* パスポート型カード（2026-08-25たきと指示「パクれ」）：白いカードに影・
             左＝大きなアイコン＋名前（縦中央）・右＝数字の縦積み（横線区切り）の2カラム。
             アイコン右下のバッジ＝連絡先確認済み（trust.id_checked・Airbnbの本人確認バッジに当たる位置）。
-            タップで農園紹介＝募集主の小さな行と同じ入口（行き先を増やさない） */}
-        <div onClick={()=>onOpenIntro && onOpenIntro(true)} role="button"
+            求人詳細では職場紹介の専用ページへ。確認画面などは従来の紹介プレビューを維持。 */}
+        <div onClick={() => onOpenWorkplace ? onOpenWorkplace() : onOpenIntro?.(true)} role="button"
+          tabIndex={onOpenWorkplace || onOpenIntro ? 0 : undefined}
+          aria-label={onOpenWorkplace ? "職場紹介を見る" : undefined}
+          onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && (onOpenWorkplace || onOpenIntro)) { e.preventDefault(); if (onOpenWorkplace) onOpenWorkplace(); else onOpenIntro(true); } }}
           style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", borderRadius:24,
                    boxShadow:"0 6px 16px rgba(0,0,0,0.14)", padding:"22px 18px", margin:"4px 2px 6px",
-                   cursor: onOpenIntro ? "pointer" : "default" }}>
+                   cursor: onOpenWorkplace || onOpenIntro ? "pointer" : "default" }}>
           <div style={{ flex:"1 1 0", minWidth:0, display:"flex", flexDirection:"column", alignItems:"center" }}>
             <div style={{ position:"relative" }}>
               <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={96} ring={ROLE_GREEN} />
@@ -485,7 +491,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro }) {
               )}
             </div>
             <p className="f-sans" style={{ fontSize:21, fontWeight:800, color:"#222", margin:"10px 0 0", textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word", lineHeight:1.3 }}>{name}さん</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>募集主</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{onOpenWorkplace ? "職場紹介を見る →" : "募集主"}</p>
           </div>
           {stats.length > 0 && (
             <div style={{ flex:"0 0 41%", maxWidth:150, minWidth:0 }}>
