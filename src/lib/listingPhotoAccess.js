@@ -37,8 +37,10 @@ export function createListingPhotoReader(client, urlApi = URL) {
     async acquire(reference) {
       if (!reference || reference.blocked) throw new Error('PHOTO_NOT_AVAILABLE');
       const session = await client.auth.getSession();
-      const owner = session.data?.session?.user?.id;
-      if (session.error || !owner) throw new Error('PHOTO_NOT_AUTHENTICATED');
+      const owner = session.data?.session?.user?.id || null;
+      if (session.error) throw new Error('PHOTO_NOT_AUTHENTICATED');
+      // Anonymous job-photo requests are authorized by Storage RLS, never by URLs.
+      if (!owner && reference.bucket !== 'job-photos') throw new Error('PHOTO_NOT_AUTHENTICATED');
       if (account === undefined) account = owner;
       else if (account !== owner) { account = owner; clear(); }
       const current = generation;
@@ -53,7 +55,7 @@ export function createListingPhotoReader(client, urlApi = URL) {
           const { data, error } = await client.storage.from(reference.bucket).download(
             reference.path, {}, { cache: 'no-store', signal: entry.controller.signal });
           const after = await client.auth.getSession();
-          if (error || !data || after.error || after.data?.session?.user?.id !== owner || generation !== current || entry.controller.signal.aborted) {
+          if (error || !data || after.error || (after.data?.session?.user?.id || null) !== owner || generation !== current || entry.controller.signal.aborted) {
             throw new Error('PHOTO_NOT_AVAILABLE');
           }
           entry.url = urlApi.createObjectURL(data);
