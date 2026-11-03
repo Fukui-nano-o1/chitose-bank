@@ -75,7 +75,7 @@ test('listing review owns display and delegates edits without owning input or pe
       assert.match(q('[data-section="写真"]').textContent,/写真は後から登録できます/);
       assert.equal(q('[data-section="作業内容"]').textContent,'作業内容未設定');
       assert.equal(q('[data-section="報酬・勤務条件・日程"]').textContent,'作業日程未設定');
-      assert.match(text(),/報酬 未設定/);
+      assert.doesNotMatch(text(),/報酬 未設定/);
       assert.match(text(),/現金手渡し/);
       assert.equal(w.qaDetail.hideTopButton,true);
       assert.equal(q('[data-intro]'),null);
@@ -93,7 +93,8 @@ test('listing review owns display and delegates edits without owning input or pe
       assert.equal(q('[data-section="作業内容"]').textContent,'作業内容 本文');
       assert.equal(q('[data-section="報酬・勤務条件・日程"]').textContent,'報酬・勤務条件・日程 本文');
       assert.doesNotMatch(q('[data-section="写真"]').textContent,/写真は後から/);
-      assert.match(text(),/日給10,000円/);
+      assert.doesNotMatch(text(),/日給10,000円/);
+      assert.equal(q('.listing-review-pay-terms').style.position,'');
       q('[data-intro]').click();assert.deepEqual(events(),[['intro']]);
       assert.equal(JSON.stringify(job),before);
     });

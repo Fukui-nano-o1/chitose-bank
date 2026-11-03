@@ -244,6 +244,7 @@
   padding-bottom:0 !important;
   margin:0 !important;
   opacity:0;
+  visibility:hidden;
   overflow:hidden;
   pointer-events:none;
 }
@@ -253,14 +254,11 @@
 }
 
 
-/* 掲載前確認専用。本文末尾ではなく画面右下に固定し、下部バーとの重なりを防ぐ。 */
-.job-listing-flow .listing-review-top-button{
- position:absolute;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(120px + env(safe-area-inset-bottom,0px));
- z-index:5;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1;
- width:56px;height:56px;border-radius:50%;border:1px solid #ddd;background:#fff;color:#222;
- box-shadow:0 3px 12px rgba(0,0,0,.14);font-size:11px;font-weight:700;cursor:pointer;
- transition:bottom .28s ease;
+/* 「トップ」も共通フッターの通常レイアウトに置き、全操作を一緒に開閉する。 */
+.job-listing-flow .listing-review-top-button {
+ display:flex;align-items:center;justify-content:center;flex-direction:column;
+ flex-shrink:0;min-width:44px;min-height:48px;padding:4px 8px;
+ border:0;border-radius:8px;background:#fff;color:#222;font-size:11px;font-weight:700;cursor:pointer;
 }
 .job-listing-flow .listing-review-top-button span:first-child{font-size:19px;line-height:1}
-.job-listing-flow .listing-review-top-button-expanded{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
-@media (prefers-reduced-motion:reduce){.job-listing-flow .listing-review-top-button{transition:none}}
+.listing-review-pay-terms {font-size:12px;color:#717171;line-height:1.5;margin-top:16px}

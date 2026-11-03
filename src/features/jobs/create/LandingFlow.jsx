@@ -1,3 +1,4 @@
+import { updateReviewScroll } from "./reviewScroll.js";
 // 分割3-C（2026-07-25）：App.jsxから移動。求人作成フロー全体（農家・働き手の入口〜確認〜完了）。
 // 専用ヘルパー（geocodeTown/compressImage/normalizePhotos/dangerHasSecond/LF系UI部品/最賃チェック）も同居。
 // LF系UI部品はモジュールレベル定義を維持すること（コンポーネント内定義はフォーカス消失バグの原因）。
@@ -292,39 +293,25 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const flowScrollRef = useRef(null); // スクロール領域（step遷移時に先頭へ戻す用）
   const pageScrollPositions = useRef({});
   const [reviewBarsHidden, setReviewBarsHidden] = useState(false);
-  const [reviewScrolled, setReviewScrolled] = useState(false);
-  const reviewScrollLast = useRef(0);
-  const reviewScrollTravel = useRef(0);
+  const reviewScroll = useRef(null);
   useEffect(() => {
-    reviewScrollLast.current = 0;
-    reviewScrollTravel.current = 0;
+    reviewScroll.current = null;
     setReviewBarsHidden(false);
-    setReviewScrolled(false);
   }, [pageId]);
+  const releaseReviewBarFocus = () => {
+    // A touch/pointer/wheel gesture takes over from a previous button click.
+    // Keyboard users keep the focused action visible until they move focus.
+    if (pageId === "review" && document.activeElement?.closest(".listing-header, .listing-footer")) document.activeElement.blur();
+  };
   const onListingScroll = (event) => {
     const el = event.currentTarget;
     pageScrollPositions.current[pageId] = el.scrollTop;
     if (pageId !== "review") return;
-    const top = Math.max(0, el.scrollTop);
-    setReviewScrolled(top > 160);
-    const delta = top - reviewScrollLast.current;
-    reviewScrollLast.current = top;
-    // 小さな指の揺れでは開閉しない。方向を変えたら移動距離を測り直す。
-    if (Math.abs(delta) < 2) return;
-    if (Math.sign(delta) !== Math.sign(reviewScrollTravel.current)) reviewScrollTravel.current = 0;
-    reviewScrollTravel.current = Math.max(-120, Math.min(120, reviewScrollTravel.current + delta));
-    const nearTop = top < 56;
-    const nearBottom = el.scrollHeight - top - el.clientHeight < 90;
-    if (nearTop || nearBottom) {
-      reviewScrollTravel.current = 0;
-      setReviewBarsHidden(false);
-    } else if (reviewScrollTravel.current <= -36) {
-      reviewScrollTravel.current = 0;
-      setReviewBarsHidden(false);
-    } else if (top > 130 && reviewScrollTravel.current >= 64) {
-      reviewScrollTravel.current = 0;
-      setReviewBarsHidden(true);
-    }
+    reviewScroll.current = updateReviewScroll(reviewScroll.current, {
+      top: el.scrollTop, height: el.scrollHeight, viewport: el.clientHeight,
+      controlsFocused: !!document.activeElement?.closest(".listing-header, .listing-footer"),
+    });
+    setReviewBarsHidden(reviewScroll.current.hidden);
   };
 
   // draft 復元後に postLoginReturnTo を削除（1回だけ実行）
@@ -1052,7 +1039,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   // ページごとのスクロール位置を保持し、戻る時は見出しへフォーカスだけを戻す。
   useEffect(() => {
     try {
-      if (flowScrollRef.current) flowScrollRef.current.scrollTo(0, isFarmer ? (pageScrollPositions.current[pageId] || 0) : 0);
+      if (flowScrollRef.current) {
+        const el = flowScrollRef.current;
+        el.scrollTo(0, isFarmer ? (pageScrollPositions.current[pageId] || 0) : 0);
+        if (pageId === "review") reviewScroll.current = updateReviewScroll(null, { top:el.scrollTop, height:el.scrollHeight, viewport:el.clientHeight });
+      }
       window.scrollTo(0, 0);
       if (isFarmer) {
         const heading = flowScrollRef.current?.querySelector(".listing-page h1, .listing-page h2");
@@ -1488,7 +1479,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       )}
 
       {/* スクロール領域（全stepスワイプで次へ/戻る・2026-07-16） */}
-      <div ref={flowScrollRef} onScroll={isFarmer ? onListingScroll : undefined} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
+      <div ref={flowScrollRef} onPointerDownCapture={releaseReviewBarFocus} onWheelCapture={releaseReviewBarFocus} onScroll={isFarmer ? onListingScroll : undefined} className={isFarmer ? `listing-scroll${step === 0 || step === 6 ? " listing-scroll-intro" : ""}` : undefined} onTouchStart={onFlowTouchStart} onTouchEnd={onFlowTouchEnd} style={isFarmer ? { ...flowScrollLock } : embedded ? {} : ((step === 0 || step === 6)
         ? { height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", justifyContent:"center", ...flowScrollLock }
         : { height:"100%", overflowY:"auto", ...flowScrollLock })}>
         <ListingPage key={isFarmer ? pageId : step} step={step} pageId={pageId} isFarmer={isFarmer} embedded={embedded} stepAnim={stepAnim}
@@ -2172,13 +2163,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
         </div>
       )}
 
-      {isFarmer && pageId === "review" && reviewScrolled && !sheetOpen && (
-        <button type="button" className={`listing-review-top-button${reviewBarsHidden ? " listing-review-top-button-expanded" : ""}`}
-          aria-label="ページの先頭へ戻る" onClick={() => flowScrollRef.current?.scrollTo({ top:0, behavior:"smooth" })}>
-          <span aria-hidden="true">↑</span><span>トップ</span>
-        </button>
-      )}
-
       {/* 開催期間カレンダー📅の浮遊ボタン＋モーダルは削除（2026-07-24・誰も展開しないため）。
           作業日程は確認ページ「作業日程」区画の「日程を編集」（→step4）で選び直せる */}
 
@@ -2186,6 +2170,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
       {isFarmer && step <= 12 && <ListingFooter
         step={pageId} autoHidden={pageId === "review" && reviewBarsHidden} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} uploading={photoUploading}
+        onTop={pageId === "review" ? () => flowScrollRef.current?.scrollTo({ top:0, behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }) : undefined}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
         publishDisabled={!localOnly && !deviceDraftRef.current?.publication && (unknownWage || recruiter.status === "loading")}
         hidden={sheetOpen || photoCaptionsOpen}

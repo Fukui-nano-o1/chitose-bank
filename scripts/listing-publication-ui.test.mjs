@@ -56,6 +56,34 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
     const writes=w=>w.qaCalls.filter(call=>call.path==='employer_profiles' && call.body);
     const publications=w=>w.qaCalls.filter(call=>call.path==='rpc/publish_my_job_with_check');
     const ready=async(w)=>{await until(()=>!w.document.body.textContent.includes('登録情報を確認しています'),'profile read');await pause(60);};
+    await t.test('review scroll direction, Top and edit-return restore the same scroll container',async()=>{
+      const w=await mount({url:'https://ui.test/#/work/new/page/review',form:form(),offline:false,profile:registered});await ready(w);
+      const scroller=q(w,'.listing-scroll');
+      Object.defineProperties(scroller,{scrollHeight:{configurable:true,value:3000},clientHeight:{configurable:true,value:600}});
+      const scroll=async top=>{scroller.scrollTop=top;scroller.dispatchEvent(new w.Event('scroll'));await pause(20);};
+      const hidden=()=>q(w,'.listing-footer').classList.contains('listing-review-bar-collapsed');
+      await scroll(0);await scroll(100);assert.equal(hidden(),true);
+      await scroll(98);await scroll(100);assert.equal(hidden(),true,'jitter keeps hidden');
+      await scroll(92);assert.equal(hidden(),false,'upward scroll reveals');
+      await scroll(101);assert.equal(hidden(),true,'downward scroll hides again');
+      await scroll(2400);assert.equal(hidden(),false,'bottom makes actions available');
+      const top=q(w,'.listing-footer .listing-review-top-button');assert.ok(top);
+      top.focus();top.click();assert.equal(scroller.scrollTop,0);await scroll(0);assert.equal(hidden(),false);
+      scroller.dispatchEvent(new w.Event('pointerdown',{bubbles:true}));
+      assert.notEqual(w.document.activeElement,top);
+      await scroll(80);assert.equal(hidden(),true,'finger scroll after Top can hide the bar');
+      await scroll(72);assert.equal(hidden(),false);
+      top.focus();scroller.dispatchEvent(new w.Event('wheel',{bubbles:true}));
+      await scroll(90);assert.equal(hidden(),true,'wheel after Top can hide the bar');
+      await scroll(200);await scroll(192);assert.equal(hidden(),false);
+      q(w,'.listing-back').focus();await scroll(220);assert.equal(hidden(),false,'focused controls stay available');
+      button(w,'編集').click();await until(()=>q(w,'[data-edit-page="daily_wage"]'),'edit tab');
+      q(w,'[data-edit-page="daily_wage"]').click();await page(w,'daily_wage');
+      button(w,'確認に戻る').click();await page(w,'review');
+      assert.equal(scroller.scrollTop,220);assert.equal(hidden(),false,'restoration is not a gesture');
+      await scroll(228);assert.equal(hidden(),true);await scroll(220);assert.equal(hidden(),false);
+      assert.equal(publications(w).length,0);assert.equal(record(w).payload.daily_wage,'10000');
+    });
     await t.test('normal input visits only missing recruiter page and does not publish on profile save',async()=>{
       const w=await mount({url:'https://ui.test/#/work/new/page/repeat_approval',form:form(),offline:false,profile:{...registered,recruiter_contact:''}});
       await ready(w);button(w,'確認へ').click();await page(w,'recruiter_contact');
