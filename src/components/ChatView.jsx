@@ -2,6 +2,7 @@ import { goAlongPath, returnAlongPath, routeReturn } from "../lib/routeTrail";
 // チャット（分割・大物②＝最終ピース・2026-07-24）：LINE式スレッド。求人コンテキストカード・確認カード・
 // 日程案シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
 import { useState, useEffect, useRef, Fragment } from "react";
+import { chatReadWatermarks, compareChatTimes } from "../lib/chatReadWatermarks";
 import { supabase } from "../lib/supabase";
 import { confirmWorkerTerms } from "../lib/workerTermsRecord";
 import { fetchJobRowForMe, fetchJobRowsForMe } from "../lib/jobForMe";
@@ -219,7 +220,7 @@ export function ChatView({ applicationId, onBack }) {
   const [deciding, setDeciding] = useState(false);
   // 送信直後の楽観表示（まだDBに無い自分の吹き出し）を、再読込で消さないための印
   const msgSigRef = useRef("");
-  const readStampRef = useRef(0);
+  const readStampRef = useRef(0), readSignatureRef = useRef("");
   const load = async (ids) => {
     if (!aliveRef.current || loadBusyRef.current) return;
     loadBusyRef.current = true;
@@ -233,18 +234,20 @@ export function ChatView({ applicationId, onBack }) {
       // 本文と「相手の最終既読」は互いに独立so同時に投げる（直列2往復→1往復ぶんの待ちに）
       const [msgRes, prRes, stRes] = await chatDeadline(Promise.all([
         supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true}),
-        supabase.from("chat_reads").select("last_read_at").in("application_id", scope).neq("reader_id", uid)
-          .order("last_read_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("chat_reads").select("application_id,reader_id,last_read_at").in("application_id", scope),
         // 現役応募の状態も同じ足で取り直す（2026-08-31たきと指示「更新が遅れている時に
         // メッセージを送信すると本当に送信される。絶対にだめ」）：見送り・失効・取り消し・完了に
         // なっていれば5秒ポーリング・復帰と同じタイミングで幕が閉まり、入力欄が消える。
         // DB側にも同じ壁（msg insert party の with_check・migration 20260831125430）＝二重の壁
-        supabase.from("applications").select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
+        supabase.from("applications").select("id,status,status_changed_at,terms_confirmed_worker_at,terms_confirmed_farmer_at")
           .in("id", [...new Set([...scope, activeAppIdRef.current].filter(Boolean))]),
       ]));
       if (!aliveRef.current) return;
       const data = msgRes.data;
-      if (!prRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
+      if (!prRes.error) {
+        const partnerReads = (prRes.data || []).filter(row => row.reader_id !== uid);
+        setPartnerReadAt(partnerReads.reduce((latest, row) => !latest || Date.parse(row.last_read_at) > Date.parse(latest) ? row.last_read_at : latest, null));
+      }
       // 失敗時は手元の値を上書きしない（2026-08-07規則）
       if (!stRes.error && stRes.data) {
         const row = stRes.data.find(r => r.id === activeAppIdRef.current);
@@ -309,25 +312,27 @@ export function ChatView({ applicationId, onBack }) {
             // 通知はtagがスレッドごとso、この応募の分だけが消えて他のチャットの通知は残る
             closeReadNotifications(scope.map(id => "cb-chat-" + id));
           }
-          // 一覧キャッシュの未読も即クリア（既読化と同時＝一覧に戻った時に未読が一瞬残らない・2026-07-22）
-          if (chatCache.v && chatCache.v.unreadMap) {
-            const um = { ...chatCache.v.unreadMap };
-            let changed = false;
-            scope.forEach(id => { if (um[id]) { delete um[id]; changed = true; } });
-            if (changed) chatCache.v = { ...chatCache.v, unreadMap: um };
-          }
-          // 既読トラッキング（2026-07-22・第8弾）：自分の最終既読時刻をchat_readsに刻む（相手側で「既読」表示に使われる）。
-          // ★毎回は書かない（2026-08-19）：5秒ごとの保険ポーリングで毎回upsertしていたが、
-          //   中身が変わっていなければ刻み直す意味が無い。変わった時と、最後の書き込みから60秒たった時だけ。
-          //   相手の既読の【読み取り】は上のPromise.allで毎回している＝「既読」表示の即時性は落ちない
-          if (changed || Date.now() - readStampRef.current > 60000) {
+          // 状態更新も未読の対象。取得・表示した状態までだけ既読にし、
+          // 新着がない場合も状態更新だけで保存する。失敗時は次の読込で再試行する。
+          if (stRes.error || prRes.error) throw stRes.error || prRes.error;
+          const receipts = chatReadWatermarks({ scope, readerId: uid, messages: data || [],
+            applications: stRes.data || [], reads: prRes.data || [], statusApplicationId: activeAppIdRef.current });
+          const readSignature = JSON.stringify(receipts);
+          if (receipts.length && (readSignature !== readSignatureRef.current || Date.now() - readStampRef.current > 60000)) {
+            const saved = await supabase.from("chat_reads").upsert(receipts, { onConflict: "application_id,reader_id" });
+            if (saved.error) throw saved.error;
+            readSignatureRef.current = readSignature;
             readStampRef.current = Date.now();
-            const now = data?.at(-1)?.created_at;
-            if (!now) return;
-            await supabase.from("chat_reads").upsert(
-              scope.map(id => ({ application_id: id, reader_id: uid, last_read_at: now })),
-              { onConflict: "application_id,reader_id" }
-            );
+            window.dispatchEvent(new Event("cb:unreadRefresh"));
+          }
+          // 既読の保存を確認できてから一覧の控えを更新する。
+          if (chatCache.v?.unreadMap) {
+            const unreadMap = { ...chatCache.v.unreadMap };
+            receipts.forEach(receipt => {
+              const statusAt = (stRes.data || []).find(row => row.id === receipt.application_id)?.status_changed_at;
+              if (!statusAt || compareChatTimes(receipt.last_read_at, statusAt) >= 0) delete unreadMap[receipt.application_id];
+            });
+            chatCache.v = { ...chatCache.v, unreadMap };
           }
         }
       } catch {}

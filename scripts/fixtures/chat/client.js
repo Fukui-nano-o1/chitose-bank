@@ -31,7 +31,14 @@ class Query {
       return { data: copy(saved), error: null };
     }
     if (this.op === 'update') { data.filter(row => this.filters.every(filter => filter(row))).forEach(row => Object.assign(row, this.value)); return { error: null, data: [] }; }
-    if (this.op === 'upsert') return { data: [], error: null };
+    if (this.op === 'upsert') {
+      if (window.qaFailUpsert === table) return { data: null, error: { message: 'offline' } };
+      for (const value of this.value) {
+        const previous = data.find(row => row.application_id === value.application_id && row.reader_id === value.reader_id);
+        if (previous) Object.assign(previous, copy(value)); else data.push(copy(value));
+      }
+      return { data: [], error: null };
+    }
     let rows = data.filter(row => this.filters.every(filter => filter(row)));
     if (this.sort) rows = [...rows].sort((a,b) => String(a[this.sort[0]]).localeCompare(String(b[this.sort[0]])) * (this.sort[1]?.ascending === false ? -1 : 1));
     if (this.count) rows = rows.slice(0, this.count);
