@@ -10,12 +10,7 @@ import react from '@vitejs/plugin-react';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function until(fn) {
-  const deadline = Date.now() + 6000;
-  while (!fn()) { assert.ok(Date.now() < deadline, 'Workplace UI settled'); await pause(10); }
-}
-
-test('dedicated WorkplacePage uses existing truthful fields and protected anonymous photos', async t => {
+test('dedicated WorkplacePage uses truthful fields without borrowing job photos or avatars', async t => {
   const output = await mkdtemp(path.join(tmpdir(), 'cb-workplace-ui-'));
   let dom;
   try {
@@ -28,16 +23,12 @@ test('dedicated WorkplacePage uses existing truthful fields and protected anonym
     console.on('jsdomError', error => errors.push(error.message));
     dom = new JSDOM('<div id="root"></div>', {url:'https://workplace.test/#/work/job/101/workplace',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:console});
     const w = dom.window;
-    const downloads = [], revoked = [];
-    let blobId = 0, releasePhoto;
+    const downloads = [];
     const source = name => `https://project.supabase.co/storage/v1/object/public/job-photos/fixture/${name}.jpg`;
-    w.URL.createObjectURL = () => `blob:https://workplace.test/${++blobId}`;
-    w.URL.revokeObjectURL = url => revoked.push(url);
     w.fetch = () => { throw new Error('Unexpected real network'); };
-    w.qaPhotoClient = {auth:{getSession:async () => ({data:{session:null}}),onAuthStateChange:() => {}},storage:{from:bucket => ({download:async (key, _options, request) => {
-      downloads.push({bucket,key,cache:request.cache});
-      if (key.endsWith('/slow.jpg')) await new Promise(resolve => { releasePhoto = resolve; });
-      return key.endsWith('/denied.jpg') ? {error:Error('403')} : {data:new w.Blob(['synthetic-image'])};
+    w.qaPhotoClient = {auth:{getSession:async () => ({data:{session:null}}),onAuthStateChange:() => {}},storage:{from:bucket => ({download:async key => {
+      downloads.push({bucket,key});
+      throw new Error('Workplace must not request job photos');
     }})}};
     const job = {id:101, crop:'合成作物', task:'合成作業', photos:[], workAddress:'SECRET STREET',workVideoUrl:'https://youtube.com/watch?v=secret', employerName:'合成募集主'};
     w.qaWorkplaceProps = {job,employer:null,status:'loading'};
@@ -54,7 +45,7 @@ test('dedicated WorkplacePage uses existing truthful fields and protected anonym
       assert.doesNotMatch(text(), /職場紹介はまだ登録されていません/);
       w.qaRenderWorkplace({job,employer:{intro_atmosphere:'  ', teaching_style:'unknown-code'},status:'ready'});
       assert.match(text(), /職場紹介はまだ登録されていません/);
-      assert.match(text(), /この求人の写真はまだ登録されていません/);
+      assert.match(text(), /職場紹介の写真は準備中です。求人の写真はここには表示しません。/);
       assert.doesNotMatch(text(), /トイレなし|休憩所なし|unknown-code/);
     });
     await t.test('existing values render with no private fields, video or modal', () => {
@@ -65,21 +56,43 @@ test('dedicated WorkplacePage uses existing truthful fields and protected anonym
       const back = [...w.document.querySelectorAll('button')].find(button => button.textContent.includes('求人詳細に戻る'));
       assert.ok(back); back.click(); assert.equal(w.qaBackCount,1);
     });
-    await t.test('anonymous photos use private-bucket download and denied photos never use persisted URL', async () => {
-      w.qaRenderWorkplace({job:{...job,photos:[source('allowed'),{url:source('denied')}]},employer:null,status:'ready'});
-      await until(() => w.document.querySelectorAll('img[data-photo-access="authenticated"]').length === 1 && w.document.querySelectorAll('img[data-photo-access="unavailable"]').length === 1);
-      assert.ok(downloads.every(request => request.bucket === 'job-photos' && request.cache === 'no-store'));
-      for (const img of w.document.querySelectorAll('img')) assert.ok(!img.getAttribute('src') || img.getAttribute('src').startsWith('blob:'));
+    await t.test('anonymous job photos, external photos, avatar and video never become workplace media', async () => {
+      w.qaRenderWorkplace({job:{...job,photos:[source('allowed'),{url:source('denied'),caption:'JOB CAPTION'},'/job-static.jpg'],employerAvatar:'/job-avatar.jpg'},employer:{avatar_url:'/employer-avatar.jpg'},status:'ready'});
+      await pause(30);
+      assert.equal(w.document.querySelector('img,video,iframe,source'),null);
+      assert.equal(w.document.querySelector('[style*="background-image"]'),null);
+      assert.doesNotMatch(text(), /JOB CAPTION/);
+      assert.match(text(), /職場紹介の写真は準備中です。求人の写真はここには表示しません。/);
+      assert.deepEqual(downloads,[],'no job Storage requests, including anonymous access');
     });
-    await t.test('switching jobs removes prior text/photos and drops late photo completion', async () => {
-      w.qaRenderWorkplace({job:{...job,photos:[source('slow')]},employer:{intro_atmosphere:'OLD JOB COPY'},status:'ready'});
-      await until(() => typeof releasePhoto === 'function');
-      w.qaRenderWorkplace({job:{id:202,photos:[]},employer:null,status:'loading'});
+    await t.test('switching jobs removes prior text without introducing photo fallback', async () => {
+      w.qaRenderWorkplace({job:{...job,photos:[source('old')]},employer:{intro_atmosphere:'OLD JOB COPY',avatar_url:'/old-avatar.jpg'},status:'ready'});
+      assert.match(text(), /OLD JOB COPY/);
+      w.qaRenderWorkplace({job:{id:202,photos:[source('new')]},employer:null,status:'loading'});
       assert.doesNotMatch(text(), /OLD JOB COPY/); assert.equal(w.document.querySelectorAll('img').length,0);
-      releasePhoto(); await pause(30);
-      assert.equal(w.document.querySelectorAll('img').length,0); assert.ok(revoked.length > 0);
+      await pause(30);
+      assert.deepEqual(downloads,[]);
       w.qaRenderWorkplace({job:{id:202,photos:[]},employer:{intro_atmosphere:'NEW JOB COPY'},status:'ready'});
       assert.match(text(), /NEW JOB COPY/); assert.doesNotMatch(text(), /OLD JOB COPY/);
+    });
+    await t.test('only explicitly ready independent published photos render through dedicated storage', async () => {
+      const owner='11111111-1111-4111-8111-111111111111', id='a'.repeat(64), path=`${owner}/${id}.jpg`;
+      w.URL.createObjectURL=()=> 'blob:https://workplace.test/independent';
+      w.URL.revokeObjectURL=()=>{};
+      w.qaPhotoClient.storage.from=bucket=>({download:async key=>{downloads.push({bucket,key});return {data:new w.Blob(['independent-bytes'])};}});
+      const props={job:{...job,photos:[source('should-not-load')]},employer:null,status:'ready',photos:[{id,path},{path:source('not-an-independent-path')}]};
+      for(const photoStatus of ['loading','error','unconfigured']){
+        w.qaRenderWorkplace({...props,photoStatus});await pause(10);assert.equal(w.document.querySelector('img'),null);
+      }
+      assert.deepEqual(downloads,[]);
+      w.qaRenderWorkplace({...props,photoStatus:'ready'});
+      const end=Date.now()+5000;
+      while(!w.document.querySelector('[data-workplace-photo="ready"]')){assert.ok(Date.now()<end,'published photo ready');await pause(10);}
+      assert.equal(w.document.querySelectorAll('img').length,1);
+      assert.equal(w.document.querySelector('img').getAttribute('src'),'blob:https://workplace.test/independent');
+      assert.deepEqual(downloads,[{bucket:'workplace-photos',key:path}]);
+      w.qaRenderWorkplace({...props,photos:[],photoStatus:'ready'});
+      assert.equal(w.document.querySelector('img'),null);assert.match(text(),/職場の写真はまだ公開されていません/);
     });
     assert.deepEqual(errors, []);
   } finally { dom?.window.close(); await rm(output,{recursive:true,force:true}); }

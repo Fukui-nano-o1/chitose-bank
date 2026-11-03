@@ -40,7 +40,7 @@ import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, J
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile } from "./components/ApplyPanel";
 import { ApplicationPage, readApplicationStep } from "./components/ApplicationPage";
 import { getSession, fetchPublicJobByNumber, fetchMyJobNumbers, fetchPendingJobPreviews, unpublishJob,
-  fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
+  fetchJobWorkplace, fetchJobEmployerProfile, fetchJobEmployerTrustInfo, fetchEmployerPublicJobs, fetchEmployerPublicJobCounts,
   fetchSavedJobNumbers, fetchMyApplications, fetchMyPendingApplications,
   fetchMyApplicationForJob, fetchMyPendingForJob, applyToJob, createPendingApplication, cancelApplication,
   fetchAccountHolderId, insertJobReport, fetchSurveyAnswered, insertSurvey,
@@ -670,6 +670,21 @@ export function JobSearchMapView({ onRegister, me }) {
   const [empEmployer, setEmpEmployer] = useState(null);
   const [empTrust, setEmpTrust] = useState(null);
   const [workplaceProfile, setWorkplaceProfile] = useState({ jobId: null, employer: null, status: "loading" });
+  const [workplacePhotos, setWorkplacePhotos] = useState({ jobId: null, photos: [], status: "loading" });
+  useEffect(() => {
+    if (!workplaceJob) return;
+    let cancelled = false;
+    setWorkplacePhotos({ jobId: workplaceJob, photos: [], status: "loading" });
+    (async () => {
+      try {
+        const { data, error } = await fetchJobWorkplace(workplaceJob);
+        if (cancelled) return;
+        const status = error ? (['PGRST202', '42883'].includes(error.code) ? 'unconfigured' : 'error') : 'ready';
+        setWorkplacePhotos({ jobId: workplaceJob, photos: !error && Array.isArray(data?.photos) ? data.photos : [], status });
+      } catch { if (!cancelled) setWorkplacePhotos({ jobId: workplaceJob, photos: [], status: 'error' }); }
+    })();
+    return () => { cancelled = true; };
+  }, [workplaceJob, me?.id]);
   useEffect(() => {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     // 前回の内容（求人ごとのviewCache）をまず出す→裏で最新に差し替える（SWR・2026-08-14たきと指摘
@@ -1067,6 +1082,8 @@ export function JobSearchMapView({ onRegister, me }) {
     const matchingJob = selectedJob?.id === workplaceJob ? selectedJob : null;
     const profile = workplaceProfile.jobId === workplaceJob ? workplaceProfile : null;
     return <WorkplacePage job={matchingJob} employer={profile?.employer || null}
+      photos={workplacePhotos.jobId === workplaceJob ? workplacePhotos.photos : []}
+      photoStatus={workplacePhotos.jobId === workplaceJob ? workplacePhotos.status : 'loading'}
       status={!matchingJob ? (deepLinkJn ? "loading" : "error") : (profile?.status || "loading")}
       onBack={() => returnFromWorkplace(workplaceJob)} />;
   }

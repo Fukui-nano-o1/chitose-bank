@@ -18,6 +18,7 @@
   fetchJobEmployerProfile  x1
   fetchJobEmployerTrustInfo  x1
   fetchJobViewCounts  x1
+  fetchJobWorkplace  x1
   fetchMyApplicationForJob  x1
   fetchMyApplicationTerms  x1
   fetchMyApplications  x1
@@ -243,6 +244,7 @@
   "fetchEmployerPublicJobs = (jobNumber) => supabase.rpc(\"employer_public_jobs\", { p_job_number: jobNumber })"
   "fetchJobEmployerProfile = (jobNumber) => supabase.rpc(\"job_employer_profile\", { p_job_number: jobNumber })"
   "fetchJobEmployerTrustInfo = (jobNumber) => supabase.rpc(\"job_employer_trust_info\", { p_job_number: jobNumber })"
+  "fetchJobWorkplace = jobNumber => supabase.rpc(\"job_workplace\", { p_job_number: jobNumber })"
   "fetchMyApplicationForJob = (jobNumber, workerId) => supabase.from(\"applications\").select(\"id,status\") .eq(\"job_number\", jobNumber).eq(\"worker_id\", workerId).neq(\"status\", \"canceled\").maybeSingle()"
   "fetchMyApplications = (workerId) => supabase.from(\"applications\").select(\"id,job_number,status\") .eq(\"worker_id\", workerId).neq(\"status\", \"canceled\")"
   "fetchMyJobNumbers = (farmerId) => supabase.from(\"jobs\").select(\"job_number\").eq(\"farmer_id\", farmerId)"
@@ -338,6 +340,7 @@
   rpc:job_employer_profile | p_job_number
   rpc:job_employer_reviews | p_job_number
   rpc:job_employer_trust_info | p_job_number
+  rpc:job_workplace | p_job_number
   rpc:my_farm_applicants
   rpc:my_farm_jobs
   rpc:my_todo_items
@@ -367,6 +370,7 @@
   rpc:job_employer_profile
   rpc:job_employer_reviews
   rpc:job_employer_trust_info
+  rpc:job_workplace
   rpc:my_farm_applicants
   rpc:my_farm_jobs
   rpc:my_todo_items
