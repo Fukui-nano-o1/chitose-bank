@@ -76,7 +76,9 @@ export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm,
         ))}
       </ol>
       <div className="listing-footer-actions">
-        <button type="button" className="listing-back" onClick={onBack} disabled={busy}>{backLabel || (frame.intro ? "閉じる" : returnToConfirm ? "確認に戻る" : "戻る")}</button>
+        {returnToConfirm ? <span aria-hidden="true" /> : (
+          <button type="button" className="listing-back" onClick={onBack} disabled={busy}>{backLabel || (frame.intro ? "閉じる" : "戻る")}</button>
+        )}
         <div className="listing-forward">
           {!returnToConfirm && frame.skipDetails && (
             <button type="button" className="listing-skip" onClick={onSkipDetails} disabled={busy}>あとで追加</button>

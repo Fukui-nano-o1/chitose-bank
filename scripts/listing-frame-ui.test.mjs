@@ -7,6 +7,8 @@ import path from 'node:path';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
+import { ACTIVE_LISTING_FLOW } from '../src/features/jobs/create/listingNavigation.js';
+import { RECRUITER_PAGE_IDS } from '../src/features/jobs/create/listingPublicationPages.js';
 const root = fileURLToPath(new URL('../',import.meta.url));
 const pause = ms => new Promise(resolve => setTimeout(resolve,ms));
 async function until(fn) { const end = Date.now()+4000; while(!fn()) { assert.ok(Date.now()<end,'render completes'); await pause(10); } }
@@ -58,10 +60,36 @@ test('real common frame preserves navigation, busy gates, IDs and existing layou
       await render({step:'unknown'});assert.equal(q('.listing-next').disabled,true);
     });
     await t.test('review round-trip, upload label and absent save action retain their semantics',async()=>{
-      await render({step:8,returnToConfirm:true});assert.equal(q('.listing-next').textContent,'確認に戻る');assert.equal(q('.listing-back').textContent,'確認に戻る');assert.equal(q('.listing-skip'),null);
+      await render({step:8,returnToConfirm:true});assert.equal(q('.listing-next').textContent,'確認に戻る');assert.equal(q('.listing-back'),null);assert.equal(q('.listing-skip'),null);
       await render({step:7,uploading:true,busy:true});assert.equal(q('.listing-next').textContent,'アップロード中…');assert.equal(q('.listing-next').disabled,true);
       await render({step:3,noSave:true});assert.equal(q('.listing-save').textContent,'閉じる');q('.listing-save').click();assert.deepEqual(Array.from(w.qaEvents),['exit']);
       await render({step:7});q('.listing-skip').click();assert.deepEqual(Array.from(w.qaEvents),['skip']);
+    });
+    await t.test('every review-edit footer has only the right return action, keeping validation and save gates',async()=>{
+      const pages=ACTIVE_LISTING_FLOW.filter(id=>!['intro','details_intro','review','publish_consent','complete'].includes(id));
+      for(const step of pages) {
+        const nextLabel=RECRUITER_PAGE_IDS.includes(step)?'保存して確認に戻る':undefined;
+        await render({step,returnToConfirm:true,nextLabel});
+        const footer=q('.listing-footer');
+        assert.equal(q('.listing-back'),null,step);
+        assert.equal(q('.listing-skip'),null,step);
+        assert.equal(footer.querySelectorAll('button').length,1,step);
+        assert.equal(q('.listing-footer-actions').firstElementChild.getAttribute('aria-hidden'),'true');
+        assert.equal(q('.listing-footer-actions').lastElementChild.className,'listing-forward');
+        assert.equal(q('.listing-next').textContent,nextLabel||'確認に戻る',step);
+        q('.listing-next').focus();assert.equal(w.document.activeElement,q('.listing-next'));
+        q('.listing-next').click();q('.listing-save').click();
+        assert.deepEqual(Array.from(w.qaEvents),['next','save'],step);
+        for(const gate of [{canNext:false},{busy:true},{busy:true,uploading:true}]) {
+          await render({step,returnToConfirm:true,nextLabel,...gate});
+          assert.equal(q('.listing-back'),null,step);
+          assert.equal(q('.listing-next').disabled,true,step);
+          q('.listing-next').click();assert.deepEqual(Array.from(w.qaEvents),[],step);
+        }
+        await render({step});
+        assert.equal(q('.listing-back').textContent,'戻る',step);
+        q('.listing-back').click();assert.deepEqual(Array.from(w.qaEvents),['back'],step);
+      }
     });
     await t.test('shared body has no extra nesting, no hidden page data and preserves worker layout',async()=>{
       await render({step:4});assert.equal(q('[data-step] > input').value,'入力内容');assert.equal(q('[data-step]').getAttribute('style'),null);

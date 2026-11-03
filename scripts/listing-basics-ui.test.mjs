@@ -120,7 +120,7 @@ test('stage 3 real listing: basic topics, navigation, recovery, minimum wage and
         button(w,'編集').click();await until(()=>q(w,`[data-edit-page="${id}"]`),`edit entry ${id}`);
         q(w,`[data-edit-page="${id}"]`).click();await page(w,id);assert.match(w.location.hash,/return=review/);
         const snapshot=storage(w), url=w.location.href;
-        w=await mount({url,storage:snapshot,offline:true});await page(w,id);button(w,'確認に戻る').click();await page(w,'review');
+        w=await mount({url,storage:snapshot,offline:true});await page(w,id);assert.equal(q(w,'.listing-footer .listing-back'),null);assert.equal(q(w,'.listing-footer').querySelectorAll('button').length,1);button(w,'確認に戻る').click();await page(w,'review');
       }
     });
     await t.test('publication guards route invalid time, break, overtime and pay to the exact input page without sending a publish',async()=>{
@@ -153,7 +153,7 @@ test('stage 3 real listing: basic topics, navigation, recovery, minimum wage and
       assert.equal(q(w,'#meeting-addr').value,'456番地');assert.equal(record(w).payload.nearest_station,'山瀬');assert.equal(record(w).payload.place_change_scope,'変更なし');
       const snapshot=storage(w);w=await mount({url:'https://ui.test/#/work/new/workplace?return=review',storage:snapshot,offline:true});
       await until(()=>q(w,'#listing-workplace-form'),'registered place form');button(w,'戻る').click();await page(w,'workplace');
-      assert.match(w.location.hash,/page\/workplace\?return=review$/);button(w,'確認に戻る').click();await page(w,'review');
+      assert.match(w.location.hash,/page\/workplace\?return=review$/);assert.equal(q(w,'.listing-footer .listing-back'),null);assert.equal(q(w,'.listing-footer').querySelectorAll('button').length,1);button(w,'確認に戻る').click();await page(w,'review');
     });
     await t.test('storage failure on a separated pay page keeps the typed amount visible and cannot falsely finish saving',async()=>{
       const w=await mount({url:'https://ui.test/#/work/new/page/daily_wage',form:form()});await page(w,'daily_wage');
