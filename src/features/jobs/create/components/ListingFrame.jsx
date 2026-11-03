@@ -63,7 +63,7 @@ export function ListingDetailsIntro({ crop, task, region, dates, wage }) {
   );
 }
 
-export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, publishDisabled = false, onBack, onNext, onSkipDetails, onPublish, hidden, nextLabel, backLabel, onTop, autoHidden = false }) {
+export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm, editingOpen, publishDisabled = false, onBack, onNext, onSkipDetails, onPublish, hidden, nextLabel, backLabel, autoHidden = false }) {
   const frame = listingFrameState(step);
   return (
     <footer className={`listing-footer${autoHidden ? " listing-review-bar-collapsed" : ""}`} hidden={hidden}>
@@ -77,9 +77,6 @@ export function ListingFooter({ step, canNext, busy, uploading, returnToConfirm,
       </ol>
       <div className="listing-footer-actions">
         <button type="button" className="listing-back" onClick={onBack} disabled={busy}>{backLabel || (frame.intro ? "閉じる" : returnToConfirm ? "確認に戻る" : "戻る")}</button>
-        {frame.review && onTop && <button type="button" className="listing-review-top-button" aria-label="ページの先頭へ戻る" onClick={onTop}>
-          <span aria-hidden="true">↑</span><span>トップ</span>
-        </button>}
         <div className="listing-forward">
           {!returnToConfirm && frame.skipDetails && (
             <button type="button" className="listing-skip" onClick={onSkipDetails} disabled={busy}>あとで追加</button>
