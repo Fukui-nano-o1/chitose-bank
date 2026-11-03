@@ -1,3 +1,5 @@
+import { WorkplaceEditor } from "./WorkplaceEditor.jsx";
+import { goAlongPath, returnAlongPath } from "../lib/routeTrail.js";
 // 分割3-B（2026-07-25）：App.jsxから移動。雇い手プロフィール編集＋プレビュー（FarmerProfilePreviewは本ファイル専用）。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
@@ -395,6 +397,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const openEditBox = (k) => {
     if (!editBox) listScrollRef.current = window.scrollY || window.pageYOffset || 0;
     if (black) { setEditBox(k); return; }                 // 委託レーンはURLを持たない（状態だけ）
+    if (k === "workplace") { goAlongPath("/" + EDIT_BASE + "/workplace", "プロフィール編集に戻る"); return; }
     window.location.hash = "/" + EDIT_BASE + "/" + k;     // 履歴を1つ進める＝戻るで一覧に帰る
   };
   const replaceEditBox = (k) => {                          // 保存の連鎖＝履歴を積まずに次の項目へ
@@ -405,6 +408,14 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const closeEditBox = () => {
     if (avatarBusyRef.current) return;
     const y = listScrollRef.current;
+    if (!black && editBox === "workplace") {
+      if (!returnAlongPath()) {
+        window.location.replace(window.location.pathname + window.location.search + "#/" + EDIT_BASE);
+        setEditBox(null);
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
+      return;
+    }
     if (!black && boxFromHash()) window.history.back(); else setEditBox(null);
     requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
   };
@@ -517,6 +528,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
+  if (!black && table === "employer_profiles" && editBox === "workplace") {
+    return <WorkplaceEditor me={me} onBack={closeEditBox} />;
+  }
+
   return (
     <fieldset disabled={saving} style={{ border:0, padding:0, margin:0, minWidth:0, gridColumn:"1/-1" }}>{(
     <div style={{ gridColumn:"1/-1", maxWidth:680 }}>
@@ -563,10 +578,11 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // 保険の準備（2026-08-25たきと指示でマイページの反転カードから移設）。
           // 委託レーン（black）は employer_profiles ではないので出さない
           { k:"insurance", l:"保険の準備",     v: insSummary },
+          { k:"workplace", l:"職場紹介",      v: "働いている様子を写真で紹介" },
           { k:"intro",    l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
           { k:"ask",      l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
           { k:"style",    l:"関わり方",       v: styleAnswered.join("・") },
-        ].filter(b => !black || !["intro","ask","style","insurance"].includes(b.k)).map((b, i, arr) => (
+        ].filter(b => !black || !["intro","ask","style","insurance","workplace"].includes(b.k)).map((b, i, arr) => (
           <ProfileEditRow key={b.k} label={b.l} value={b.v} required={b.req}
             accent={AC} onClick={()=>openEditBox(b.k)} last={i === arr.length - 1} />
         ))}

@@ -1,4 +1,5 @@
-import { ListingPhoto } from '../../../../components/ListingPhoto.jsx';
+import { WorkplacePhoto } from '../../../../components/WorkplacePhoto.jsx';
+import { validWorkplacePhotoPath } from '../../../../lib/workplacePhotoAccess.js';
 import { HOST_STYLE_QUESTIONS, hostStyleValues } from '../../../../lib/utils';
 
 const text = value => typeof value === 'string' ? value.trim() : '';
@@ -15,12 +16,10 @@ function styleLabels(employer, key) {
 }
 
 // A route-owned page, not a sheet. The controller owns history/scroll restoration.
-// Only current-job photos and already-public employer fields belong here. In
-// particular a general task video is not evidence of this workplace's appearance.
-export function WorkplacePage({ job, employer, status = 'loading', onBack }) {
-  const photos = (Array.isArray(job?.photos) ? job.photos : [])
-    .map(photo => ({ src: typeof photo === 'string' ? photo : photo?.url, caption: typeof photo === 'string' ? '' : text(photo?.caption) }))
-    .filter(photo => typeof photo.src === 'string' && photo.src.trim());
+// Workplace photographs have their own publication lifecycle, separate from jobs.
+// Only the dedicated published RPC supplies these paths. Never substitute job photos or avatars.
+export function WorkplacePage({ job, employer, status = 'loading', photos = [], photoStatus = 'unconfigured', onBack }) {
+  const workplacePhotos = photoStatus === 'ready' && Array.isArray(photos) ? photos.filter(photo => validWorkplacePhotoPath(photo?.path)) : [];
   const rows = status === 'ready' ? [
     { title: '職場の雰囲気', body: text(employer?.intro_atmosphere) },
     { title: '教え方', body: styleLabels(employer, 'teaching_style') },
@@ -41,16 +40,15 @@ export function WorkplacePage({ job, employer, status = 'loading', onBack }) {
         <h1 style={{ fontSize: 28, lineHeight: 1.4, margin: '28px 0 8px' }}>職場紹介</h1>
         <p style={{ ...bodyStyle, color: '#717171', marginBottom: 24 }}>{[job?.crop, job?.task].filter(Boolean).join(' ')}{job?.id != null ? `（求人 #${job.id}）` : ''}</p>
 
-        {job && <section aria-labelledby="workplace-photos" style={sectionStyle}>
-          <h2 id="workplace-photos" style={headingStyle}>この求人の写真</h2>
-          {photos.length ? <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {photos.map((photo, index) => <figure key={`${photo.src}:${index}`} style={{ margin: 0 }}>
-              <ListingPhoto src={photo.src} alt={`この求人の写真 ${index + 1}`} loading={index ? 'lazy' : undefined}
-                style={{ display: 'block', width: '100%', aspectRatio: '4 / 3', objectFit: 'contain', background: '#F7F7F7', borderRadius: 12 }} />
-              {photo.caption && <figcaption style={{ ...bodyStyle, marginTop: 8 }}>{photo.caption}</figcaption>}
-            </figure>)}
-          </div> : <p style={{ ...bodyStyle, color: '#717171' }}>この求人の写真はまだ登録されていません。</p>}
-        </section>}
+        <section aria-labelledby="workplace-photos" style={sectionStyle}>
+          <h2 id="workplace-photos" style={headingStyle}>職場の写真</h2>
+          {photoStatus === 'loading' && <p role="status">職場の写真を読み込んでいます…</p>}
+          {photoStatus === 'error' && <p role="alert">職場の写真を読み込めませんでした。求人詳細に戻って、もう一度お試しください。</p>}
+          {photoStatus === 'unconfigured' && <p style={{ ...bodyStyle, color: '#717171' }}>職場紹介の写真は準備中です。求人の写真はここには表示しません。</p>}
+          {photoStatus === 'ready' && !workplacePhotos.length && <p style={{ ...bodyStyle, color: '#717171' }}>職場の写真はまだ公開されていません。</p>}
+          {workplacePhotos.map((photo, index) => <WorkplacePhoto key={photo.id || photo.path} path={photo.path} alt={`職場で働く様子 ${index + 1}`}
+            style={{ display: 'block', width: '100%', aspectRatio: '4 / 3', objectFit: 'contain', borderRadius: 12, background: '#F7F7F7', marginBottom: 20 }} />)}
+        </section>
 
         <p style={{ ...bodyStyle, color: '#717171', marginBottom: 20 }}>以下は募集主が登録した、普段の働き方の紹介です。勤務場所ごとの情報ではありません。</p>
         {status === 'loading' && <p role="status" style={bodyStyle}>職場紹介を読み込んでいます…</p>}

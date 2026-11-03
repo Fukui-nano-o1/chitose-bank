@@ -86,3 +86,6 @@ export const fetchConsignorConsent = (authUid) =>
 
 // ── 訪問者向けの文言（招待制か一般公開か）───────────────
 export const fetchSignupOpen = () => supabase.rpc("signup_open");
+
+// Independent, explicitly published employer workplace photos; never jobs.photos.
+export const fetchJobWorkplace = jobNumber => supabase.rpc("job_workplace", { p_job_number: jobNumber });
