@@ -11,7 +11,8 @@ import { mapJobPublicRow, payLabel, disp, calFmtDate, daysBetweenYmd, EMPTY_MARK
 import { useSwipeBack } from "../lib/swipeBack";
 import { openEmployerPreview, openWorkerPreview } from "../lib/previewBus";
 import { closeReadNotifications } from "../lib/push";
-import { chatCache, hydrateChatCache } from "../lib/chatCache";
+import { chatReadSnapshot, acknowledgeChatRead } from "../features/chat/read/chatReadRecord";
+import { chatCache, hydrateChatCache, persistChatCache } from "../lib/chatCache";
 import { readChatBody, writeChatBody } from "../lib/chatBodyCache";
 import { Avatar, Dots } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
@@ -27,6 +28,12 @@ export function ChatView({ applicationId, onBack }) {
   const aliveRef = useRef(true), loadBusyRef = useRef(false), sendBusyRef = useRef(false), pendingRef = useRef(null);
   useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; }; }, []);
   const [loadError, setLoadError] = useState("");
+  const [readError, setReadError] = useState("");
+  const [readSnapshot, setReadSnapshot] = useState(null);
+  const readSuccessRef = useRef("");
+  const readPendingRef = useRef(new Set());
+  const readRevisionRef = useRef(0);
+  const loadAgainRef = useRef(false);
   const [sendError, setSendError] = useState("");
   const [pending, setPending] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false), [quickOpen, setQuickOpen] = useState(false);
@@ -139,8 +146,6 @@ export function ChatView({ applicationId, onBack }) {
     setPlanSel(next.length ? { msgId, labels: next } : null);
     changeText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
   };
-  // 既読（2026-07-22・第8弾）：相手（counterpart）のchat_reads最終既読時刻。自分の送信でこれ以前のものに「既読」
-  const [partnerReadAt, setPartnerReadAt] = useState(null);
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
   const [reportMode, setReportMode] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
@@ -219,32 +224,30 @@ export function ChatView({ applicationId, onBack }) {
   const [deciding, setDeciding] = useState(false);
   // 送信直後の楽観表示（まだDBに無い自分の吹き出し）を、再読込で消さないための印
   const msgSigRef = useRef("");
-  const readStampRef = useRef(0);
   const load = async (ids) => {
-    if (!aliveRef.current || loadBusyRef.current) return;
+    if (!aliveRef.current) return;
+    if (loadBusyRef.current) { loadAgainRef.current = true; return; }
     loadBusyRef.current = true;
     const scope = ids || appIds || [applicationId];
     try {
-      // 自分のidは起動時に取ってある（myId）。毎回 getSession を待たない＝送信・更新の往復を1つ減らす
-      let uid = myId;
-      if (!uid) { const { data: { session } } = await chatDeadline(supabase.auth.getSession()); uid = session?.user?.id || null; }
+      // 既読の所有者は取得時のセッションで固定し、保存時にも照合する。
+      const { data: { session } } = await chatDeadline(supabase.auth.getSession());
+      const uid = session?.user?.id;
       if (!aliveRef.current) return;
       if (!uid) throw new Error("SESSION_REQUIRED");
-      // 本文と「相手の最終既読」は互いに独立so同時に投げる（直列2往復→1往復ぶんの待ちに）
-      const [msgRes, prRes, stRes] = await chatDeadline(Promise.all([
+      if (myIdRef.current && uid !== myIdRef.current) return;
+      // 本文のread_atと応募の状態を並列取得する。
+      const [msgRes, stRes] = await chatDeadline(Promise.all([
         supabase.from("messages").select("*").in("application_id", scope).order("created_at",{ascending:true}),
-        supabase.from("chat_reads").select("last_read_at").in("application_id", scope).neq("reader_id", uid)
-          .order("last_read_at", { ascending: false }).limit(1).maybeSingle(),
         // 現役応募の状態も同じ足で取り直す（2026-08-31たきと指示「更新が遅れている時に
         // メッセージを送信すると本当に送信される。絶対にだめ」）：見送り・失効・取り消し・完了に
         // なっていれば5秒ポーリング・復帰と同じタイミングで幕が閉まり、入力欄が消える。
         // DB側にも同じ壁（msg insert party の with_check・migration 20260831125430）＝二重の壁
-        supabase.from("applications").select("id,status,terms_confirmed_worker_at,terms_confirmed_farmer_at")
+        supabase.from("applications").select("id,status,status_changed_at,terms_confirmed_worker_at,terms_confirmed_farmer_at")
           .in("id", [...new Set([...scope, activeAppIdRef.current].filter(Boolean))]),
       ]));
       if (!aliveRef.current) return;
       const data = msgRes.data;
-      if (!prRes.error) setPartnerReadAt(prRes.data ? prRes.data.last_read_at : null);
       // 失敗時は手元の値を上書きしない（2026-08-07規則）
       if (!stRes.error && stRes.data) {
         const row = stRes.data.find(r => r.id === activeAppIdRef.current);
@@ -274,7 +277,7 @@ export function ChatView({ applicationId, onBack }) {
       // ★内容が同じなら前の配列を保つ（2026-08-07たきと報告「3〜5秒静止で最下部に自動遷移する」の根治）：
       //   5秒間隔の保険ポーリングが毎回新しい配列でsetMsgsし、下の自動スクロール（[msgs]依存）が
       //   毎回発火して、履歴を読んでいる最中でも数秒ごとに最下部へ引き戻していた。
-      //   本文・送信者・時刻は改変不可（履歴保全トリガー）ので、件数と末尾idが同じ＝同一と判定してよい
+      //   本文・送信者・時刻は改変不可。idとread_atを照合し、既読表示の変化は反映する。
       // ★送信中の楽観表示（_pending）はまだDBに無いので、届いた一覧の後ろに残す＝
       //   送った吹き出しが再読込で一瞬消える、を防ぐ
       if (data) setMsgs(prev => {
@@ -284,7 +287,7 @@ export function ChatView({ applicationId, onBack }) {
         const pend = prev.filter(m => m._pending
           && !data.some(d => d.id === m.id));
         const next = pend.length ? [...data, ...pend] : data;
-        return (prev.length === next.length && (next.length === 0 || prev[prev.length-1].id === next[next.length-1].id)) ? prev : next;
+        return (prev.length === next.length && next.every((message, index) => message.id === prev[index].id && message.read_at === prev[index].read_at)) ? prev : next;
       });
       setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
       // 中身が変わったか（変わっていない時は後始末の書き込みを省く＝5秒ごとの無駄な往復を減らす）
@@ -297,43 +300,49 @@ export function ChatView({ applicationId, onBack }) {
       // 控えの更新（Speed-4B）：DBから確定取得できた一覧だけ・中身が変わった時だけ書く。
       // 送信中の仮の吹き出し(_pending)は data に入っていないので控えに載らない
       if (data && data.length && changed) writeChatBody(applicationId, data);
-      // 未読通知（2026-07-17）：チャットを開いた時点で自分宛の未読を既読化し、下部バーのバッジ再計算を通知
-      try {
-        if (document.visibilityState === "visible" && nearBottomRef.current) {
-          if ((data || []).some(m => m.sender_id !== uid && !m.read_at)) {
-            const readResult = await supabase.from("messages").update({ read_at: new Date().toISOString() })
-              .in("id", data.filter(m => m.sender_id !== uid && !m.read_at).map(m => m.id)).neq("sender_id", uid).is("read_at", null);
-            if (readResult.error) throw readResult.error;
-            window.dispatchEvent(new Event("cb:unreadRefresh"));
-            // 読んだら、そのスレッドの通知も消す（2026-08-18たきと指示「LINEと同じ設計を」）。
-            // 通知はtagがスレッドごとso、この応募の分だけが消えて他のチャットの通知は残る
-            closeReadNotifications(scope.map(id => "cb-chat-" + id));
-          }
-          // 一覧キャッシュの未読も即クリア（既読化と同時＝一覧に戻った時に未読が一瞬残らない・2026-07-22）
-          if (chatCache.v && chatCache.v.unreadMap) {
-            const um = { ...chatCache.v.unreadMap };
-            let changed = false;
-            scope.forEach(id => { if (um[id]) { delete um[id]; changed = true; } });
-            if (changed) chatCache.v = { ...chatCache.v, unreadMap: um };
-          }
-          // 既読トラッキング（2026-07-22・第8弾）：自分の最終既読時刻をchat_readsに刻む（相手側で「既読」表示に使われる）。
-          // ★毎回は書かない（2026-08-19）：5秒ごとの保険ポーリングで毎回upsertしていたが、
-          //   中身が変わっていなければ刻み直す意味が無い。変わった時と、最後の書き込みから60秒たった時だけ。
-          //   相手の既読の【読み取り】は上のPromise.allで毎回している＝「既読」表示の即時性は落ちない
-          if (changed || Date.now() - readStampRef.current > 60000) {
-            readStampRef.current = Date.now();
-            const now = data?.at(-1)?.created_at;
-            if (!now) return;
-            await supabase.from("chat_reads").upsert(
-              scope.map(id => ({ application_id: id, reader_id: uid, last_read_at: now })),
-              { onConflict: "application_id,reader_id" }
-            );
-          }
-        }
-      } catch {}
+      // The effect acknowledges only after this server snapshot is rendered.
+      if (stRes.error) setReadError("既読を保存できません。通信を確認して再試行してください。");
+      else {
+        const application = stRes.data?.find(row => row.id === applicationId);
+        if (application) setReadSnapshot(chatReadSnapshot(uid, applicationId, data || [], application));
+      }
     } catch { if (aliveRef.current) { setMsgsLoading(false); setLoadError("メッセージを更新できません。表示中の会話と入力は残っています。"); } }
-    finally { loadBusyRef.current = false; }
+    finally {
+      loadBusyRef.current = false;
+      if (loadAgainRef.current && aliveRef.current) { loadAgainRef.current = false; load(scope); }
+    }
   };
+
+  useEffect(() => {
+    if (!readSnapshot || document.visibilityState !== "visible" || !nearBottomRef.current) return;
+    const signature = JSON.stringify(readSnapshot);
+    if (readSuccessRef.current === signature) { setReadError(""); return; }
+    if (readPendingRef.current.has(signature)) return;
+    readPendingRef.current.add(signature);
+    const revision = ++readRevisionRef.current;
+    const isCurrent = () => aliveRef.current && (!myIdRef.current || myIdRef.current === readSnapshot.owner) && document.visibilityState === "visible" && nearBottomRef.current;
+    acknowledgeChatRead(supabase, readSnapshot, isCurrent).then(async () => {
+      window.dispatchEvent(new Event("cb:unreadRefresh"));
+      if (!isCurrent() || revision !== readRevisionRef.current) return;
+      setReadError("");
+      // Refresh from the server, not by deleting a cached count: new unseen events
+      // may have arrived while the acknowledgement was in flight.
+      const counts = await chatDeadline(supabase.rpc("my_unread_message_counts"));
+      const session = await chatDeadline(supabase.auth.getSession());
+      if (!isCurrent() || revision !== readRevisionRef.current || session.data?.session?.user?.id !== readSnapshot.owner || counts.error || !counts.data) return;
+      readSuccessRef.current = signature;
+      if (chatCache.v) {
+        chatCache.v = { ...chatCache.v, unreadMap: counts.data.by_application || {} };
+        persistChatCache();
+      }
+      if (!counts.data.by_application?.[readSnapshot.applicationId]) closeReadNotifications(["cb-chat-" + readSnapshot.applicationId]);
+    }).catch(() => {
+      if (isCurrent() && revision === readRevisionRef.current) setReadError("既読を保存できません。通信を確認して再試行してください。");
+    }).finally(() => { readPendingRef.current.delete(signature); });
+    // Identical polls must not cancel a slow acknowledgement. Writes are bounded
+    // to this rendered snapshot; owner checks stop writes across account changes.
+    // Unmount/visibility guards still prevent stale local UI and cache updates.
+  }, [readSnapshot]);
 
   const decideApplication = async (approve) => {
     if (deciding) return;
@@ -613,13 +622,12 @@ export function ChatView({ applicationId, onBack }) {
     if (planSel && planSel.msgId !== latestPlanMsgId) { setPlanSel(null); setPlanConfirm(null); }
   }, [latestPlanMsgId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
-  // partnerReadAt（相手の最終既読時刻）以前に送った自分のメッセージのうち、最後の1件のidを求める
+  // 状態変更の既読時刻ではなく、実際に確認されたメッセージのread_atだけを見る。
   const readMarkMsgId = (() => {
-    if (!partnerReadAt || !myId) return null;
-    const t = new Date(partnerReadAt).getTime();
+    if (!myId) return null;
     let id = null;
     for (const m of msgs) {
-      if (m.sender_id === myId && new Date(m.created_at).getTime() <= t) id = m.id;
+      if (m.sender_id === myId && m.read_at) id = m.id;
     }
     return id;
   })();
@@ -653,6 +661,7 @@ export function ChatView({ applicationId, onBack }) {
         <button data-guide="chat-details" className="chat-details-button" onClick={() => setDetailsOpen(true)}>詳細</button>
       </header>
       <button className="chat-context" onClick={() => setDetailsOpen(true)}><span><strong>{confirmJob ? [confirmJob.crop,confirmJob.task].filter(Boolean).join(" ") : "仕事の詳細"}</strong><small>{confirmJob?.dateLabel}{confirmJob?.workTime ? ` · ${confirmJob.workTime}` : ""}</small></span><span className="chat-stage">{APP_PHASE_LABEL[activePhase] || "確認中"}</span><span aria-hidden="true">›</span></button>
+      {readError && <div role="alert" className="chat-notice">{readError}<button className="chat-text-button" onClick={() => load([applicationId])}>既読を再試行</button></div>}
       {loadError && <div role="alert" className="chat-notice">{loadError}<br/><button className="chat-text-button" onClick={() => load([applicationId])}>再読み込み</button><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>}
       {detailsOpen && <ChatDetails job={confirmJob} jobNumber={chatJobNumber} status={activeStatus} phase={activePhase}
         partner={partner} isWorkerSide={isWorkerSide} agreedDates={activeAgreed} meetingPlace={confirmMeetingPlace}
@@ -754,7 +763,7 @@ export function ChatView({ applicationId, onBack }) {
           オーバーレイはpointerEvents:noneなので背後のチャットは従来どおりスクロール・閲覧できる（履歴保全と整合） */}
       <div className="chat-message-area">
       <div ref={msgScrollRef}
-        onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; if (nearBottomRef.current) setHasNewMessages(false); }}
+        onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; if (nearBottomRef.current) { setHasNewMessages(false); load([applicationId]); } }}
         className="chat-messages" aria-label="会話の履歴">
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {/* 読み込み中は吹き出しの仮配置（2026-07-27たきと指示）。「まだメッセージはありません」を

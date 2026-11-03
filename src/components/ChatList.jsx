@@ -144,12 +144,14 @@ export function ChatList() {
     const onWake = () => { if (document.visibilityState === "visible") { refreshUnreadMap(); setRetry(value => value + 1); } };
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
+    window.addEventListener("cb:unreadRefresh", refreshUnreadMap);
     const iv = setInterval(() => { if (document.visibilityState === "visible") refreshUnreadMap(); }, 10000);
     return () => {
       cancelled = true;
       supabase.removeChannel(ch);
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
+      window.removeEventListener("cb:unreadRefresh", refreshUnreadMap);
       clearInterval(iv);
     };
   }, []);

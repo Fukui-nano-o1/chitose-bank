@@ -4,6 +4,7 @@ class Query {
   constructor(table) { this.table = table; this.filters = []; this.op = 'select'; }
   select() { return this; }
   eq(key, value) { this.filters.push(row => row[key] === value); return this; }
+  lt(key, value) { this.filters.push(row => Date.parse(row[key]) < Date.parse(value)); return this; }
   neq(key, value) { this.filters.push(row => row[key] !== value); return this; }
   in(key, values) { this.filters.push(row => values.includes(row[key])); return this; }
   is(key, value) { return this.eq(key, value); }
@@ -13,13 +14,19 @@ class Query {
   single() { this.one = true; return this; }
   insert(row) { this.op = 'insert'; this.value = row; return this; }
   update(row) { this.op = 'update'; this.value = row; return this; }
-  upsert(row) { this.op = 'upsert'; this.value = row; return this; }
+  upsert(row, options) { this.options = options; this.op = 'upsert'; this.value = row; return this; }
   async run() {
     const table = this.table;
     window.qaRequests.push({ table, op: this.op, value: this.value && copy(this.value) });
     if (window.qaHold === table && this.op === 'select') await new Promise(resolve => { window.qaRelease = resolve; });
     if (window.qaFailRead === table && this.op === 'select') return { data: null, error: { message: 'offline' } };
     const data = window.qaData[table] || [];
+    if (['update','upsert'].includes(this.op)) {
+      if (window.qaBeforeReadWrite) await window.qaBeforeReadWrite(this);
+      if (window.qaFailReadWrite === table) return { data: null, error: { message: 'write failed' } };
+      if (window.qaHoldReadWrite === table) await new Promise(resolve => { window.qaReleaseReadWrite = resolve; });
+      if (window.qaZeroReadWrite === table) return { data: [], error: null };
+    }
     if (this.op === 'insert') {
       const value = copy(this.value);
       if (window.qaSendMode === 'offline') throw new Error('offline');
@@ -31,7 +38,14 @@ class Query {
       return { data: copy(saved), error: null };
     }
     if (this.op === 'update') { data.filter(row => this.filters.every(filter => filter(row))).forEach(row => Object.assign(row, this.value)); return { error: null, data: [] }; }
-    if (this.op === 'upsert') return { data: [], error: null };
+    if (this.op === 'upsert') {
+      for (const row of Array.isArray(this.value) ? this.value : [this.value]) {
+        const existing = data.find(item => item.application_id === row.application_id && item.reader_id === row.reader_id);
+        if (!existing) data.push(copy(row));
+        else if (!this.options?.ignoreDuplicates) Object.assign(existing, row);
+      }
+      return { data: [], error: null };
+    }
     let rows = data.filter(row => this.filters.every(filter => filter(row)));
     if (this.sort) rows = [...rows].sort((a,b) => String(a[this.sort[0]]).localeCompare(String(b[this.sort[0]])) * (this.sort[1]?.ascending === false ? -1 : 1));
     if (this.count) rows = rows.slice(0, this.count);
@@ -59,7 +73,18 @@ export const supabase = {
       if (window.qaTermsMode === 'switch') window.qaUser = 'another-account';
       return {data:{ok:true,owner:args.p_owner,application_id:app.id,worker_confirmed:true}};
     }
-    if (name === 'my_unread_message_counts') return { data: { by_application: window.qaUnread } };
+    if (name === 'my_unread_message_counts') {
+      if (!window.qaComputeUnread) return { data: { by_application: window.qaUnread } };
+      const counts = {};
+      for (const application of window.qaData.applications) {
+        if (![application.worker_id, application.farmer_id].includes(uid()) || ['rejected','expired','canceled'].includes(application.status)) continue;
+        const messages = window.qaData.messages.filter(message => message.application_id === application.id && message.sender_id !== uid() && !message.read_at).length;
+        const marker = window.qaData.chat_reads.find(row => row.application_id === application.id && row.reader_id === uid());
+        const status = application.status_changed_at && application.status_changed_by !== uid() && (!marker || Date.parse(marker.last_read_at) < Date.parse(application.status_changed_at)) ? 1 : 0;
+        if (messages + status) counts[application.id] = messages + status;
+      }
+      return { data: { by_application: counts } };
+    }
     if (name === 'my_chat_inbox_previews') {
       const map = {};
       for (const row of window.qaData.messages) if (!map[row.application_id] || row.created_at > map[row.application_id].created_at) map[row.application_id] = row;
