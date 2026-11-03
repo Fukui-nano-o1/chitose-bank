@@ -1,0 +1,70 @@
+name: Chat read browser check
+
+on:
+  pull_request:
+    paths:
+      - 'src/components/Chat*'
+      - 'src/components/AdminChat.jsx'
+      - 'src/features/chat/**'
+      - 'src/lib/chat*.js'
+      - 'src/lib/unread*'
+      - 'src/lib/useChatViewport.js'
+      - 'src/lib/refreshBus.js'
+      - 'src/lib/routeTrail*'
+      - 'src/lib/utils*'
+      - 'src/components/ui*'
+      - 'src/appStyles*'
+      - 'scripts/chat-*.mjs'
+      - 'scripts/fixtures/chat/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/chat-read-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/components/Chat*'
+      - 'src/components/AdminChat.jsx'
+      - 'src/features/chat/**'
+      - 'src/lib/chat*.js'
+      - 'src/lib/unread*'
+      - 'src/lib/useChatViewport.js'
+      - 'src/lib/refreshBus.js'
+      - 'src/lib/routeTrail*'
+      - 'src/lib/utils*'
+      - 'src/components/ui*'
+      - 'src/appStyles*'
+      - 'scripts/chat-*.mjs'
+      - 'scripts/fixtures/chat/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/chat-read-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chat-read-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/chat-read-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: ${{ runner.temp }}/chat-read-evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: chat-read-browser-evidence
+          path: ${{ runner.temp }}/chat-read-evidence
+          if-no-files-found: warn
+          retention-days: 7
