@@ -81,7 +81,7 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
       q(w,'.listing-back').focus();await scroll(220);assert.equal(hidden(),false,'focused controls stay available');
       button(w,'編集').click();await until(()=>q(w,'[data-edit-page="daily_wage"]'),'edit tab');
       q(w,'[data-edit-page="daily_wage"]').click();await page(w,'daily_wage');
-      button(w,'確認に戻る').click();await page(w,'review');
+      assert.equal(q(w,'.listing-footer .listing-back'),null);assert.equal(q(w,'.listing-footer').querySelectorAll('button').length,1);button(w,'確認に戻る').click();await page(w,'review');
       assert.equal(scroller.scrollTop,220);assert.equal(hidden(),false,'restoration is not a gesture');
       await scroll(228);assert.equal(hidden(),true);await scroll(220);assert.equal(hidden(),false);
       assert.equal(publications(w).length,0);assert.equal(record(w).payload.daily_wage,'10000');
@@ -161,7 +161,7 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
         button(w,'編集').click();await until(()=>q(w,`[data-edit-page="${id}"]`),'edit tab: '+id);
         assert.ok(q(w,`[data-edit-page="${id}"]`),id);q(w,`[data-edit-page="${id}"]`).click();await page(w,id);assert.match(w.location.hash,/return=review/);
         w=await mount({url:w.location.href,storage:storage(w),job:w.qaJob,offline:false});await page(w,id);
-        button(w,'確認に戻る').click();await page(w,'review');assert.equal(publications(w).length,0);
+        assert.equal(q(w,'.listing-footer .listing-back'),null);assert.equal(q(w,'.listing-footer').querySelectorAll('button').length,1);button(w,'確認に戻る').click();await page(w,'review');assert.equal(publications(w).length,0);
       }
       assert.equal(q(w,'[data-step-id="review"] input'),null);
     });
