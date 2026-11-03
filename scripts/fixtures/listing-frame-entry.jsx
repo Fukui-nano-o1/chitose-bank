@@ -11,7 +11,7 @@ function Fixture() {
     <ListingPage step={state.step} isFarmer={state.isFarmer ?? true} embedded={state.embedded} stepAnim={state.stepAnim}>
       <h2>共通ページ</h2><input aria-label="入力欄" defaultValue="入力内容" />
     </ListingPage>
-    <ListingFooter {...state} canNext={state.canNext ?? true} onNext={action('next')} onBack={action('back')} onSkipDetails={action('skip')} onPublish={action('publish')} />
+    <ListingFooter {...state} onTop={action('top')} canNext={state.canNext ?? true} onNext={action('next')} onBack={action('back')} onSkipDetails={action('skip')} onPublish={action('publish')} />
   </div>;
 }
 createRoot(document.getElementById('root')).render(<Fixture />);

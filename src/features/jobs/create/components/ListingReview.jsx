@@ -117,16 +117,7 @@ export function ListingReview({ job, me, employer, trust, farmerDisplayName, has
       )} job={job} me={me} employer={employer} trust={trust}
         onOpenIntro={(employer && employer.nickname) ? onOpenIntro : undefined}
         decorate={confDecorate} />
-      {/* 報酬バー＝求人詳細ページの下の応募バー（報酬＋支払条件）に当たる部分（審査プレビューと同じ置き方）。
-          本文は報酬を持たないのでここに置く。sticky＝スクロールの下端に留まる。右端は本文の「トップ」浮遊ボックス
-          （56px・zIndex5）が重なる場所なので空けておく（zIndexはそれより下） */}
-      <div style={{ position:"sticky", bottom:0, zIndex:4, background:"#fff", borderTop:"1px solid #EBEBEB", padding:"10px 68px 10px 0", marginTop:16, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-        <div style={{ minWidth:0 }}>
-          <span className="f-mono" style={{ display:"block", fontSize:18, fontWeight:800, color: job.pay > 0 ? "#222" : "#B0B0B0" }}>{job.pay > 0 ? `日給${job.pay.toLocaleString()}円` : "報酬 未設定"}</span>
-          {/* draftはDB列が入る前なので「現在の固定ポリシー」を共通定数から表示（2026-08-02・ハードコード廃止） */}
-          <span className="f-sans" style={{ display:"block", fontSize:12, color:"#717171", lineHeight:1.5, marginTop:2 }}>{payTermsLine(CURRENT_PAY_POLICY)}</span>
-        </div>
-      </div>
+      <p className="listing-review-pay-terms">{payTermsLine(CURRENT_PAY_POLICY)}</p>
     </div>
   </>);
 }

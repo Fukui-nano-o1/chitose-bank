@@ -37,6 +37,17 @@ test('real common frame preserves navigation, busy gates, IDs and existing layou
       await render({step:'review',editingOpen:true}); assert.equal(q('.listing-next').textContent,'変更を保存');
       q('.listing-next').click();assert.deepEqual(Array.from(w.qaEvents),['publish']);
     });
+    await t.test('Top is a single footer action on review only and follows footer visibility',async()=>{
+      await render({step:'review'});
+      assert.equal(q('.listing-footer .listing-review-top-button').getAttribute('aria-label'),'ページの先頭へ戻る');
+      assert.equal(w.document.querySelectorAll('.listing-review-top-button').length,1);
+      q('.listing-review-top-button').click();q('.listing-review-top-button').click();
+      assert.deepEqual(Array.from(w.qaEvents),['top','top']);
+      await render({step:'review',autoHidden:true});
+      assert.ok(q('.listing-review-top-button').closest('.listing-review-bar-collapsed'));
+      await render({step:'review',hidden:true});assert.equal(q('.listing-review-top-button').closest('footer').hidden,true);
+      await render({step:'schedule'});assert.equal(q('.listing-review-top-button'),null);
+    });
     await t.test('saving and publication gates cannot trigger a second operation',async()=>{
       await render({step:'review',busy:true,saving:true});
       assert.equal(q('.listing-save').textContent,'保存中…');
