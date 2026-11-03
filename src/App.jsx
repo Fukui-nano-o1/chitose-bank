@@ -24,6 +24,7 @@ import { logAppError } from "./app/diagnostics/errorLog";
 import { prepareFreshReload } from "./app/chunkReload";
 import { AppErrorBoundary } from "./app/AppErrorBoundary";
 import { RouteLoading } from "./app/RouteLoading";
+import { installTypingVisibility } from "./app/navigation/typingVisibility";
 import { MobileNavigation } from "./app/navigation/MobileNavigation";
 import { NoticeImage } from "./components/NoticeImage";
 import {
@@ -907,23 +908,8 @@ export default function App(){
     };
   }, [chatAppId]);
 
-  // 入力中（テキスト入力にフォーカス＝キーボード表示）は下部バー・浮遊☰を隠す（2026-07-19）。
-  // 入力欄の切替でチラつかないよう、blur時は少し遅らせて判定
-  useEffect(() => {
-    const isTextField = (el) => {
-      if (!el) return false;
-      const tag = el.tagName;
-      if (tag === "TEXTAREA") return true;
-      if (tag === "INPUT") { const t = (el.type || "text").toLowerCase(); return !["checkbox","radio","button","submit","reset","file","range","color","image"].includes(t); }
-      return el.isContentEditable === true;
-    };
-    let t = null;
-    const onFocusIn = (e) => { if (isTextField(e.target)) { if (t) { clearTimeout(t); t = null; } document.body.classList.add("cb-typing"); } };
-    const onFocusOut = () => { if (t) clearTimeout(t); t = setTimeout(() => { if (!isTextField(document.activeElement)) document.body.classList.remove("cb-typing"); }, 120); };
-    document.addEventListener("focusin", onFocusIn);
-    document.addEventListener("focusout", onFocusOut);
-    return () => { document.removeEventListener("focusin", onFocusIn); document.removeEventListener("focusout", onFocusOut); if (t) clearTimeout(t); document.body.classList.remove("cb-typing"); };
-  }, []);
+  // 入力中は下部バーを隠す。入力欄が画面遷移で消えた場合も解除する。
+  useEffect(() => installTypingVisibility(), []);
 
   useEffect(()=>{(async()=>{
     const init=await sGet("yw_pres_v3");
