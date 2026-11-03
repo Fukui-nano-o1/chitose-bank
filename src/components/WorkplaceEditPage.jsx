@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { WorkplacePhoto } from './WorkplacePhoto.jsx';
 import { validateWorkplaceImage } from '../lib/workplaceImage.js';
 
@@ -22,7 +22,8 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
   const libraryFull = savedPhotos.length >= libraryLimit || (knownBytes && libraryBytes >= libraryBytesLimit);
   const deletable = deleteId && savedPhotos.some(photo => photo.id === deleteId) && !usedIds.has(deleteId);
   const disabled = !canEdit || status !== 'ready' || busy || working;
-  useEffect(() => { setPublicWeb(false); setPeople(false); }, [draftKey, canEdit]);
+  // Clear prior consent before the changed draft becomes interactive.
+  useLayoutEffect(() => { setPublicWeb(false); setPeople(false); }, [draftKey, canEdit]);
   useEffect(() => () => { if (selection) URL.revokeObjectURL(selection.url); }, [selection]);
   useEffect(() => { if (!canEdit) setSelection(null); }, [canEdit]);
   useEffect(() => { if (status === 'loading') setLocalError(''); }, [status]);
