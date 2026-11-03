@@ -2170,7 +2170,6 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
           embedded（プレビューシート内）はfixedが使えないため従来のバーを残す */}
       {isFarmer && step <= 12 && <ListingFooter
         step={pageId} autoHidden={pageId === "review" && reviewBarsHidden} canNext={canGoNext} busy={draftSaving || jobSaving || photoUploading || recruiter.busy} uploading={photoUploading}
-        onTop={pageId === "review" ? () => flowScrollRef.current?.scrollTo({ top:0, behavior:window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }) : undefined}
         returnToConfirm={returnToConfirm} editingOpen={editingOpen}
         publishDisabled={!localOnly && !deviceDraftRef.current?.publication && (unknownWage || recruiter.status === "loading")}
         hidden={sheetOpen || photoCaptionsOpen}
