@@ -35,6 +35,133 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  await t.test('drafts survive navigation, templates append without sending, Enter only adds a newline',async()=>{const w=mount({qaRoute:app});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','先に入力した文');button(w,'定型文').click();await until(()=>button(w,'持ち物'),'templates');button(w,'持ち物').click();await until(()=>input(w).value.includes('持ち物'),'append');assert.ok(input(w).value.startsWith('先に入力した文'));input(w).dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.equal(w.qaRequests.filter(r=>r.op==='insert').length,0);w.qaNavigate(past);await until(()=>w.document.body.textContent.includes('この仕事は完了'),'past thread');w.qaNavigate(app);await until(()=>input(w)?.value.includes('持ち物'),'draft restored');assert.equal(w.qaData.messages.length,2);assert.equal(Object.keys(w.localStorage).some(k=>String(w.localStorage.getItem(k)).includes('先に入力した文')),false);});
  await t.test('lost send response and double clicks retry the same UUID exactly once',async()=>{const w=mount({qaRoute:app,qaSendMode:'lost'});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','受信済みでも二重送信しない');button(w,'送信').click();button(w,'送信')?.click();await until(()=>button(w,'同じ内容で再送'),'failed');assert.equal(input(w).value,'受信済みでも二重送信しない');assert.equal(input(w).readOnly,true);button(w,'同じ内容で再送').click();await until(()=>input(w).value==='','acknowledged');const sent=w.qaData.messages.filter(m=>m.body==='受信済みでも二重送信しない');assert.equal(sent.length,1);const requests=w.qaRequests.filter(r=>r.op==='insert');assert.equal(new Set(requests.map(r=>r.value.id)).size,1);assert.equal(w.document.querySelectorAll('.chat-bubble').length,2);});
  await t.test('send deadline unblocks controls and late results cannot contaminate another thread',async()=>{const w=mount({qaRoute:app,qaSendMode:'hold'});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','送信後に別の会話へ移動');button(w,'送信').click();await until(()=>button(w,'同じ内容で再送'),'bounded timeout');w.qaNavigate(past);await until(()=>w.document.body.textContent.includes('この仕事は完了'),'switched');w.qaResolveSend();await pause(30);assert.doesNotMatch(w.document.querySelector('.chat-messages').textContent,/送信後に別の会話へ移動/);w.qaNavigate(app);await until(()=>input(w)?.value==='','confirmed by fetch');assert.equal(w.qaData.messages.filter(m=>m.body==='送信後に別の会話へ移動').length,1);});
+ await t.test('opening clears message and newer status unread markers, including status-only chats',async()=>{
+  for(const empty of [false,true]){
+   const data=records(); data.applications[0].status_changed_at='2026-09-24T10:00:00.123456Z'; data.applications[0].status_changed_by=partner;
+   data.messages[0].created_at='2026-09-24T10:00:00.123455Z';
+   if(empty) data.messages=data.messages.filter(message=>message.application_id!==app);
+   const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true});
+   await until(()=>w.qaData.chat_reads.some(row=>row.application_id===app && row.last_read_at==='2026-09-24T10:00:00.123456Z'),'status saved');
+   await until(()=>w.qaRequests.some(row=>row.table==='chat_reads'&&row.op==='select'),'verified');
+   await pause(30); w.qaNavigate('list');
+   await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'return list');
+   await until(()=>![...w.document.querySelectorAll('.chat-inbox-row')].find(row=>row.textContent.includes('1311'))?.querySelector('.chat-unread'),'dot cleared');
+   assert.ok([...w.document.querySelectorAll('.chat-inbox-row')].find(row=>row.textContent.includes('1200'))?.querySelector('.chat-unread'),'other chat remains unread');
+  }
+ });
+ await t.test('failed and silently rejected read writes retain unread and recover on explicit retry',async()=>{
+  for(const failure of ['qaFailReadWrite','qaZeroReadWrite']){
+   const data=records();data.applications[0].status_changed_at='2026-09-24T10:00:00Z';data.applications[0].status_changed_by=partner;
+   const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true,[failure]:'chat_reads'});
+   await until(()=>button(w,'既読を再試行'),'read failure');
+   assert.equal(w.qaData.chat_reads.length,0);assert.match(w.document.querySelector('.chat-messages').textContent,/明日は/);
+   w[failure]=null;button(w,'既読を再試行').click();
+   await until(()=>w.qaData.chat_reads.length===1,'retry saved');
+   await until(()=>!button(w,'既読を再試行'),'retry clear');
+  }
+ });
+ await t.test('an unchanged acknowledged snapshot clears a transient status-load error on recovery',async()=>{
+  const data=records();data.messages=[];data.applications[0].status_changed_at='2026-09-24T10:00:00Z';
+  const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true});await until(()=>w.qaData.chat_reads.length===1,'acknowledged');await pause(30);
+  w.qaFailRead='applications';w.dispatchEvent(new w.Event('focus'));await until(()=>button(w,'既読を再試行'),'status read failed');
+  w.qaFailRead=null;button(w,'既読を再試行').click();await until(()=>!button(w,'既読を再試行'),'status recovered');
+ });
+ await t.test('failed message acknowledgement does not advance the status cursor',async()=>{
+  const w=mount({qaRoute:app,qaComputeUnread:true,qaFailReadWrite:'messages'});
+  await until(()=>button(w,'既読を再試行'),'failed write');assert.equal(w.qaData.chat_reads.length,0);
+  assert.equal(w.qaData.messages[0].read_at,null);
+  w.qaFailReadWrite=null;button(w,'既読を再試行').click();await until(()=>w.qaData.messages[0].read_at,'retry message');
+ });
+ await t.test('a delayed write never acknowledges messages or status changes arriving after its snapshot',async()=>{
+  const data=records();data.applications[0].status_changed_at='2026-09-24T10:00:00Z';data.applications[0].status_changed_by=partner;
+  const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true,qaHoldReadWrite:'messages'});
+  await until(()=>w.qaReleaseReadWrite,'pending write');
+  w.qaData.messages.push({id:'new-unseen',application_id:app,sender_id:partner,body:'後から届いたメッセージ',created_at:'2026-09-24T12:00:00Z',read_at:null});
+  w.qaData.applications[0].status_changed_at='2026-09-24T13:00:00Z';
+  w.qaHoldReadWrite=null;w.qaReleaseReadWrite();
+  await until(()=>w.qaData.chat_reads.length===1,'old snapshot saved');
+  assert.equal(w.qaData.chat_reads[0].last_read_at,'2026-09-24T10:00:00Z');assert.equal(w.qaData.messages.at(-1).read_at,null);
+  assert.doesNotMatch(w.document.querySelector('.chat-messages').textContent,/後から届いた/);
+  w.dispatchEvent(new w.Event('focus'));
+  await until(()=>w.qaData.messages.at(-1).read_at,'new message rendered and read');
+  await until(()=>w.qaData.chat_reads[0].last_read_at==='2026-09-24T13:00:00Z','new status read');
+ });
+ await t.test('a later fetched message never acknowledges a status missing from the application snapshot',async()=>{
+  const data=records();data.applications[0].status_changed_at='2026-09-24T10:00:00Z';data.applications[0].status_changed_by=partner;
+  data.messages[0].created_at='2026-09-24T12:00:00Z';
+  const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true,qaHoldReadWrite:'messages'});
+  await until(()=>w.qaReleaseReadWrite,'snapshot read');
+  w.qaData.applications[0].status_changed_at='2026-09-24T11:00:00Z';
+  w.qaHoldReadWrite=null;w.qaReleaseReadWrite();await until(()=>w.qaData.chat_reads.length===1,'observed status read');
+  assert.equal(w.qaData.chat_reads[0].last_read_at,'2026-09-24T10:00:00Z');
+  assert.ok(w.qaData.messages[0].read_at);
+  w.qaNavigate('list');await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'return list');
+  assert.ok([...w.document.querySelectorAll('.chat-inbox-row')].find(row=>row.textContent.includes('1311'))?.querySelector('.chat-unread'),'unseen status remains unread');
+ });
+ await t.test('identical refreshes do not cancel a delayed status acknowledgement',async()=>{
+  const data=records();data.messages=[];data.applications[0].status_changed_at='2026-09-24T10:00:00Z';
+  data.chat_reads=[{application_id:app,reader_id:user,last_read_at:'2026-09-23T10:00:00Z'}];
+  const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true,qaHoldReadWrite:'chat_reads'});
+  await until(()=>w.qaReleaseReadWrite,'slow upsert');
+  for(let i=0;i<3;i++){w.dispatchEvent(new w.Event('focus'));await pause(15);}
+  assert.equal(w.qaRequests.filter(row=>row.table==='chat_reads'&&row.op==='upsert').length,1);
+  w.qaHoldReadWrite=null;w.qaReleaseReadWrite();
+  await until(()=>w.qaData.chat_reads[0].last_read_at==='2026-09-24T10:00:00Z','original acknowledgement finished');
+  assert.equal(button(w,'既読を再試行'),undefined);
+ });
+ await t.test('a timed-out acknowledgement can retry and a late old response cannot regress it',async()=>{
+  const data=records();data.messages=[];data.applications[0].status_changed_at='2026-09-24T10:00:00Z';
+  data.chat_reads=[{application_id:app,reader_id:user,last_read_at:'2026-09-23T10:00:00Z'}];
+  const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true,qaHoldReadWrite:'chat_reads'});
+  await until(()=>w.qaReleaseReadWrite,'held acknowledgement');const release=w.qaReleaseReadWrite;
+  await until(()=>button(w,'既読を再試行'),'bounded read timeout');
+  w.qaHoldReadWrite=null;w.qaData.applications[0].status_changed_at='2026-09-24T11:00:00Z';
+  button(w,'既読を再試行').click();await until(()=>w.qaData.chat_reads[0].last_read_at==='2026-09-24T11:00:00Z','retry newer snapshot');
+  release();await pause(30);assert.equal(w.qaData.chat_reads[0].last_read_at,'2026-09-24T11:00:00Z');
+  assert.equal(button(w,'既読を再試行'),undefined);
+ });
+ await t.test('returning to the inbox during a slow write finishes only the already-opened snapshot',async()=>{
+  const data=records();data.applications[0].status_changed_at='2026-09-24T10:00:00Z';data.applications[0].status_changed_by=partner;
+  const w=mount({qaRoute:app,qaData:data,qaComputeUnread:true,qaHoldReadWrite:'messages'});
+  await until(()=>w.qaReleaseReadWrite,'pending read');const release=w.qaReleaseReadWrite;
+  w.qaNavigate('list');await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'back to list');
+  assert.ok([...w.document.querySelectorAll('.chat-inbox-row')].find(row=>row.textContent.includes('1311'))?.querySelector('.chat-unread'));
+  w.qaHoldReadWrite=null;release();
+  await until(()=>w.qaData.chat_reads.length===1,'observed status saved after back');
+  await until(()=>![...w.document.querySelectorAll('.chat-inbox-row')].find(row=>row.textContent.includes('1311'))?.querySelector('.chat-unread'),'list refreshes without reopening');
+  assert.ok([...w.document.querySelectorAll('.chat-inbox-row')].find(row=>row.textContent.includes('1200'))?.querySelector('.chat-unread'));
+ });
+ await t.test('history scrolling leaves new messages unread until returning to the bottom',async()=>{
+  const w=mount({qaRoute:app,qaComputeUnread:true});await until(()=>w.qaData.messages[0].read_at,'initial read');
+  const panel=w.document.querySelector('.chat-messages');
+  Object.defineProperties(panel,{scrollHeight:{configurable:true,value:1000},clientHeight:{configurable:true,value:200}});
+  panel.scrollTop=0;panel.dispatchEvent(new w.Event('scroll',{bubbles:true}));
+  w.qaData.messages.push({id:'scrolled-new',application_id:app,sender_id:partner,body:'スクロール中の新着',created_at:'2026-09-24T12:00:00Z',read_at:null});
+  w.dispatchEvent(new w.Event('focus'));await until(()=>w.document.body.textContent.includes('スクロール中の新着'),'new history');
+  await pause(40);assert.equal(w.qaData.messages.at(-1).read_at,null);
+  panel.scrollTop=900;panel.dispatchEvent(new w.Event('scroll',{bubbles:true}));
+  await until(()=>w.qaData.messages.at(-1).read_at,'bottom acknowledged');
+ });
+ await t.test('status cursor does not imply a read receipt for an unseen outgoing message',async()=>{
+  const data=records();data.messages[0].sender_id=user;data.messages[0].read_at=null;
+  data.chat_reads=[{application_id:app,reader_id:partner,last_read_at:'2026-09-25T00:00:00Z'}];
+  const w=mount({qaRoute:app,qaData:data});await until(()=>w.document.querySelector('.chat-bubble'),'message');
+  await pause(40);assert.doesNotMatch(w.document.querySelector('.chat-messages').textContent,/既読/);
+  w.qaData.messages[0].read_at='2026-09-25T01:00:00Z';w.dispatchEvent(new w.Event('focus'));
+  await until(()=>w.document.querySelector('.chat-messages').textContent.includes('既読'),'actual receipt');
+ });
+ await t.test('a newer persisted cursor is not regressed by an older open snapshot',async()=>{
+  const data=records();data.chat_reads=[{application_id:app,reader_id:user,last_read_at:'2026-09-25T00:00:00Z'}];
+  const w=mount({qaRoute:app,qaData:data});await until(()=>w.qaData.messages[0].read_at,'message read');await pause(40);
+  assert.equal(w.qaData.chat_reads[0].last_read_at,'2026-09-25T00:00:00Z');
+ });
+ await t.test('late reads after account switch cannot refresh the new account or continue writes',async()=>{
+  const w=mount({qaRoute:app,qaHoldReadWrite:'messages'});await until(()=>w.qaReleaseReadWrite,'pending read');
+  const release=w.qaReleaseReadWrite;w.qaHoldReadWrite=null;w.qaNavigate('list');w.qaAccount('unrelated-account');await pause(30);
+  const before=w.qaRequests.filter(row=>row.table==='chat_reads'&&row.op!=='select').length;
+  release();await pause(50);
+  assert.equal(w.qaRequests.filter(row=>row.table==='chat_reads'&&row.op!=='select').length,before);
+ });
  await t.test('hidden conversations are not marked read and failure retains visible history',async()=>{const w=mount({qaRoute:app,qaFailRead:'messages'});Object.defineProperty(w.document,'visibilityState',{configurable:true,value:'hidden'});await until(()=>button(w,'再読み込み'),'read error');assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='update').length,0);w.qaFailRead=null;button(w,'再読み込み').click();await until(()=>w.document.querySelector('.chat-bubble'),'history recovered');assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='update').length,0);});
  await t.test('closed threads remain readable and cannot send; screen reports stay available',async()=>{const w=mount({qaRoute:past});await until(()=>w.document.body.textContent.includes('この仕事は完了'),'closed');assert.equal(input(w),null);assert.match(w.document.querySelector('.chat-messages').textContent,/ありがとうございました/);button(w,'詳細').click();await until(()=>button(w,'この画面を報告'),'screen report');let report;w.addEventListener('cb:open-support',event=>report=event.detail);button(w,'この画面を報告').click();assert.equal(report.view,'compose');assert.equal(report.topic,'chat');});
  await t.test('detail rows go straight to this job, participant, schedule and map while preserving the draft',async()=>{
