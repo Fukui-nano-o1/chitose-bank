@@ -4,7 +4,8 @@ import { createSupabaseFetch } from '../../../src/lib/requestTransport';
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 const user = () => ({ id: '10000000-0000-4000-8000-000000000001', email: 'person@fixture.test', aud: 'authenticated',
   created_at: '2026-01-01T00:00:00Z', email_confirmed_at: '2026-09-24T00:00:00Z' });
-const session = () => ({ user: user(), access_token: 'fixture-token', refresh_token: 'fixture-refresh', token_type: 'bearer', expires_in: 3600 });
+const token = () => window.qaSessionToken ||= `x.${btoa(JSON.stringify({ sub: user().id, session_id: '20000000-0000-4000-8000-000000000001' })).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')}.x`;
+const session = () => ({ user: user(), access_token: token(), refresh_token: 'fixture-refresh', token_type: 'bearer', expires_in: 3600 });
 
 export const supabase = createClient('https://auth-fixture.test', 'fixture-key', {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -13,6 +14,9 @@ export const supabase = createClient('https://auth-fixture.test', 'fixture-key',
       const parsed = new URL(url), path = parsed.pathname;
       window.qaRequests.push({ path, query: parsed.search, method: options.method || 'GET',
         authorization: new Headers(options.headers).get('Authorization'), body: options.body ? JSON.parse(options.body) : null });
+      if (path === '/rest/v1/rpc/deliver_my_operator_greetings') return window.qaGreetingFailure
+        ? json({ code: 'fixture_greeting_failure', message: 'Unavailable' }, 503)
+        : json({ status: window.qaRegistered === false && !window.qaAccountRow ? 'registration_pending' : 'delivered', sent: 0 });
       if (path === '/rest/v1/rpc/signup_open') return json(window.qaSignupOpen ?? true);
       if (path === '/rest/v1/rpc/am_i_account_allowed') return json(window.qaAccountAllowed ?? true);
       if (path === '/rest/v1/app_errors') return new Response(null, { status: 201 });

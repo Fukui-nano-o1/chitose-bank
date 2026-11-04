@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { supabase, clearBrowserAuthSession } from "./lib/supabase";
 import { createDeviceLogout } from "./lib/authSession";
+import { retryOperatorGreetings } from "./lib/operatorGreetings";
 import { captureSupportContext, clearSupportDiagnostics, openSupport } from "./lib/supportDiagnostics";
 import { useDeviceSync } from "./hooks/useDeviceSync";
 import { activeDeviceDraft, readPendingConsent } from "./lib/deviceDrafts";
@@ -725,6 +726,16 @@ export default function App(){
     if(!me?.id)return;
     setAvatarUrl(me.avatar_url || localStorage.getItem('avatarUrl_'+me.id) || "");
   },[me?.id, me?.avatar_url]);
+  // Only retry recorded greeting events; a restored session is not a login.
+  useEffect(() => {
+    if (!me?.id) return;
+    const retry = () => { void retryOperatorGreetings(me.id); };
+    retry();
+    window.addEventListener("online", retry);
+    window.addEventListener("focus", retry);
+    return () => { window.removeEventListener("online", retry); window.removeEventListener("focus", retry); };
+  }, [me?.id]);
+
   // 新規登録①ゲート：meがセットされる箇所（ログイン/役割選択/セッション復元）を問わず、
   // meが変わるたびにaccount_holders行の有無を1箇所でチェックする（個別setMe箇所は無変更）
   useEffect(()=>{

@@ -2,6 +2,7 @@
 import { useState, useEffect, useId, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { registerAccountHolder } from "../lib/accountHolderRecord";
+import { retryOperatorGreetings } from "../lib/operatorGreetings";
 import { zipLookup } from "../lib/zipLookup";
 import { ROUTE_CHANGED } from "../lib/pushRoute";
 import { THIS_YEAR, TERMS_VERSION, PRIVACY_VERSION } from "../lib/utils";
@@ -119,6 +120,7 @@ export function AccountHolderForm({ onDone, onSessionExpired, onShowTerms, onSho
         company_number: entityType === "corporate" ? companyNumber.trim() : null,
         agreed_terms_version: TERMS_VERSION, agreed_privacy_version: PRIVACY_VERSION,
       });
+      void retryOperatorGreetings(sess.user.id, { afterRegistration: true });
       onDone();
     } catch (error) { setErr(error.message || "登録結果を確認できません。入力は残しています。"); }
     finally { busyRef.current = false; setBusy(false); }
