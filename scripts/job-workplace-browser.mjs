@@ -1,7 +1,7 @@
 // Actual Chromium verification in CI only. Every record and image is synthetic;
 // the network is intercepted and no production credentials or services are used.
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,readFile,rm,writeFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,readFile,readdir,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -26,6 +26,9 @@ try {
  },react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/workplace-search-entry.jsx'),name:'WorkplaceBrowserQA',formats:['iife'],fileName:'fixture'},minify:false}});
  const script=await readFile(path.join(output,'fixture.iife.js'),'utf8');
  const css=await readFile(path.join(output,'fixture.css'),'utf8');
+ const baseCss=await readFile(path.join(root,'src/index.css'),'utf8');
+ const fontDirectory=path.join(root,'public/fonts');
+ const fontAssets=new Map(await Promise.all((await readdir(fontDirectory)).map(async name=>[name,await readFile(path.join(fontDirectory,name))])));
  browser=await chromium.launch({headless:true});
  const cases=[{width:320,mode:'ready',count:4},{width:390,mode:'ready',count:4},{width:768,mode:'ready',count:4},{width:1280,mode:'ready',count:4},{width:390,mode:'one',count:1},{width:390,mode:'two',count:2},{width:390,mode:'empty',count:0},{width:390,mode:'error',count:0}];
  for(const scenario of cases){
@@ -34,8 +37,9 @@ try {
   await context.route('**/*',route=>{
    const url=new URL(route.request().url());
    if(url.origin!==origin)return route.abort();
-   if(url.pathname==='/')return route.fulfill({contentType:'text/html; charset=utf-8',body:'<!doctype html><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+CSS+'\n'+css+'\nbody{margin:0;font-family:Arial,"Noto Sans CJK JP",sans-serif;background:white;}</style><div id="root"></div><script src="/fixture.js"></script>'});
+   if(url.pathname==='/')return route.fulfill({contentType:'text/html; charset=utf-8',body:'<!doctype html><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/fonts/fonts.css"><style>'+baseCss+'\n'+CSS+'\n'+css+'\nbody{margin:0;font-family:Arial,"Noto Sans CJK JP",sans-serif;background:white;}</style><main style="max-width:1200px;margin:0 auto;padding:16px 24px 72px;min-height:100svh;box-sizing:border-box"><div id="root"></div></main><script src="/fixture.js"></script>'});
    if(url.pathname==='/fixture.js')return route.fulfill({contentType:'text/javascript; charset=utf-8',body:script});
+   if(url.pathname.startsWith('/fonts/')&&fontAssets.has(path.basename(url.pathname)))return route.fulfill({contentType:url.pathname.endsWith('.css')?'text/css':'font/woff2',body:fontAssets.get(path.basename(url.pathname))});
    return route.abort();
   });
   await context.addInitScript(({mode,count})=>{
@@ -62,6 +66,7 @@ try {
    if(count)await page.waitForFunction(count=>document.querySelectorAll('#sec-workplace [data-workplace-photo="ready"]').length===Math.min(3,count),count);
    else await section.getByText(mode==='error'?/読み込めませんでした/:/まだ登録されていません/).waitFor();
    await section.evaluate(el=>window.scrollTo(0,Math.max(0,el.previousElementSibling.getBoundingClientRect().top+window.scrollY-30)));
+   await page.evaluate(()=>document.fonts.ready);
    await page.waitForTimeout(350);
    const metrics=await section.evaluate(el=>({before:el.previousElementSibling.textContent,after:el.nextElementSibling.textContent,width:el.getBoundingClientRect().width,viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,photoCount:el.querySelectorAll('img').length,summaryHeight:el.querySelector('.job-workplace-summary')?.getBoundingClientRect().height || 0,buttonHeight:el.querySelector('.job-workplace-more').getBoundingClientRect().height}));
    assert.match(metrics.before,/募集主/);assert.match(metrics.after,/初心者大歓迎/);
@@ -88,6 +93,6 @@ try {
   }catch(error){await page.screenshot({path:path.join(evidence,`failure-${width}-${mode}.png`)});throw error;}
   finally{await context.close();}
  }
- await writeFile(path.join(evidence,'results.json'),JSON.stringify({commit:process.env.GITHUB_SHA,cases:results},null,2));
+ await writeFile(path.join(evidence,'results.json'),JSON.stringify({testedMergeCommit:process.env.GITHUB_SHA,headCommit:process.env.CB_HEAD_SHA,cases:results},null,2));
  console.log(JSON.stringify(results,null,2));
 }finally{await browser?.close();await rm(output,{recursive:true,force:true});}

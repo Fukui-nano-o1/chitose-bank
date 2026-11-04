@@ -16,7 +16,7 @@ The profile text projection is shared with the full workplace page. Loading, fai
 - `npm run check:search`: passed. The reviewed snapshot adds only UI comparisons for error, loading and ready; no search filter or authorization contract changed.
 - Focused tests cover section order, one/two/three-photo layouts, published-path validation, no arbitrary URL fallback, private/pending-field omission, loading/error/empty states, slow and denied photos, repeat activation, direct routes, back/forward, scroll restoration, job switching and account switching.
 - Independent code review: no actionable findings.
-- Real-browser mobile visual review was not completed: the available browser could not connect to the isolated synthetic localhost preview. Responsive CSS was inspected and DOM behavior tested; no claim of pixel-level or live-production verification is made.
+- The initial local browser could not reach the isolated localhost preview. Subsequent [Chromium CI verification](https://github.com/Fukui-nano-o1/chitose-bank/actions/runs/41823609945) passed eight scenarios at 320, 390, 768 and 1280px, including one/two/three-photo previews, empty/error states, keyboard activation, back/forward and restored scroll. All eight screenshots were inspected. The CI harness includes the app main spacing and bundled fonts. This is synthetic browser verification, not a claim about live production.
 
 ## Release and rollback
 
