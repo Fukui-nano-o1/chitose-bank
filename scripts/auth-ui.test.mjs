@@ -17,13 +17,14 @@ async function until(predicate, label) {
   while (!predicate()) { assert.ok(Date.now() < deadline, `timed out: ${label}`); await pause(10); }
 }
 const button = (w, label) => [...w.document.querySelectorAll('button')].find(b => b.textContent.trim() === label);
+const greetingCalls = w => w.qaRequests.filter(r => r.path === '/rest/v1/rpc/deliver_my_operator_greetings');
 const otpCalls = w => w.qaRequests.filter(r => r.path === '/auth/v1/otp');
 
 test('real authentication UI handles failures and guides returning accounts without duplicate registration or forced password changes', async t => {
   const output = await mkdtemp(path.join(tmpdir(), 'cb-auth-ui-'));
   let dom;
   try {
-    await build({ configFile: false, root, logLevel: 'error', define: { 'process.env.NODE_ENV': '"production"' }, plugins: [{
+    await build({ configFile: false, root, logLevel: 'error', define: { 'process.env.NODE_ENV': '"production"', 'import.meta.env.VITE_OPERATOR_GREETINGS_ENABLED': '"true"' }, plugins: [{
       name: 'auth-fixture', enforce: 'pre', resolveId(id) {
         if (/(?:^|\/)supabase(?:\.js)?$/.test(id)) return path.join(root, 'scripts/fixtures/auth/client.js');
       },
@@ -169,6 +170,8 @@ test('real authentication UI handles failures and guides returning accounts with
         await fill(w, 'input[name="password"]', 'fixture-password');
         button(w, 'ログイン').click();
         await until(() => w.qaLoggedIn, 'login complete');
+        await until(() => greetingCalls(w).length, 'explicit login greeting');
+        assert.equal(greetingCalls(w).length, 1);assert.equal(greetingCalls(w)[0].body.p_record_login, true);
         assert.equal(otpCalls(w).length, fromCode ? 1 : 0, 'switching method never sends mail');
         assert.equal(signups(w).length, 0);
         assert.equal(updates(w).length, 0);
@@ -182,7 +185,7 @@ test('real authentication UI handles failures and guides returning accounts with
       assert.match(w.document.querySelector('h1').textContent, /おかえりなさい/);
       assert.equal(w.document.querySelector('input[type="password"]'), null);
       const lookup = w.qaRequests.find(r => r.path === '/rest/v1/account_holders');
-      assert.equal(lookup.authorization, 'Bearer fixture-token');
+      assert.equal(lookup.authorization, 'Bearer ' + w.qaSessionToken);
       assert.match(lookup.query, /auth_id=eq\.10000000-0000-4000-8000-000000000001/);
       button(w, 'ログインして続ける').click(); button(w, 'ログインして続ける').click();
       await until(() => w.qaLoggedIn, 'existing account login');
@@ -190,6 +193,7 @@ test('real authentication UI handles failures and guides returning accounts with
       assert.equal(w.qaLoggedIn.name, farmer.name);
       assert.equal(w.qaLoggedIn.planned_crops[0], 'broccoli');
       assert.equal(w.qaLoginCount, 1);
+      assert.equal(greetingCalls(w).filter(r => r.body.p_record_login).length, 1);
       assert.equal(signups(w).length, 0);
       assert.equal(updates(w).length, 0);
     });
@@ -216,6 +220,7 @@ test('real authentication UI handles failures and guides returning accounts with
       await fill(w, 'input[name="confirm-password"]', 'replacement-fixture');
       button(w, '変更してログイン').click();
       await until(() => w.qaLoggedIn, 'reset complete');
+      assert.equal(greetingCalls(w).filter(r => r.body.p_record_login).length, 1, 'password update is not a second login');
       assert.equal(updates(w).length, 1);
       assert.equal(signups(w).length, 0);
     });
@@ -261,6 +266,7 @@ test('real authentication UI handles failures and guides returning accounts with
       assert.equal(w.qaLoggedIn, undefined, 'a failed farmer lookup must not log in as a blank worker');
       w.qaFarmerError = false; button(w, 'ログインして続ける').click();
       await until(() => w.qaLoggedIn, 'profile recovered');
+      assert.equal(greetingCalls(w).filter(r => r.body.p_record_login).length, 1, 'profile retries are not logins');
       assert.equal(updates(w).length, 0);
     });
     await t.test('an invalid code never exposes registration status; invite-only mode remains closed', async () => {
@@ -293,6 +299,16 @@ test('real authentication UI handles failures and guides returning accounts with
         : button(w, '準備中'), 'registration permission checked');
     }
     const writes = w => w.qaRequests.filter(r => r.path === '/rest/v1/account_holders' && r.method === 'POST');
+    await t.test('a failed greeting does not block successful password authentication', async () => {
+      const w = mount('success', false, { qaGreetingFailure: true });
+      await until(() => button(w, 'ログイン'), 'login ready');
+      assert.equal(greetingCalls(w).length, 0);
+      await fill(w, 'input[type="email"]', 'person@fixture.test');
+      await fill(w, 'input[name="password"]', 'fixture-password');
+      button(w, 'ログイン').click();
+      await until(() => w.qaLoggedIn && greetingCalls(w).length, 'login despite greeting failure');
+      assert.equal(w.document.querySelector('[role="alert"]'), null);
+    });
     const faults = ['unsupported', 'reject', 'throw', 'getter', 'pending', 'script-load-failure', 'cache-reject', 'cache-pending'];
     for (const fault of faults) {
       for (const journey of ['password', 'returning-otp', 'registration']) {
@@ -346,11 +362,13 @@ test('real authentication UI handles failures and guides returning accounts with
       button(w, 'ログイン').click();
       await until(() => w.document.querySelector('[role="alert"]'), 'invalid credentials');
       assert.equal(w.qaLoggedIn, undefined); assert.equal(writes(w).length, 0);
+      assert.equal(greetingCalls(w).length, 0);
       assert.equal(w.qaRequests.filter(r => r.path === '/auth/v1/token').length, 1);
       w = mount('success', false, { qaOptionalFault: 'pending', qaVerifyError: true });
       await openCode(w); await verify(w);
       await until(() => w.document.querySelector('[role="alert"]'), 'invalid OTP');
       assert.equal(w.qaLoggedIn, undefined); assert.equal(writes(w).length, 0);
+      assert.equal(greetingCalls(w).length, 0);
     });
     await t.test('optional failure never turns an unconfirmed account save into successful registration', async () => {
       const w = mount('success', false, { qaOptionalFault: 'cache-reject', qaRegistered: false, qaCompleteRegistration: true, qaAccountWriteError: true });

@@ -52,3 +52,13 @@ test('applied guard sources retain exact bytes and no candidate-version replay a
   assert.equal(createHash('sha256').update(await readFile(new URL(row.file,root))).digest('hex'),row.sha256,`applied SQL is immutable: ${row.file}`);
  }
 });
+
+
+test('operator greeting migration retains applied identifier and reviewed SQL bytes',async()=>{
+ const row=JSON.parse(await readFile(new URL('./fixtures/operator-greeting-applied-migration.json',import.meta.url),'utf8'));
+ const root=new URL('../supabase/migrations/',import.meta.url),files=await readdir(root);
+ assert.equal(row.file,`${row.version}_${row.name}.sql`);
+ assert.equal(files.filter(f=>f.endsWith(`_${row.name}.sql`)).length,1);
+ assert.ok(!files.includes(row.candidate),'candidate must not replay');
+ assert.equal(createHash('sha256').update(await readFile(new URL(row.file,root))).digest('hex'),row.sha256);
+});

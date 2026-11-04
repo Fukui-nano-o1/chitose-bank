@@ -2,6 +2,7 @@
 // 認証まわりの絶対規則（CLAUDE.md）：OTP・認証コードの取得入力を代行しない。実機検証はユーザー本人。
 import { useState, useEffect, useId, useRef } from "react";
 import { supabase } from "../lib/supabase";
+import { recordOperatorLogin } from "../lib/operatorGreetings";
 import { Dots } from "./ui";
 import { NavIcon } from "./NavIcons";
 import { openSupport, rememberSupportFailure } from "../lib/supportDiagnostics";
@@ -154,6 +155,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       setErr(isBadCred(error) ? "メールアドレスまたはパスワードが違います" : "通信が不安定です。もう一度お試しください");
       bounce(); return;
     }
+    void recordOperatorLogin(data.session);
     await completeLogin(data.user);
   };
 
@@ -222,6 +224,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
       type: 'email',
     });
     if (error) { rememberSupportFailure({ operation: "auth.verifyOtp", error }); setErr("コードが違います、または有効期限切れです"); setCode(""); bounce(); return; }
+    void recordOperatorLogin(data.session);
     setAuthedUser(data.user);
     setPw(""); setPw2(""); setCode(""); setErr("");
     setView("verified");

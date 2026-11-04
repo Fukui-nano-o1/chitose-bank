@@ -1,0 +1,290 @@
+{
+  "checkedAt": "2026-11-04T09:19:00Z",
+  "project": "aegwepgtmwcnwzybpgsh",
+  "readOnly": true,
+  "preflight": {
+    "tables": [
+      {
+        "acl": "{postgres=ar*wdDxtm/supabase_auth_admin,supabase_auth_admin=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin}",
+        "rls": true,
+        "owner": "supabase_auth_admin",
+        "table": "sessions",
+        "schema": "auth"
+      },
+      {
+        "acl": "{supabase_auth_admin=arwdDxtm/supabase_auth_admin,dashboard_user=arwdDxtm/supabase_auth_admin,postgres=ar*wdDxtm/supabase_auth_admin}",
+        "rls": true,
+        "owner": "supabase_auth_admin",
+        "table": "users",
+        "schema": "auth"
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "table": "account_holders",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=rxm/postgres,authenticated=rxm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "table": "admin_messages",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "table": "employer_profiles",
+        "schema": "public"
+      },
+      {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "rls": true,
+        "owner": "postgres",
+        "table": "worker_profiles",
+        "schema": "public"
+      }
+    ],
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "table": "sessions",
+        "schema": "auth",
+        "not_null": true
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "table": "sessions",
+        "schema": "auth",
+        "not_null": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "table": "sessions",
+        "schema": "auth",
+        "not_null": false
+      },
+      {
+        "name": "id",
+        "type": "uuid",
+        "table": "users",
+        "schema": "auth",
+        "not_null": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "table": "users",
+        "schema": "auth",
+        "not_null": false
+      },
+      {
+        "name": "banned_until",
+        "type": "timestamp with time zone",
+        "table": "users",
+        "schema": "auth",
+        "not_null": false
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamp with time zone",
+        "table": "users",
+        "schema": "auth",
+        "not_null": false
+      },
+      {
+        "name": "id",
+        "type": "uuid",
+        "table": "account_holders",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "auth_id",
+        "type": "uuid",
+        "table": "account_holders",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "id",
+        "type": "uuid",
+        "table": "admin_messages",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "table": "admin_messages",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "from_admin",
+        "type": "boolean",
+        "table": "admin_messages",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "body",
+        "type": "text",
+        "table": "admin_messages",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "table": "admin_messages",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "read_at",
+        "type": "timestamp with time zone",
+        "table": "admin_messages",
+        "schema": "public",
+        "not_null": false
+      },
+      {
+        "name": "auth_id",
+        "type": "uuid",
+        "table": "employer_profiles",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "nickname",
+        "type": "text",
+        "table": "employer_profiles",
+        "schema": "public",
+        "not_null": false
+      },
+      {
+        "name": "auth_id",
+        "type": "uuid",
+        "table": "worker_profiles",
+        "schema": "public",
+        "not_null": true
+      },
+      {
+        "name": "nickname",
+        "type": "text",
+        "table": "worker_profiles",
+        "schema": "public",
+        "not_null": false
+      }
+    ],
+    "version": "17.6",
+    "triggers": [
+      {
+        "hash": "7e157a5852111ff1e6abd856b15994ee",
+        "name": "firehose",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "trg_firehose()",
+        "definition": "CREATE TRIGGER firehose AFTER INSERT OR DELETE OR UPDATE ON account_holders FOR EACH ROW EXECUTE FUNCTION trg_firehose()"
+      },
+      {
+        "hash": "c74d97778ab5ab36db1eb2b3fc85e1ee",
+        "name": "lock_account_identity",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "trg_lock_account_identity()",
+        "definition": "CREATE TRIGGER lock_account_identity BEFORE UPDATE ON account_holders FOR EACH ROW EXECUTE FUNCTION trg_lock_account_identity()"
+      },
+      {
+        "hash": "3645a971c34daaf429b1a2be939827b6",
+        "name": "log_account_holder_change",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "trg_log_account_holder_change()",
+        "definition": "CREATE TRIGGER log_account_holder_change AFTER UPDATE ON account_holders FOR EACH ROW EXECUTE FUNCTION trg_log_account_holder_change()"
+      },
+      {
+        "hash": "65a9d2f480ff9fa706dd2e3cc3145b30",
+        "name": "notify_new_account",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "trg_notify_new_account()",
+        "definition": "CREATE TRIGGER notify_new_account AFTER INSERT ON account_holders FOR EACH ROW EXECUTE FUNCTION trg_notify_new_account()"
+      },
+      {
+        "hash": "5fd4537b056a36eea39158f0b53ac9a1",
+        "name": "seed_emergency_contact",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "seed_emergency_contact_from_holder()",
+        "definition": "CREATE TRIGGER seed_emergency_contact AFTER INSERT ON account_holders FOR EACH ROW EXECUTE FUNCTION seed_emergency_contact_from_holder()"
+      },
+      {
+        "hash": "b2551b9900225ba207c8c98ba2f3ea4a",
+        "name": "trg_a_block_moderated",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "assert_actor_not_moderated()",
+        "definition": "CREATE TRIGGER trg_a_block_moderated BEFORE INSERT OR UPDATE ON account_holders FOR EACH ROW EXECUTE FUNCTION assert_actor_not_moderated()"
+      },
+      {
+        "hash": "0c1e4e305448d3d69c17a20b0deed6c4",
+        "name": "trg_min_age",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "enforce_min_age()",
+        "definition": "CREATE TRIGGER trg_min_age BEFORE INSERT OR UPDATE ON account_holders FOR EACH ROW EXECUTE FUNCTION enforce_min_age()"
+      },
+      {
+        "hash": "b0bd3422613ee55cdbb33bf461ce9412",
+        "name": "trg_updated_at",
+        "table": "account_holders",
+        "enabled": "O",
+        "function": "set_updated_at()",
+        "definition": "CREATE TRIGGER trg_updated_at BEFORE UPDATE ON account_holders FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      },
+      {
+        "hash": "20c3295dd67039bc1f477720275ba13a",
+        "name": "guard_admin_message_update",
+        "table": "admin_messages",
+        "enabled": "O",
+        "function": "guard_admin_message_update()",
+        "definition": "CREATE TRIGGER guard_admin_message_update BEFORE UPDATE ON admin_messages FOR EACH ROW EXECUTE FUNCTION guard_admin_message_update()"
+      },
+      {
+        "hash": "9775e5fc4a82864d3536154c440f4012",
+        "name": "trg_notify_admin_on_user_dm",
+        "table": "admin_messages",
+        "enabled": "O",
+        "function": "notify_admin_on_user_dm()",
+        "definition": "CREATE TRIGGER trg_notify_admin_on_user_dm AFTER INSERT ON admin_messages FOR EACH ROW EXECUTE FUNCTION notify_admin_on_user_dm()"
+      },
+      {
+        "hash": "b13e9fafbea826c2e9a3cd2aa13e4169",
+        "name": "trg_notify_push_admin_message",
+        "table": "admin_messages",
+        "enabled": "O",
+        "function": "notify_push_on_admin_message()",
+        "definition": "CREATE TRIGGER trg_notify_push_admin_message AFTER INSERT ON admin_messages FOR EACH ROW EXECUTE FUNCTION notify_push_on_admin_message()"
+      }
+    ],
+    "new_objects": {
+      "rpc": null,
+      "config": null,
+      "events": null
+    },
+    "push_function": "CREATE OR REPLACE FUNCTION public.notify_push_on_admin_message()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'net'\nAS $function$\ndeclare v_secret text; v_url text;\nbegin\n  if not new.from_admin then return new; end if;\n  if not exists (select 1 from public.push_subscriptions ps where ps.auth_id = new.user_id) then return new; end if;\n  select trigger_secret into v_secret from public.push_config where id = 1;\n  v_url := 'https://aegwepgtmwcnwzybpgsh.supabase.co/functions/v1/send-push';\n  perform net.http_post(\n    url := v_url,\n    headers := jsonb_build_object('Content-Type','application/json','x-trigger-secret', v_secret),\n    body := jsonb_build_object('recipient_id', new.user_id, 'kind', 'admin', 'id', new.id));\n  return new;\nexception when others then return new; end; $function$\n",
+    "push_function_acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "private_schema_acl": "{postgres=UC/postgres,anon=U/postgres,authenticated=U/postgres}",
+    "additional_checks": {
+      "checkedAt": "2026-11-04T09:24:40Z",
+      "normal_moderation_writes_account_then_auth_user_same_function": true,
+      "inbound_dm_returns_immediately_for_operator_messages": true
+    }
+  }
+}
