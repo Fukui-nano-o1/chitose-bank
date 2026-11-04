@@ -65,8 +65,10 @@ try {
    if(mode==='empty'){
     const host=page.locator('[aria-label="職場紹介を見る"]').first();await host.waitFor();
     await page.locator('#sec-workplace').waitFor({state:'detached'});
-    await host.evaluate(el=>window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-30)));
     await page.evaluate(()=>document.fonts.ready);
+    await page.waitForTimeout(350);
+    await host.evaluate(el=>window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-30)));
+    await page.waitForTimeout(100);
     const metrics=await host.evaluate(el=>({after:el.closest('.cb-reveal').nextElementSibling.textContent,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
     assert.match(metrics.after,/初心者大歓迎/,'highlights directly follow the employer section');
     assert.equal(await page.locator('.job-workplace-more').count(),0,'no empty introduction link');

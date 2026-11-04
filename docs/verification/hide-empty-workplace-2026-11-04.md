@@ -10,12 +10,12 @@ The desktop section navigation re-reads the rendered sections when either workpl
 
 ## Verification
 
-- Initial local `npm run build`: passed (1,235 critical tests, lint with 19 existing warnings and no errors, production bundle). Release verification after restoring the same reviewed file hashes encountered unrelated UI timeout failures in two default-concurrency runs. Full verification is being repeated with bounded test concurrency; current results belong in the pull request.
+- Initial local `npm run build`: passed (1,235 critical tests, lint with 19 existing warnings and no errors, production bundle). Release verification after restoring the same reviewed file hashes encountered unrelated UI timeout failures in two default-concurrency runs and a chat acknowledgement timing assertion with bounded concurrency. Exact-commit CI builds and focused reruns are required before release; current results belong in the pull request.
 - Focused component and real-search integration tests: passed (8 tests). They cover empty/blank/invalid content, text-only/photo-only content, loading/error states, isolation, section order, desktop navigation updates, job switching and returning from the dedicated page.
 - `npm run typecheck`: passed within the documented incremental application and Edge Function coverage.
 - `npm run test:checks`: passed (57 tests).
 - `npm run check:search`: passed with no snapshot change.
-- The CI-only Chromium harness now expects the empty section to be absent at 320, 390 and 1280px, verifies the existing host link and return, and adds text-only/photo-only cases. Syntax validation passed; the revised browser scenarios have not been executed locally.
+- The CI-only Chromium harness now expects the empty section to be absent at 320, 390 and 1280px, verifies the existing host link and return, and adds text-only/photo-only cases. The first CI run passed all 12 cases, but the empty mobile screenshots captured the hero before route scrolling had settled. The harness now settles fonts and route scrolling before capturing that boundary; the updated screenshots must be reviewed before release. The scenarios have not been executed locally.
 - Independent read-only review: no blocking findings; all 8 targeted tests passed independently.
 
 ## Release and rollback
