@@ -617,8 +617,11 @@
   completed  x5
   done  x1
   draft  x5
+  error  x1
+  loading  x1
   open  x3
   pending  x2
+  ready  x1
   working  x1
 
 ## rule:visibility:isSearchJobVisible

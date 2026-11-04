@@ -1,0 +1,45 @@
+name: Workplace introduction visual checks
+on:
+  pull_request:
+    paths:
+      - src/features/jobs/search/**
+      - src/components/WorkplacePhoto.jsx
+      - src/lib/workplacePhotoAccess.js
+      - src/appStyles.js
+      - scripts/job-workplace-browser.mjs
+      - scripts/fixtures/workplace-search-*.js
+      - scripts/fixtures/workplace-search-*.jsx
+      - package*.json
+      - .github/workflows/workplace-intro-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: workplace-intro-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+      CB_EVIDENCE_DIR: workplace-visual-evidence
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y fonts-noto-cjk
+      - name: Real Chromium layouts and workplace navigation with synthetic data
+        run: node scripts/job-workplace-browser.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: workplace-intro-visual-evidence
+          path: workplace-visual-evidence
+          if-no-files-found: warn
+          retention-days: 7

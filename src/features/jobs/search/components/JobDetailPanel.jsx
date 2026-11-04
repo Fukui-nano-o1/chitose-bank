@@ -1,5 +1,9 @@
 import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 import "./jobWorkVideo.css";
+import "./jobWorkplaceIntro.css";
+import { WorkplacePhoto } from "../../../../components/WorkplacePhoto.jsx";
+import { validWorkplacePhotoPath } from "../../../../lib/workplacePhotoAccess.js";
+import { workplaceIntroRows } from "../workplacePresentation.js";
 // 求人詳細の表示部品（第2次構造改革2026-08-18で JobSearchMapView.jsx から分離）。
 // ★ここは【表示だけ】：job（＝job）を受け取って描くのみ。
 //   state の所有・URL/hash の制御・応募の判断は一切持たない（親＝JobSearchMapView が持つ）。
@@ -9,7 +13,7 @@ import "./jobWorkVideo.css";
 //
 // ── 構成＝Airbnbの掲載ページの解剖（2026-09-01たきと指示「構成をAirbnbと同じにしろ。パクれ」）──
 // Airbnbのコードは流用できない（プロプライエタリ）＝写したのは【区画の並びと区切りの言語】だけ：
-//   写真 → タイトル＋事実の1行 → 募集主の小さな行 → この求人のポイント → 作業内容 → 待遇 →
+//   写真 → タイトル＋事実の1行 → 募集主の小さな行 → 職場紹介 → この求人のポイント → 作業内容 → 待遇 →
 //   作業日程（カレンダー）→ 評価 → 募集主について（パスポート型カード）→ 作業の場所（地図）→
 //   知っておくこと（きまり・安全・保険）→ その他の求人 → 報告リンク → 下部の応募バー。
 //   （Airbnb：photos → title+facts → host row → highlights → description → amenities →
@@ -172,6 +176,45 @@ export function JobHostRow({ job, employer, trust, onOpenIntro, onOpenWorkplace 
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"3px 0 0" }}>chitose-bank利用 {trust.member_since}から</p>
           )}
         </div>
+      </div>
+    </AirSection>
+  );
+}
+
+// Published workplace preview belongs between the host row and job highlights.
+// The parent owns reads and navigation; job photos/avatars are never substituted.
+export function JobWorkplaceIntro({ employer, status = "loading", photos = [], photoStatus = "loading", onOpenWorkplace }) {
+  const published = photoStatus === "ready" && Array.isArray(photos)
+    ? photos.filter(photo => validWorkplacePhotoPath(photo?.path)) : [];
+  const preview = published.slice(0, 3);
+  const rows = status === "ready" ? workplaceIntroRows(employer) : [];
+  const intro = rows[0];
+  const loading = status === "loading" || photoStatus === "loading";
+  const failed = status === "error" || photoStatus === "error";
+  return (
+    <AirSection id="sec-workplace" title="職場紹介">
+      <div className="job-workplace-intro f-sans">
+        {preview.length > 0 && (
+          <button type="button" className="job-workplace-photos" data-count={preview.length}
+            onClick={onOpenWorkplace} aria-label="職場の写真をすべて見る">
+            {preview.map((photo, index) => <WorkplacePhoto key={photo.id || photo.path} path={photo.path}
+              alt={`職場で働く様子 ${index + 1}`} loading="lazy" />)}
+            <span className="job-workplace-photo-count">写真{published.length}枚を見る</span>
+          </button>
+        )}
+        {intro && <div className="job-workplace-copy">
+          <p className="job-workplace-topic">{intro.title}</p>
+          <p className="job-workplace-summary">{intro.body}</p>
+        </div>}
+        {loading && <p className="job-workplace-status" role="status">職場紹介を読み込んでいます…</p>}
+        {!loading && failed && <p className="job-workplace-status" role="status">職場紹介の一部を読み込めませんでした。詳しく見るから、もう一度お試しください。</p>}
+        {!loading && !failed && !intro && !preview.length && (
+          <p className="job-workplace-status">{photoStatus === "unconfigured" ? "職場紹介の写真は準備中です。" : "職場紹介はまだ登録されていません。"}</p>
+        )}
+        {(intro || preview.length > 0) && <p className="job-workplace-note">募集主が登録した、普段の働き方の紹介です。</p>}
+        <button type="button" onClick={onOpenWorkplace} className="job-workplace-more">
+          職場紹介を詳しく見る<span aria-hidden="true"> ›</span>
+        </button>
       </div>
     </AirSection>
   );

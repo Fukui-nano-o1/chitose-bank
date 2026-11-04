@@ -1,32 +1,17 @@
 import { WorkplacePhoto } from '../../../../components/WorkplacePhoto.jsx';
 import { validWorkplacePhotoPath } from '../../../../lib/workplacePhotoAccess.js';
-import { HOST_STYLE_QUESTIONS, hostStyleValues } from '../../../../lib/utils';
+import { workplaceIntroRows } from '../workplacePresentation.js';
 
-const text = value => typeof value === 'string' ? value.trim() : '';
 const sectionStyle = { padding: '24px 0', borderTop: '1px solid #EBEBEB' };
 const headingStyle = { fontSize: 20, fontWeight: 700, margin: '0 0 12px', lineHeight: 1.5 };
 const bodyStyle = { fontSize: 15, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' };
-
-// Reuse the existing public profile vocabulary: unknown codes are not invented labels.
-function styleLabels(employer, key) {
-  const question = HOST_STYLE_QUESTIONS.find(item => item.k === key);
-  return hostStyleValues(employer?.[key])
-    .map(value => question?.options.find(option => option.value === value)?.label)
-    .filter(Boolean).join('／');
-}
 
 // A route-owned page, not a sheet. The controller owns history/scroll restoration.
 // Workplace photographs have their own publication lifecycle, separate from jobs.
 // Only the dedicated published RPC supplies these paths. Never substitute job photos or avatars.
 export function WorkplacePage({ job, employer, status = 'loading', photos = [], photoStatus = 'unconfigured', onBack }) {
   const workplacePhotos = photoStatus === 'ready' && Array.isArray(photos) ? photos.filter(photo => validWorkplacePhotoPath(photo?.path)) : [];
-  const rows = status === 'ready' ? [
-    { title: '職場の雰囲気', body: text(employer?.intro_atmosphere) },
-    { title: '教え方', body: styleLabels(employer, 'teaching_style') },
-    { title: '質問・相談のしかた', body: styleLabels(employer, 'question_style') },
-    { title: '働きに来た人に、いつもしていること', body: text(employer?.always_do) },
-    { title: '休憩の過ごし方', body: text(employer?.break_style) },
-  ].filter(row => row.body) : [];
+  const rows = status === 'ready' ? workplaceIntroRows(employer) : [];
 
   return (
     <section className="workplace-page f-sans" aria-label="職場紹介" style={{ background: '#fff', color: '#222', minHeight: '100dvh', padding: '0 20px calc(96px + env(safe-area-inset-bottom, 0px))' }}>

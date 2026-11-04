@@ -1,0 +1,30 @@
+.job-workplace-intro { min-width: 0; color: #222; }
+.job-workplace-photos {
+  position: relative; display: grid; grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 4px;
+  width: 100%; height: 224px; padding: 0; margin: 0 0 18px;
+  overflow: hidden; border: 0; border-radius: 12px; background: #F7F7F7; cursor: pointer;
+}
+.job-workplace-photos img { display: block; width: 100%; height: 100%; min-width: 0; object-fit: cover; background: #F7F7F7; }
+.job-workplace-photos img:first-child { grid-row: 1 / -1; }
+.job-workplace-photos[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+.job-workplace-photos[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+.job-workplace-photo-count {
+  position: absolute; right: 12px; bottom: 12px; padding: 7px 11px;
+  border: 1px solid #DDD; border-radius: 8px; background: #fff; color: #222;
+  font-size: 12px; font-weight: 700; line-height: 1.4;
+}
+.job-workplace-topic { margin: 0 0 6px; font-size: 14px; font-weight: 700; line-height: 1.6; }
+.job-workplace-summary {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  margin: 0; font-size: 15px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.job-workplace-status { margin: 0 0 8px; color: #717171; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.job-workplace-note { margin: 12px 0 0; color: #717171; font-size: 12px; line-height: 1.7; }
+.job-workplace-more {
+  min-height: 44px; max-width: 100%; padding: 10px 0 0; border: 0; background: none;
+  color: #222; font: inherit; font-size: 15px; font-weight: 700; line-height: 1.7;
+  text-align: left; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.job-workplace-photos:focus-visible, .job-workplace-more:focus-visible { outline: 2px solid #222; outline-offset: 4px; }
+@media (max-width: 479px) { .job-workplace-photos { height: 184px; } }
