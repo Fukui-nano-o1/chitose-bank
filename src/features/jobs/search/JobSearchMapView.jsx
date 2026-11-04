@@ -34,7 +34,7 @@ import { canSeeConsignment } from "../../../lib/consignAccess";
 import { calcMaxPay, pickDateRange, normalizeDateRange, jobInDateRange, dateRangeLabel } from "./model";
 import { readStoredSearch, readStoredDateRange, writeStoredSearch } from "./filters/searchFilterStorage";
 import { SearchFab, SearchFilterPanel } from "./filters/SearchFilterPanel";
-import { JobKeyFacts, JobHostRow, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
+import { JobKeyFacts, JobHostRow, JobWorkplaceIntro, JobHighlights, JobDescription, JobAmenities, JobScheduleSection, JobSectionNav,
   JobLocationSection, JobReviewsAndHost, JobThingsToKnow, JobWorkVideo,
   JobPhotoGallery, RelatedJobs, JobTopBar } from "./components/JobDetailPanel";
 import { ApplyPanel, ApplyBarPC, ApplyBarMobile } from "./components/ApplyPanel";
@@ -671,26 +671,31 @@ export function JobSearchMapView({ onRegister, me }) {
   const [empTrust, setEmpTrust] = useState(null);
   const [workplaceProfile, setWorkplaceProfile] = useState({ jobId: null, employer: null, status: "loading" });
   const [workplacePhotos, setWorkplacePhotos] = useState({ jobId: null, photos: [], status: "loading" });
+  const workplaceSourceJobId = workplaceJob || selectedJob?.id || null;
+  const workplaceViewerId = me?.id || null;
   useEffect(() => {
-    if (!workplaceJob) return;
+    if (!workplaceSourceJobId) return;
     let cancelled = false;
-    setWorkplacePhotos({ jobId: workplaceJob, photos: [], status: "loading" });
+    const scope = { jobId: workplaceSourceJobId, viewerId: workplaceViewerId };
+    setWorkplacePhotos({ ...scope, photos: [], status: "loading" });
     (async () => {
       try {
-        const { data, error } = await fetchJobWorkplace(workplaceJob);
+        const { data, error } = await fetchJobWorkplace(workplaceSourceJobId);
         if (cancelled) return;
         const status = error ? (['PGRST202', '42883'].includes(error.code) ? 'unconfigured' : 'error') : 'ready';
-        setWorkplacePhotos({ jobId: workplaceJob, photos: !error && Array.isArray(data?.photos) ? data.photos : [], status });
-      } catch { if (!cancelled) setWorkplacePhotos({ jobId: workplaceJob, photos: [], status: 'error' }); }
+        setWorkplacePhotos({ ...scope, photos: !error && Array.isArray(data?.photos) ? data.photos : [], status });
+      } catch { if (!cancelled) setWorkplacePhotos({ ...scope, photos: [], status: 'error' }); }
     })();
     return () => { cancelled = true; };
-  }, [workplaceJob, me?.id]);
+  }, [workplaceSourceJobId, workplaceViewerId, workplaceJob]);
+  const currentWorkplacePhotos = workplacePhotos.jobId === workplaceSourceJobId && workplacePhotos.viewerId === workplaceViewerId ? workplacePhotos : null;
+  const currentWorkplaceProfile = workplaceProfile.jobId === workplaceSourceJobId && workplaceProfile.viewerId === workplaceViewerId ? workplaceProfile : null;
   useEffect(() => {
     if (!selectedJob) { setEmpEmployer(null); setEmpTrust(null); return; }
     // 前回の内容（求人ごとのviewCache）をまず出す→裏で最新に差し替える（SWR・2026-08-14たきと指摘
     // 「求人者と待遇の復元が10秒」＝コールドスパイクのRPC待ちがそのまま画面の待ちだった）。
     setOwnMenuOpen(false); // 求人を切り替えたらあなたの求人メニューは閉じる
-    setWorkplaceProfile({ jobId: selectedJob.id, employer: null, status: "loading" });
+    setWorkplaceProfile({ jobId: selectedJob.id, viewerId: workplaceViewerId, employer: null, status: "loading" });
     const cacheKey = "search:jobEmp:" + selectedJob.id;
     const cached = getCache(cacheKey);
     setEmpEmployer((cached && cached.emp) || null);
@@ -704,7 +709,7 @@ export function JobSearchMapView({ onRegister, me }) {
       ]);
       if (cancelled) return;
       const emp = (profRes.data && profRes.data[0]) || null;
-      setWorkplaceProfile({ jobId: selectedJob.id, employer: profRes.error ? null : emp, status: profRes.error ? "error" : "ready" });
+      setWorkplaceProfile({ jobId: selectedJob.id, viewerId: workplaceViewerId, employer: profRes.error ? null : emp, status: profRes.error ? "error" : "ready" });
       const trust = trustRes.data || null;
       // 失敗（null）の時はキャッシュ表示を上書きしない（2026-08-07規則・フェイルオープンにしない）
       if (emp) setEmpEmployer(emp);
@@ -712,7 +717,7 @@ export function JobSearchMapView({ onRegister, me }) {
       if (emp || trust) setCache(cacheKey, { emp: emp || (cached && cached.emp) || null, trust: trust || (cached && cached.trust) || null });
     })();
     return () => { cancelled = true; };
-  }, [selectedJob?.id, workplaceJob]);
+  }, [selectedJob?.id, workplaceJob, workplaceViewerId]);
   const [myApplication, setMyApplication] = useState(null);
   // 仮応募中（第15弾・2026-07-30）：意思は預かったがプロフィールがまだ＝応募ボタンを仕上げ導線に変える
   const [myPending, setMyPending] = useState(false);
@@ -1080,10 +1085,10 @@ export function JobSearchMapView({ onRegister, me }) {
 
   if (workplaceJob) {
     const matchingJob = selectedJob?.id === workplaceJob ? selectedJob : null;
-    const profile = workplaceProfile.jobId === workplaceJob ? workplaceProfile : null;
+    const profile = currentWorkplaceProfile;
     return <WorkplacePage job={matchingJob} employer={profile?.employer || null}
-      photos={workplacePhotos.jobId === workplaceJob ? workplacePhotos.photos : []}
-      photoStatus={workplacePhotos.jobId === workplaceJob ? workplacePhotos.status : 'loading'}
+      photos={currentWorkplacePhotos?.photos || []}
+      photoStatus={currentWorkplacePhotos?.status || 'loading'}
       status={!matchingJob ? (deepLinkJn ? "loading" : "error") : (profile?.status || "loading")}
       onBack={() => returnFromWorkplace(workplaceJob)} />;
   }
@@ -1301,7 +1306,7 @@ export function JobSearchMapView({ onRegister, me }) {
             <JobQuestions jobNumber={selectedJob.id} me={me} />
           ) : (<>
           {/* ── ここからAirbnbの掲載ページの並び（2026-09-01たきと指示「構成をAirbnbと同じにしろ。パクれ」）：
-              タイトル＋事実の1行 → 募集主の行 → ポイント → 作業内容 → 待遇 → 作業日程 →
+              タイトル＋事実の1行 → 募集主の行 → 職場紹介 → ポイント → 作業内容 → 待遇 → 作業日程 →
               評価 → 募集主について → 作業の場所 → 知っておくこと → その他の求人 → 報告。
               区画の解剖はJobDetailPanel.jsx冒頭のコメントが正＝並べ替える時は両方を揃える ── */}
           {/* ヘッダー＝Airbnbのタイトルブロックの細かい構造（2026-09-01「細かい構造もパクれ」）：
@@ -1335,6 +1340,10 @@ export function JobSearchMapView({ onRegister, me }) {
             <div>
               <JobHostRow job={selectedJob} employer={empEmployer} trust={empTrust} onOpenWorkplace={() => openWorkplace(selectedJob.id)} />
 
+              <JobWorkplaceIntro employer={currentWorkplaceProfile?.employer || null}
+                status={currentWorkplaceProfile?.status || "loading"}
+                photos={currentWorkplacePhotos?.photos || []} photoStatus={currentWorkplacePhotos?.status || "loading"}
+                onOpenWorkplace={() => openWorkplace(selectedJob.id)} />
               <JobHighlights job={selectedJob} />
 
               <JobDescription job={selectedJob} />
