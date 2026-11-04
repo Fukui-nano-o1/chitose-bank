@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 import { createOperatorGreetingDelivery } from "./operatorGreetingDelivery";
 
 // Two independent activation gates: this build flag AND the private server
-// configuration. Both are disabled by default; no production text is supplied.
+// configuration. Both are disabled by default; approved copy is stored server-side.
 const delivery = createOperatorGreetingDelivery({
   client: supabase,
   enabled: import.meta.env.VITE_OPERATOR_GREETINGS_ENABLED === "true",

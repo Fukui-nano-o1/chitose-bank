@@ -72,7 +72,7 @@ for key in list(os.environ):
     if key.startswith('PG'): os.environ.pop(key, None)
 
 root=pathlib.Path(__file__).resolve().parent.parent
-migration=root/'supabase/migrations/20261104090030_operator_auth_greetings.sql'
+migration=root/'supabase/migrations/20261104094114_operator_auth_greetings.sql'
 dbname='greeting_concurrency_'+uuid.uuid4().hex
 control=DB('postgres');admin=None
 try:

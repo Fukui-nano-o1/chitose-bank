@@ -1,6 +1,6 @@
-# Operator chat greetings (dormant implementation)
+# Operator chat greetings
 
-Prepared against main `25fd34c028fafa2c67e9ed37f9d9697eac802fe0`. No production migration, configuration change, message, push, publication, or deployment was performed.
+Prepared against main `25fd34c028fafa2c67e9ed37f9d9697eac802fe0`. Publication and production rollout were explicitly authorized on 2026-11-04. [PR #73](https://github.com/Fukui-nano-o1/chitose-bank/pull/73) contains the reviewed source. The migration was applied at 09:41 UTC under its actual identifier `20261104094114`; the server remains disabled pending the verified frontend deployment. No test messages or backfill were sent.
 
 ## Behavior
 
@@ -20,7 +20,7 @@ The user approved these named templates and specified no push notifications:
 - Registration: “{{name}}さん、Chitose-bankへようこそ！ こちらは運営とのチャットです。使い方で分からないことや、お困りのことがあれば、こちらからお問い合わせください。”
 - Login: “おかえりなさい、{{name}}さん！ お困りのことがあれば、いつでもこのチャットでお知らせください。”
 
-The new, unapplied migration seeds the templates while **enabled remains false and enabled_at remains NULL**. Nameless variants omit only the unavailable name/salutation, retaining the rest of the approved copy. No production configuration has been changed.
+The migration seeds the templates while **enabled remains false and enabled_at remains NULL**. Nameless variants omit only the unavailable name/salutation, retaining the rest of the approved copy. The post-application check confirmed both named templates match the approved copy, delivery remains disabled, and the event queue is empty.
 
 The private configuration supports a named and a nameless template for each event type. A named template contains exactly one `{{name}}`; nameless templates contain none. Names match the operator chat's current priority: worker nickname, then employer nickname. Control characters are removed and names are bounded to 80 characters. Private account-holder legal names, email addresses, and Auth metadata are never fallback names.
 
@@ -55,7 +55,7 @@ Apply only this reviewed new migration after authorization. Existing migrations 
 - Focused greeting tests: 19 passed. Real authentication UI tests: 38 passed.
 - `npm run typecheck`: passed its configured scoped app check and the Deno Edge Function check. This is not a full-repository type-safety claim; the repository's `typecheck:full` is a separate existing audit.
 - Real PostgreSQL concurrency: 18 scenarios passed against migration SHA256 `2102320a57a8f0b65c254336187c9dbf546d6eb4f9cdf840d974f84b48ce4d4b`, including lock races and silent automatic notifications. The local synthetic cluster was removed.
-- `git diff --check`: passed. An independent final review found no authorization, deduplication, or retry blocker for keeping this as a dormant local draft.
+- `git diff --check`: passed. An independent final review found no must-fix deduplication, authorization, notification, or retry issue.
 - One initial parallel full-suite run timed out in an unrelated existing recruiter-page UI test. Its isolated rerun and subsequent full builds passed without altering that test.
 
 
@@ -71,12 +71,18 @@ Metadata only was read from project `aegwepgtmwcnwzybpgsh`; no account rows, cha
 - `auth.sessions.created_at` is nullable in production. Recording a new login now rejects an unknown/null start time as well as pre-activation sessions.
 - Security advisors are not clean at baseline: two existing definer-view findings (`jobs_public`, `employer_profiles_public`), mutable search paths, publicly executable definer functions, and disabled leaked-password protection. These predate this unapplied feature and were not modified. The existing public trigger function's execute permissions are also flagged; this change does not expand them. Re-run advisors after any approved application and compare against this baseline. See [Supabase's definer-view guidance](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view).
 
-## Exact release sequence (not executed)
+## Authorized release sequence
 
-1. Review the local commits, approved copy, nameless fallback, silent-push behavior, and browser-before-event limitation. Obtain authorization for any GitHub publication, DB application, deployment, and activation. Do not infer release approval from copy approval.
+1. Review the local commits, approved copy, nameless fallback, silent-push behavior, and browser-before-event limitation. Explicit production authorization was received; all 15 initial GitHub workflows passed before database application.
 2. Repeat the read-only metadata snapshot immediately before application. Verify all account/chat triggers, required columns, ACLs, and absence of conflicting greeting objects, not only the push-function checksum. Stop on drift.
-3. Apply **only** `20261104090030_operator_auth_greetings.sql` in one transaction after authorization. It adds private config/events, three private helpers, one public invoker RPC, one registration-queue trigger, and the narrow no-push condition to the existing operator-push function. It does not backfill, create an Auth trigger, alter existing chat permissions, or enable delivery. Check that enabled is false, enabled_at is NULL, and no event/message was inserted.
+3. Apply **only** `20261104094114_operator_auth_greetings.sql` in one transaction after authorization. It adds private config/events, three private helpers, one public invoker RPC, one registration-queue trigger, and the narrow no-push condition to the existing operator-push function. It does not backfill, create an Auth trigger, alter existing chat permissions, or enable delivery. Check that enabled is false, enabled_at is NULL, and no event/message was inserted.
 4. Deploy the frontend with the greeting flag omitted/off first. Then verify the intended commit and CI/deployment. If deploying with `VITE_OPERATOR_GREETINGS_ENABLED=true`, keep the server gate off until final activation; calls return disabled and do not create greetings.
 5. After approval, activate by setting `enabled_at=clock_timestamp()` and `enabled=true` together on the private singleton, with the browser flag enabled. This is the cutover: old Auth sessions are excluded, while newly completed registrations can queue a welcome. Do not reset the timestamp during routine retries.
 6. Verify an explicitly authorized test user's signup, a fresh login, repeated reloads, another genuine login, chat unread/read behavior, and that no automatic push request is queued. Do not use an unsuspecting real user or send test chat without authorization. Check required CI and security-advisor differences before calling the rollout complete.
 7. Roll back by setting the server enabled flag false and disabling the browser flag. Do not delete chat history, erase delivery receipts, or replay historical migrations. Leave the silent-greeting filter in place; manual messages continue to push as before.
+
+## Applied migration identity
+
+Only `20261104094114_operator_auth_greetings.sql` was applied. Its SHA256 remains `2102320a57a8f0b65c254336187c9dbf546d6eb4f9cdf840d974f84b48ce4d4b`, exactly the reviewed and concurrency-tested bytes. The original candidate filename `20261104090030_operator_auth_greetings.sql` was removed to avoid replay. The immutable SQL header records its earlier prepared-only state; subsequent explicit release authorization superseded that historical comment. The identity regression test freezes the applied version and bytes.
+
+Immediately before application, required column definitions, table RLS/ACLs, all account/chat triggers and their function hashes, the existing push function and ACL, and the private schema ACL matched the reviewed production snapshot. A difference in displayed `public.` schema qualification was normalized; no semantic drift was found. After application, the config and queue are private with RLS enabled and no anonymous/authenticated table access. The anonymous role cannot execute the public RPC. No events were created while disabled.

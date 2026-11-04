@@ -34,7 +34,7 @@ test('operator greetings: private queue, session dedupe, registration overlap an
  insert into public.push_subscriptions select id from auth.users;insert into public.push_config values(1,'synthetic-only');
  create function net.http_post(url text,headers jsonb,body jsonb) returns bigint language plpgsql as $$begin insert into public.fixture_push_requests values(body);return 1;end;$$;
  create trigger trg_notify_push_admin_message after insert on public.admin_messages for each row execute function public.notify_push_on_admin_message();`);
- await db.exec(await readFile(new URL('../supabase/migrations/20261104090030_operator_auth_greetings.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/migrations/20261104094114_operator_auth_greetings.sql',import.meta.url),'utf8'));
  const login=async(u,s)=>{await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('request.jwt.claims',$2,false)",[u||'',JSON.stringify({sub:u,session_id:s})]);await db.exec(u?'set role authenticated':'set role anon');};
  const rpc=async(u,s,record=false)=>(await db.query('select public.deliver_my_operator_greetings($1,$2,$3) as result',[u,s,record])).rows[0].result;
  const count=async()=>(await db.query('select count(*)::int as n from public.admin_messages')).rows[0].n;
