@@ -30,7 +30,7 @@ try {
  const fontDirectory=path.join(root,'public/fonts');
  const fontAssets=new Map(await Promise.all((await readdir(fontDirectory)).map(async name=>[name,await readFile(path.join(fontDirectory,name))])));
  browser=await chromium.launch({headless:true});
- const cases=[{width:320,mode:'ready',count:4},{width:390,mode:'ready',count:4},{width:768,mode:'ready',count:4},{width:1280,mode:'ready',count:4},{width:390,mode:'one',count:1},{width:390,mode:'two',count:2},{width:390,mode:'empty',count:0},{width:390,mode:'error',count:0}];
+ const cases=[{width:320,mode:'ready',count:4},{width:390,mode:'ready',count:4},{width:768,mode:'ready',count:4},{width:1280,mode:'ready',count:4},{width:390,mode:'one',count:1},{width:390,mode:'two',count:2},{width:390,mode:'photos-only',count:2},{width:390,mode:'text-only',count:0},{width:320,mode:'empty',count:0},{width:390,mode:'empty',count:0},{width:1280,mode:'empty',count:0},{width:390,mode:'error',count:0}];
  for(const scenario of cases){
   const {width,mode,count}=scenario;
   const context=await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
@@ -51,7 +51,7 @@ try {
      const tone={a:'#DCE9D5',b:'#E9DDC7',c:'#D7E5EC',d:'#F0DFC9'}[url.split('/').pop()[0]] || '#e6eee6';
      return Promise.resolve(new Response('<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480"><rect width="720" height="480" fill="'+tone+'"/><path d="M0 340 Q180 180 360 290 T720 250 V480 H0Z" fill="#8EAC85"/><path d="M0 400 Q240 270 440 380 T720 300" fill="none" stroke="#5B8357" stroke-width="30"/><text x="360" y="120" text-anchor="middle" fill="#38513D" font-size="28" font-family="sans-serif">合成の職場写真</text></svg>',{headers:{'Content-Type':'image/svg+xml'}}));
     }
-    if(url.endsWith('/job_employer_profile'))return mode==='error'?json({message:'synthetic unavailable'},503):json([{nickname:'合成農園',intro_atmosphere:mode==='empty'?'':'畑では声をかけ合いながら、それぞれのペースを大切にしています。はじめての作業は一緒に確認してから。休憩時間は木陰でゆっくり過ごせます。'.repeat(3),recruiter_contact:'PRIVATE CONTACT',recruiter_address:'PRIVATE ADDRESS',texts_pending:{intro_atmosphere:'PENDING COPY'}}]);
+    if(url.endsWith('/job_employer_profile'))return mode==='error'?json({message:'synthetic unavailable'},503):json([{nickname:'合成農園',intro_atmosphere:['empty','photos-only'].includes(mode)?'':'畑では声をかけ合いながら、それぞれのペースを大切にしています。はじめての作業は一緒に確認してから。休憩時間は木陰でゆっくり過ごせます。'.repeat(3),recruiter_contact:'PRIVATE CONTACT',recruiter_address:'PRIVATE ADDRESS',texts_pending:{intro_atmosphere:'PENDING COPY'}}]);
     if(url.endsWith('/job_workplace'))return mode==='error'?json({message:'synthetic unavailable'},503):json({photos});
     if(url.endsWith('/job_employer_trust_info'))return json({ok:true,member_since:'2026年04月'});
     return new Promise(()=>{});
@@ -62,9 +62,29 @@ try {
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
   try {
    await page.goto(`${origin}/#/work/job/101`);
+   if(mode==='empty'){
+    const host=page.locator('[aria-label="職場紹介を見る"]').first();await host.waitFor();
+    await page.locator('#sec-workplace').waitFor({state:'detached'});
+    await page.evaluate(()=>document.fonts.ready);
+    await page.waitForTimeout(350);
+    await host.evaluate(el=>window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-30)));
+    await page.waitForTimeout(100);
+    const metrics=await host.evaluate(el=>({after:el.closest('.cb-reveal').nextElementSibling.textContent,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
+    assert.match(metrics.after,/初心者大歓迎/,'highlights directly follow the employer section');
+    assert.equal(await page.locator('.job-workplace-more').count(),0,'no empty introduction link');
+    await page.locator('.job-secnav').getByRole('button',{name:'職場紹介',exact:true}).waitFor({state:'detached'});
+    assert.ok(metrics.scrollWidth<=width+1,`horizontal overflow at ${width}px`);
+    await page.screenshot({path:path.join(evidence,`workplace-${width}-${mode}.png`)});
+    await host.press('Enter');await page.locator('.workplace-page').waitFor();
+    await page.getByRole('button',{name:'求人詳細に戻る'}).click();await host.waitFor();
+    await page.locator('#sec-workplace').waitFor({state:'detached'});
+    assert.deepEqual(errors,[]);results.push({...scenario,metrics,result:'passed'});
+    continue;
+   }
    const section=page.locator('#sec-workplace');await section.waitFor();
    if(count)await page.waitForFunction(count=>document.querySelectorAll('#sec-workplace [data-workplace-photo="ready"]').length===Math.min(3,count),count);
-   else await section.getByText(mode==='error'?/読み込めませんでした/:/まだ登録されていません/).waitFor();
+   else if(mode==='error')await section.getByText(/読み込めませんでした/).waitFor();
+   else await section.locator('.job-workplace-summary').waitFor();
    await section.evaluate(el=>window.scrollTo(0,Math.max(0,el.previousElementSibling.getBoundingClientRect().top+window.scrollY-30)));
    await page.evaluate(()=>document.fonts.ready);
    await page.waitForTimeout(350);

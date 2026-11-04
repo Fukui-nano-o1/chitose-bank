@@ -37,14 +37,27 @@ test('job workplace preview preserves ordering, published-only photos, truthful 
    const button=section().querySelector('.job-workplace-more');assert.equal(button.tagName,'BUTTON');
    button.click();button.click();assert.equal(w.qaWorkplaceOpen,2);
   });
-  await t.test('loading, failure, missing capability and empty stay distinct',()=>{
+  await t.test('loading and failure remain visible rather than being treated as empty',()=>{
    assert.match(text(),/読み込んでいます/);assert.doesNotMatch(text(),/まだ登録されていません/);
+   for(const props of [{status:'loading',photoStatus:'ready'},{status:'ready',photoStatus:'loading'}]){
+    w.qaRenderIntro(props);assert.match(text(),/読み込んでいます/);
+   }
    for(const props of [{status:'error',photoStatus:'ready'},{status:'ready',photoStatus:'error'}]){
     w.qaRenderIntro(props);assert.match(text(),/読み込めませんでした/);assert.doesNotMatch(text(),/まだ登録されていません/);
    }
-   w.qaRenderIntro({status:'ready',photoStatus:'unconfigured'});assert.match(text(),/写真は準備中/);
-   w.qaRenderIntro({status:'ready',photoStatus:'ready'});assert.match(text(),/まだ登録されていません/);
-   assert.equal(section().querySelector('img'),null);
+  });
+  await t.test('an empty introduction removes the whole section including its divider and link',()=>{
+   for(const photoStatus of ['ready','unconfigured']){
+    for(const employer of [null,{}, {intro_atmosphere:' \n ',teaching_style:'unknown',question_style:'invalid',always_do:' ',break_style:'\t',recruiter_contact:'PRIVATE CONTACT',texts_pending:{intro_atmosphere:'PENDING COPY'}}]){
+     w.qaRenderIntro({status:'ready',photoStatus,employer,photos:[{path:'https://external.test/photo.jpg'},{path:'job-photos/private.jpg'}]});
+     assert.equal(section(),null);
+     assert.equal(w.document.querySelector('.job-workplace-more'),null);
+     const sections=[...w.document.querySelector('main').children];
+     assert.equal(sections.length,2,'no empty wrapper or spacing remains');
+     assert.match(sections[0].textContent,/募集主/);assert.match(sections[1].textContent,/初心者大歓迎/);
+    }
+   }
+   assert.deepEqual(downloads,[],'invalid and unpublished photos never load');
   });
   await t.test('only selected public profile fields render, long text stays safely clamped',()=>{
    w.qaRenderIntro({status:'ready',photoStatus:'ready',employer:{intro_atmosphere:'  合成の雰囲気\n'+'長い紹介文'.repeat(100),recruiter_contact:'PRIVATE CONTACT',recruiter_address:'PRIVATE ADDRESS',texts_pending:{intro_atmosphere:'PENDING COPY'},avatar_url:'https://avatar.test/private.jpg'}});
@@ -52,13 +65,15 @@ test('job workplace preview preserves ordering, published-only photos, truthful 
    assert.equal(section().querySelector('img,iframe,video'),null);
    w.qaRenderIntro({status:'ready',photoStatus:'ready',employer:{teaching_style:'show_first,invalid-value'}});
    assert.match(text(),/やって見せてから任せる/);assert.doesNotMatch(text(),/invalid-value/);
+   w.qaRenderIntro({status:'ready',photoStatus:'unconfigured',employer:{break_style:'木陰で休憩します'}});
+   assert.match(text(),/木陰で休憩します/,'text-only introduction remains visible without photo support');
    w.qaRenderIntro({status:'ready',photoStatus:'ready',employer:{intro_atmosphere:' ',teaching_style:'unknown'}});
-   assert.match(text(),/まだ登録されていません/);
+   assert.equal(section(),null);
   });
   await t.test('preview takes three independent published photos and never reads arbitrary URLs',async()=>{
    const photos=[photo('a'),photo('b'),photo('c'),photo('f'),{path:'https://external.test/photo.jpg'},{path:'job-photos/private.jpg'}];
    for(const photoStatus of ['loading','error','unconfigured']){
-    w.qaRenderIntro({status:'ready',photos,photoStatus});await pause(10);assert.equal(section().querySelector('img'),null);
+    w.qaRenderIntro({status:'ready',photos,photoStatus});await pause(10);assert.equal(w.document.querySelector('#sec-workplace img'),null);
    }
    assert.deepEqual(downloads,[]);
    w.qaRenderIntro({status:'ready',photos,photoStatus:'ready'});
@@ -83,6 +98,8 @@ test('job workplace preview preserves ordering, published-only photos, truthful 
    await until(()=>section().querySelector('[data-workplace-photo="unavailable"]'),'denied photo');
    assert.equal(section().querySelector('img').getAttribute('src'),null);
    assert.ok(revoked.length,'old blob leases are released');
+   w.qaRenderIntro({status:'ready',photoStatus:'ready'});
+   assert.equal(section(),null,'switching from a populated workplace to an empty one hides it');
   });
   const css=await readFile(path.join(root,'src/features/jobs/search/components/jobWorkplaceIntro.css'),'utf8');
   assert.match(css,/-webkit-line-clamp: 3/);assert.match(css,/overflow-wrap: anywhere/);
