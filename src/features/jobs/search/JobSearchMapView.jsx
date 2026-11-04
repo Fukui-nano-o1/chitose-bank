@@ -1294,7 +1294,8 @@ export function JobSearchMapView({ onRegister, me }) {
 
           {/* 区画の目次（PCのみ・写真を過ぎると上から現れる＝Airbnbの帯・2026-09-01）。
               並ぶのは実際に描かれた区画＝質問タブの時は出さない */}
-          {detailTab !== "questions" && <JobSectionNav jobId={selectedJob.id} />}
+          {detailTab !== "questions" && <JobSectionNav jobId={selectedJob.id}
+            contentKey={`${currentWorkplaceProfile?.status}:${currentWorkplacePhotos?.status}`} />}
 
           <div className="job-detail-sheet">
           {/* 仕事の内容 / 質問 タブ（第10弾・2026-07-22）。中身は横スワイプでも切替（2026-07-27） */}

@@ -31,6 +31,7 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
     if(url.endsWith('/job_employer_profile')){
      if(body.p_job_number===202)return new Promise(resolve=>{releaseProfile=()=>resolve(new Response(JSON.stringify([{nickname:'合成募集主202',intro_atmosphere:'SECOND JOB'}]),{headers:{'Content-Type':'application/json'}}));});
      if(body.p_job_number===303)return json({message:'synthetic failure'},503);
+     if(body.p_job_number===404)return json([{nickname:'合成募集主404'}]);
      return json([{nickname:'合成募集主101',intro_atmosphere:'FIRST JOB'}]);
     }
     if(url.endsWith('/job_employer_trust_info'))return json(null);
@@ -40,7 +41,7 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
     }
     return new Promise(()=>{});
    };
-   w.localStorage.setItem('cb_viewCache_v2_anon',JSON.stringify({'search:jobs':[job(101),job(202),job(303)]}));
+   w.localStorage.setItem('cb_viewCache_v2_anon',JSON.stringify({'search:jobs':[job(101),job(202),job(303),job(404)]}));
    w.eval(script);return w;
   }
   let w;
@@ -96,6 +97,19 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
   w.qaRenderSearch(null);
   assert.doesNotMatch(preview().textContent,/FIRST JOB/,'sign-out hides the previous profile immediately');
   await until(()=>preview()?.textContent.includes('FIRST JOB'),'anonymous request resolves again');
+  assert.match(w.document.querySelector('.job-secnav').textContent,/職場紹介/,'populated section is in the desktop navigation');
+  w.location.hash='/work/job/404';
+  await until(()=>w.document.querySelector('#sec-host')?.textContent.includes('合成募集主404')&&!preview(),'empty workplace hides its detail section');
+  assert.equal(w.document.querySelector('.job-workplace-more'),null);
+  await until(()=>!w.document.querySelector('.job-secnav')?.textContent.includes('職場紹介'),'no stale desktop navigation link');
+  const emptyHost=w.document.querySelector('[aria-label="職場紹介を見る"]');
+  assert.match(emptyHost.closest('.cb-reveal').nextElementSibling.textContent,/初心者大歓迎/,'no empty divider remains');
+  emptyHost.click();await until(()=>w.document.querySelector('.workplace-page')?.textContent.includes('職場紹介はまだ登録されていません'),'existing host entry still opens the workplace page');
+  [...w.document.querySelectorAll('button')].find(x=>x.textContent.includes('求人詳細に戻る')).click();
+  await until(()=>w.location.hash==='#/work/job/404'&&!w.document.querySelector('.workplace-page'),'return from empty workplace');
+  assert.equal(preview(),null,'empty section stays hidden on return');
+  w.location.hash='/work/job/101';
+  await until(()=>preview()?.textContent.includes('FIRST JOB')&&w.document.querySelector('.job-secnav')?.textContent.includes('職場紹介'),'switching back restores the introduction and its navigation link');
   assert.deepEqual(errors,[]);
  }finally{dom?.window.close();await rm(output,{recursive:true,force:true});}
 });

@@ -92,12 +92,12 @@ function AirSection({ title, children, style, id }) {
 // 区画の目次（Airbnbのパソコンで、写真を過ぎると上から現れる帯）。
 // ★並べるのは【実際に描かれた区画】＝DOMから読む。条件で出ない区画（作業内容・評価など）に
 //   空のリンクができない。スマホには出さない（Airbnbのスマホにも無い・CSSで display:none）
-export function JobSectionNav({ jobId }) {
+export function JobSectionNav({ jobId, contentKey }) {
   const [secs, setSecs] = useState([]);
   const [active, setActive] = useState("");
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    // 描かれた後に読む（求人が変わるたび作り直す）
+    // 求人の切り替え・非同期の区画読込後に、実際に残った区画を読み直す。
     const els = Array.from(document.querySelectorAll("[data-sec-label]"));
     setSecs(els.map(e => ({ id: e.id, label: e.dataset.secLabel })));
     setActive(els[0]?.id || "");
@@ -119,7 +119,7 @@ export function JobSectionNav({ jobId }) {
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => { if (raf) cancelAnimationFrame(raf); window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); };
-  }, [jobId]);
+  }, [jobId, contentKey]);
   if (secs.length === 0) return null;
   return (
     <div className={"job-secnav" + (shown ? " is-on" : "")}>
@@ -191,6 +191,9 @@ export function JobWorkplaceIntro({ employer, status = "loading", photos = [], p
   const intro = rows[0];
   const loading = status === "loading" || photoStatus === "loading";
   const failed = status === "error" || photoStatus === "error";
+  // Text or published photos count as an introduction. Pending/failed reads are
+  // not proof that it is empty, so keep their existing status and retry entry.
+  if (!loading && !failed && !intro && !preview.length) return null;
   return (
     <AirSection id="sec-workplace" title="職場紹介">
       <div className="job-workplace-intro f-sans">
@@ -208,9 +211,6 @@ export function JobWorkplaceIntro({ employer, status = "loading", photos = [], p
         </div>}
         {loading && <p className="job-workplace-status" role="status">職場紹介を読み込んでいます…</p>}
         {!loading && failed && <p className="job-workplace-status" role="status">職場紹介の一部を読み込めませんでした。詳しく見るから、もう一度お試しください。</p>}
-        {!loading && !failed && !intro && !preview.length && (
-          <p className="job-workplace-status">{photoStatus === "unconfigured" ? "職場紹介の写真は準備中です。" : "職場紹介はまだ登録されていません。"}</p>
-        )}
         {(intro || preview.length > 0) && <p className="job-workplace-note">募集主が登録した、普段の働き方の紹介です。</p>}
         <button type="button" onClick={onOpenWorkplace} className="job-workplace-more">
           職場紹介を詳しく見る<span aria-hidden="true"> ›</span>
