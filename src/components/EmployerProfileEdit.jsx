@@ -1,3 +1,4 @@
+import { workplaceSections, representativeQuestions } from '../features/jobs/search/workplacePresentation.js';
 import { WorkplaceEditor } from "./WorkplaceEditor.jsx";
 import { goAlongPath, returnAlongPath } from "../lib/routeTrail.js";
 // 分割3-B（2026-07-25）：App.jsxから移動。雇い手プロフィール編集＋プレビュー（FarmerProfilePreviewは本ファイル専用）。
@@ -8,7 +9,7 @@ import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
 import { employerProfileChange } from "../lib/profileInput";
 import { ProfileReadError } from "./ProfileReadError";
 import { saveProfileAvatar } from "../lib/profileAvatar";
-import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
+import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, perkBadges, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
 import { Avatar, AutoSkeleton, Dots, FieldHelp, LFPillSelect, ProfileEditRow } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { FarmerTrustCard } from "./TrustCards";
@@ -27,7 +28,8 @@ import { snapGet, snapSet } from "../lib/snapshot";
 const EDIT_TITLES = {
   avatar:"ロゴ・アイコン", nickname:"氏名・名称", place:"住所・所在地", perks:"待遇",
   recruiter:"連絡先", emergency:"緊急連絡先", insurance:"保険の準備",
-  intro:"代表より", ask:"問いかけ", style:"関わり方",
+  intro:"紹介文（従来の項目）", ask:"紹介文（従来のお題）", style:"教え方・関わり方",
+  overview:"職場の概要", environment:"職場の雰囲気", practical:"初日の案内・休憩", representative:"代表について",
 };
 
 export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_profiles", avatarDir = "employer", black = false, seedFrom = null }) {
@@ -423,9 +425,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   // 保険の準備はホーム（面接の質問集の下）へ移植したため、格子の自動フロー(BOX_ORDER)には載せない（2026-07-23）
   // black（委託）では 関わり方・代表より・問いかけ を置かない（2026-07-31たきと指示）
   // 従業員数(staff)は全面削除（2026-08-01たきと指示）
-  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","intro","ask","style"];
+  const BOX_ORDER = black ? ["avatar","nickname","place","perks"] : ["avatar","nickname","place","perks","overview","environment","style","practical","representative"];
   // 待遇ボックスの要約チップ。受動喫煙も他の待遇と同じ行になった（2026-08-19）ので、決めてあればここに出す
   const perksOn = [hasTransport&&"送迎", hasParking&&"駐車場", hasCommuteAllowance&&"通勤手当", hasBonus&&"賞与", hasRaise&&"昇給", hasSeverancePay&&"退職手当", employerPaysSupplies&&"作業用品の負担", accessoryOk&&"アクセサリーOK", smokingPolicy && (smokingPolicy === "喫煙場所あり" ? "喫煙場所あり" : "禁煙")].filter(Boolean);
+  const answerSummary = values => { const count = values.filter(t => t && t.trim()).length; return count ? `${count}件記入` : ""; };
   const introFilled = [introPath, introJoy, introCrops, introAtmosphere, introMessage, ownerComment].filter(t => t && t.trim()).length;
   const askFilled = [uniquePoint, alwaysDo, breakStyle].filter(t => t && t.trim()).length;
   // 関わり方4問の回答済みラベル（格子サマリー用・2026-08-14）。ローカルstateから引く＝保存前でも即反映
@@ -436,8 +439,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const boxFilled = (k) => (
     k === "avatar" ? !!avatarUrl : k === "nickname" ? !!recruiterName.trim() : k === "place" ? !!composeRecruiterAddress()
     : k === "perks" ? (perksOn.length > 0 || !!smokingPolicy)
+    : k === "overview" ? !!(uniquePoint.trim() || introCrops.trim())
+    : k === "environment" ? !!introAtmosphere.trim()
+    : k === "practical" ? !!(alwaysDo.trim() || breakStyle.trim())
+    : k === "representative" ? [ownerComment,introPath,introJoy,introMessage].some(t => t.trim())
     : k === "intro" ? introFilled > 0
-    : k === "ask" ? askFilled > 0 : !!interactionStyle
+    : k === "ask" ? askFilled > 0 : styleAnswered.length > 0
   );
   const nextUnfilledBox = (afterKey) => {
     const start = Math.max(0, BOX_ORDER.indexOf(afterKey));
@@ -578,14 +585,25 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           // 保険の準備（2026-08-25たきと指示でマイページの反転カードから移設）。
           // 委託レーン（black）は employer_profiles ではないので出さない
           { k:"insurance", l:"保険の準備",     v: insSummary },
-          { k:"workplace", l:"職場紹介",      v: "働いている様子を写真で紹介" },
-          { k:"intro",    l:"代表より",       v: introFilled > 0 ? `${introFilled}件記入` : "" },
-          { k:"ask",      l:"問いかけ",       v: askFilled > 0 ? `${askFilled}件記入` : "" },
-          { k:"style",    l:"関わり方",       v: styleAnswered.join("・") },
-        ].filter(b => !black || !["intro","ask","style","insurance","workplace"].includes(b.k)).map((b, i, arr) => (
+        ].filter(b => black ? b.k !== "insurance" : b.k !== "perks").map((b, i, arr) => (
           <ProfileEditRow key={b.k} label={b.l} value={b.v} required={b.req}
             accent={AC} onClick={()=>openEditBox(b.k)} last={i === arr.length - 1} />
         ))}
+        {!black && <>
+          <h2 className="f-sans" style={{ fontSize:20, margin:'28px 0 8px' }}>職場について</h2>
+          <p className="f-sans" style={{ fontSize:13, color:'#717171', lineHeight:1.7 }}>働く場所や普段の働き方を紹介します。求人ごとの日程・報酬・危険箇所は求人で設定します。</p>
+          {[
+            { k:'workplace', l:'職場の写真', v:'写真の下書き・公開を管理' },
+            { k:'overview', l:'職場の概要', v:answerSummary([uniquePoint,introCrops]) },
+            { k:'environment', l:'職場の雰囲気', v:introAtmosphere.trim() ? '記入済み' : '' },
+            { k:'perks', l:'設備・待遇', v:perksOn.join('・') },
+            { k:'style', l:'教え方・関わり方', v:styleAnswered.join('・') },
+            { k:'practical', l:'初日の案内・休憩', v:answerSummary([alwaysDo,breakStyle]) },
+          ].map((b,i,rows)=><ProfileEditRow key={b.k} label={b.l} value={b.v} accent={AC} onClick={()=>openEditBox(b.k)} last={i===rows.length-1} />)}
+          <h2 className="f-sans" style={{ fontSize:20, margin:'28px 0 8px' }}>代表について</h2>
+          <p className="f-sans" style={{ fontSize:13, color:'#717171', lineHeight:1.7 }}>あいさつと、短いお題で人柄を伝えます。書きたい項目だけで構いません。</p>
+          <ProfileEditRow label="あいさつ・プロフィール" value={answerSummary([ownerComment,introPath,introJoy,introMessage])} accent={AC} onClick={()=>openEditBox('representative')} last />
+        </>}
       </div>
       {onCancel && (
         <button onClick={onCancel} className="f-sans" style={{ display:"block", width:"100%", textAlign:"center", marginTop:14, background:"none", border:"none", cursor:"pointer", fontSize:13, color:"#717171", textDecoration:"underline" }}>プレビューに戻る</button>
@@ -605,7 +623,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
           style={{ display:"flex", alignItems:"center", gap:8, width:"100%", textAlign:"left", background:"none", border:"none",
                    padding:"2px 0 16px", marginBottom:16, borderBottom:"1px solid #EBEBEB", cursor:"pointer" }}>
           <span style={{ fontSize:24, lineHeight:1, color:"#222", flexShrink:0 }}>‹</span>
-          <span style={{ fontSize:22, fontWeight:800, color:"#222", letterSpacing:"-.01em", minWidth:0 }}>{EDIT_TITLES[editBox] || "編集"}</span>
+          <span style={{ fontSize:22, fontWeight:800, color:"#222", letterSpacing:"-.01em", minWidth:0 }}>{editBox === "perks" && !black ? "設備・待遇" : EDIT_TITLES[editBox] || "編集"}</span>
         </button>
 
       {editBox==="avatar" && (<>
@@ -847,59 +865,24 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             </p>
       </>)}
 
-      {editBox==="intro" && (<>
-            {/* 農園紹介→代表よりに改名・代表よりの入力を最上段へ（2026-07-16） */}
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>働き手への一言と、書きたいお題だけ記入してください（任意）</p>
-            <textarea
-              value={ownerComment}
-              onChange={e => setOwnerComment(e.target.value)}
-              maxLength={1000}
-              style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit", marginBottom:4 }}
-            />
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:0, marginBottom:16, textAlign:"right" }}>{ownerComment.length} / 1000</p>
-            <div className="employer-intro-grid" style={{ marginBottom:16 }}>
-              {[
-                { label:"就農するまで", value:introPath, set:setIntroPath },
-                { label:"いま楽しいこと", value:introJoy, set:setIntroJoy },
-                { label:"どんな作物を、どんな想いで", value:introCrops, set:setIntroCrops },
-                { label:"職場の雰囲気", value:introAtmosphere, set:setIntroAtmosphere },
-                { label:"初めての人へのメッセージ", value:introMessage, set:setIntroMessage },
-              ].map((topic, i) => (
-                <div key={i}>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{topic.label}（任意）</label>
-                  <textarea
-                    value={topic.value}
-                    onChange={e => topic.set(e.target.value)}
-                    maxLength={1000}
-                    style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
-                  />
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, textAlign:"right" }}>{topic.value.length} / 1000</p>
-                </div>
-              ))}
-            </div>
-      </>)}
-
-      {editBox==="ask" && (<>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", marginBottom:12, lineHeight:1.6 }}>書きたい問いだけ、記入してください（任意）</p>
-            <div className="employer-intro-grid" style={{ marginBottom:16 }}>
-              {[
-                { label:"うちの畑・農園のユニークなところ", placeholder:"例：吉野川の川霧が育てるナスです", value:uniquePoint, set:setUniquePoint },
-                { label:"働きに来た人に、いつもしていること", placeholder:"例：最初に全体をひと回り案内します", value:alwaysDo, set:setAlwaysDo },
-                { label:"休憩とお茶はどうしてる？", placeholder:"例：10時と15時に冷たいお茶を出します", value:breakStyle, set:setBreakStyle },
-              ].map((topic, i) => (
-                <div key={i}>
-                  <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>{topic.label}（任意）</label>
-                  <textarea
-                    value={topic.value}
-                    onChange={e => topic.set(e.target.value)}
-                    placeholder={topic.placeholder}
-                    maxLength={1000}
-                    style={{ background:"#fff", color:"#222", width:"100%", minHeight:100, padding:"12px", fontSize:14, lineHeight:1.7, border:"1px solid #E5E5E5", borderRadius:12, outline:"none", resize:"vertical", boxSizing:"border-box", fontFamily:"inherit" }}
-                  />
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginTop:4, textAlign:"right" }}>{topic.value.length} / 1000</p>
-                </div>
-              ))}
-            </div>
+      {['intro','ask','overview','environment','practical','representative'].includes(editBox) && (<>
+        <p className="f-sans" style={{ fontSize:12, color:'#717171', marginBottom:16, lineHeight:1.7 }}>書きたい項目だけ記入してください（任意）。既存の回答はそのまま残っています。</p>
+        {[
+          { key:'owner_comment', label:'働く人へのあいさつ', value:ownerComment, set:setOwnerComment, sections:['intro','representative'] },
+          { key:'intro_path', label:'就農するまで', value:introPath, set:setIntroPath, sections:['intro','representative'] },
+          { key:'intro_joy', label:'いま楽しいこと', value:introJoy, set:setIntroJoy, sections:['intro','representative'] },
+          { key:'intro_message', label:'初めての人へのメッセージ', value:introMessage, set:setIntroMessage, sections:['intro','representative'] },
+          { key:'unique_point', label:'うちの畑・農園のユニークなところ', value:uniquePoint, set:setUniquePoint, sections:['ask','overview'] },
+          { key:'intro_crops', label:'どんな作物を、どんな想いで', value:introCrops, set:setIntroCrops, sections:['intro','overview'] },
+          { key:'intro_atmosphere', label:'職場の雰囲気', value:introAtmosphere, set:setIntroAtmosphere, sections:['intro','environment'] },
+          { key:'always_do', label:'働きに来た人に、いつもしていること', value:alwaysDo, set:setAlwaysDo, sections:['ask','practical'] },
+          { key:'break_style', label:'休憩とお茶はどうしてる？', value:breakStyle, set:setBreakStyle, sections:['ask','practical'] },
+        ].filter(topic=>topic.sections.includes(editBox)).map(topic=><div key={topic.key} style={{ marginBottom:20 }}>
+          <label htmlFor={'employer-'+topic.key} className="f-sans" style={{ fontSize:14, fontWeight:600, display:'block', marginBottom:8 }}>{topic.label}（任意）</label>
+          <textarea id={'employer-'+topic.key} value={topic.value} onChange={e=>topic.set(e.target.value)} maxLength={1000}
+            style={{ background:'#fff', color:'#222', width:'100%', minHeight:100, padding:12, fontSize:14, lineHeight:1.7, border:'1px solid #E5E5E5', borderRadius:12, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit' }} />
+          <p className="f-sans" style={{ fontSize:11, color:'#717171', textAlign:'right', margin:'4px 0' }}>{topic.value.length} / 1000</p>
+        </div>)}
       </>)}
 
       {editBox==="style" && (<>
@@ -999,34 +982,36 @@ function FarmerProfilePreview({ me, table = "employer_profiles", withTrust = tru
   }, []);
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
   if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
-  const topics = (data && !black) ? farmIntroTopics(data) : []; // black（委託）は代表よりを出さない（2026-07-31たきと指示）
+  const questions = data && !black ? representativeQuestions(data) : [];
+  const badges = data ? perkBadges(data) : [];
+  const sectionOrder = ['overview','environment','facilities','support','practical'];
+  const sections = data && !black ? workplaceSections(data).filter(section => section.id !== 'facilities')
+    .concat(badges.length ? [{ id:'facilities', title:'設備・待遇', rows:[{ title:'登録されている設備・待遇', body:badges.map(b=>b.label).join('・') }] }] : [])
+    .sort((a,b)=>sectionOrder.indexOf(a.id)-sectionOrder.indexOf(b.id)) : [];
   return (
-    <div style={{ gridColumn:"1/-1", maxWidth:400 }}>
-      <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{data?.nickname ? `${data.nickname}の農園紹介` : "農園紹介"}</p>
-      {data ? (
-        <>
-          <FarmerTrustCard profile={data} trust={trust} black={black} />
-          {perkBadges(data).length > 0 && (
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:14 }}>
-              {perkBadges(data).map(b => (
-                <span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", background:"#F7F7F7", padding:"4px 12px", borderRadius:20 }}>{!black && b.icon && <NavIconInline name={b.icon} size={12} style={{ verticalAlign:"-2px", marginRight:3 }} />}{!black && b.emoji ? b.emoji + " " : ""}{b.label}</span>
-              ))}
-            </div>
-          )}
-          {topics.length > 0 && (
-            <div style={{ display:"grid", gap:10, marginTop:16 }}>
-              {topics.map(t => (
-                <div key={t.label}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", margin:"0 0 2px" }}>{t.label}</p>
-                  <p className="f-sans" style={{ fontSize:13, color:"#222", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{t.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      ) : (
-        <p className="f-sans" style={{ textAlign:"center", color:"#999", fontSize:13, padding:"32px 0" }}>この農家のプロフィールは未設定です</p>
-      )}
+    <div style={{ gridColumn:"1/-1", maxWidth:560 }}>
+      <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>{data?.nickname ? `${data.nickname}のプロフィール` : "プロフィール"}</p>
+      {data ? <>
+        {!black && <section aria-label="職場についてのプレビュー">
+          <h2 className="f-sans" style={{ fontSize:22, margin:'24px 0 12px' }}>職場について</h2>
+          <p className="f-sans" style={{ fontSize:12, color:'#717171', lineHeight:1.7 }}>保存済みの紹介文です。写真の確認と公開は「職場の写真」で行います。求人に掲載された設備・待遇は、掲載時の内容が使われます。</p>
+          {sections.map(section=><section key={section.id} style={{ margin:'20px 0', borderTop:'1px solid #EBEBEB', paddingTop:16 }}>
+            <h3 className="f-sans" style={{ fontSize:17, margin:'0 0 12px' }}>{section.title}</h3>
+            {section.rows.map(row=><div key={row.title} style={{ marginBottom:12 }}>
+              <p className="f-sans" style={{ fontSize:12, color:'#717171', margin:'0 0 4px' }}>{row.title}</p>
+              <p className="f-sans" style={{ fontSize:14, lineHeight:1.7, margin:0, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{row.body}</p>
+            </div>)}
+          </section>)}
+
+        </section>}
+        <section aria-label="代表についてのプレビュー">
+          {!black && <h2 className="f-sans" style={{ fontSize:22, borderTop:'1px solid #EBEBEB', paddingTop:24, margin:'24px 0 16px' }}>代表について</h2>}
+          <FarmerTrustCard profile={data} trust={trust} black={black} hideQa={!black} hideWorkplaceStyle={!black} />
+          {!black && data.owner_comment && <p className="f-sans" style={{ fontSize:14, lineHeight:1.7, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{data.owner_comment}</p>}
+          {questions.map(item=><div key={item.q} style={{ marginTop:16 }}><p className="f-sans" style={{ fontSize:12, color:'#717171', margin:'0 0 4px' }}>{item.q}</p><p className="f-sans" style={{ fontSize:14, lineHeight:1.7, margin:0, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{item.a}</p></div>)}
+          {black && badges.length > 0 && <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:14 }}>{badges.map(b=><span key={b.label} className="f-sans" style={{ fontSize:12, fontWeight:600, background:'#F7F7F7', borderRadius:20, padding:'4px 12px' }}>{b.label}</span>)}</div>}
+        </section>
+      </> : <p className="f-sans" style={{ textAlign:'center', color:'#999', fontSize:13, padding:'32px 0' }}>この農家のプロフィールは未設定です</p>}
     </div>
   );
 }

@@ -519,7 +519,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro, onOpe
             求人詳細では職場紹介の専用ページへ。確認画面などは従来の紹介プレビューを維持。 */}
         <div onClick={() => onOpenWorkplace ? onOpenWorkplace() : onOpenIntro?.(true)} role="button"
           tabIndex={onOpenWorkplace || onOpenIntro ? 0 : undefined}
-          aria-label={onOpenWorkplace ? "職場紹介を見る" : undefined}
+          aria-label={onOpenWorkplace ? "職場紹介を見る" : onOpenIntro ? "代表について見る" : undefined}
           onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && (onOpenWorkplace || onOpenIntro)) { e.preventDefault(); if (onOpenWorkplace) onOpenWorkplace(); else onOpenIntro(true); } }}
           style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", borderRadius:24,
                    boxShadow:"0 6px 16px rgba(0,0,0,0.14)", padding:"22px 18px", margin:"4px 2px 6px",
@@ -534,7 +534,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro, onOpe
               )}
             </div>
             <p className="f-sans" style={{ fontSize:21, fontWeight:800, color:"#222", margin:"10px 0 0", textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word", lineHeight:1.3 }}>{name}さん</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{onOpenWorkplace ? "職場紹介を見る →" : "募集主"}</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{onOpenWorkplace ? "職場紹介を見る →" : onOpenIntro ? "代表について見る →" : "募集主"}</p>
           </div>
           {stats.length > 0 && (
             <div style={{ flex:"0 0 41%", maxWidth:150, minWidth:0 }}>

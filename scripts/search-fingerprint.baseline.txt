@@ -435,8 +435,8 @@
   from:worker_profiles
 
 ## event:dom
-  add:hashchange  x4
-  add:popstate  x3
+  add:hashchange  x5
+  add:popstate  x4
   add:resize  x3
   add:scroll  x3
   add:touchcancel  x3
@@ -445,8 +445,8 @@
   add:touchstart  x4
   add:transitionend  x1
   add:wheel  x1
-  remove:hashchange  x4
-  remove:popstate  x3
+  remove:hashchange  x5
+  remove:popstate  x4
   remove:resize  x3
   remove:scroll  x3
   remove:touchcancel  x3

@@ -150,7 +150,7 @@ export function WorkerTrustCard({ profile, trust, onEditItem, hideSelfDeclare })
 // hideStats＝受け入れ・公開中・実績などの数字の行を出さない（2026-08-24たきと指示「農家プレビューも
 // 働き手プレビューと同じ構造に」）。数字はプレビューの【記録】の面（components/FarmerRecord）が持つ＝
 // 働き手側（プロフィール＝人となり／記録＝数字）と同じ分け方。他の画面は従来どおり数字を出す
-export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false, hideStats = false, maskedFields }) {
+export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, onTapOpenJobs, extraBadges, black = false, extraQa, hideQa = false, hideStats = false, hideWorkplaceStyle = false, maskedFields }) {
   const [avatarZoom, setAvatarZoom] = useState(false); // フックは早期returnより前（rules-of-hooks）
   if (!profile) return null;
   const AC = black ? "#111111" : "#00A86B";
@@ -162,7 +162,7 @@ export function FarmerTrustCard({ profile, trust, onEditItem, onTapExperience, o
   // black（委託）では 問いかけQ&A・関わり方チップを出さない（2026-07-31たきと指示・委託に該当ボックスが無いため）
   const qa = black ? [] : farmHostQa(profile);
   // 関わり方＝4問の回答チップ（HOST_STYLE_QUESTIONS・2026-08-14拡充）。black（委託）は従来どおり出さない
-  const styleChips = black ? [] : hostStyleChips(profile);
+  const styleChips = black || hideWorkplaceStyle ? [] : hostStyleChips(profile);
   const okTrust = !!(trust && trust.ok);
   // 数字の行（受け入れ・公開中・受け入れ中・実績・承認までの時間）だけを出し分ける。
   // 利用開始・連絡先確認済みは身元の事実so hideStats でも消さない

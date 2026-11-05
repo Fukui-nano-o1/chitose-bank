@@ -1,0 +1,50 @@
+name: Profile structure visual checks
+on:
+  pull_request:
+    paths:
+      - src/features/jobs/search/**
+      - src/components/EmployerProfileEdit.jsx
+      - src/components/TrustCards.jsx
+      - src/components/WorkplacePhoto.jsx
+      - src/lib/profileInput.js
+      - src/lib/utils.js
+      - src/appStyles.js
+      - src/index.css
+      - scripts/profile-structure-browser.mjs
+      - scripts/fixtures/profile-*
+      - scripts/fixtures/workplace-search-*
+      - package*.json
+      - .github/workflows/profile-structure-check.yml
+permissions:
+  contents: read
+concurrency:
+  group: profile-structure-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Tokyo
+      CB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      CB_EVIDENCE_DIR: profile-structure-evidence
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y fonts-noto-cjk
+      - name: Verify public and owner profile structure in Chromium
+        run: node scripts/profile-structure-browser.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: profile-structure-visual-evidence
+          path: profile-structure-evidence
+          if-no-files-found: error
+          retention-days: 7

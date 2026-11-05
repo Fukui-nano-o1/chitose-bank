@@ -1,3 +1,4 @@
+import { representativeQuestions } from "./workplacePresentation.js";
 import { WorkplacePage } from "./components/WorkplacePage.jsx";
 import { readWorkplaceRoute, openWorkplace, returnFromWorkplace, workplaceReturnScroll } from "./workplace.js";
 import { ListingPhoto } from "../../../components/ListingPhoto.jsx";
@@ -7,7 +8,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { setApplyReturn, clearApplyReturn } from "../../../lib/applyReturn";
 import { fetchWorkerReady } from "../../../lib/workerReady";
 import { openLoginBox } from "../../../lib/previewBus";
-import { isAdmin, isJobEnded, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, farmHostQa, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, farmIntroTopics, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../../../lib/utils";
+import { isAdmin, isJobEnded, ymdLocal, isWorkDayToday, calFmtDate, payLabel, mapJobPublicRow, overtimeLine, EMPTY_MARK, disp, stationLabel, CHAT_ELIGIBLE_STATUSES, SURVEY_SOURCES, SURVEY_REASONS, photoThumb, payTermsLine, PAY_TIMING_LABELS, PAY_METHOD_LABELS, CURRENT_PAY_POLICY } from "../../../lib/utils";
 import { useJobExpiryClock } from "../../../hooks/useJobExpiryClock";
 import { refreshJobExpiry, visibleSearchJobs } from "../../../lib/jobSearchVisibility";
 import { useSheetDragClose } from "../../../lib/sheetDrag";
@@ -219,6 +220,22 @@ export function JobSearchMapView({ onRegister, me }) {
   const [farmIntroOpen, setFarmIntroOpen] = useState(false); // 農園紹介モーダル（ページには代表よりのみ・タップで全文展開）
   // 受け入れ実績タップ→この農家の過去の求人ボックス（2026-07-16）
   const [pastJobsOpen, setPastJobsOpen] = useState(false);
+  // A person sheet belongs to the current detail and viewer, never the next
+  // route. Close it for hash navigation, browser history and in-app routing.
+  useEffect(() => {
+    const dismiss = () => { setFarmIntroOpen(false); setPastJobsOpen(false); };
+    window.addEventListener('hashchange', dismiss);
+    window.addEventListener('popstate', dismiss);
+    window.addEventListener(ROUTE_CHANGED, dismiss);
+    return () => {
+      window.removeEventListener('hashchange', dismiss);
+      window.removeEventListener('popstate', dismiss);
+      window.removeEventListener(ROUTE_CHANGED, dismiss);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    setFarmIntroOpen(false); setPastJobsOpen(false);
+  }, [selectedJob?.id, me?.id]);
   const [pastJobs, setPastJobs] = useState(null); // null=読み込み中
   const [pastJobsTab, setPastJobsTab] = useState("all"); // すべて/公開中/終了（2026-07-23）
   const [pastJobsFocus, setPastJobsFocus] = useState(null); // タップした求人（job_number）。先頭に移動して概要を展開（2026-07-24）
@@ -1362,7 +1379,7 @@ export function JobSearchMapView({ onRegister, me }) {
               募集者名・連絡先の常設表示は廃止（データはjobs転写・job_employer_profileに残存＝表示のみの削除） */}
 
           {/* 評価 → 募集主について（Airbnbの Reviews → Meet your host。1部品＝評価の取得を1回にするため） */}
-          <JobReviewsAndHost job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenWorkplace={() => openWorkplace(selectedJob.id)} />
+          <JobReviewsAndHost job={selectedJob} employer={empEmployer} trust={empTrust} me={me} onOpenIntro={setFarmIntroOpen} />
 
           {/* 作業の場所（地図）＝Airbnbの Where you'll be の位置 */}
           <JobLocationSection job={selectedJob} me={me} />
@@ -1507,8 +1524,8 @@ export function JobSearchMapView({ onRegister, me }) {
       )}
 
       {/* 農園紹介モーダル（代表よりカードのタップで展開。お題＋代表よりの全文） */}
-      {farmIntroOpen && empEmployer && (() => {
-        const topics = farmIntroTopics(empEmployer);
+      {farmIntroOpen && selectedJob && !workplaceJob && empEmployer && (() => {
+        const questions = representativeQuestions(empEmployer);
         return (
           <div className="cb-lock-scroll" onClick={() => setFarmIntroOpen(false)} style={{
             position:"fixed", inset:0, zIndex:10000,
@@ -1519,12 +1536,15 @@ export function JobSearchMapView({ onRegister, me }) {
               maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:20, padding:20,
               overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain", touchAction:"pan-y",
             }}>
+              <button type="button" onClick={() => setFarmIntroOpen(false)} className="f-sans"
+                style={{ minHeight:44, border:0, background:'none', fontSize:14, padding:'8px 0', cursor:'pointer' }}>‹ 求人詳細に戻る</button>
+              <h2 className="f-sans" style={{ fontSize:24, margin:'8px 0 24px' }}>代表について</h2>
               {/* ✕・タイトル「〇〇の農園紹介」は削除（2026-08-14たきと指示・EmployerPreviewSheetの
                   2026-08-07と同じ作法）＝閉じるはボックス外タップ。名乗りは信頼カード内の氏名行が担う */}
               {/* まず信頼カード（農園紹介の下のボックス）→次に農園紹介（2026-07-16） */}
               {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）は代表よりの下へ移植（2026-08-14たきと指示）。
                   カード内のQaChatはhideQaで出さない＝カードは身元・実績・タグに専念 */}
-              {(farmHostQa(empEmployer).length > 0 || !!empEmployer.interaction_style || !!(empTrust && empTrust.ok)) && (
+              {empEmployer && (
                 <div style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:16, padding:"16px", marginBottom:16 }}>
                   {/* 募集者の住所・連絡先は訪問者に届かないが、行ごと消さず伏せ字で出す
                       （2026-08-17たきと指示「求人者プロフィールの住所や連絡先はモザイク処理」）＝
@@ -1532,7 +1552,7 @@ export function JobSearchMapView({ onRegister, me }) {
                       値が未設定の求人は masked_fields に載らないso従来どおり行ごと出ない
                       （無い情報をあるように見せない）。会員には従来どおり本物が出る */}
                   <FarmerTrustCard profile={empEmployer} trust={empTrust} maskedFields={selectedJob.maskedFields}
-                    onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} hideQa />
+                    onTapOpenJobs={() => openPastJobs("open")} onTapExperience={() => openPastJobs("ended")} hideQa hideWorkplaceStyle />
                 </div>
               )}
               {/* 過去の求人ボックス（受け入れ実績タップで展開・公開中/終了の帯・タップで詳細へ） */}
@@ -1638,10 +1658,9 @@ export function JobSearchMapView({ onRegister, me }) {
                   <p className="f-sans" style={{ fontSize:15, color:"#222", lineHeight:1.8, margin:0, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word" }}>{empEmployer.owner_comment}</p>
                 </div>
               )}
-              {/* 質問形式の群れ（問いかけQ&A＋紹介文のお題）＝代表よりの下（2026-08-14たきと指示）。
-                  1つのQaChatに合流＝同じ要素の視覚的グループ分けは維持 */}
+              {/* 人柄のお題だけを表示。職場の回答は職場紹介ページに集約する。 */}
               {(() => {
-                const qaAll = [...farmHostQa(empEmployer), ...topics.map(t => ({ q: t.label, a: t.body }))];
+                const qaAll = questions;
                 return qaAll.length > 0 ? <QaChat items={qaAll} accent="#00A86B" /> : null;
               })()}
             </div>

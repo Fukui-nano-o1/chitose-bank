@@ -56,6 +56,24 @@ test('dedicated WorkplacePage uses truthful fields without borrowing job photos 
       const back = [...w.document.querySelectorAll('button')].find(button => button.textContent.includes('求人詳細に戻る'));
       assert.ok(back); back.click(); assert.equal(w.qaBackCount,1);
     });
+    await t.test('place sections keep all supplied public answers and omit person/private data', () => {
+      w.qaRenderWorkplace({job,status:'ready',employer:{
+        unique_point:'UNIQUE PLACE',intro_crops:'CROP STORY',intro_atmosphere:'ATMOSPHERE',chat_style:'calm',
+        interaction_style:'together',teaching_style:'show_first',question_style:'anytime',always_do:'ARRIVAL',break_style:'REST',
+        has_parking:true,has_transport:true,employer_pays_supplies:true,
+        owner_comment:'PERSON ONLY',intro_path:'PERSON HISTORY',intro_joy:'PERSON JOY',intro_message:'PERSON WELCOME',
+        recruiter_contact:'SECRET CONTACT',texts_pending:{unique_point:'PENDING COPY'},toilet:true,
+      }});
+      const headings=[...w.document.querySelectorAll('h2')].map(node=>node.textContent);
+      assert.deepEqual(headings,['職場の写真','職場の概要','働く環境','設備・サポート','教え方・関わり方','働く前に知っておきたいこと']);
+      for(const value of ['UNIQUE PLACE','CROP STORY','ATMOSPHERE','ARRIVAL','REST','駐車場あり','送迎あり','作業用品の費用を募集主が負担']) {
+        assert.equal(text().split(value).length-1,1,value+' appears once');
+      }
+      assert.doesNotMatch(text(),/PERSON|SECRET|PENDING|トイレ/);
+      w.qaRenderWorkplace({job,status:'ready',employer:{has_parking:false,has_transport:null,employer_pays_supplies:false}});
+      assert.equal(w.document.querySelector('#workplace-facilities'),null);
+      assert.doesNotMatch(text(),/駐車場なし|送迎なし/);
+    });
     await t.test('anonymous job photos, external photos, avatar and video never become workplace media', async () => {
       w.qaRenderWorkplace({job:{...job,photos:[source('allowed'),{url:source('denied'),caption:'JOB CAPTION'},'/job-static.jpg'],employerAvatar:'/job-avatar.jpg'},employer:{avatar_url:'/employer-avatar.jpg'},status:'ready'});
       await pause(30);

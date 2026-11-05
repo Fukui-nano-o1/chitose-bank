@@ -1,6 +1,6 @@
 import { WorkplacePhoto } from '../../../../components/WorkplacePhoto.jsx';
 import { validWorkplacePhotoPath } from '../../../../lib/workplacePhotoAccess.js';
-import { workplaceIntroRows } from '../workplacePresentation.js';
+import { workplaceSections } from '../workplacePresentation.js';
 
 const sectionStyle = { padding: '24px 0', borderTop: '1px solid #EBEBEB' };
 const headingStyle = { fontSize: 20, fontWeight: 700, margin: '0 0 12px', lineHeight: 1.5 };
@@ -11,7 +11,7 @@ const bodyStyle = { fontSize: 15, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-w
 // Only the dedicated published RPC supplies these paths. Never substitute job photos or avatars.
 export function WorkplacePage({ job, employer, status = 'loading', photos = [], photoStatus = 'unconfigured', onBack }) {
   const workplacePhotos = photoStatus === 'ready' && Array.isArray(photos) ? photos.filter(photo => validWorkplacePhotoPath(photo?.path)) : [];
-  const rows = status === 'ready' ? workplaceIntroRows(employer) : [];
+  const sections = status === 'ready' ? workplaceSections(employer) : [];
 
   return (
     <section className="workplace-page f-sans" aria-label="職場紹介" style={{ background: '#fff', color: '#222', minHeight: '100dvh', padding: '0 20px calc(96px + env(safe-area-inset-bottom, 0px))' }}>
@@ -35,13 +35,16 @@ export function WorkplacePage({ job, employer, status = 'loading', photos = [], 
             style={{ display: 'block', width: '100%', aspectRatio: '4 / 3', objectFit: 'contain', borderRadius: 12, background: '#F7F7F7', marginBottom: 20 }} />)}
         </section>
 
-        <p style={{ ...bodyStyle, color: '#717171', marginBottom: 20 }}>以下は募集主が登録した、普段の働き方の紹介です。勤務場所ごとの情報ではありません。</p>
+        <p style={{ ...bodyStyle, color: '#717171', marginBottom: 20 }}>文章は募集主が登録した普段の働き方の紹介で、勤務場所ごとの情報ではありません。設備・サポートは、この求人の掲載時の条件です。</p>
         {status === 'loading' && <p role="status" style={bodyStyle}>職場紹介を読み込んでいます…</p>}
         {status === 'error' && <p role="alert" style={bodyStyle}>職場紹介を読み込めませんでした。求人詳細に戻って、もう一度お試しください。</p>}
-        {status === 'ready' && !rows.length && <p style={{ ...bodyStyle, color: '#717171' }}>職場紹介はまだ登録されていません。</p>}
-        {rows.map(row => <section key={row.title} style={sectionStyle}>
-          <h2 style={headingStyle}>{row.title}</h2>
-          <p style={bodyStyle}>{row.body}</p>
+        {status === 'ready' && !sections.length && <p style={{ ...bodyStyle, color: '#717171' }}>職場紹介はまだ登録されていません。</p>}
+        {sections.map(group => <section key={group.id} aria-labelledby={'workplace-' + group.id} style={sectionStyle}>
+          <h2 id={'workplace-' + group.id} style={headingStyle}>{group.title}</h2>
+          {group.rows.map(item => <div key={item.title} style={{ marginTop: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 6px' }}>{item.title}</h3>
+            <p style={bodyStyle}>{item.body}</p>
+          </div>)}
         </section>)}
       </div>
     </section>

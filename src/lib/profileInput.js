@@ -17,6 +17,10 @@ export const EMPLOYER_TEXTS = {
   perks: ['transport_area', 'commute_allowance_detail', 'supplies_cap', 'raise_detail', 'bonus_detail', 'severance_detail'],
   intro: ['owner_comment', 'intro_path', 'intro_joy', 'intro_crops', 'intro_atmosphere', 'intro_message'],
   ask: ['unique_point', 'always_do', 'break_style'],
+  overview: ['unique_point', 'intro_crops'],
+  environment: ['intro_atmosphere'],
+  practical: ['always_do', 'break_style'],
+  representative: ['owner_comment', 'intro_path', 'intro_joy', 'intro_message'],
 };
 export function pickProfileFields(values, keys) { return Object.fromEntries(keys.map(k => [k, values[k]])); }
 export function workerProfileChange(section, values, row) {
