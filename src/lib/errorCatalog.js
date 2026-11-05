@@ -1,7 +1,9 @@
+import { safeErrorText } from './errorDisplay.js';
+export { safeErrorText };
 // エラーの辞書・分類・グループ化（2026-08-07切り出し）：
 import { inputRecovery } from './inputRecovery.js';
-import { diagnoseError, browserLabel, isServiceWorkerRegistrationError } from './errorDiagnosis.js';
-export { diagnoseError, browserLabel, isServiceWorkerRegistrationError };
+import { diagnoseError, browserLabel, isServiceWorkerRegistrationError, buildErrorDetails } from './errorDiagnosis.js';
+export { diagnoseError, browserLabel, isServiceWorkerRegistrationError, buildErrorDetails };
 // AdminSystemRoom（システムページのエラー面）が使う唯一のソース。ここに置くのは
 // React/DOM/supabase 非依存の純関数のみ（lib層の規則）。
 // ★運営チャットへの投函（旧 AdminErrorChatReporter）は2026-08-31にDBトリガーへ移した
@@ -101,7 +103,7 @@ export function translateError(raw) {
 }
 export function explainError(e) {
   const diagnosis = diagnoseError(e);
-  if (['chrome_ios_translate_request', 'chrome_ios_translate_candidate', 'css_resource', 'js_resource'].includes(diagnosis.key)) return diagnosis;
+  if (['resize_observer_delivery', 'chrome_ios_translate_request', 'chrome_ios_translate_candidate', 'css_resource', 'js_resource'].includes(diagnosis.key)) return diagnosis;
   const recovery = inputRecovery(e.error_code || e.code, e.reason);
   if (recovery) return { title: recovery.title,
     cause: recovery.state + 'この分類だけでは通信・権限・実装のどこが原因かは特定できない。',
@@ -211,16 +213,18 @@ export function buildErrorReport(g, catLabel, ex, stackText) {
   const jp = (d) => new Date(d).toLocaleString("ja-JP");
   const L = g.latest;
   const d = diagnoseError(L);
+  const details = buildErrorDetails(L);
   return [
     "【エラー状況の報告】chitose-bank 管理・システムページから生成",
-    `■ 種類: ${ex ? ex.title : "（辞書に該当なし）"}`,
+    "■ 共有前の確認: 形式で判別できた認証情報・連絡先などを伏せていますが、自由文の個人情報が残る可能性があります。内容を確認してから共有してください。",
+    `■ 種類: ${d.title}`,
     `■ 大分類: ${catLabel}`,
     `■ 細分類: ${d.title}`,
     `■ 判定の確度: ${d.confidence}`,
     `■ 判定の根拠: ${d.evidence}`,
     `■ 発生元: ${d.origin}`,
     `■ 表示への影響: ${d.impact}`,
-    `■ 状態: 未解決${g.openIds.length}件／記録${g.rows.length}件（直近500件の集計）`,
+    `■ 状態: 未解決${g.openIds.length}件／記録${g.rows.length}件（${g.recordOnly ? "通知された1件のみ" : "直近500件の集計"}）`,
     `■ 生メッセージ: ${L.message || "(なし)"}`,
     `■ 発生場所: 部品=${L.component || "-"}／発生源=${L.source || "-"}／操作=${L.operation || L.action || "-"}／エラーコード=${L.error_code || "-"}`,
     `■ 期間: ${jp(g.first.created_at)} 〜 ${jp(L.created_at)}`,
@@ -230,11 +234,16 @@ export function buildErrorReport(g, catLabel, ex, stackText) {
     `■ ページ: ${f.pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}${f.pages.length > 5 ? " ほか" : ""}`,
     "■ 最近の発生（最大5件）:",
     ...g.rows.slice(0, 5).map(e => `- ${jp(e.created_at)}　${errorPage(e)}　${deviceLabel(e.user_agent)}${e.status === "fixed" ? "　✓解決済み" : ""}`),
-    ex ? `■ 既知の説明: 原因=${ex.cause}／どうする=${ex.action}` : "■ 既知の説明: なし（辞書未登録の型）",
+    `■ 記録に基づく説明: ${d.cause}／次の確認=${d.action}`,
     ...(d.reference ? [`■ 参考資料: ${d.reference}（照合日：2026-10-27）`] : []),
+    "■ 詳しい説明（最新1件の保存記録を自動解釈）:",
+    details.summary,
+    ...details.sections.flatMap(section => [section.title, ...section.items.map(item => `- ${item}`)]),
+    "■ 自動判定の過程と結果（調査の実施履歴ではありません）:",
+    ...details.checks.map(check => `- ${check.step}【${check.status}】${check.result}`),
     "■ スタック（最新1件・先頭）:",
     stackText || "（取得できませんでした）",
-  ].join("\n");
+  ].map(safeErrorText).join("\n");
 }
 
 // 種類の署名から短い符牒を作る（運営チャットへの投函が同じ種類を二度貼らないための目印・2026-08-16）

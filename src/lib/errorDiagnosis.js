@@ -1,3 +1,4 @@
+import { safeErrorText } from './errorDisplay.js';
 // 保存済みの技術記録だけから分類する。確度と画面への影響は別に扱う。
 // UA・スタックは端末の申告であり、接続元や利用者を認証する材料にはしない。
 export const TRANSLATE_ISSUE_URL = 'https://issues.chromium.org/issues/571648515';
@@ -56,6 +57,15 @@ export function diagnoseError(e = {}) {
     browser: browserLabel(e.user_agent), ...extra,
   });
 
+  // Browser resize delivery warning, not proof of an application exception or a crash.
+  // Exact matching prevents unrelated exceptions containing this term from being hidden/reclassified.
+  if (source === 'window.onerror' && ['ResizeObserver loop completed with undelivered notifications.', 'ResizeObserver loop limit exceeded'].includes(raw)) return result('resize_observer_delivery', 'browser',
+    '画面サイズの調整が1回で収まらなかった通知',
+    'ブラウザが画面部品の大きさの変化を通知する途中で、同じ描画の回に届けきれない通知が残りました。次の描画で続きが処理されることがあります。停止や無限ループが続いたかは、この記録だけでは分かりません。',
+    '発生した画面で写真の横送り・端末の回転・画像の読み込みを確認する。表示の揺れ、操作不能、連続発生がある場合は優先して調べる。サイズ監視と画面変更の繰り返しを実機で追い、修正後も同じ操作で確かめる。',
+    'ブラウザの全体監視に届いた文言が、ResizeObserverの通知しきれなかった場合の文言と完全一致しています。',
+    '通知の種類を確認・原因は未特定');
+
   if (isServiceWorkerRegistrationError(e)) return result('service_worker_registration', 'browser',
     'Service Workerの登録失敗', 'Service Worker登録APIで失敗した記録です。拒否の詳しい理由は確認できません。',
     '読み込まれたregisterSW.jsの版と、登録失敗後のオンライン表示を確認する。',
@@ -108,6 +118,18 @@ export function diagnoseError(e = {}) {
   if (/window\.(?:ethereum|solana|phantom|web3|tronlink|coinbasewalletextension|braveethereum)/.test(msg)) return result('browser_wallet', 'browser',
     'ウォレット連携コードのエラー', '暗号資産ウォレット用の変数を扱うコードで失敗しています。注入元は記録だけでは確認できません。',
     '端末のウォレット・拡張機能と発生スクリプトを照合する。', 'メッセージにウォレット用の変数名があります。', '原因候補（未確定）');
+  if (/rendered (?:more|fewer) hooks than|change in the order of hooks/.test(msg)) return result('react_hook_order', 'runtime',
+    '画面を作る処理の呼び出し順・数の不一致', 'Reactが、前回と今回で状態管理の処理（Hook）の順序や数が違うと検知しました。該当する条件分岐や部品は未特定です。',
+    '部品のスタックと直前の画面切替を照合し、条件によってHookの呼び出しが変わっていないか確認する。', 'メッセージにHookの順序・数の不一致が記録されています。', '不一致の種類を確認');
+  if (/is not a function/.test(msg)) return result('runtime_not_callable', 'runtime',
+    '関数として呼び出せない値を実行した', '処理を呼び出す位置に、関数ではない値がありました。型・読込順・ファイルの版違いなどは候補で、根本原因は未特定です。',
+    'スタックの行と、呼び出した値の取得元・型・読み込み順を照合する。', 'メッセージに「is not a function」があります。', '例外の種類を確認');
+  if (/is not defined|can't find variable|before initialization/.test(msg)) return result('runtime_missing_reference', 'runtime',
+    '必要な変数を参照できなかった', '変数が見つからない、または使える状態になる前に参照した記録です。定義漏れか読み込み順かは未確認です。',
+    '該当行の変数の定義・import・初期化順を確認し、同じ画面操作で再現するか調べる。', 'メッセージに未定義の変数または初期化前の参照が記録されています。', '例外の種類を確認');
+  if (/cannot read propert|undefined is not an object|null is not an object/.test(msg)) return result('runtime_empty_value', 'runtime',
+    '空の値から情報を読み取ろうとした', '必要な値がない状態で、その中の項目を参照した記録です。未取得・欠損・処理順のどれが原因かは未特定です。',
+    '値の取得結果と参照時点を照合し、未取得・欠損時の分岐を確認する。', 'メッセージに空の値からのプロパティ参照が記録されています。', '例外の種類を確認');
   if (source === 'error_boundary') return result('react_render_failure', 'render', '画面の描画失敗',
     '画面の描画中にエラーが捕捉されました。根本原因はメッセージとスタックを照合して調べます。',
     '該当部品のスタックと直前の操作を確認する。', 'AppErrorBoundaryが描画失敗を捕捉した記録です。', '描画失敗を検知');
@@ -120,4 +142,41 @@ export function diagnoseError(e = {}) {
     '発生ファイルと行番号、操作、実際の表示を照合する。', '実行時例外の発生源またはメッセージがあります。');
   return result('unknown', 'other', '原因未特定のエラー', '原因を判断する情報が不足しています。',
     '操作名・エラーコード・スタックを確認する。解決や影響なしと断定しない。', '既知の判定条件に一致していません。');
+}
+
+// A transparent interpretation of saved evidence, never a fabricated investigation log.
+// Do not infer successful retries, production deployment, or root cause from status/metadata.
+export function buildErrorDetails(e = {}) {
+  const d = diagnoseError(e);
+  const resize = d.key === 'resize_observer_delivery';
+  const sourceDescriptions = {
+    'window.onerror': '画面全体のエラー監視に通知が届きました。どの操作が原因かを表す名前ではありません。',
+    unhandledrejection: '非同期処理（通信など、完了を待つ処理）の失敗が処理されず、全体の監視に届きました。',
+    error_boundary: 'Reactの画面描画を保護する仕組みが失敗を捕捉しました。根本原因や全画面の停止までは確定しません。',
+    client: 'アプリ内の処理から記録されました。操作名とメッセージを合わせて確認します。',
+  };
+  const hypotheses = resize
+    ? ['画面の大きさを監視する処理と、スクロール位置・レイアウトの調整が重なった可能性があります。写真や動画の表示、端末回転などは確認対象であり、今回の原因と断定したものではありません。', '一時的な通知か、毎回繰り返す問題かは未確認です。']
+    : [d.cause, '同じ文言でも原因が異なる場合があります。分類が付いたことと、今回の根本原因が確定したことは別です。'];
+  const outcome = e.status === 'fixed'
+    ? '管理上は「解決済み」です。ただし、運営者のメモがあっても、その内容や実際に直ったかをこの画面が独立に確認することはできません。'
+    : '管理上の解決は確認されていません。運営者のメモがある場合は下に区別して表示します。通知が途絶えただけでは解決とは判断しません。';
+  const details = {
+    summary: `${d.title}。${resize ? '画面が壊れたという確定ではなく、表示調整に関するブラウザからの通知です。' : d.cause}`,
+    sections: [
+      { title: '1. 記録から分かること', items: [d.evidence, sourceDescriptions[e.source] || '発生源の意味をこの記録から確認できません。', `表示への影響：${d.impact}`, `判定の確度：${d.confidence}`] },
+      { title: '2. 原因の候補・仕組み', items: hypotheses },
+      { title: '3. まだ分からないこと', items: ['直前にどの操作をしたか、端末で何が見えていたか、同じ操作で再現するかは、この記録だけでは確認できません。', '原因になったコード・通信の応答・端末が読み込んだ版と現在の公開版の一致は、別途確認が必要です。', '保存・送信の成功や失敗は、このエラーだけから判断しません。再実行する前に対象データを確認します。'] },
+      { title: '4. 次に確認すること', items: [d.action, '実際に困った症状と発生時刻を照合し、同じ条件で再現を試します。修正する場合は、その後の同じ操作で結果を確認します。'] },
+      { title: '5. 現在の結果・対応状態', items: [outcome, ...(e.resolved_at ? [`管理上の解決日時：${e.resolved_at}（動作確認の証拠ではありません）`] : []), ...(e.admin_note ? [`運営者の記録（自動検証はしていません）：${e.admin_note}`] : ['運営者の調査・対応メモは未記録です。']), 'この説明は保存済みの記録を読むたびに自動で分類したものです。実機調査・修正・再試験を行った履歴ではありません。', '一覧の件数は取得した直近500件の範囲です。記録の間引きもあるため、実際の発生回数や困った人数とは一致しないことがあります。'] },
+    ],
+    checks: [
+      { step: '保存された文言・コード・発生源を分類条件と照合', result: `${d.title}。根拠：${d.evidence}`, status: '自動判定' },
+      { step: 'スタック（処理の呼び出し経路）から発生場所を読む', result: d.location === '未記録' ? 'ファイル・行番号を読み取れるスタックがありません。原因の部品を特定できません。' : `${d.origin}／${d.location}。ファイルが分かっても根本原因の確定とは別です。`, status: d.location === '未記録' ? '情報不足' : '記録を解析' },
+      { step: '利用者の画面への影響を確認', result: d.impact, status: e.source === 'error_boundary' ? '描画失敗の記録あり' : '未確認' },
+      { step: '端末での再現・原因の検証・修正後の再試験', result: 'この画面は試験を実行せず、運営者のメモの内容も自動検証しません。自動分類だけでは実施済みとしません。', status: '自動検証なし' },
+      { step: '復旧・解決の判断', result: outcome, status: e.status === 'fixed' ? '管理上は解決済み' : '解決未確認' },
+    ],
+  };
+  return { ...details, summary: safeErrorText(details.summary), sections: details.sections.map(section => ({ ...section, items: section.items.map(safeErrorText) })), checks: details.checks.map(check => ({ ...check, result: safeErrorText(check.result) })) };
 }

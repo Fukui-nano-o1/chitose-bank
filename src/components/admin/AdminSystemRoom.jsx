@@ -8,7 +8,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { recompressBucket, generateJobPhotoThumbs } from "../../lib/image";
 // エラーの辞書・分類・グループ化は lib/errorCatalog に集約（2026-08-07・画面上部の管理者帯と共有）
-import { explainError, diagnoseError, deviceLabel, errorPage, groupAppErrors, groupFacts, errorImpactLabel, buildErrorReport } from "../../lib/errorCatalog";
+import { explainError, diagnoseError, deviceLabel, errorPage, groupAppErrors, groupFacts, errorImpactLabel, buildErrorReport, buildErrorDetails, safeErrorText, errorSigHash } from "../../lib/errorCatalog";
+import { parseErrorDetailRoute, loadErrorDetail } from "../../lib/errorDetailRoute";
 import { Dots } from "../ui";
 import { NavIconInline } from "../NavIcons";
 
@@ -103,6 +104,30 @@ export function AdminSystemRoom() {
   const [errorLoadFailed, setErrorLoadFailed] = useState(false);
   const [errorReload, setErrorReload] = useState(0);
   const [expandedSig, setExpandedSig] = useState(null);
+  const [focusSig, setFocusSig] = useState(null);
+  const [detailId, setDetailId] = useState(() => parseErrorDetailRoute(window.location.hash));
+  const [detail, setDetail] = useState({ id: null, state: "loading", row: null });
+  useEffect(() => {
+    const syncRoute = () => { setDetailId(parseErrorDetailRoute(window.location.hash)); setFocusSig(null); };
+    window.addEventListener("hashchange", syncRoute);
+    return () => window.removeEventListener("hashchange", syncRoute);
+  }, []);
+  useEffect(() => {
+    if (!detailId) return;
+    let active = true;
+    setDetail({ id: detailId, state: "loading", row: null });
+    loadErrorDetail(supabase, detailId).then(result => {
+      if (!active) return;
+      setDetail({ id: detailId, ...result });
+      if (result.row) setExpandedSig(groupAppErrors([result.row])[0]?.groups[0]?.sig || null);
+    });
+    return () => { active = false; };
+  }, [detailId, errorReload]);
+  const closeFocus = () => {
+    setFocusSig(null);
+    if (detailId) window.location.hash = "/admin/system";
+  };
+
   const [errBulkBusy, setErrBulkBusy] = useState("");
   const [errFilter, setErrFilter] = useState("all");   // 重要度（all/high/medium/unknown）
   useEffect(() => {
@@ -111,7 +136,7 @@ export function AdminSystemRoom() {
     (async () => {
       try {
         const { data, error } = await supabase.from("app_errors")
-          .select("id,created_at,source,page,url,component,action,operation,error_code,message,stack,status,user_id,user_agent,identity_verified")
+          .select("id,created_at,source,page,url,component,action,operation,error_code,message,stack,status,user_id,user_agent,identity_verified,admin_note,resolved_at")
           .order("created_at", { ascending: false }).limit(500);
         if (error) throw error;
         if (active) setAppErrors(data || []);
@@ -122,9 +147,8 @@ export function AdminSystemRoom() {
   // 合図（cb_sysErrorFocus）を持って来た時は、まず【該当のエラーだけ】をフォーカス表示する
   // （2026-08-07たきと指示「遷移先に該当するエラーをまず出して。解決した、もしくは閉じるで
   // システムのエラーへ遷移」）。1回で消費。500件の窓に無い時はフォーカスせず通常の一覧に着地
-  const [focusSig, setFocusSig] = useState(null);
   useEffect(() => {
-    if (appErrors === null) return;
+    if (appErrors === null || detailId) return;
     let sig = null;
     try { sig = sessionStorage.getItem("cb_sysErrorFocus"); if (sig) sessionStorage.removeItem("cb_sysErrorFocus"); } catch {}
     if (!sig) return;
@@ -132,7 +156,7 @@ export function AdminSystemRoom() {
     const matches = groups.filter(x => x.sig === sig || x.notificationSig === sig);
     // 旧通知が複数の原因に分かれた場合は一覧で確認する。
     if (matches.length === 1) { setFocusSig(matches[0].sig); setExpandedSig(matches[0].sig); }
-  }, [appErrors]);
+  }, [appErrors, detailId]);
   // 一覧とコピーは同じ記録・同じ分類を使う。コピー直前の追加通信は不要。
   const [copiedSig, setCopiedSig] = useState(null);
   const copyGroup = async (g, catLabel, ex) => {
@@ -157,6 +181,7 @@ export function AdminSystemRoom() {
     if (error) { alert("更新に失敗しました：" + error.message); return; }
     const ids = new Set(g.openIds);
     setAppErrors(prev => (prev || []).map(x => ids.has(x.id) ? { ...x, status:"fixed" } : x));
+    setDetail(prev => prev.row && ids.has(prev.row.id) ? { ...prev, row: { ...prev.row, status: "fixed", resolved_at: new Date().toISOString() } } : prev);
   };
   // フォーカス表示の「解決した」：この種類の未解決をfixedにしてから一覧へ
   // （確認ダイアログは挟まない＝ボタン自体が意思表示。失敗時はalertで留まる）
@@ -170,8 +195,9 @@ export function AdminSystemRoom() {
       if (error) { alert("更新に失敗しました：" + error.message); return; }
       const ids = new Set(g.openIds);
       setAppErrors(prev => (prev || []).map(x => ids.has(x.id) ? { ...x, status:"fixed" } : x));
+      setDetail(prev => prev.row && ids.has(prev.row.id) ? { ...prev, row: { ...prev.row, status: "fixed", resolved_at: new Date().toISOString() } } : prev);
     }
-    setFocusSig(null);
+    closeFocus();
   };
 
   // ── 種類カードの描画（エラー一覧とフォーカス表示の両方で使う唯一のソース）
@@ -181,11 +207,11 @@ export function AdminSystemRoom() {
     const ex = explainError(g.latest);
     const diagnosis = diagnoseError(g.latest);
     const facts = groupFacts(g);
+    const details = buildErrorDetails(g.latest);
+    const detailId = `error-detail-${errorSigHash(g.sig)}`;
     return (
       <div key={g.sig} data-error-kind={diagnosis.key} style={{ background:"#fff", border:"1px solid #EBEBEB", borderRadius:12, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", overflow:"hidden", opacity: open ? 1 : 0.65 }}>
-        {/* ヘッダーは div＋onClick（📋ボタンを入れ子にするため。button入れ子は不正HTML） */}
-        <div onClick={() => setExpandedSig(isOpen ? null : g.sig)}
-          style={{ display:"block", width:"100%", textAlign:"left", padding:"13px 16px", cursor:"pointer" }}>
+        <div style={{ textAlign:"left", padding:"13px 16px", overflowWrap:"anywhere" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginBottom:6 }}>
             <span style={{ display:"flex", alignItems:"center", gap:6 }}>
               {open > 0 ? (
@@ -209,22 +235,25 @@ export function AdminSystemRoom() {
                 cursor:"pointer", flexShrink:0,
               }}>{copiedSig === g.sig ? <><NavIconInline name="tick" size={12} />コピー済</> : <><NavIconInline name="clipboard" size={12} />コピー</>}</button>
           </div>
-          {ex && (
-            <p className="f-sans" style={{ fontSize:13, fontWeight:700, color:"#222", marginBottom:4 }}>{ex.title}</p>
-          )}
+          <button type="button" aria-expanded={isOpen} aria-controls={detailId}
+            onClick={() => setExpandedSig(isOpen ? null : g.sig)} className="f-sans"
+            style={{ display:"block", width:"100%", textAlign:"left", padding:"8px 0", border:0, background:"none", color:"#222", cursor:"pointer", overflowWrap:"anywhere" }}>
+            <span style={{ display:"block", fontSize:14, fontWeight:700 }}>{diagnosis.title}</span>
+            <span style={{ display:"block", fontSize:11, color:"#555", marginTop:4 }}>{isOpen ? "詳細を閉じる" : "分類・経過・確認結果を見る"}</span>
+          </button>
           <p className="f-sans" style={{ fontSize:11, color:"#717171", marginBottom:6 }}>
             {diagnosis.confidence} · {diagnosis.impact}
           </p>
           <p className="f-mono" style={{
             fontSize: ex ? 10 : 11, color: ex ? "#999" : "#444", wordBreak:"break-all", marginBottom:6,
             ...(isOpen ? {} : { display:"-webkit-box", WebkitLineClamp: ex ? 1 : 2, WebkitBoxOrient:"vertical", overflow:"hidden" }),
-          }}>{g.latest.message || "(メッセージなし)"}</p>
+          }}>{safeErrorText(g.latest.message || "(メッセージなし)")}</p>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-            {facts.botN > 0 && <span className="tag" style={{ background:"#FFF4DF", color:"#805B17" }}>Googlebot申告・未検証{facts.botN}件</span>}
-            {g.latest.component && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.component}</span>}
-            {g.latest.source && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.source}</span>}
-            {g.latest.operation && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.operation}</span>}
-            {g.latest.action && <span className="tag" style={{ background:"#F7F7F7", color:"#717171" }}>{g.latest.action}</span>}
+            {facts.botN > 0 && <span className="tag" style={{ maxWidth:"100%", whiteSpace:"normal", overflowWrap:"anywhere", background:"#FFF4DF", color:"#805B17" }}>Googlebot申告・未検証{facts.botN}件</span>}
+            {g.latest.component && <span className="tag" style={{ maxWidth:"100%", whiteSpace:"normal", overflowWrap:"anywhere", background:"#F7F7F7", color:"#717171" }}>{safeErrorText(g.latest.component)}</span>}
+            {g.latest.source && <span className="tag" style={{ maxWidth:"100%", whiteSpace:"normal", overflowWrap:"anywhere", background:"#F7F7F7", color:"#717171" }}>{safeErrorText(g.latest.source)}</span>}
+            {g.latest.operation && <span className="tag" style={{ maxWidth:"100%", whiteSpace:"normal", overflowWrap:"anywhere", background:"#F7F7F7", color:"#717171" }}>{safeErrorText(g.latest.operation)}</span>}
+            {g.latest.action && <span className="tag" style={{ maxWidth:"100%", whiteSpace:"normal", overflowWrap:"anywhere", background:"#F7F7F7", color:"#717171" }}>{safeErrorText(g.latest.action)}</span>}
           </div>
           {/* 最新の日付は右下（2026-08-07たきと指示・上段は件数とコピーだけにして折り返しを防ぐ） */}
           <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", textAlign:"right", marginTop:6 }}>
@@ -234,48 +263,71 @@ export function AdminSystemRoom() {
         {isOpen && (() => {
           // 具体的な事実（コピー報告文と同じ groupFacts から導出・追加の通信なし）
           const { devs, browsers, pages } = facts;
-          const stackFull = g.latest.stack;
-          // 保存は15行（コピー用）・画面は先頭6行だけ見せる
-          const stack = stackFull ? stackFull.split("\n").slice(0, 6).join("\n") : stackFull;
+          const stack = g.latest.stack;
           return (
-            <div style={{ padding:"0 16px 14px", borderTop:"1px solid #F3F3F3" }}>
-              {ex && (
-                <div style={{ padding:"10px 12px", background:"#F7F7F7", borderRadius:8, borderLeft:"3px solid #999", margin:"12px 0 0" }}>
-                  <p className="f-sans" style={{ fontSize:11, color:"#444", lineHeight:1.7 }}>
-                    <b>細分類</b>：{diagnosis.title}<br />
-                    <b>判定の確度</b>：{diagnosis.confidence}<br />
-                    <b>判定の根拠</b>：{diagnosis.evidence}<br />
-                    <b>発生元</b>：{diagnosis.origin}<br />
-                    <b>表示への影響</b>：{diagnosis.impact}<br />
-                    <b>原因・確認状況</b>：{ex.cause}<br /><b>どうする</b>：{ex.action}
-                  </p>
-                  {diagnosis.reference && <a href={diagnosis.reference} target="_blank" rel="noreferrer" style={{ display:"inline-block", marginTop:8, fontSize:11, color:"#444" }}>参考資料（2026-10-27照合）</a>}
+            <div id={detailId} style={{ padding:"0 16px 14px", borderTop:"1px solid #F3F3F3", overflowWrap:"anywhere", minWidth:0 }}>
+              <section aria-label="エラーの詳しい説明" className="f-sans" style={{ fontSize:13, color:"#333", lineHeight:1.9 }}>
+                <div style={{ padding:"12px", background:"#F3F7F5", borderRadius:8, marginTop:12 }}>
+                  <h3 style={{ fontSize:14, margin:"0 0 6px" }}>何が起きたか</h3>
+                  <p style={{ margin:0 }}>{details.summary}</p>
                 </div>
-              )}
+                <p style={{ fontSize:11, color:"#555", margin:"10px 0" }}>
+                  以下は保存された記録からの自動整理です。この画面を開いても、端末での再現テストや修正後の動作確認は実行されません。
+                </p>
+                {details.sections.map((section, index) => (
+                  <section key={`${index}-${section.title}`} style={{ marginTop:16 }}>
+                    <h3 style={{ fontSize:13, margin:"0 0 6px" }}>{section.title}</h3>
+                    <ul style={{ margin:0, paddingLeft:20 }}>
+                      {section.items.map((item, itemIndex) => <li key={itemIndex} style={{ marginBottom:4 }}>{item}</li>)}
+                    </ul>
+                  </section>
+                ))}
+                <section aria-label="確認の過程と結果" style={{ marginTop:18 }}>
+                  <h3 style={{ fontSize:13, margin:"0 0 8px" }}>確認の過程と結果</h3>
+                  <p style={{ fontSize:11, color:"#555", margin:"0 0 8px" }}>記録から分かることと、まだ確認していないことを分けて表示します。</p>
+                  <ol style={{ margin:0, paddingLeft:22 }}>
+                    {details.checks.map((check, index) => (
+                      <li key={index} style={{ padding:"8px 0", borderBottom:"1px solid #EBEBEB" }}>
+                        <b>{check.step}</b>
+                        <span style={{ display:"block", fontSize:11, color:"#555" }}>確認状況：{check.status}</span>
+                        <p style={{ margin:"4px 0 0" }}>結果：{check.result}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+                {diagnosis.reference && <a href={diagnosis.reference} target="_blank" rel="noreferrer" style={{ display:"inline-block", marginTop:12, color:"#365C4B" }}>判定に使う参考資料（別タブで開く）</a>}
+              </section>
               <div className="f-sans" style={{ fontSize:11, color:"#555", lineHeight:1.9, margin:"12px 0 0" }}>
                 <p>期間：{new Date(g.first.created_at).toLocaleString("ja-JP")} 〜 {new Date(g.latest.created_at).toLocaleString("ja-JP")}</p>
                 <p>影響：{errorImpactLabel(facts)}</p>
-                <p>端末・アクセス元：{devs.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
-                <p>ブラウザ（申告）：{browsers.map(([k, n]) => `${k} ${n}件`).join("・")}</p>
-                <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${k}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
+                <p>端末・アクセス元：{devs.map(([k, n]) => `${safeErrorText(k)} ${n}件`).join("・")}</p>
+                <p>ブラウザ（申告）：{browsers.map(([k, n]) => `${safeErrorText(k)} ${n}件`).join("・")}</p>
+                <p>ページ：{pages.slice(0, 5).map(([k, n]) => `${safeErrorText(k)}（${n}）`).join("・")}{pages.length > 5 ? " ほか" : ""}</p>
               </div>
               <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>最近の発生（最大5件）</p>
               <div style={{ display:"grid", gap:2 }}>
                 {g.rows.slice(0, 5).map(e => (
                   <p key={e.id} className="f-sans" style={{ fontSize:10, color:"#717171" }}>
-                    {new Date(e.created_at).toLocaleString("ja-JP")}　{errorPage(e)}　{deviceLabel(e.user_agent)}{e.status === "fixed" ? "　✓解決済み" : ""}
+                    {new Date(e.created_at).toLocaleString("ja-JP")}　{safeErrorText(errorPage(e))}　{safeErrorText(deviceLabel(e.user_agent))}{e.status === "fixed" ? "　✓解決済み" : ""}
                   </p>
                 ))}
               </div>
-              {stack === null && (
-                <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:8 }}>発生箇所（スタック）を取得中<Dots /></p>
-              )}
-              {stack ? (
-                <>
-                  <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", margin:"10px 0 4px" }}>発生箇所（最新1件のスタック先頭）</p>
-                  <pre className="f-mono" style={{ fontSize:9, color:"#717171", background:"#F7F7F7", borderRadius:8, padding:"8px 10px", margin:0, overflowX:"auto", whiteSpace:"pre" }}>{stack}</pre>
-                </>
-              ) : null}
+              <details style={{ marginTop:16, fontSize:12, color:"#555", minWidth:0 }}>
+                <summary style={{ cursor:"pointer", padding:"10px 0", fontWeight:700 }}>技術記録を見る（原文・発生箇所）</summary>
+                <p style={{ fontSize:11, lineHeight:1.8 }}>最新1件の保存内容です。形式から判別できた認証情報・連絡先などを伏せています。自由文の個人情報をすべて除けるとは限らないため、共有前に内容を確認してください。未記録の項目は取得中ではありません。保存時の文字数制限により、記録が途中で切れている場合があります。</p>
+                <dl style={{ margin:"8px 0", lineHeight:1.8 }}>
+                  {[
+                    ["記録ID", g.latest.id], ["ページ", errorPage(g.latest)], ["URL", g.latest.url],
+                    ["収集元", g.latest.source], ["画面・部品", g.latest.component],
+                    ["操作", g.latest.action], ["処理", g.latest.operation], ["エラーコード", g.latest.error_code],
+                    ["ブラウザの申告情報", g.latest.user_agent],
+                  ].map(([label, value]) => <div key={label} style={{ marginBottom:6 }}><dt style={{ fontWeight:700 }}>{label}</dt><dd style={{ margin:0 }}>{safeErrorText(value || "未記録")}</dd></div>)}
+                </dl>
+                <p style={{ fontWeight:700 }}>エラーメッセージ（原文）</p>
+                <pre className="f-mono" style={{ fontSize:11, background:"#F7F7F7", borderRadius:8, padding:10, whiteSpace:"pre-wrap", overflowWrap:"anywhere" }}>{safeErrorText(g.latest.message || "未記録")}</pre>
+                <p style={{ fontWeight:700 }}>発生箇所（最新1件の保存済みスタック全文）</p>
+                <pre className="f-mono" style={{ fontSize:11, background:"#F7F7F7", borderRadius:8, padding:10, whiteSpace:"pre-wrap", overflowWrap:"anywhere" }}>{safeErrorText(stack || "未記録（発生箇所の情報は保存されていません）")}</pre>
+              </details>
               {open > 0 && (
                 <button onClick={() => resolveGroup(g)} disabled={!!errBulkBusy} style={{
                   marginTop:10, padding:"7px 14px", border:"1px solid #00A86B44", borderRadius:8,
@@ -292,7 +344,10 @@ export function AdminSystemRoom() {
 
   // 帯から来たフォーカス対象（500件の窓から探す。見つからなければ通常の一覧）
   let focusPair = null;
-  if (focusSig && appErrors) {
+  if (detailId && detail.id === detailId && detail.row) {
+    const c = groupAppErrors([detail.row])[0];
+    if (c) focusPair = { c, g: { ...c.groups[0], recordOnly: true } };
+  } else if (!detailId && focusSig && appErrors) {
     for (const c of groupAppErrors(appErrors)) {
       const g = c.groups.find(x => x.sig === focusSig);
       if (g) { focusPair = { c, g }; break; }
@@ -302,7 +357,17 @@ export function AdminSystemRoom() {
   return (
     <div className="appear cb-admin-page" style={{ maxWidth:640, margin:"0 auto", padding:"20px 16px", paddingBottom:"calc(140px + env(safe-area-inset-bottom, 0px))" }}>
 
-      {focusPair ? (
+      {detailId && !focusPair ? (
+        <section aria-live="polite" className="f-sans">
+          <h2 style={{ fontSize:18 }}>エラー記録の詳細</h2>
+          <p>{detail.id !== detailId || detail.state === "loading" ? "記録を読み込んでいます…"
+            : detail.state === "invalid" ? "エラー詳細のリンクが正しくありません。"
+            : detail.state === "missing" ? "この記録は見つからないか、閲覧権限がありません。保存期間を過ぎて削除された可能性もあります。"
+            : "記録を取得できませんでした。通信状態と管理者ログインを確認して、再試行してください。"}</p>
+          {detail.state === "error" && <button type="button" onClick={() => setErrorReload(n => n + 1)}>再試行</button>}
+          <button type="button" onClick={closeFocus}>エラー一覧へ</button>
+        </section>
+      ) : focusPair ? (
         /* ── 帯から来た時のフォーカス表示：まず該当のエラーだけを出す（2026-08-07たきと指示）。
               「解決した」＝この種類の未解決をfixedにして一覧へ／「閉じる」＝そのまま一覧へ ── */
         <div className="appear">
@@ -310,6 +375,7 @@ export function AdminSystemRoom() {
           <p className="f-sans" style={{ fontSize:11, color:"#999", marginBottom:12 }}>
             内容を確認して「解決した」か「閉じる」を押すと、エラー一覧に進みます。
           </p>
+          {detailId && <p className="f-mono" style={{ fontSize:10, overflowWrap:"anywhere" }}>記録ID：{detailId}（通知された1件）</p>}
           {renderGroupCard(focusPair.g, focusPair.c)}
           <div style={{ display:"flex", gap:10, marginTop:16 }}>
             <button type="button" onClick={() => resolveFocus(focusPair.g)} disabled={!!errBulkBusy} className="f-sans"
@@ -317,7 +383,7 @@ export function AdminSystemRoom() {
                 borderRadius:12, fontSize:14, fontWeight:700, cursor: errBulkBusy ? "default" : "pointer" }}>
               {errBulkBusy ? <>更新中<Dots /></> : "✓ 解決した"}
             </button>
-            <button type="button" onClick={() => setFocusSig(null)} className="f-sans"
+            <button type="button" onClick={closeFocus} className="f-sans"
               style={{ flex:1, padding:"13px 0", background:"#fff", color:"#555", border:"1px solid #DDD",
                 borderRadius:12, fontSize:14, fontWeight:700, cursor:"pointer" }}>
               閉じる
@@ -325,7 +391,7 @@ export function AdminSystemRoom() {
           </div>
           {focusPair.g.openIds.length > 0 && (
             <p className="f-sans" style={{ fontSize:10, color:"#B0B0B0", marginTop:8, textAlign:"center" }}>
-              「解決した」はこの種類の未解決{focusPair.g.openIds.length}件を解決済みにします（記録は残ります）
+              「解決した」は{detailId ? "通知されたこの記録" : "この種類の未解決"}{focusPair.g.openIds.length}件を解決済みにします（記録は残ります）
             </p>
           )}
         </div>

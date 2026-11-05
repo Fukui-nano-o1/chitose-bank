@@ -83,3 +83,90 @@ test('all records remain visible and unrelated Rejected still has an honest, act
   assert.match(unknown.title, /原因未特定/);
   assert.match(unknown.action, /除外しない/);
 });
+
+test('resize delivery has an exact dedicated classification, never suppresses records or claims a crash', async () => {
+  const { buildErrorDetails } = await import('../src/lib/errorDiagnosis.js');
+  for (const message of ['ResizeObserver loop completed with undelivered notifications.', 'ResizeObserver loop limit exceeded']) {
+    const row = { ...sample, message, source: 'window.onerror', stack: '' };
+    const d = diagnoseError(row);
+    assert.equal(d.key, 'resize_observer_delivery');
+    assert.equal(d.category, 'browser');
+    assert.match(d.confidence, /原因は未特定/);
+    assert.equal(explainError(row).key, d.key);
+    assert.equal(groupAppErrors([row])[0].groups[0].rows.length, 1);
+    const details = buildErrorDetails(row);
+    assert.equal(details.sections.length, 5);
+    assert.equal(details.checks.length, 5);
+    assert.equal(details.checks[1].status, '情報不足');
+    assert.equal(details.checks[2].status, '未確認');
+    assert.match(details.summary, /確定ではなく/);
+    assert.match(details.sections[4].items.join(' '), /履歴ではありません/);
+  }
+  for (const changed of [{ source: 'error_boundary' }, { message: 'ResizeObserver crashed' }, { message: 'Other: ResizeObserver loop limit exceeded' }]) {
+    assert.notEqual(diagnoseError({ source: 'window.onerror', message: 'ResizeObserver loop limit exceeded', ...changed }).key, 'resize_observer_delivery');
+  }
+});
+
+test('details distinguish operator records and admin resolution from independently verified recovery', async () => {
+  const { buildErrorDetails } = await import('../src/lib/errorDiagnosis.js');
+  const d = buildErrorDetails({ message: 'unknown', status: 'fixed', admin_note: '端末回転で確認。', resolved_at: '2026-11-06T00:00:00Z', metadata: { recovered: true, cause: 'PROVEN' } });
+  assert.match(d.sections[4].items.join(' '), /運営者の記録.*端末回転で確認/);
+  assert.match(d.sections[4].items.join(' '), /独立に確認することはできません/);
+  assert.doesNotMatch(JSON.stringify(d), /PROVEN/);
+  assert.equal(d.checks[4].status, '管理上は解決済み');
+});
+
+test('technical reports redact credentials, query values, emails and identifiers without altering original evidence', async () => {
+  const { safeErrorText } = await import('../src/lib/errorDisplay.js');
+  const secrets = ['private@example.com', 'SECRET_QUERY', 'SECRET_TOKEN', 'SECRET_PASSWORD', '12345678-1234-1234-1234-123456789abc'];
+  const text = 'private@example.com https://example.com/app.js?key=SECRET_QUERY#access_token=SECRET_TOKEN password=SECRET_PASSWORD 12345678-1234-1234-1234-123456789abc';
+  const safe = safeErrorText(text);
+  for (const secret of secrets) assert.ok(!safe.includes(secret), secret);
+  assert.match(safe, /example.com\/app.js/);
+  const row = { ...sample, message: text, admin_note: text, stack: `save@https://example.com/app.js?token=SECRET_QUERY:1:2`, user_id: 'PRIVATE-USER', session_id: 'PRIVATE-SESSION' };
+  const group = groupAppErrors([row])[0].groups[0];
+  const report = buildErrorReport(group, 'Other', explainError(row), row.stack);
+  for (const secret of [...secrets, 'PRIVATE-USER', 'PRIVATE-SESSION']) assert.ok(!report.includes(secret), secret);
+  assert.equal(row.message, text);
+});
+
+test('common runtime exceptions get plain-language subtypes without asserting a root cause', () => {
+  for (const [message, key] of [['x is not a function', 'runtime_not_callable'], ["Can't find variable: x", 'runtime_missing_reference'], ["Cannot read properties of undefined (reading 'x')", 'runtime_empty_value'], ['Rendered more hooks than during the previous render.', 'react_hook_order']]) {
+    const d = diagnoseError({ message, source: 'window.onerror' });
+    assert.equal(d.key, key);
+    assert.equal(d.category, 'runtime');
+    assert.match(d.impact, /確認できません/);
+    assert.match(d.cause, /未特定|未確認/);
+  }
+});
+
+test('relative routes and JSON credential forms are masked throughout detailed reports', async () => {
+  const { safeErrorText } = await import('../src/lib/errorDisplay.js');
+  const raw = '/profile?code=secretcode&name=PrivatePerson {"access_token":"secret-access","password":"secret password","refresh_token":"escaped\\\"private"} #/search?query=PrivateQuery';
+  const safe = safeErrorText(raw);
+  for (const secret of ['secretcode', 'PrivatePerson', 'secret-access', 'secret password', 'escaped', 'private', 'PrivateQuery']) assert.ok(!safe.includes(secret), secret);
+  assert.match(safe, /\/profile\?\[非表示\]/);
+  const row = { ...sample, message: raw, page: '/profile?code=secretcode&name=PrivatePerson', admin_note: raw, stack: raw };
+  const group = groupAppErrors([row])[0].groups[0];
+  const report = buildErrorReport(group, '分類', explainError(row), row.stack);
+  for (const secret of ['secretcode', 'PrivatePerson', 'secret-access', 'secret password', 'PrivateQuery']) assert.ok(!report.includes(secret), secret);
+});
+
+test('report title always matches canonical classification even when legacy explanations differ', () => {
+  for (const message of ['Script error.', "undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')"]) {
+    const row = { ...sample, message, source: 'window.onerror', stack: '' };
+    const group = groupAppErrors([row])[0].groups[0];
+    const d = diagnoseError(row);
+    const report = buildErrorReport(group, '分類', { title: 'LEGACY_UNSUPPORTED_CAUSE', cause: 'LEGACY_UNSUPPORTED_CAUSE', action: '' }, '');
+    assert.ok(report.includes(`■ 種類: ${d.title}\n`));
+    assert.ok(report.includes(`■ 細分類: ${d.title}\n`));
+    assert.doesNotMatch(report, /LEGACY_UNSUPPORTED_CAUSE/);
+  }
+});
+
+test('whole UUID masking precedes phone masking without weakening phone or secret redaction', async () => {
+  const { safeErrorText } = await import('../src/lib/errorDisplay.js');
+  for (const id of ['12345678-1234-4234-8234-123456789abc', '12345678-1234-4234-8234-123456789012', 'abcdefab-cdef-abcd-efab-abcdefabcdef']) assert.equal(safeErrorText(id), '[ID]');
+  assert.equal(safeErrorText('090-1234-5678 03-1234-5678'), '[phone] [phone]');
+  assert.equal(safeErrorText('12345678-1234-4234-8234-123456789012 090-1234-5678 {"access_token":"sensitive-value"}'), '[ID] [phone] {"[認証情報非表示]":"[非表示]"}');
+});
