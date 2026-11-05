@@ -1,7 +1,7 @@
 // Synthetic admin data only. No production calls or credentials.
 export const supabase = {
   from(table) {
-    let values, fields;
+    let values, fields, recordId;
     return {
       select(selected) { fields = selected; return this; },
       order() { return this; },
@@ -10,6 +10,12 @@ export const supabase = {
         if (window.qaReadFailure) return Promise.resolve({ error: { message: 'offline' }, data: null });
         const rows = window.qaRows.map(row => Object.fromEntries(fields.split(',').map(field => [field, row[field]])));
         return Promise.resolve({ data: rows, error: null });
+      },
+      eq(column, id) { recordId = id; return this; },
+      maybeSingle() {
+        window.qaCalls.push({ table, fields, id: recordId, method: 'GET' });
+        if (window.qaReadFailure) return Promise.resolve({ error: { message: 'offline' }, data: null });
+        return Promise.resolve({ data: (window.qaDetailRows || window.qaRows).find(row => row.id === recordId) || null, error: null });
       },
       update(value) { values = value; return this; },
       in(column, ids) {
