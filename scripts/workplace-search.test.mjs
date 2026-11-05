@@ -32,7 +32,7 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
      if(body.p_job_number===202)return new Promise(resolve=>{releaseProfile=()=>resolve(new Response(JSON.stringify([{nickname:'合成募集主202',intro_atmosphere:'SECOND JOB'}]),{headers:{'Content-Type':'application/json'}}));});
      if(body.p_job_number===303)return json({message:'synthetic failure'},503);
      if(body.p_job_number===404)return json([{nickname:'合成募集主404'}]);
-     return json([{nickname:'合成募集主101',intro_atmosphere:'FIRST JOB'}]);
+     return json([{nickname:'合成募集主101',intro_atmosphere:'FIRST JOB',intro_path:'PERSON HISTORY',intro_joy:'PERSON JOY',intro_message:'PERSON WELCOME',owner_comment:'PERSON GREETING'}]);
     }
     if(url.endsWith('/job_employer_trust_info'))return json(null);
     if(url.endsWith('/job_workplace')){
@@ -45,12 +45,12 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
    w.eval(script);return w;
   }
   let w;
-  for (const [place, scroll] of [['top',120],['intro',250],['host',680]]) {
+  for (const [place, scroll] of [['top',120],['intro',250]]) {
    for (const action of place==='intro'?['click']:['click','Enter',' ']) {
     w=mount('#/work/job/101');
-    await until(()=>w.document.querySelectorAll('[aria-label="職場紹介を見る"]').length===2,'both existing employer entries');
+    await until(()=>w.document.querySelectorAll('[aria-label="職場紹介を見る"]').length===1,'workplace entry ready');
     const entries=[...w.document.querySelectorAll('[aria-label="職場紹介を見る"]')];
-    assert.equal(entries.filter(entry=>entry.closest('#sec-host')).length,1,'one lower 募集主について entry');
+    assert.equal(w.document.querySelectorAll('#sec-host [aria-label="代表について見る"]').length,1,'representative card has its own destination');
     assert.equal(entries.filter(entry=>!entry.closest('#sec-host')).length,1,'one existing top employer entry');
     const entry=place==='intro' ? w.document.querySelector('.job-workplace-more') : entries.find(entry=>place==='host'?entry.closest('#sec-host'):!entry.closest('#sec-host'));
     if(place==='intro') {
@@ -75,6 +75,38 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
     w.history.forward();await until(()=>!!w.document.querySelector('.workplace-page'),'forward again');
    }
   }
+  for (const action of ['click', 'Enter', ' ']) {
+   w=mount('#/work/job/101');
+   await until(()=>w.document.querySelector('[aria-label="代表について見る"]')&&w.document.querySelector('#sec-workplace')?.textContent.includes('FIRST JOB'),'representative entry ready');
+   const entry=w.document.querySelector('[aria-label="代表について見る"]');
+   if(action==='click') entry.click(); else entry.dispatchEvent(new w.KeyboardEvent('keydown',{key:action,bubbles:true,cancelable:true}));
+   await until(()=>w.document.querySelector('.cb-sheet-up')?.textContent.includes('PERSON HISTORY'),'person profile opens');
+   const profile=w.document.querySelector('.cb-sheet-up');
+   assert.match(profile.textContent,/代表について/);
+   for(const value of ['PERSON HISTORY','PERSON JOY','PERSON WELCOME','PERSON GREETING'])assert.ok(profile.textContent.includes(value));
+   assert.doesNotMatch(profile.textContent,/FIRST JOB/,'workplace answers are not repeated in representative profile');
+   assert.equal(w.location.hash,'#/work/job/101');
+   [...profile.querySelectorAll('button')].find(button=>button.textContent.includes('求人詳細に戻る')).click();
+   await until(()=>!w.document.querySelector('.cb-sheet-up'),'person profile dismissed');
+  }
+  // Interrupt an open person sheet with newer routes/history. It must not
+  // dereference a cleared job or reopen with the next employer's data.
+  for(const destination of ['/search', '/work/job/404', '/work/job/101/workplace']) {
+   w=mount('#/work/job/101');
+   await until(()=>w.document.querySelector('[aria-label="代表について見る"]')&&w.document.querySelector('#sec-workplace')?.textContent.includes('FIRST JOB'),'interrupted profile ready');
+   w.document.querySelector('[aria-label="代表について見る"]').click();
+   await until(()=>w.document.querySelector('.cb-sheet-up')?.textContent.includes('PERSON HISTORY'),'interrupted sheet open');
+   w.location.hash=destination;
+   await until(()=>!w.document.querySelector('.cb-sheet-up'),'navigation dismisses sheet');
+   assert.doesNotMatch(w.document.body.textContent,/PERSON HISTORY|PERSON JOY|PERSON WELCOME/);
+   w.history.back();
+   await until(()=>w.location.hash==='#/work/job/101'&&!!w.document.querySelector('#sec-host'),'history restores detail');
+   assert.equal(w.document.querySelector('.cb-sheet-up'),null,'back never reopens dismissed person sheet');
+   w.history.forward();await until(()=>w.location.hash==='#'+destination,'history forward');
+   assert.equal(w.document.querySelector('.cb-sheet-up'),null,'forward never reopens dismissed sheet');
+  }
+  w=mount('#/work/job/101');
+  await until(()=>w.document.querySelector('[aria-label="代表について見る"]')&&w.document.querySelector('#sec-workplace')?.textContent.includes('FIRST JOB'),'resume route tests');
   w.location.hash='/work/job/202/workplace';await until(()=>typeof releaseProfile==='function','second profile request');
   assert.doesNotMatch(w.document.querySelector('.workplace-page').textContent,/FIRST JOB/);
   w.location.hash='/work/job/101/workplace';await until(()=>w.document.querySelector('.workplace-page')?.textContent.includes('FIRST JOB'),'return first job');

@@ -1114,7 +1114,7 @@ export function workerUnsetCount(w, opts) {
 // opts.hasEmergency＝emergency_contacts（別テーブル・self-only RLS）の登録有無。呼び出し側が引いて渡す
 // （2026-08-07たきと承認：募集者の連絡先＋緊急連絡先＝掲載時必須なのにバッジに数えられていなかった2つを合流）
 export function employerUnsetCount(e, { hasEmergency = false } = {}) {
-  if (!e) return { req: 3, total: 10 };     // 編集ページの項目基準（従業員数は2026-08-01に削除・保険の準備は2026-08-28に合流）
+  if (!e) return { req: 3, total: 12 };     // 編集ページの項目基準（従業員数は2026-08-01に削除・保険の準備は2026-08-28に合流）
   // ★編集ページ（EmployerProfileEdit の boxFilled）と同じ物差しで数える（2026-08-03）：
   //   氏名・名称＝recruiter_name（保存時に nickname へも写るので両方見る）
   //   住所・所在地＝recruiter_* の分割値、無ければ1行の recruiter_address
@@ -1130,8 +1130,10 @@ export function employerUnsetCount(e, { hasEmergency = false } = {}) {
   ].filter(x => !x).length;
   const opt = [
     !!(e.has_transport || e.has_parking || e.has_commute_allowance || e.has_bonus || e.has_raise || e.has_severance_pay || e.employer_pays_supplies || e.accessory_ok || e.smoking_policy),
-    [e.intro_path, e.intro_joy, e.intro_crops, e.intro_atmosphere, e.intro_message, e.owner_comment].some(t => t && String(t).trim()),
-    [e.unique_point, e.always_do, e.break_style].some(t => t && String(t).trim()),
+    [e.intro_path, e.intro_joy, e.intro_message, e.owner_comment].some(t => t && String(t).trim()),
+    [e.unique_point, e.intro_crops].some(t => t && String(t).trim()),
+    !!(e.intro_atmosphere || "").trim(),
+    [e.always_do, e.break_style].some(t => t && String(t).trim()),
     // 関わり方＝4問（HOST_STYLE_QUESTIONS）のどれかに回答があれば設定済み（2026-08-14拡充）
     !!(e.interaction_style || e.teaching_style || e.chat_style || e.question_style),
     !!(e.recruiter_contact || "").trim(), // 募集者の連絡先（掲載時必須・2026-08-07）

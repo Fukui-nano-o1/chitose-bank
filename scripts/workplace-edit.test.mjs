@@ -10,7 +10,7 @@ import react from '@vitejs/plugin-react';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn,label){const end=Date.now()+5000;while(!fn()){assert.ok(Date.now()<end,label);await pause(10);}}
-const workplaceEntry=w=>[...w.document.querySelectorAll('button')].find(b=>b.textContent.includes('職場紹介')&&b.textContent.includes('写真で紹介'));
+const workplaceEntry=w=>[...w.document.querySelectorAll('button')].find(b=>b.textContent.includes('職場の写真')&&b.textContent.includes('写真の下書き・公開を管理'));
 
 test('real employer profile links to a dedicated read-only workplace preparation page',async()=>{
  const output=await mkdtemp(path.join(tmpdir(),'cb-workplace-edit-'));let dom;
