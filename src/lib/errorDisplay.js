@@ -19,6 +19,7 @@ export function safeErrorText(value = '') {
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[認証情報非表示]')
     .replace(/\b(?:access_token|refresh_token|api_key|apikey|authorization|password|token|secret)\s*[=:]\s*[^\s,;]+/gi, '[認証情報非表示]')
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
-    .replace(/\d{2,4}-\d{2,4}-\d{3,4}/g, '[phone]')
-    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '[ID]');
+    // Mask UUIDs as a whole before their numeric segments can resemble a phone number.
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '[ID]')
+    .replace(/\d{2,4}-\d{2,4}-\d{3,4}/g, '[phone]');
 }

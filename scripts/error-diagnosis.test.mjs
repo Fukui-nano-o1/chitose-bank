@@ -163,3 +163,10 @@ test('report title always matches canonical classification even when legacy expl
     assert.doesNotMatch(report, /LEGACY_UNSUPPORTED_CAUSE/);
   }
 });
+
+test('whole UUID masking precedes phone masking without weakening phone or secret redaction', async () => {
+  const { safeErrorText } = await import('../src/lib/errorDisplay.js');
+  for (const id of ['12345678-1234-4234-8234-123456789abc', '12345678-1234-4234-8234-123456789012', 'abcdefab-cdef-abcd-efab-abcdefabcdef']) assert.equal(safeErrorText(id), '[ID]');
+  assert.equal(safeErrorText('090-1234-5678 03-1234-5678'), '[phone] [phone]');
+  assert.equal(safeErrorText('12345678-1234-4234-8234-123456789012 090-1234-5678 {"access_token":"sensitive-value"}'), '[ID] [phone] {"[認証情報非表示]":"[非表示]"}');
+});
