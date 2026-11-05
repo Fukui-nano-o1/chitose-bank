@@ -75,9 +75,45 @@ try {
    },{surface,mode});
    const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
    const screenshot=async label=>{
-    await page.evaluate(()=>document.fonts.ready);
+    await page.evaluate(async()=>{
+     await document.fonts.ready;
+     // reducedMotion does not turn off the existing sheet's cbPop/fadeIn rules.
+     // Observe natural completion rather than capture translucent intermediate UI.
+     const finite=document.getAnimations().filter(animation=>Number.isFinite(animation.effect?.getComputedTiming().endTime));
+     await Promise.all(finite.map(animation=>animation.finished.catch(()=>{})));
+     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    });
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${surface} ${width}px horizontal overflow`);
-    await page.screenshot({path:path.join(evidence,`${surface}-${width}-${mode}-${label}.png`),fullPage:true});
+    const sheet=page.locator('.cb-sheet-up').last();
+    const modal=await sheet.count()>0;
+    if(modal) {
+     const settled=await sheet.evaluate(el=>{
+      const ancestors=[];
+      for(let node=el;node;node=node.parentElement)ancestors.push({tag:node.tagName,opacity:Number(getComputedStyle(node).opacity)});
+      const style=getComputedStyle(el),rect=el.getBoundingClientRect();
+      const foreground=[.2,.5,.8].every(x=>[.2,.5,.8].every(y=>{
+       const hit=document.elementFromPoint(rect.left+rect.width*x,rect.top+rect.height*y);
+       return hit && el.contains(hit);
+      }));
+      return {ancestors,background:style.backgroundColor,foreground,
+       running:el.getAnimations({subtree:true}).filter(animation=>Number.isFinite(animation.effect?.getComputedTiming().endTime)&&animation.playState==='running').length,
+       scrollable:el.scrollHeight>el.clientHeight+2};
+     });
+     assert.ok(settled.ancestors.every(node=>node.opacity===1),'sheet and all ancestors must be fully opaque after animation');
+     assert.equal(settled.background,'rgb(255, 255, 255)','sheet has opaque white background');
+     assert.equal(settled.running,0,'finite sheet animations finished');
+     assert.equal(settled.foreground,true,'sheet owns hit targets instead of underlying page');
+     await sheet.evaluate(el=>{el.scrollTop=0;});
+     await page.screenshot({path:path.join(evidence,`${surface}-${width}-${mode}-${label}.png`),fullPage:false,animations:'disabled'});
+     if(settled.scrollable) {
+      await sheet.evaluate(el=>{el.scrollTop=el.scrollHeight;});
+      await page.screenshot({path:path.join(evidence,`${surface}-${width}-${mode}-${label}-bottom.png`),fullPage:false,animations:'disabled'});
+      await sheet.evaluate(el=>{el.scrollTop=0;});
+     }
+     results.push({surface,mode,width,evidence:label,settled});
+    } else {
+     await page.screenshot({path:path.join(evidence,`${surface}-${width}-${mode}-${label}.png`),fullPage:true,animations:'disabled'});
+    }
    };
    try {
     if(surface==='public') {
