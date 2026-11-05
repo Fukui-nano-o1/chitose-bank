@@ -13,7 +13,7 @@ test('concise record notification preserves throttle, recipient, exclusions, fai
     await db.query('insert into auth.users values ($1,$2)', [admin, 't5fki6643qty@gmail.com']);
     await db.exec(await sql('20260928095153_app_errors_rate_limit.sql'));
     await db.exec(await sql('20261026054449_secure_app_error_ingestion.sql'));
-    await db.exec(await sql('20261105193108_concise_error_notification_links.sql'));
+    await db.exec(await sql('20261105201914_concise_error_notification_links.sql'));
     await db.exec('create trigger trg_z_app_error_report after insert on app_errors for each row execute function app_error_report_to_admin()');
     await db.query("insert into app_errors(id,message,component,url,stack) values ($1,'secret-token contact@example.invalid','unsafe','https://unsafe.invalid/?token=secret','private stack')", [id]);
     const notices = (await db.query('select * from admin_messages')).rows;
