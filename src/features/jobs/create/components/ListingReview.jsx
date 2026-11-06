@@ -108,7 +108,7 @@ export function ListingReview({ job, me, employer, trust, farmerDisplayName, has
         ...(hasWorkVideo?[["video_consent","動画の利用同意"]]:[]),
         ["danger_places","危険な場所"],["danger_tasks","危険な作業"],
         ["belongings","持ち物"],["cautions","注意事項"],
-        ["worker_preferences","経験に関する希望"],["repeat_approval","リピーターの自動承認"],
+        ["worker_preferences","経験に関する希望"],
         ...Object.entries(RECRUITER_FIELDS).map(([id, field])=>[id,field.title]),
         ["smoking_policy","受動喫煙の状況"]
       ].map(([id,title])=><button type="button" className="listing-review-edit" key={id} data-edit-page={id} onClick={() => onEditPage(id)}><span>{title}</span><span aria-hidden="true">編集 ›</span></button>)}</div>

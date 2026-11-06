@@ -220,10 +220,10 @@ export function JobWorkplaceIntro({ employer, status = "loading", photos = [], p
   );
 }
 
-// この求人のポイント（Airbnbの「Highlights」の型）：旗（初心者大歓迎・経験者優遇・リピート即決）を
+// この求人のポイント（Airbnbの「Highlights」の型）：現行の経験者優遇を
 // アイコン＋太字＋説明の行で並べる。絵柄と説明文の正は ui.jsx の JOB_FLAG_INFO（バッジと同じソース）
 export function JobHighlights({ job }) {
-  const keys = [job.beginnerOk && "beginner", job.experiencedPreferred && "expert", job.instantApproveRepeat && "repeat"].filter(Boolean);
+  const keys = [job.experiencedPreferred && "expert"].filter(Boolean);
   if (keys.length === 0) return null;
   return (
     <AirSection>

@@ -30,9 +30,9 @@ test('job workplace preview preserves ordering, published-only photos, truthful 
   }})}};
   w.eval(await readFile(path.join(output,'fixture.iife.js'),'utf8'));
   const section=()=>w.document.querySelector('#sec-workplace'),text=()=>section().textContent;
-  await t.test('section sits between the host row and beginner highlights with a real button',()=>{
+  await t.test('section sits between the host row and experience highlights with a real button',()=>{
    assert.match(section().previousElementSibling.textContent,/募集主：合成農園/);
-   assert.match(section().nextElementSibling.textContent,/初心者大歓迎/);
+   assert.match(section().nextElementSibling.textContent,/経験者優遇/);
    assert.equal(section().dataset.secLabel,'職場紹介');
    const button=section().querySelector('.job-workplace-more');assert.equal(button.tagName,'BUTTON');
    button.click();button.click();assert.equal(w.qaWorkplaceOpen,2);
@@ -54,7 +54,7 @@ test('job workplace preview preserves ordering, published-only photos, truthful 
      assert.equal(w.document.querySelector('.job-workplace-more'),null);
      const sections=[...w.document.querySelector('main').children];
      assert.equal(sections.length,2,'no empty wrapper or spacing remains');
-     assert.match(sections[0].textContent,/募集主/);assert.match(sections[1].textContent,/初心者大歓迎/);
+     assert.match(sections[0].textContent,/募集主/);assert.match(sections[1].textContent,/経験者優遇/);
     }
    }
    assert.deepEqual(downloads,[],'invalid and unpublished photos never load');

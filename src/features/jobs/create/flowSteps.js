@@ -59,6 +59,6 @@ export function listingFrameState(value) {
     wide: ["intro", "details_intro", REVIEW_STEP_ID].includes(id),
     skipDetails: id === "access" || id === "details_intro" || OPTIONAL_DETAIL_IDS.has(id) ||
       ["photo_captions","video_consent","danger_places","danger_tasks","belongings","cautions","worker_preferences","repeat_approval"].includes(id),
-    lastDetail: id === "repeat_approval" || nextStepId(id) === REVIEW_STEP_ID,
+    lastDetail: id === "worker_preferences" || id === "repeat_approval" || nextStepId(id) === REVIEW_STEP_ID,
   };
 }

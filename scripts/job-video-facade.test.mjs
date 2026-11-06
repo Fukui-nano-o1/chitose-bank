@@ -170,7 +170,7 @@ test('real job cards: facade loads on tap only, native controls, preserved photo
 
     // Search-only layout: shared photo/summary first, optional standalone YouTube below.
     {
-      const baseJob = {id:9301,variant:'list',videoPlacement:'below',priority:true,crop:'ブロッコリー',task:'収穫',region:'徳島県吉野川市',dateStartRaw:'2026-11-01',pay:10000,beginnerOk:true,views:8,photos:['/search-one.jpg','/search-two.jpg'],workVideoUrl:'https://youtu.be/aKydtOXW8mI'};
+      const baseJob = {id:9301,variant:'list',videoPlacement:'below',priority:true,crop:'ブロッコリー',task:'収穫',region:'徳島県吉野川市',dateStartRaw:'2026-11-01',pay:10000,beginnerOk:true,instantApproveRepeat:true,experiencedPreferred:true,views:8,photos:['/search-one.jpg','/search-two.jpg'],workVideoUrl:'https://youtu.be/aKydtOXW8mI'};
       w.qaRender([baseJob,{...baseJob,id:9302,photos:[]},{...baseJob,id:9303,photos:['/single.jpg']},{...baseJob,id:9304,workVideoUrl:''},{...baseJob,id:9305,workVideoUrl:'https://youtube.com.evil.test/watch?v=aKydtOXW8mI'},{...baseJob,id:9306,closed:true}]);
       await until(()=>w.document.querySelectorAll('.job-card-with-video').length===4,'only valid videos create a lower section');
       const shell=w.document.querySelector('.job-card-with-video');
@@ -179,7 +179,7 @@ test('real job cards: facade loads on tap only, native controls, preserved photo
       assert.equal(card.dataset.guide,'job-card');
       assert.ok(below.classList.contains('job-card-video-below'));
       assert.equal(card.style.marginBottom,'0px','one outer card spacing, not two');
-      for(const text of ['ブロッコリー','収穫','徳島県吉野川市','#9301','10,000','初心者大歓迎'])assert.ok(card.textContent.includes(text),text+' stays in the upper card');
+      for(const text of ['ブロッコリー','収穫','徳島県吉野川市','#9301','10,000','経験者優遇'])assert.ok(card.textContent.includes(text),text+' stays in the upper card');
       assert.equal(card.querySelectorAll('[data-media-type="photo"]').length,2);
       assert.equal(card.querySelector('[data-media-type="youtube"]'),null,'no video replaces a photo');
       assert.equal(below.querySelector('[data-media-type="photo"]'),null);

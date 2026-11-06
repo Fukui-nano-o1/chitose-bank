@@ -10,7 +10,7 @@ import react from '@vitejs/plugin-react';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(fn,label){const deadline=Date.now()+5000;while(!fn()){assert.ok(Date.now()<deadline,label);await pause(10);}}
-const job=id=>({id,crop:`合成作物${id}`,task:'収穫',employerName:`合成募集主${id}`,beginnerOk:true,region:'合成市',cityArea:'合成市',dateLabel:'2099-11-02',dateStartRaw:'2099-11-02',dateEndRaw:'2099-11-02',dateStart:'2099-11-02',dateEnd:'2099-11-02',workTime:'08:00〜17:00',payType:'daily',pay:10000,count:'2名',headcount:2,closed:false,filled:false,expired:false,hiredCount:0,isNew:false,photos:[],holidays:[],maskedFields:[],dangerPlaces:[],dangerTasks:[]});
+const job=id=>({id,crop:`合成作物${id}`,task:'収穫',employerName:`合成募集主${id}`,beginnerOk:true,instantApproveRepeat:true,experiencedPreferred:true,region:'合成市',cityArea:'合成市',dateLabel:'2099-11-02',dateStartRaw:'2099-11-02',dateEndRaw:'2099-11-02',dateStart:'2099-11-02',dateEnd:'2099-11-02',workTime:'08:00〜17:00',payType:'daily',pay:10000,count:'2名',headcount:2,closed:false,filled:false,expired:false,hiredCount:0,isNew:false,photos:[],holidays:[],maskedFields:[],dangerPlaces:[],dangerTasks:[]});
 
 test('real job search owns dedicated workplace entry, direct routes, same-job return and profile isolation',async()=>{
  const output=await mkdtemp(path.join(tmpdir(),'cb-workplace-search-'));let dom;
@@ -57,7 +57,7 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
      assert.equal(entry.tagName,'BUTTON','new entry has native keyboard activation');
      const section=w.document.querySelector('#sec-workplace');
      assert.match(section.previousElementSibling.textContent,/募集主/);
-     assert.match(section.nextElementSibling.textContent,/初心者大歓迎/);
+     assert.match(section.nextElementSibling.textContent,/経験者優遇/);
     } else assert.equal(entry.getAttribute('tabindex'),'0','entry is keyboard reachable');
     w.scrollY=scroll;const length=w.history.length;
     const activate=()=>action==='click'?entry.click():entry.dispatchEvent(new w.KeyboardEvent('keydown',{key:action,bubbles:true,cancelable:true}));
@@ -103,7 +103,7 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
   assert.equal(w.document.querySelector('.job-workplace-more'),null);
   await until(()=>!w.document.querySelector('.job-secnav')?.textContent.includes('職場紹介'),'no stale desktop navigation link');
   const emptyHost=w.document.querySelector('[aria-label="職場紹介を見る"]');
-  assert.match(emptyHost.closest('.cb-reveal').nextElementSibling.textContent,/初心者大歓迎/,'no empty divider remains');
+  assert.match(emptyHost.closest('.cb-reveal').nextElementSibling.textContent,/経験者優遇/,'no empty divider remains');
   emptyHost.click();await until(()=>w.document.querySelector('.workplace-page')?.textContent.includes('職場紹介はまだ登録されていません'),'existing host entry still opens the workplace page');
   [...w.document.querySelectorAll('button')].find(x=>x.textContent.includes('求人詳細に戻る')).click();
   await until(()=>w.location.hash==='#/work/job/404'&&!w.document.querySelector('.workplace-page'),'return from empty workplace');

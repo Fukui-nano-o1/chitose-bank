@@ -51,6 +51,9 @@ test('actual consent and listing components continue offline, restore new/edit/c
       return w;
     }
     const button = (w,label) => {const found=[...w.document.querySelectorAll('button')].find(b=>b.textContent.trim()===label);assert.ok(found,label);return found;};
+    // During async saving the label is 保存中…. Poll presence + readiness; the action lookup
+    // above intentionally asserts and must not run inside a wait for the label to return.
+    const buttonReady = (w,label) => [...w.document.querySelectorAll('button')].some(b=>b.textContent.trim()===label && !b.disabled);
     const snapshot = w => Object.fromEntries(Object.keys(w.localStorage).map(k=>[k,w.localStorage.getItem(k)]));
     const change = async (w,value) => {
       const area=w.document.querySelector('textarea[aria-label="作業の説明"]');assert.ok(area,'description input');
@@ -267,7 +270,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
     w.qaConflictOnce=true;
     await startPublish();
     await until(() => /保存済みの内容と差があります/.test(w.document.body.textContent), 'real conflict is visible');
-    await until(() => !button(w,'同意して掲載する').disabled, 'failed attempt is not stuck saving');
+    await until(() => buttonReady(w,'同意して掲載する'), 'failed attempt is not stuck saving');
     const retained=w.qaDrafts.listDeviceDrafts(owner)[0];
     assert.equal(retained.form.jobDescription,'最初の入力');
     assert.equal(retained.state,'conflict');
@@ -279,7 +282,7 @@ test('actual consent and listing components continue offline, restore new/edit/c
       const profileReads=w.qaCalls.filter(r=>r.path==='employer_profiles').length;
       button(w,'同意して掲載する').click();
       await until(() => w.qaCalls.filter(r=>r.path==='employer_profiles').length>profileReads, 'explicit retry started');
-      await until(() => !button(w,'同意して掲載する').disabled, 'explicit retry completed safely');
+      await until(() => buttonReady(w,'同意して掲載する'), 'explicit retry completed safely');
     }
     assert.equal(w.qaJob.notes,'別のタブの保存');
     assert.equal(w.qaCalls.filter(r=>r.path==='rpc/publish_my_job_with_check').length,0);

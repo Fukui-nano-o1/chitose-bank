@@ -1040,19 +1040,15 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
               プロフィール編集の「保険の準備」ボックス（InsurancePrepBox）に一本化。
               ★申告そのものは消えていない：求人ページの保険（掲載時に凍結）・応募者への表示・
               専用ページ #/insurance（URL直打ち）は従来どおり */}
-          {/* リピート即決（2026-08-25たきと指示「記録をリピート即決に差し替え。カードは削除。アイコンは残す」）＝
-              区画の見出しをこの機能の名前にし、白いカードは畳んでアイコン（登録した働き手）を直接並べる。
-              説明は見出しの？で開く（見出し行ごと当たり判定＝丸チップだけだと外す・2026-08-18の教訓）。
-              ★中身は不変：repeat_roster の登録者＝アイコンのタップで働き手の詳細、解除はその中から。
-              法務（2026-07-16労働局回答③）も不変＝登録の効果はその求人者自身の求人の範囲だけ */}
+          {/* お気に入り名簿は新しい求人の通知と登録解除に使用。応募の自動承認とは分離。 */}
           <div style={{ marginTop:16 }}>
             <button type="button" onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" aria-expanded={rosterInfoOpen}
               style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 8px", padding:0, background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
-              <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>リピート即決</span>
+              <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>また呼びたいリスト</span>
               <span className="f-sans" style={{ width:22, height:22, borderRadius:11, background: rosterInfoOpen ? ROLE_GREEN : "#F0F0F0", color: rosterInfoOpen ? "#fff" : "#717171", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>？</span>
             </button>
             {rosterInfoOpen && (
-              <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方です。新しい求人を出すとお知らせが届き、リピート即決をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。アイコンをタップすると詳細と解除ができます。</p>
+              <p className="fade-in f-sans" style={{ fontSize:12, color:"#717171", margin:"0 0 12px", lineHeight:1.7 }}>一緒に働いたあと「また呼びたい」と評価してお気に入り登録した方です。新しい求人を出すとお知らせが届きます。アイコンをタップすると詳細と解除ができます。</p>
             )}
             {rosterRows.length === 0
               ? <p className="f-sans" style={{ fontSize:13, color:"#717171", lineHeight:1.7, margin:0 }}>まだ登録はありません。仕事のあと「また呼びたい」で登録できます。</p>
@@ -1403,8 +1399,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
           submitting={completeSubmitting}
           onSubmit={submitFarmerReview}
           onClose={()=>setCompleteModalApp(null)}
-          /* お気に入り登録＝リピート即決の判定そのもの（trg_instant_approve が repeat_roster を見る・2026-08-19）。
-             登録の意味を伏せない。解除はまた呼びたいリストからいつでもできる */
+          /* 名簿の登録・解除と新着求人のお知らせは継続する。 */
           extra={wantAgain ? (
             <div style={{ marginBottom:16 }}>
               <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer" }}>
@@ -1412,7 +1407,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                 <NavIconInline name="heartFill" size={14} style={{ verticalAlign:"-2px", color:"#E24B4A" }} />お気に入り登録する
               </label>
               <p className="f-sans" style={{ fontSize:11, color:"#717171", lineHeight:1.7, margin:"4px 0 0 26px" }}>
-                登録すると、新しい求人のお知らせが届きます。「また呼びたい即決」をONにした求人では、この方の応募が自動で承認されます（採用ではありません）。登録はまた呼びたいリストからいつでも解除できます。
+                登録すると、新しい求人のお知らせが届きます。登録はまた呼びたいリストからいつでも解除できます。
               </p>
             </div>
           ) : null}
@@ -1480,7 +1475,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
               <span className="cb-heart-pop" style={{ position:"absolute", right:-8, bottom:-4, fontSize:32, lineHeight:1, filter:"drop-shadow(0 2px 4px rgba(0,0,0,0.25))" }}><NavIcon name="heartFill" size={32} style={{ color:"#E24B4A" }} /></span>
             </div>
             <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:"0 0 6px" }}>「また呼びたい」と思った方を、あなたのお気に入りに登録しました。</p>
-            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:0 }}>リピート即決ONのあなたの求人にこの方が応募すると、自動で承認されます。</p>
+            <p className="f-sans" style={{ fontSize:13, color:"#444", lineHeight:1.8, margin:0 }}>新しい求人を出すと、この方にお知らせが届きます。</p>
             {favDetailOpen ? (
               <div className="f-sans fade-in" style={{ marginTop:14, background:"#F7F7F7", borderRadius:12, padding:"12px 14px", textAlign:"left", fontSize:12, color:"#555", lineHeight:1.8 }}>
                 ・新しい求人を出すと、この方にお知らせが届きます<br/>
@@ -1514,7 +1509,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
             <button onClick={()=>{ const wid = rosterDetail.worker_id; setRosterDetail(null); stopRosterNotify(wid); }} className="f-sans" style={{ width:"100%", marginTop:16, padding:"12px", fontSize:13, fontWeight:600, background:"#fff", color:"#E24B4A", border:"1px solid #E24B4A44", borderRadius:10, cursor:"pointer" }}>
               お気に入りを解除する
             </button>
-            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, margin:"8px 0 0", textAlign:"center" }}>解除するとリストから外れ、新しい求人のお知らせとリピート即決の対象からも外れます</p>
+            <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", lineHeight:1.6, margin:"8px 0 0", textAlign:"center" }}>解除するとリストから外れ、新しい求人のお知らせの対象からも外れます</p>
           </div>
         </div>
       )}

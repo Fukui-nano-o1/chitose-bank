@@ -9,7 +9,7 @@ import { JOB_DRAFT_FIELDS } from '../src/lib/jobInputFields.js';
 const topics=['task','task_scope','workplace','place_scope','access','work_time','break_time','overtime','daily_wage'];
 
 test('stage 4 retains basic topics and expands details into single-topic pages',()=>{
-  assert.deepEqual(ACTIVE_LISTING_FLOW, ['intro','crop','task','task_scope','workplace','place_scope','access','schedule','holidays','headcount','work_time','break_time','overtime','daily_wage','details_intro','photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','repeat_approval','recruiter_name','recruiter_address','recruiter_contact','smoking_policy','review','publish_consent','complete']);
+  assert.deepEqual(ACTIVE_LISTING_FLOW, ['intro','crop','task','task_scope','workplace','place_scope','access','schedule','holidays','headcount','work_time','break_time','overtime','daily_wage','details_intro','photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','recruiter_name','recruiter_address','recruiter_contact','smoking_policy','review','publish_consent','complete']);
   assert.ok(!ACTIVE_LISTING_FLOW.includes('terms'));
   for(const [n,id] of FARMER_FLOW.entries()) assert.equal(legacyNumberForPage(id), n+1);
   assert.equal(legacyNumberForPage('task_scope'),2);

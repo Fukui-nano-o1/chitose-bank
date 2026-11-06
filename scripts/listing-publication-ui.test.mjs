@@ -88,7 +88,7 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
     });
     await t.test('normal input visits only missing recruiter page and does not publish on profile save',async()=>{
       const w=await mount({url:'https://ui.test/#/work/new/page/repeat_approval',form:form(),offline:false,profile:{...registered,recruiter_contact:''}});
-      await ready(w);button(w,'確認へ').click();await page(w,'recruiter_contact');
+      await ready(w);await until(()=>!button(w,'確認へ').disabled,'recruiter read before leaving details');button(w,'確認へ').click();await page(w,'recruiter_contact');
       assert.equal(q(w,'#listing-recruiter_name'),null);assert.equal(q(w,'#listing-recruiter_address'),null);
       await input(w,'#listing-recruiter_contact','088-111-2222');button(w,'保存して次へ').click();await page(w,'review');
       assert.equal(w.qaProfile.recruiter_contact,'088-111-2222');assert.equal(writes(w).length,1);
@@ -156,7 +156,7 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
     });
     await t.test('all detail review links go to their own question and return to review after reload',async()=>{
       let w=await mount({url:'https://ui.test/#/work/edit/42',job:dbRow({draft_step:12}),offline:false});await page(w,'review');
-      const details=['photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences','repeat_approval'];
+      const details=['photos','photo_captions','description','work_video','video_consent','danger_places','danger_tasks','belongings','cautions','worker_preferences'];
       for(const id of details){
         button(w,'編集').click();await until(()=>q(w,`[data-edit-page="${id}"]`),'edit tab: '+id);
         assert.ok(q(w,`[data-edit-page="${id}"]`),id);q(w,`[data-edit-page="${id}"]`).click();await page(w,id);assert.match(w.location.hash,/return=review/);
