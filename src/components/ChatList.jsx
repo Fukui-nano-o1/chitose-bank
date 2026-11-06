@@ -1,3 +1,4 @@
+import { historicalMessageText } from "../features/chat/presentation/historyMessage";
 // 分割3-B（2026-07-25）：App.jsxから移動。チャット一覧＋運営DMポップアップ＋通知オンバナー。
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
@@ -306,7 +307,7 @@ export function ChatList() {
           <Avatar url={a.partnerAvatar} name={a.partnerName || initialsMap[a._role === "worker" ? a.farmer_id : a.worker_id]} size={56} />
           <div className="chat-row-content">
             <div className="chat-row-title"><strong>{a.partnerName || "相手の名前を確認中"}</strong><time>{chatInboxTime(rowLastAt(a))}</time>{unread > 0 && <span className="chat-unread" aria-label={`未読${unread}件`} />}</div>
-            <p className="chat-row-preview">{preview ? String(preview.body || "").replace(/\s+/g," ") : "会話を開いてメッセージを確認"}</p>
+            <p className="chat-row-preview">{preview ? historicalMessageText(preview, a).replace(/\s+/g," ") : "会話を開いてメッセージを確認"}</p>
             <p>{title} · #{a.job_number}</p>
             <p><span className={`chat-stage${CHAT_CLOSED.includes(a.status) ? " is-closed" : ""}`}>{appPhaseLabelNow(a, phaseEntry(a)) || a.status}</span>{a.job?.date_start ? ` · ${chatInboxTime(a.job.date_start)}${a.job?.work_time ? ` ${a.job.work_time}` : ""}` : ""}</p>
           </div>

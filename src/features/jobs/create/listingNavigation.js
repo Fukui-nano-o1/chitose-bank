@@ -17,13 +17,13 @@ export const ACTIVE_LISTING_FLOW = Object.freeze([
     description: ["description"],
     work_video: ["work_video", "video_consent"],
     danger: ["danger_places", "danger_tasks"],
-    wishes: ["belongings", "cautions", "worker_preferences", "repeat_approval"],
+    wishes: ["belongings", "cautions", "worker_preferences"],
     review: [...RECRUITER_PAGE_IDS, "review", "publish_consent"],
   }[id] || [id])),
 ]);
 export const isListingPage = id => ACTIVE_LISTING_FLOW.includes(id);
 // terms は旧URL専用の別名。実際の入力ページには残さない。
-export const canonicalListingPage = id => ({terms:"work_time",danger:"danger_places",wishes:"belongings"})[id] || id;
+export const canonicalListingPage = id => ({terms:"work_time",danger:"danger_places",wishes:"belongings",repeat_approval:"worker_preferences"})[id] || id;
 const isRoutablePage = id => isListingPage(id) && id !== "complete";
 export const isListingInputPage = id => isListingPage(id) && !["intro", "complete"].includes(id);
 const SPLIT_LEGACY_NUMBERS = Object.freeze({ task_scope: 2, place_scope: 3, access: 3,
@@ -80,7 +80,7 @@ export function resolveListingResume(form = {}, fallbackStep = 0) {
     const oldIds = ["intro", ...FARMER_FLOW, "holidays", "headcount"];
     const stage3Ids = ["intro", ...FARMER_FLOW, "task_scope", "place_scope", "access", "holidays", "headcount", "work_time", "break_time", "overtime", "daily_wage"];
     const stage4Ids = ACTIVE_LISTING_FLOW.filter(id => !RECRUITER_PAGE_IDS.includes(id) && id !== "publish_consent");
-    if ((!previous && !stage3 && !stage4 && form.listingNavVersion !== LISTING_NAV_VERSION) || (previous && !oldIds.includes(form.listingPageId)) || (stage3 && !stage3Ids.includes(form.listingPageId)) || (stage4 && !stage4Ids.includes(form.listingPageId))) return { error: "unknown_saved_page" };
+    if ((!previous && !stage3 && !stage4 && form.listingNavVersion !== LISTING_NAV_VERSION) || (previous && !oldIds.includes(form.listingPageId)) || (stage3 && !stage3Ids.includes(form.listingPageId)) || (stage4 && !stage4Ids.includes(canonicalListingPage(form.listingPageId)))) return { error: "unknown_saved_page" };
     const legacyDetail = { danger: "danger_places", wishes: "belongings" };
     const pageId = form.listingPageId === "terms" && (previous || stage3) ? resumeTermsPage(form) :
       (previous || stage3) ? (legacyDetail[form.listingPageId] || canonicalListingPage(form.listingPageId)) : canonicalListingPage(form.listingPageId);

@@ -1557,7 +1557,7 @@ export default function App(){
             {[
               { k:"emergency", l:"緊急連絡先", body:"当日行けない・遅れる時は、プロフィールの「きょうの仕事」ページにある「緊急連絡」から連絡できます。無断欠勤は記録に残るため、必ず連絡してください。" },
               { k:"flow", l:"採用からの流れ", body:"作業日までにチャットで最終確認（集合場所・持ち物・時間）→ 当日作業 → 終了後に農家が完了処理をします。困ったことはチャットで相談してください。" },
-              { k:"review", l:"評価とは？", body:"仕事を終えたあと、農家と働き手がお互いを記録する仕組みです。「また呼びたい」と評価されてお気に入り登録されると、その農家のリピート即決の対象になることがあります。" },
+              { k:"review", l:"評価とは？", body:"仕事を終えたあと、農家と働き手がお互いを記録する仕組みです。「また呼びたい」と評価されてお気に入り登録されると、その農家の新しい求人のお知らせが届きます。" },
             ].map(r => (
               <div key={r.k} style={{ borderTop:"1px solid #F0F0F0", padding:"10px 0" }}>
                 <button onClick={()=>setHiredInfoOpen(v => v === r.k ? null : r.k)} className="f-sans" style={{ width:"100%", display:"flex", justifyContent:"space-between", alignItems:"center", background:"none", border:"none", padding:0, fontSize:15, fontWeight:700, color:"#222", cursor:"pointer" }}>

@@ -28,7 +28,7 @@ try {
   const topics=['recruiter_name','recruiter_address','recruiter_contact','smoking_policy','review','publish_consent'];
   const results=[];
   for (const viewport of [{width:360,height:640},{width:390,height:844},{width:1440,height:900}]) {
-    const context=await browser.newContext({viewport,locale:'ja-JP',timezoneId:'Asia/Tokyo',isMobile:viewport.width<500,hasTouch:viewport.width<500});
+    const context=await browser.newContext({viewport,locale:'ja-JP',timezoneId:'Asia/Tokyo',isMobile:viewport.width<500,hasTouch:viewport.width<500,serviceWorkers:'block'});
     const errors=[];
     await context.route('**/*',route=>{const url=new URL(route.request().url());const item=url.origin===origin && assets.get(url.pathname);return item?route.fulfill({status:200,contentType:item.mime,body:item.data}):route.abort();});
     await context.addInitScript(() => {
@@ -36,7 +36,7 @@ try {
       if (!localStorage.getItem('listing-basics-test-seeded')) {
         window.qaListingForm={role:'farmer',farmerStep:2,farmerCropPill:'ブロッコリー',farmerTaskPill:'収穫',farmerPurpose:'post',
           farmerZip:'7793401',farmerPref:'徳島県',farmerCity:'吉野川市',farmerTown:'山川町',farmerAddr:'123番地',
-          jobDateStart:'2026-11-01',jobDateEnd:null,jobHolidays:[],jobCount:'3',dailyWageInput:'10000',breakTime:'60分',
+          jobDateStart:'2099-11-01',jobDateEnd:null,jobHolidays:[],jobCount:'3',dailyWageInput:'10000',breakTime:'60分',
           startHour:'8',startMinute:'00',endHour:'16',endMinute:'00',overtimePolicy:'なし',overtimeDetail:'1時間程度',jobDescription:'保存する入力',
           taskChangeScope:'変更なし',placeChangeScope:'変更なし',nearestStation:'山瀬',commuteTime:'車10分以内',workVideoUrl:''};
         localStorage.setItem('listing-basics-test-seeded','1');

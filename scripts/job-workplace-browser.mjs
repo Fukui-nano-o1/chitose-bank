@@ -56,7 +56,7 @@ try {
     if(url.endsWith('/job_employer_trust_info'))return json({ok:true,member_since:'2026年04月'});
     return new Promise(()=>{});
    };
-   const job={id:101,crop:'ブロッコリー',task:'播種',employerName:'合成農園',beginnerOk:true,instantApproveRepeat:true,region:'合成県 合成市',cityArea:'合成市',dateLabel:'2099-11-10',dateStartRaw:'2099-11-10',dateEndRaw:'2099-11-10',dateStart:'2099-11-10',dateEnd:'2099-11-10',workTime:'10:00〜12:00',payType:'daily',pay:2500,count:'1名',headcount:1,jobBody:'合成データの仕事説明です。',closed:false,filled:false,expired:false,hiredCount:0,isNew:false,photos:[],holidays:[],maskedFields:[],dangerPlaces:[],dangerTasks:[]};
+   const job={id:101,crop:'ブロッコリー',task:'播種',employerName:'合成農園',beginnerOk:true,instantApproveRepeat:true,experiencedPreferred:true,instantApproveRepeat:true,region:'合成県 合成市',cityArea:'合成市',dateLabel:'2099-11-10',dateStartRaw:'2099-11-10',dateEndRaw:'2099-11-10',dateStart:'2099-11-10',dateEnd:'2099-11-10',workTime:'10:00〜12:00',payType:'daily',pay:2500,count:'1名',headcount:1,jobBody:'合成データの仕事説明です。',closed:false,filled:false,expired:false,hiredCount:0,isNew:false,photos:[],holidays:[],maskedFields:[],dangerPlaces:[],dangerTasks:[]};
    localStorage.setItem('cb_viewCache_v2_anon',JSON.stringify({'search:jobs':[job]}));
   },{mode,count});
   const page=await context.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
@@ -70,7 +70,7 @@ try {
     await host.evaluate(el=>window.scrollTo(0,Math.max(0,el.getBoundingClientRect().top+window.scrollY-30)));
     await page.waitForTimeout(100);
     const metrics=await host.evaluate(el=>({after:el.closest('.cb-reveal').nextElementSibling.textContent,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth}));
-    assert.match(metrics.after,/初心者大歓迎/,'highlights directly follow the employer section');
+    assert.match(metrics.after,/経験者優遇/,'highlights directly follow the employer section');
     assert.equal(await page.locator('.job-workplace-more').count(),0,'no empty introduction link');
     await page.locator('.job-secnav').getByRole('button',{name:'職場紹介',exact:true}).waitFor({state:'detached'});
     assert.ok(metrics.scrollWidth<=width+1,`horizontal overflow at ${width}px`);
@@ -89,7 +89,7 @@ try {
    await page.evaluate(()=>document.fonts.ready);
    await page.waitForTimeout(350);
    const metrics=await section.evaluate(el=>({before:el.previousElementSibling.textContent,after:el.nextElementSibling.textContent,width:el.getBoundingClientRect().width,viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,photoCount:el.querySelectorAll('img').length,summaryHeight:el.querySelector('.job-workplace-summary')?.getBoundingClientRect().height || 0,buttonHeight:el.querySelector('.job-workplace-more').getBoundingClientRect().height}));
-   assert.match(metrics.before,/募集主/);assert.match(metrics.after,/初心者大歓迎/);
+   assert.match(metrics.before,/募集主/);assert.match(metrics.after,/経験者優遇/);
    assert.ok(metrics.scrollWidth<=width+1,`horizontal overflow at ${width}px`);
    assert.ok(metrics.width<=width,`section exceeds viewport ${width}px`);assert.ok(metrics.buttonHeight>=44,'touch target');
    assert.equal(metrics.photoCount,Math.min(3,count));assert.ok(metrics.summaryHeight<=82,'long intro is clamped to three lines');
