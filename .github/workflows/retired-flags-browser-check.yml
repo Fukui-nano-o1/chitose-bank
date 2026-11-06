@@ -53,20 +53,6 @@ jobs:
   postgres-concurrency:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_DB: legacy_flags_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -78,6 +64,19 @@ jobs:
       - run: npm ci
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Synthetic concurrent direct-API and migration checks
-        run: node scripts/legacy-job-flags-concurrency.mjs
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/legacy_flags_ci
+        shell: bash
+        run: |
+          set -euo pipefail
+          ci_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$ci_password"
+          export POSTGRES_PASSWORD="$ci_password"
+          docker run --detach --name legacy-flags-ci --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_DB=legacy_flags_ci --env POSTGRES_USER=postgres \
+            --env POSTGRES_PASSWORD postgres:17
+          trap 'docker rm --force legacy-flags-ci >/dev/null' EXIT
+          for attempt in $(seq 1 30); do
+            if docker exec legacy-flags-ci pg_isready -U postgres -d legacy_flags_ci; then break; fi
+            sleep 1
+          done
+          export DATABASE_URL="postgresql://postgres:${ci_password}@127.0.0.1:5432/legacy_flags_ci"
+          node scripts/legacy-job-flags-concurrency.mjs
