@@ -34,7 +34,7 @@ The PGlite test reconstructs catalog-read application, notification, roster, cop
 9. Ordinary roster notices survive without automatic-approval promises.
 10. Rollback refuses later function/ACL/view-option/isolation-helper/trigger-state drift, then restores definitions/effective grants/view and trigger state without rewriting current records.
 
-PGlite is single-session: duplicate retries are tested, genuine concurrent transactions are not. The migration lock barrier is reviewed but not a substitute for a multi-session staging check. This is a focused database proof, not proof that every historical application trigger has been replayed.
+PGlite is single-session. A separate real PostgreSQL 17 service test now exercises multiple simultaneous psql clients against a dedicated synthetic database. CI run 42165257983, job 127720122254 passed on PR head ef17ef79ef43d704969c7a43dde8ea3135269ad9: an old transaction drains before the migration lock proceeds, a queued old-client application remains applied afterward, concurrent duplicates create one application/message/mail, concurrent owner edits retain old flags, copied rows are inactive, and manual approval still works. Evidence: https://github.com/Fukui-nano-o1/chitose-bank/actions/runs/42165257983/job/127720122254 . This is a focused database proof, not proof that every historical application trigger has been replayed.
 
 ## Production read-only observations
 

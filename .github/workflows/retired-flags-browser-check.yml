@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - src/**
+      - scripts/legacy-job-flags-concurrency.mjs
+      - scripts/legacy-job-flags-db.test.mjs
       - scripts/retired-flags-browser.mjs
       - scripts/listing-publication-browser.mjs
       - scripts/fixtures/**

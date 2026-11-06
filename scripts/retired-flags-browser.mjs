@@ -64,7 +64,7 @@ try {
       const footer=await page.locator('.listing-footer').boundingBox();
       assert.ok(footer && footer.y>=0 && footer.y+footer.height<=viewport.height+1,`${id}: visible footer`);
       if(id!=='review'){await page.waitForFunction(()=>{const next=document.querySelector('.listing-next');return next && !next.disabled;});}
-      await page.screenshot({path:path.join(evidence,`${viewport.width}-${id}.png`)});
+      await page.screenshot({path:path.join(evidence,`${viewport.width}-${id}.png`),animations:'disabled'});
       await page.reload();await page.locator(`[data-step-id="${id}"]`).waitFor();
       const values=await page.evaluate(()=>window.qaDrafts.listDeviceDrafts('00000000-0000-4000-8000-000000000001')[0]?.form);
       assert.equal(values.beginnerOk,true);assert.equal(values.instantApproveRepeat,true);assert.doesNotMatch(await page.locator('body').innerText(),/初心者大歓迎|リピート即決|リピーターの自動承認|また呼びたい即決/);assert.equal(values.jobCount,'3');assert.equal(values.dailyWageInput,'10000');assert.equal(values.nearestStation,'山瀬');
@@ -86,7 +86,11 @@ try {
       await surface.evaluate(expert=>window.qaRenderRetiredFlags(expert),expert);
       assert.doesNotMatch(await surface.locator('body').innerText(),/初心者大歓迎|リピート即決|リピーターの自動承認|また呼びたい即決/);
       assert.equal(await surface.locator('.job-card-conditions').count(),expert?1:0);
-      await surface.screenshot({path:path.join(evidence,`${viewport.width}-card-detail-${expert?'expert':'no-flags'}.png`),fullPage:true});
+      if(expert){
+        await surface.locator('.cb-reveal').scrollIntoViewIfNeeded();
+        await surface.waitForTimeout(450); // settle the real scroll-reveal effect before pixel evidence
+      }
+      await surface.screenshot({path:path.join(evidence,`${viewport.width}-card-detail-${expert?'expert':'no-flags'}.png`),fullPage:true,animations:'disabled'});
       results.push({width:viewport.width,scenario:'card-and-highlights',expert,retiredTrueFlagsHidden:true});
     }
     assert.deepEqual(errors,[],`${viewport.width}/card: page errors`);await surfaceContext.close();
@@ -113,7 +117,14 @@ try {
       await edit.locator('.listing-next').click();await edit.locator('[data-step-id="review"]').waitFor();
       assert.equal(await edit.locator('[data-edit-page="repeat_approval"]').count(),0);
       assert.doesNotMatch(await edit.locator('body').innerText(),/初心者大歓迎|リピート即決|リピーターの自動承認|また呼びたい即決/);
-      await edit.screenshot({path:path.join(evidence,`${viewport.width}-${scenario}-detail.png`),fullPage:true});
+      await edit.screenshot({path:path.join(evidence,`${viewport.width}-${scenario}-detail.png`),fullPage:true,animations:'disabled'});
+      // The app scrolls inside .listing-scroll. A fullPage screenshot alone only records
+      // its top viewport, not the job content below the photo. Capture that content too.
+      await edit.getByText('経験者優遇',{exact:true}).first().scrollIntoViewIfNeeded();
+      await edit.waitForTimeout(450);
+      await edit.screenshot({path:path.join(evidence,`${viewport.width}-${scenario}-detail-conditions.png`),animations:'disabled'});
+      assert.doesNotMatch(await edit.locator('body').innerText(),/初心者大歓迎|リピート即決|リピーターの自動承認|また呼びたい即決/);
+
       await edit.reload();await edit.locator('[data-step-id="review"]').waitFor();
       const values=await edit.evaluate(()=>window.qaDrafts.listDeviceDrafts('00000000-0000-4000-8000-000000000001')[0].form);
       assert.equal(values.beginnerOk,true);assert.equal(values.instantApproveRepeat,true);

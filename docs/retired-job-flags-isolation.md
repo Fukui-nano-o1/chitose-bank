@@ -42,3 +42,7 @@ Read-only production catalog inspection found effective TRUNCATE table privilege
 - `npm run lint`: zero errors, 19 warnings. `vite build`: passed. `npm run typecheck`: app and edge checks passed (the repository's configured coverage, not full-app coverage).
 - Two default-parallel aggregate attempts hit unrelated asynchronous test races: review effect initialization, and workplace object-URL cleanup. Each passed in focused reruns. A separate draft-test failure was traced to an immediate asserting helper inside a retry wait; the test-only fix polls readiness without increasing timeouts or changing synchronization code. The final bounded-parallel whole suite passed.
 - Chromium visual execution remains blocked by this runtime's socket restriction. No production UI, application, notifications, or database mutations were exercised.
+
+## Release revalidation
+
+The prior local browser and concurrency limitations were addressed in GitHub CI on head `ef17ef79ef43d704969c7a43dde8ea3135269ad9`: dedicated Chromium checks (18 retirement + 18 publication cases, zero page errors) and real PostgreSQL 17 concurrent-session checks passed. Evidence: https://github.com/Fukui-nano-o1/chitose-bank/actions/runs/42165257983 . The browser script additionally captures settled/scrolled detail-condition screenshots for the final release gate. The local runtime's socket restriction remains unchanged; CI executes synthetic fixtures without production credentials or writes.
