@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ACTIVE_LISTING_FLOW, adjacentListingPage, legacyNumberForPage, resolveListingResume, listingPageHash, parseListingRoute } from "../src/features/jobs/create/listingNavigation.js";
 
-const pages = ["photos","photo_captions","description","work_video","video_consent","danger_places","danger_tasks","belongings","cautions","worker_preferences","repeat_approval"];
+const pages = ["photos","photo_captions","description","work_video","video_consent","danger_places","danger_tasks","belongings","cautions","worker_preferences"];
 test("stage4 has independent page IDs and stable old DB step numbers", () => {
   for (const id of pages) {
     assert.equal(ACTIVE_LISTING_FLOW.filter(p=>p===id).length, 1, id);

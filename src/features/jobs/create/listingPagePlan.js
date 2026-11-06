@@ -30,8 +30,7 @@ export const SINGLE_TOPIC_PAGES = Object.freeze([
   page("danger_tasks", "危険な作業", 1, ["jobDangerTasks"], ["danger_tasks"], { optional: true }),
   page("belongings", "持ち物", 1, ["jobNotes"], ["belongings"], { optional: true }),
   page("cautions", "注意事項", 1, ["jobCautions"], ["cautions"], { optional: true }),
-  page("worker_preferences", "初心者歓迎・経験者優遇", 1, ["beginnerOk", "experiencedPreferred"], ["beginner_ok", "experienced_preferred"], { optional: true }),
-  page("repeat_approval", "リピーターの自動承認", 1, ["instantApproveRepeat"], ["instant_approve_repeat"], { optional: true }),
+  page("worker_preferences", "経験者優遇", 1, ["experiencedPreferred"], ["experienced_preferred"], { optional: true }),
   page("recruiter_name", "募集者の名称", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.recruiter_name" }),
   page("recruiter_address", "募集者の住所", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.recruiter_address" }),
   page("recruiter_contact", "募集者の連絡先", 2, [], [], { condition: "recruiter-missing", externalField: "employer_profiles.recruiter_contact" }),
@@ -46,6 +45,7 @@ export const AUXILIARY_LISTING_PAGES = Object.freeze([
 ]);
 export const NON_INPUT_COLUMNS = Object.freeze({
   date_label: "derived-from-schedule", pay_type: "fixed-daily-pay", hourly_wage: "fixed-empty",
+  beginner_ok: "retired-preserve", instant_approve_repeat: "retired-preserve",
   job_exp: "legacy-preserve", perks: "profile-inherited-preserve", draft_step: "legacy-progress-preserve",
   lat: "derived-geocode", lng: "derived-geocode", geo_radius_m: "derived-geocode", geocoded_from: "derived-geocode",
 });
@@ -56,7 +56,7 @@ const targets = {
   workplace: ["workplace", "place_scope", "access"], schedule: ["schedule", "holidays", "headcount"],
   terms: ["work_time", "break_time", "overtime", "daily_wage"], details_intro: ["details_intro"],
   photos: ["photos", "photo_captions"], description: ["description"], work_video: ["work_video", "video_consent"],
-  danger: ["danger_places", "danger_tasks"], wishes: ["belongings", "cautions", "worker_preferences", "repeat_approval"],
+  danger: ["danger_places", "danger_tasks"], wishes: ["belongings", "cautions", "worker_preferences"],
   review: ["review"], complete: ["complete"],
 };
 export const LEGACY_PAGE_TARGETS = Object.freeze(Object.fromEntries(Object.entries(targets).map(([id, ids]) => [id, Object.freeze(ids)])));
@@ -64,6 +64,7 @@ export const LEGACY_PAGE_TARGETS = Object.freeze(Object.fromEntries(Object.entri
 // 再開先候補の解決だけを行う。データ移行や保存、入力済み判定はしない。
 // 第2弾以降で既存の項目検査と接続し、未入力先へ案内する。未知形式を勝手に先頭へ送らない。
 export function plannedResumeCandidates({ pageId, legacyStep, legacyVersion = "2026-10-05" } = {}) {
+  if (pageId === "repeat_approval") return ["worker_preferences"];
   const knownIds = [...SINGLE_TOPIC_PAGES, ...AUXILIARY_LISTING_PAGES].map(item => item.id);
   if (pageId !== undefined && pageId !== null && pageId !== "") return knownIds.includes(pageId) ? [pageId] : [];
   const legacyId = legacyStepId(legacyStep, legacyVersion);

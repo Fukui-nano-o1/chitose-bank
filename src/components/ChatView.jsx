@@ -1,3 +1,4 @@
+import { historicalMessageText } from "../features/chat/presentation/historyMessage";
 import { goAlongPath, returnAlongPath, routeReturn } from "../lib/routeTrail";
 // チャット（分割・大物②＝最終ピース・2026-07-24）：LINE式スレッド。求人コンテキストカード・確認カード・
 // 日程案シート・既読・コメント報告・採用/二重予約警告・保険状態まで内蔵する最大の対話部品。
@@ -180,6 +181,7 @@ export function ChatView({ applicationId, onBack }) {
   const [activeStatus, setActiveStatus] = useState(() => _cr?.status ?? null); // 現役応募のステータス（applied=農家に承認/見送るボタン表示・2026-07-19）
   const [activeAvail, setActiveAvail] = useState(() => _cr?.available_dates ?? null); // 現役応募の来られる日（期間求人・文脈カードで表示・2026-07-24）
   const [activeAgreed, setActiveAgreed] = useState(() => _cr?.agreed_dates ?? null); // 現役応募の働く日（確定・文脈カード/確認カードで表示・2026-07-24 追記3）
+  const [historyContextLoadedFor, setHistoryContextLoadedFor] = useState(null);
   const [threadApps, setThreadApps] = useState([]); // この相手との全応募（求人No.の仕分け用・2026-07-22）。相手は1人でも求人は複数ありうる
   // 求人の軽い日程（日程案の候補日・確認カードの材料）：
   // { job_number: {work_time,date_start,date_end,holidays} }。本文の表示より後に取る
@@ -410,7 +412,7 @@ export function ChatView({ applicationId, onBack }) {
             supabase.from(table).select("nickname,avatar_url").eq("auth_id", partnerId).maybeSingle(),
             supabase.rpc("my_chat_partner_initials"),
             supabase.from("applications")
-              .select("id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates,agreed_dates")
+              .select("id,farmer_id,job_number,status,created_at,terms_confirmed_worker_at,terms_confirmed_farmer_at,insurance_prepared_at,available_dates,agreed_dates")
               .eq(iAmWorker ? "worker_id" : "farmer_id", session.user.id)
               .eq(iAmWorker ? "farmer_id" : "worker_id", partnerId)
               .order("created_at", { ascending: false }),
@@ -458,6 +460,7 @@ export function ChatView({ applicationId, onBack }) {
           return;
         }
       } catch {}
+      finally { if (aliveRef.current) setHistoryContextLoadedFor(applicationId); }
     })();
   }, [applicationId]);
   // リアルタイム受信（2026-07-19）：この相手との応募IDへの新着メッセージINSERTを購読し、即時再読込。
@@ -783,7 +786,7 @@ export function ChatView({ applicationId, onBack }) {
             onClick={()=>{ if (reportMode) { setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
             role={reportMode ? "button" : undefined} tabIndex={reportMode ? 0 : undefined}
             onKeyDown={event => { if (reportMode && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setReportTarget(m); setReportReason(""); setReportDetail(""); setReportDone(false); } }}
-            className={`chat-bubble${m.sender_id === myId ? " is-mine" : ""}${reportMode ? " is-reportable" : ""}`}>{m.body}</div>
+            className={`chat-bubble${m.sender_id === myId ? " is-mine" : ""}${reportMode ? " is-reportable" : ""}`}>{historicalMessageText(m, threadApps.find(a => a.id === m.application_id) || (_cr?.id === m.application_id ? _cr : null), { pending: historyContextLoadedFor !== applicationId && !loadError })}</div>
           <span className={`chat-message-time${m.sender_id === myId ? " is-mine" : ""}`}>{chatTime(m.created_at)}{m.id === readMarkMsgId ? " · 既読" : ""}</span>
           {/* 日程案のタブ（2026-08-19たきと指示）：本文の下に日付を並べ直す。
               働き手はタップして承認＝入力欄に返事が積まれる／農家（自分が送った側）は押せないタグ */}
@@ -861,7 +864,7 @@ export function ChatView({ applicationId, onBack }) {
             ) : (
               <>
                 <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 12px" }}><NavIconInline name="flag" size={14} style={{ verticalAlign:"-2px" }} />コメントを報告する</p>
-                <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#222", lineHeight:1.7, marginBottom:14, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", maxHeight:"20vh", overflowY:"auto" }}>{reportTarget.body}</div>
+                <div className="f-sans" style={{ background:"#F7F7F7", borderRadius:10, padding:"10px 12px", fontSize:13, color:"#222", lineHeight:1.7, marginBottom:14, whiteSpace:"pre-wrap", overflowWrap:"break-word", wordBreak:"break-word", maxHeight:"20vh", overflowY:"auto" }}>{historicalMessageText(reportTarget, threadApps.find(a => a.id === reportTarget.application_id) || (_cr?.id === reportTarget.application_id ? _cr : null), { pending: historyContextLoadedFor !== applicationId && !loadError })}</div>
                 <p className="f-sans" style={{ fontSize:12, fontWeight:700, color:"#222", margin:"0 0 8px" }}>このコメントは、どう問題ですか？</p>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
                   {REPORT_REASONS.map(r => (

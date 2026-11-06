@@ -7,6 +7,6 @@ window.qaWorkplaceOpen = 0;
 window.qaRenderIntro = props => flushSync(() => root.render(<main style={{maxWidth:700, margin:'0 auto', padding:20}}>
   <JobHostRow job={{employerName:'合成農園'}} />
   <JobWorkplaceIntro {...props} onOpenWorkplace={() => { window.qaWorkplaceOpen++; }} />
-  <JobHighlights job={{beginnerOk:true}} />
+  <JobHighlights job={{beginnerOk:true,instantApproveRepeat:true,experiencedPreferred:true}} />
 </main>));
 window.qaRenderIntro(window.qaIntroProps || {});

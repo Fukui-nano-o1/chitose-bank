@@ -1,0 +1,81 @@
+name: Retired job flags browser release gate
+on:
+  pull_request:
+    paths:
+      - src/**
+      - scripts/retired-flags-browser.mjs
+      - scripts/listing-publication-browser.mjs
+      - scripts/fixtures/**
+      - supabase/migrations/**
+      - package*.json
+      - .github/workflows/retired-flags-browser-check.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: retired-flags-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Tokyo
+      CB_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y fonts-noto-cjk
+      - name: Retired flags, old routes, existing drafts and copied drafts
+        run: node scripts/retired-flags-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: browser-evidence/retired-flags
+      - name: Full listing review, consent, reload and failed publication
+        run: node scripts/listing-publication-browser.mjs
+        env:
+          CB_EVIDENCE_DIR: browser-evidence/listing-publication
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: retired-flags-browser-${{ github.event.pull_request.head.sha || github.sha }}
+          path: browser-evidence
+          if-no-files-found: error
+          retention-days: 7
+  postgres-concurrency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: legacy_flags_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Synthetic concurrent direct-API and migration checks
+        run: node scripts/legacy-job-flags-concurrency.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/legacy_flags_ci
