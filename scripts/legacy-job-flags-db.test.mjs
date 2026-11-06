@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { legacyJobFlagsSchema, legacyJobFlagsRuntime } from './fixtures/legacy-job-flags-schema.mjs';
 const read = file => readFile(new URL('../' + file, import.meta.url), 'utf8');
-const migration = await read('supabase/migrations/20261105215520_isolate_legacy_job_flags.sql');
+const migration = await read('supabase/migrations/20261106050556_isolate_legacy_job_flags.sql');
 const rollback = await read('docs/rollback/restore-legacy-job-flags.sql');
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 const farmer=id(1), worker=id(2), nextWorker=id(3), stranger=id(4), admin=id(5);

@@ -2,7 +2,7 @@
 
 ## Local deliverables
 
-- Migration: `supabase/migrations/20261105215520_isolate_legacy_job_flags.sql` (created with the Supabase CLI).
+- Migration: `supabase/migrations/20261106050556_isolate_legacy_job_flags.sql` (created with the Supabase CLI).
 - Synthetic PostgreSQL tests: `scripts/legacy-job-flags-db.test.mjs`.
 - Explicit rollback: `docs/rollback/restore-legacy-job-flags.sql`.
 - Catalog-read function/view fixtures: `scripts/fixtures/legacy-job-flags-*-production.sql` and `legacy-job-flags-production.sql`. These contain definitions, not production records.
@@ -49,3 +49,11 @@ Separate existing issue: effective TRUNCATE privilege exists for anon/authentica
 Obtain explicit release authorization. Reinspect catalog preflight, run the focused and aggregate tests and complete browser QA. Apply only the new migration, not historical migrations, before the frontend release. Migration failure means rollback the transaction and investigate; do not weaken preflight or remove old data to make it pass.
 
 A frontend rollback must not silently reactivate automation. `restore-legacy-job-flags.sql` is a separately authorized behavior change: it restores the old future-application automation and original effective grants, disables the new normalization trigger, and restores the old presentation view. It checks installed function hashes/ACLs, view hash/options, the isolation helper hash and both trigger definitions/enabled states first, refusing later drift. It does not backfill approvals, change previous decisions or restore true flags to newly created rows. Historical source/archives and existing true values stay preserved throughout.
+
+## Production database release verification (2026-11-06)
+
+After explicit release sequencing, the reviewed SQL was applied once through `apply_migration`. Production recorded version `20261106050556`, name `isolate_legacy_job_flags`. The server-stored single SQL statement and renamed local migration both have SHA256 `ffefb6c01effdd4e3cf2c4e572d12142ca518fc9fa9303cc7f652685d1851693`; only the filename and references changed to match the applied version. An identity fixture prevents replay under the candidate version.
+
+Post-apply read-only verification confirmed: six archived function hashes and ACLs match installed definitions, `instant_approve` is disabled and its function is a no-op, the job-flag isolation trigger is enabled, public presentation has zero true retired flags, and all three archive tables have RLS plus postgres-only ACLs. Anon/authenticated/service_role lack archive schema/table access and cannot execute either isolation trigger function. Active repeat-promise functions and pending repeat-message queue count are zero. Applications retain RLS with no direct-write policy; unrelated TRUNCATE grants were not changed.
+
+Original data preservation checks matched the immediate preflight: jobs 66, applications 32, roster 3, messages 256 and notifications 634; job-flag aggregate MD5 `0469b8ab4e820014bb18fc094ee9c2dd`, application-ID/status/decision-time aggregate MD5 `245a85c3476d7bd6fc72642c4c456267`. No test applications or synthetic messages were inserted in production. Frontend release is sequenced separately after repository identity reconciliation.

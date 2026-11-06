@@ -1,0 +1,8 @@
+{
+  "version": "20261106050556",
+  "name": "isolate_legacy_job_flags",
+  "file": "20261106050556_isolate_legacy_job_flags.sql",
+  "candidate": "20261105215520_isolate_legacy_job_flags.sql",
+  "sha256": "ffefb6c01effdd4e3cf2c4e572d12142ca518fc9fa9303cc7f652685d1851693",
+  "verified_source": "supabase_migrations.schema_migrations: version 20261106050556, statement_count 1, server-computed statements SHA256 matches local file"
+}
