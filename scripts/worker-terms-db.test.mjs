@@ -64,5 +64,74 @@ test('worker confirmation, frozen snapshot, message and transactional notificati
    await db.exec(`reset role;insert into applications(id,worker_id,farmer_id,job_number,status) values('${aid(11)}','${worker}','${farmer}',17,'approved');`);await login(farmer);
    assert.equal((await db.query('select confirm_terms($1) r',[aid(11)])).rows[0].r.ok,true);assert.ok((await app(11)).terms_snapshot);await login(worker);
   });
+  await db.exec('reset role');
+  await db.exec(await readFile(new URL('../supabase/migrations/20261023062551_guard_farmer_terms_application_state.sql',import.meta.url),'utf8'));
+  // Record even no-op UPDATEs so a rejected request cannot silently touch rows.
+  await db.exec(`create table qa_hire_mutations(relation text);
+   create function qa_track_hire_mutation() returns trigger language plpgsql as $$begin insert into qa_hire_mutations values(tg_table_name);return new;end$$;
+   create trigger qa_hire_app_update after update on applications for each row execute function qa_track_hire_mutation();
+   create trigger qa_hire_job_update after update on jobs for each row execute function qa_track_hire_mutation();`);
+  const hire=async(n,accept=false)=>(await db.query('select confirm_terms($1,$2) r',[aid(n),accept])).rows[0].r;
+  const seedHire=async(n,status)=>{
+   await db.exec('reset role');
+   await db.query("insert into jobs(job_number,crop,task,headcount,status) values($1,'野菜','収穫',1,'open')",[n]);
+   await db.query('insert into applications(id,worker_id,farmer_id,job_number,status) values($1,$2,$3,$4,$5)',[aid(n),worker,farmer,n,status]);
+   await db.query("insert into applications(id,worker_id,farmer_id,job_number,status) values($1,$2,$3,$4,'applied')",[aid(n+1000),other,farmer,n]);
+   await login(farmer);
+  };
+  const allState=async()=>{
+   await db.exec('reset role');
+   const state={};
+   for(const table of ['applications','jobs','messages','notifications','qa_email','qa_push','qa_hire_mutations']) {
+    state[table]=(await db.query(`select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]'::jsonb) r from ${table} t`)).rows[0].r;
+   }
+   await db.exec('set role authenticated');
+   return state;
+  };
+  for(const [i,status] of ['canceled','expired','rejected','completed'].entries()) {
+   await t.test(`farmer cannot confirm ${status}, including with double-booking consent; no rows or notifications change`,async()=>{
+    const n=100+i;await seedHire(n,status);const before=await allState();
+    for(const accept of [false,true,null]) {
+     assert.deepEqual(await hire(n,accept),{ok:false,reason:'closed'});
+     assert.deepEqual(await allState(),before);
+    }
+   });
+  }
+  await t.test('unapproved and unknown/null states cannot create a hiring record',async()=>{
+   for(const [i,status] of ['applied',null,'future_state'].entries()) {
+    const n=110+i;await seedHire(n,status);const before=await allState();
+    assert.deepEqual(await hire(n,true),{ok:false,reason:'not_approved'});
+    assert.deepEqual(await allState(),before);
+   }
+  });
+  await t.test('legitimate hiring, capacity closure and idempotent retry still work',async()=>{
+   await seedHire(120,'approved');const before=await counts();
+   const result=await hire(120,true);
+   assert.equal(result.ok,true);assert.equal(result.worker_confirmed,true);assert.equal(result.farmer_confirmed,true);assert.equal(result.filled,true);
+   assert.deepEqual(result.closed_ids,[aid(1120)]);
+   const saved=await app(120);assert.ok(saved.terms_snapshot);assert.ok(saved.terms_confirmed_farmer_at);
+   assert.equal((await app(1120)).status,'rejected');
+   const after=await counts();assert.equal(after.messages,before.messages+2);assert.ok(after.notifications>before.notifications);assert.ok(after.emails>before.emails);
+   const snapshot=await allState();assert.equal(snapshot.jobs.find(j=>j.job_number===120).status,'closed');
+   assert.equal((await hire(120,true)).ok,true);assert.deepEqual(await app(120),saved);assert.deepEqual(await counts(),after);
+   // Closing a previously confirmed application must not permit a later retry.
+   await db.exec(`reset role;update applications set status='canceled' where id='${aid(120)}';`);await login(farmer);
+   const closed=await allState();assert.deepEqual(await hire(120,true),{ok:false,reason:'closed'});assert.deepEqual(await allState(),closed);
+  });
+  await t.test('double-booking warning requires explicit consent for a live application',async()=>{
+   await seedHire(130,'approved');await seedHire(131,'interview');const before=await allState();
+   const blocked=await hire(130);assert.equal(blocked.reason,'double_booked');assert.equal(blocked.dup_job,131);assert.deepEqual(await allState(),before);
+   assert.equal((await hire(130,true)).ok,true);
+  });
+  await t.test('row locking, actor restrictions and stopped-account protection remain in force',async()=>{
+   await seedHire(140,'approved');const before=await allState();
+   await login(other);assert.equal((await hire(140,true)).reason,'not_party');
+   await login(worker);assert.equal((await hire(140,true)).reason,'use_worker_confirmation');
+   await login('');await db.exec('set role anon');assert.equal((await hire(140,true)).reason,'not_party');
+   await login(farmer);await db.query("select set_config('qa.moderated','yes',false)");await assert.rejects(hire(140,true),/停止中/);await db.query("select set_config('qa.moderated','no',false)");
+   assert.deepEqual(await allState(),before);
+   const source=(await db.query("select prosrc from pg_proc where oid='public.confirm_terms(uuid,boolean)'::regprocedure")).rows[0].prosrc;
+   assert.match(source,/select worker_id, farmer_id, job_number, status[\s\S]*?for update;/i);
+  });
  }finally{await db.close();}
 });
