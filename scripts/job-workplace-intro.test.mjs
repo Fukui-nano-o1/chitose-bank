@@ -88,6 +88,17 @@ test('job workplace preview preserves ordering, published-only photos, truthful 
     assert.equal(section().querySelectorAll('img').length,count);
    }
   });
+  await t.test('preview prioritizes teaching and breaks without adding placeholder claims',()=>{
+   const employer={intro_atmosphere:'合成の雰囲気',teaching_style:'show_first',break_style:'木陰で休憩します'};
+   const headings=()=>[...section().querySelectorAll('.job-workplace-topic')].map(node=>node.textContent);
+   w.qaRenderIntro({status:'ready',photoStatus:'ready',employer});
+   assert.deepEqual(headings(),['教え方','休憩の過ごし方']);
+   assert.match(text(),/やって見せてから任せる/);
+   assert.match(text(),/木陰で休憩します/);
+   assert.doesNotMatch(text(),/合成の雰囲気/);
+   w.qaRenderIntro({status:'ready',photoStatus:'ready',employer:{intro_atmosphere:employer.intro_atmosphere}});
+   assert.deepEqual(headings(),['職場の雰囲気']);
+  });
   await t.test('slow old images and private data cannot survive replacement with a loading job',async()=>{
    w.qaRenderIntro({status:'ready',photoStatus:'ready',photos:[photo('d')],employer:{intro_atmosphere:'OLD WORKPLACE'}});
    await until(()=>typeof releaseSlow==='function','slow photo request');

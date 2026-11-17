@@ -187,13 +187,12 @@ export function JobWorkplaceIntro({ employer, status = "loading", photos = [], p
   const published = photoStatus === "ready" && Array.isArray(photos)
     ? photos.filter(photo => validWorkplacePhotoPath(photo?.path)) : [];
   const preview = published.slice(0, 3);
-  const rows = status === "ready" ? workplaceIntroRows(employer) : [];
-  const intro = rows[0];
+  const rows = status === "ready" ? workplaceIntroRows(employer, { preview: true }) : [];
   const loading = status === "loading" || photoStatus === "loading";
   const failed = status === "error" || photoStatus === "error";
   // Text or published photos count as an introduction. Pending/failed reads are
   // not proof that it is empty, so keep their existing status and retry entry.
-  if (!loading && !failed && !intro && !preview.length) return null;
+  if (!loading && !failed && !rows.length && !preview.length) return null;
   return (
     <AirSection id="sec-workplace" title="職場紹介">
       <div className="job-workplace-intro f-sans">
@@ -205,13 +204,13 @@ export function JobWorkplaceIntro({ employer, status = "loading", photos = [], p
             <span className="job-workplace-photo-count">写真{published.length}枚を見る</span>
           </button>
         )}
-        {intro && <div className="job-workplace-copy">
+        {rows.map(intro => <div className="job-workplace-copy" key={intro.title}>
           <p className="job-workplace-topic">{intro.title}</p>
           <p className="job-workplace-summary">{intro.body}</p>
-        </div>}
+        </div>)}
         {loading && <p className="job-workplace-status" role="status">職場紹介を読み込んでいます…</p>}
         {!loading && failed && <p className="job-workplace-status" role="status">職場紹介の一部を読み込めませんでした。詳しく見るから、もう一度お試しください。</p>}
-        {(intro || preview.length > 0) && <p className="job-workplace-note">募集主が登録した、普段の働き方の紹介です。</p>}
+        {(rows.length > 0 || preview.length > 0) && <p className="job-workplace-note">募集主が登録した、普段の働き方の紹介です。</p>}
         <button type="button" onClick={onOpenWorkplace} className="job-workplace-more">
           職場紹介を詳しく見る<span aria-hidden="true"> ›</span>
         </button>
