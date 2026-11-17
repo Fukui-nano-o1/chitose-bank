@@ -1,3 +1,5 @@
+import { NavIcon } from './NavIcons';
+import './WorkplaceEditPage.css';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { WorkplacePhoto } from './WorkplacePhoto.jsx';
 import { validateWorkplaceImage } from '../lib/workplaceImage.js';
@@ -13,6 +15,9 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
   const [people, setPeople] = useState(false);
   const [working, setWorking] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [publishedOpen, setPublishedOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const actionLock = useRef(false);
   const input = useRef(null);
   const draftKey = draftPhotos.map(photo => `${photo.id}:${photo.path}`).join('|');
@@ -21,7 +26,11 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
   const libraryBytes = savedPhotos.reduce((total, photo) => total + (Number.isFinite(photo.size) ? photo.size : 0), 0);
   const libraryFull = savedPhotos.length >= libraryLimit || (knownBytes && libraryBytes >= libraryBytesLimit);
   const deletable = deleteId && savedPhotos.some(photo => photo.id === deleteId) && !usedIds.has(deleteId);
+  const unsettledPhotos = savedPhotos.filter(photo => photo.state !== 'ready').length;
+  const hasDraft = canEdit && status === 'ready' && draftPhotos.length > 0;
   const disabled = !canEdit || status !== 'ready' || busy || working;
+  useLayoutEffect(() => { setPublishOpen(hasDraft); }, [draftKey, hasDraft]);
+  useEffect(() => { if (!canEdit || status === 'loading') { setPublishedOpen(false); setLibraryOpen(false); setDeleteId(null); } }, [canEdit, status]);
   // Clear prior consent before the changed draft becomes interactive.
   useLayoutEffect(() => { setPublicWeb(false); setPeople(false); }, [draftKey, canEdit]);
   useEffect(() => () => { if (selection) URL.revokeObjectURL(selection.url); }, [selection]);
@@ -42,12 +51,31 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
     try { validateWorkplaceImage(file); setLocalError(''); setSelection({ file, url: URL.createObjectURL(file) }); }
     catch (failure) { setLocalError(failure.message); }
   };
+  const openPicker = () => { if (!disabled && draftPhotos.length < 6 && onAdd) input.current?.click(); };
   return <section className="f-sans workplace-edit-page" aria-labelledby="workplace-edit-title" style={{ maxWidth: 760, margin: '0 auto', padding: '8px 0 96px', color: '#222' }}>
     <button type="button" onClick={onBack} style={{ ...buttonStyle, border: 0, paddingLeft: 0 }}>← プロフィール編集に戻る</button>
     <h1 id="workplace-edit-title" style={{ fontSize: 24, margin: '12px 0 8px' }}>職場紹介の編集</h1>
     <p style={{ lineHeight: 1.7, margin: '0 0 4px' }}>作業や休憩の様子を、写真で伝えましょう。</p>
     <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" onChange={select} disabled={disabled || draftPhotos.length >= 6 || !onAdd} aria-label="職場紹介の写真を選ぶ" style={{ display: 'none' }} />
-    <button type="button" data-guide="workplace-select" disabled={disabled || draftPhotos.length >= 6 || !onAdd} onClick={() => input.current?.click()} style={{ ...buttonStyle, width: '100%', marginTop: 12, background: '#222', color: '#fff', borderColor: '#222', fontWeight: 700, opacity: disabled || draftPhotos.length >= 6 || !onAdd ? 0.45 : 1 }}>写真を選ぶ（{draftPhotos.length}/6枚）</button>
+    <button type="button" data-guide="workplace-select" disabled={disabled || draftPhotos.length >= 6 || !onAdd} onClick={openPicker} style={{ ...buttonStyle, width: '100%', marginTop: 12, background: '#222', color: '#fff', borderColor: '#222', fontWeight: 700, opacity: disabled || draftPhotos.length >= 6 || !onAdd ? 0.45 : 1 }}>写真を選ぶ（{draftPhotos.length}/6枚）</button>
+    <section aria-label="下書きの写真" className="workplace-draft-slots">
+      <p className="workplace-draft-caption">下書きの写真{status === 'ready' ? ` · ${draftPhotos.length}/6枚` : ' · 未確認'}</p>
+      <div className="workplace-slot-grid">
+        {Array.from({ length: Math.min(draftPhotos.length + 1, 6) }, (_, index) => {
+          const photo = draftPhotos[index];
+          return <figure key={index} data-draft-slot={index + 1}>
+            {photo ? <>
+              <WorkplacePhoto path={photo.path} alt={`下書きの写真 ${index + 1}`} style={photoStyle} />
+              <button type="button" disabled={disabled || !onRemove} onClick={() => run(() => onRemove(photo.id))}
+                aria-label={`下書きから写真${index + 1}を外す`} style={{ ...buttonStyle, width:'100%', padding:'8px 2px', fontSize:12 }}>写真{index + 1}を外す</button>
+            </> : <button type="button" className="workplace-slot-empty" aria-label="写真を追加"
+              disabled={disabled || draftPhotos.length >= 6 || !onAdd} onClick={openPicker}>
+              <span aria-hidden="true"><NavIcon name="image" size={24} /></span><span>追加</span>
+            </button>}
+          </figure>;
+        })}
+      </div>
+    </section>
     <p style={{ color: '#717171', fontSize: 13, lineHeight: 1.7 }}>最大6枚。選んだだけでは保存・公開されません。</p>
     {status === 'unconfigured' && <p role="status" style={{ padding: 16, background: '#F7F7F7', borderRadius: 12, lineHeight: 1.8 }}>独立した保存先と公開方法を準備しています。現在、このページでは写真の選択・アップロード・保存・公開はできません。</p>}
     {status === 'loading' && <p role="status">職場紹介を読み込んでいます…</p>}
@@ -65,15 +93,6 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
       <button type="button" disabled={busy || working} onClick={() => setSelection(null)} style={buttonStyle}>選択を取り消す</button>
     </section>}
 
-    <h2 style={{ fontSize: 20, marginTop: 28 }}>下書きの写真</h2>
-    <p style={{ lineHeight: 1.7 }}>ここで写真を確認します。公開中の写真は、公開ボタンを押すまで変わりません。</p>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-      {draftPhotos.map((photo, index) => <figure key={photo.id} style={{ margin: 0 }}>
-        <WorkplacePhoto path={photo.path} alt={`下書きの写真 ${index + 1}`} style={photoStyle} />
-        <button type="button" disabled={disabled || !onRemove} onClick={() => run(() => onRemove(photo.id))} style={buttonStyle}>下書きから写真{index + 1}を外す</button>
-      </figure>)}
-    </div>
-    {status === 'ready' && !draftPhotos.length && <p>下書きの写真はまだありません。</p>}
     <details style={{ marginTop: 16, lineHeight: 1.7 }}>
       <summary style={{ cursor: 'pointer', minHeight: 44 }}>写真の条件・保存について</summary>
     <p style={{ lineHeight: 1.8 }}>作業中の様子、一緒に働く人、休憩の雰囲気などがあると、応募する人が働く姿をイメージしやすくなります。</p>
@@ -84,27 +103,33 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
 
 
 
-    <section data-guide="workplace-publish" style={{ marginTop: 28, borderTop: '1px solid #DDD', paddingTop: 20 }}>
-      <h2 style={{ fontSize: 20 }}>公開前の確認</h2>
+    <details className="workplace-management" open={publishOpen} onToggle={event => setPublishOpen(event.currentTarget.open)}>
+      <summary data-guide="workplace-publish">公開前の確認 <span>{hasDraft ? '下書きを確認して公開' : '下書きができたら'}</span></summary>
       <p style={{ lineHeight: 1.8 }}>公開中の求人の職場紹介ページでは、ログインしていない人も写真を閲覧できます。公開を取り下げても、すでに保存・共有された写真を回収することはできません。</p>
-      <label style={{ display: 'block', padding: '10px 0', lineHeight: 1.8 }}><input type="checkbox" checked={publicWeb} disabled={disabled} onChange={event => setPublicWeb(event.target.checked)} /> この下書きの写真をウェブ上で一般公開することに同意します。</label>
-      <label style={{ display: 'block', padding: '10px 0', lineHeight: 1.8 }}><input type="checkbox" checked={people} disabled={disabled} onChange={event => setPeople(event.target.checked)} /> 写真の掲載権限があります。人物が写っている場合は、全員からWeb掲載の同意を得ています。</label>
+      <label style={{ display: 'block', padding: '10px 0', lineHeight: 1.8 }}><input type="checkbox" checked={publicWeb} disabled={disabled || !hasDraft} onChange={event => setPublicWeb(event.target.checked)} /> この下書きの写真をウェブ上で一般公開することに同意します。</label>
+      <label style={{ display: 'block', padding: '10px 0', lineHeight: 1.8 }}><input type="checkbox" checked={people} disabled={disabled || !hasDraft} onChange={event => setPeople(event.target.checked)} /> 写真の掲載権限があります。人物が写っている場合は、全員からWeb掲載の同意を得ています。</label>
       <button type="button" disabled={disabled || !!selection || !draftPhotos.length || !publicWeb || !people || !onPublish} onClick={() => run(async () => { await onPublish({ publicWeb, people }); setPublicWeb(false); setPeople(false); })} style={buttonStyle}>この内容で公開する</button>
-    </section>
+    </details>
 
-    <section style={{ marginTop: 28, borderTop: '1px solid #DDD', paddingTop: 20 }}>
-      <h2 style={{ fontSize: 20 }}>公開中の写真</h2>
+    <details className="workplace-management" open={publishedOpen} onToggle={event => setPublishedOpen(event.currentTarget.open)}>
+      <summary>公開中の写真 <span>{status === 'ready' ? `${publishedPhotos.length}枚${!publishedPhotos.length ? '・未公開' : ''}` : '未確認'}</span></summary>
+      {publishedOpen && canEdit && status === 'ready' && <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
         {publishedPhotos.map((photo, index) => <WorkplacePhoto key={photo.id} path={photo.path} alt={`公開中の写真 ${index + 1}`} style={photoStyle} />)}
       </div>
       {status === 'ready' && !publishedPhotos.length && <p>現在、公開していません。</p>}
       <button type="button" disabled={disabled || !publishedPhotos.length || !onUnpublish} onClick={() => run(onUnpublish)} style={{ ...buttonStyle, marginTop: 16 }}>公開を取り下げる</button>
-    </section>
-    <section aria-labelledby="workplace-library-title" style={{ marginTop: 28, borderTop: '1px solid #DDD', paddingTop: 20 }}>
-      <h2 id="workplace-library-title" style={{ fontSize: 20 }}>保存済みの写真</h2>
+      </>}
+    </details>
+      {libraryFull && <p role="status">保存できる上限に達しています。新しい写真を追加するには、未使用の写真を削除して空きを作ってください。アップロード未確認の同じ写真は、選び直して再試行できます。保存済みの写真は引き続き下書きに追加できます。</p>}
+    {status === 'ready' && unsettledPhotos > 0 && <p role="status">保存状態の確認が必要な写真が{unsettledPhotos}枚あります。「保存済みの写真」を開いて確認してください。</p>}
+    <details aria-labelledby="workplace-library-title" className="workplace-management" open={libraryOpen}
+      onToggle={event => { setLibraryOpen(event.currentTarget.open); if (!event.currentTarget.open) setDeleteId(null); }}>
+      <summary id="workplace-library-title">保存済みの写真 <span>{status === 'ready' ? `${savedPhotos.length}枚${unsettledPhotos ? `・${unsettledPhotos}枚は確認が必要` : ''}` : '未確認'}</span></summary>
+      {libraryOpen && canEdit && status === 'ready' && <>
       <p style={{ lineHeight: 1.8 }}>以前に保存した写真を、もう一度下書きに追加できます。下書き・公開中のどちらにも使っていない写真だけ、保存先から完全に削除できます。</p>
       {status === 'ready' && <p>{savedPhotos.length}/{libraryLimit}枚{knownBytes ? `・${(libraryBytes / 1048576).toFixed(1)}/${Math.round(libraryBytesLimit / 1048576)}MiB` : ''}</p>}
-      {libraryFull && <p role="status">保存できる上限に達しています。新しい写真を追加するには、未使用の写真を削除して空きを作ってください。アップロード未確認の同じ写真は、選び直して再試行できます。保存済みの写真は引き続き下書きに追加できます。</p>}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
         {savedPhotos.map((photo, index) => {
           const photoState = photo.state;
@@ -126,7 +151,8 @@ export function WorkplaceEditPage({ onBack, canEdit = false, status = 'unconfigu
         })}
       </div>
       {status === 'ready' && !savedPhotos.length && <p>保存済みの写真はまだありません。</p>}
-    </section>
+      </>}
+    </details>
 
 
   </section>;

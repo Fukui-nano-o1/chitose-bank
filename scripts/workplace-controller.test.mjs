@@ -8,7 +8,7 @@ import {JSDOM,VirtualConsole} from 'jsdom';
 import {build} from 'vite';
 import react from '@vitejs/plugin-react';
 const root=fileURLToPath(new URL('../',import.meta.url)),pause=ms=>new Promise(r=>setTimeout(r,ms));
-const button=(w,text)=>[...w.document.querySelectorAll('button')].find(b=>b.textContent===text);
+const button=(w,text)=>[...w.document.querySelectorAll('button')].find(b=>b.textContent===text||b.getAttribute('aria-label')===text);
 async function until(fn,label){const end=Date.now()+5000;while(!fn()){assert.ok(Date.now()<end,label);await pause(10);}}
 test('real workplace controller confirms draft, publish and unpublish while preserving uncertain objects',async()=>{
  const output=await mkdtemp(path.join(tmpdir(),'cb-workplace-controller-'));let dom;
@@ -40,7 +40,9 @@ test('real workplace controller confirms draft, publish and unpublish while pres
   [...w.document.querySelectorAll('input[type="checkbox"]')].forEach(x=>x.click());
   await until(()=>!button(w,'この内容で公開する').disabled,'consents checked');button(w,'この内容で公開する').click();
   await until(()=>w.qaState.row.published_photos[0]?.id===photo('b').id,'published references replaced');await until(()=>w.document.body.textContent.includes('職場紹介の写真を公開しました'),'publication confirmed');assert.equal(w.qaState.removes.length,0,'old unreferenced private object retained');
-  await until(()=>!button(w,'公開を取り下げる').disabled,'publish settles');button(w,'公開を取り下げる').click();await until(()=>w.qaState.row.publication_active===false,'unpublish persisted');assert.equal(w.qaState.row.draft_photos.length,1);assert.equal(w.qaState.row.published_photos.length,0);assert.equal(w.qaState.removes.length,0,'unpublish never deletes stored bytes');
+  [...w.document.querySelectorAll('summary')].find(el=>el.textContent.startsWith('公開中の写真')).click();
+  await until(()=>button(w,'公開を取り下げる')&&!button(w,'公開を取り下げる').disabled,'publish settles');button(w,'公開を取り下げる').click();await until(()=>w.qaState.row.publication_active===false,'unpublish persisted');assert.equal(w.qaState.row.draft_photos.length,1);assert.equal(w.qaState.row.published_photos.length,0);assert.equal(w.qaState.removes.length,0,'unpublish never deletes stored bytes');
+  w.document.querySelector('#workplace-library-title').click();
   await until(()=>button(w,'保存済み写真3を下書きに追加')&&!button(w,'保存済み写真3を下書きに追加').disabled,'saved library ready');button(w,'保存済み写真3を下書きに追加').click();await until(()=>w.qaState.row.draft_photos.some(p=>p.id===photo('c').id),'reuse persisted');await until(()=>w.document.body.textContent.includes('保存済み写真を下書きに追加しました'),'reuse confirmed');assert.equal(w.qaState.removes.length,0);
   await until(()=>button(w,'保存済み写真1を削除')&&!button(w,'保存済み写真1を削除').disabled,'delete control ready after reuse');
   button(w,'保存済み写真1を削除').click();await until(()=>button(w,'完全に削除する'),'irreversible confirmation appears');assert.equal(w.qaState.removes.length,0,'opening confirmation never deletes');button(w,'完全に削除する').click();await until(()=>w.qaState.library.length===2,'explicit unused delete complete');await until(()=>w.document.body.textContent.includes('保存済み写真の削除を完了しました'),'library refreshed');assert.deepEqual(w.qaState.removes,[[photo('a').path]]);

@@ -1,0 +1,13 @@
+.workplace-draft-slots { margin-top: 12px; }
+.workplace-draft-caption { font-size: 13px; color: #717171; margin: 0 0 8px; }
+.workplace-slot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.workplace-slot-grid figure { margin: 0; min-width: 0; }
+.workplace-slot-grid img { display: block; }
+.workplace-slot-empty { border: 0; padding: 8px; width: 100%; min-height: 44px; cursor: pointer; aspect-ratio: 4 / 3; background: #f2f2f2; border-radius: 8px; color: #555; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; font-size: 11px; }
+.workplace-management { margin-top: 20px; padding-top: 12px; border-top: 1px solid #ddd; }
+.workplace-management > summary { min-height: 44px; padding: 10px 0; box-sizing: border-box; font-size: 16px; font-weight: 700; cursor: pointer; }
+.workplace-management > summary span { font-size: 12px; font-weight: 400; color: #717171; }
+.workplace-edit-page summary:focus-visible { outline: 2px solid #222; outline-offset: 3px; border-radius: 4px; }
+
+.workplace-slot-empty:disabled { opacity: .45; cursor: default; }
+.workplace-slot-empty:focus-visible { outline: 2px solid #222; outline-offset: 3px; }

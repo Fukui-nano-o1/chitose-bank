@@ -25,14 +25,37 @@ test('independent editor separates local selection, draft and consent-gated publ
   assert.equal(w.document.querySelector('[data-guide="workplace-select"]').disabled,false,'empty ready editor starts with photo selection');
   assert.equal(button(w,'この内容で公開する').disabled,true,'empty editor cannot publish');
   assert.equal(calls.length,0,'rendering the entry flow never saves or publishes');
+  const picker=w.document.querySelector('input[type="file"]');let pickerClicks=0;picker.click=()=>{pickerClicks++;};
+  w.document.querySelector('[data-guide="workplace-select"]').click();w.document.querySelector('[aria-label="写真を追加"]').click();assert.equal(pickerClicks,2,'top and empty tile use the same native picker');
+  for(const count of [0,2,3,5,6]) {
+    w.qaRenderEditor({...props,draftPhotos:Array.from({length:count},(_,i)=>photo(i+1))});
+    assert.equal(w.document.querySelectorAll('[data-draft-slot]').length,Math.min(count+1,6));
+    assert.equal(w.document.querySelectorAll('.workplace-slot-empty').length,count<6?1:0);
+    assert.equal(w.document.querySelectorAll('img[alt^="下書きの写真"]').length,count);
+    assert.equal(w.document.querySelector('[data-guide="workplace-select"]').disabled,count===6);
+  }
+  w.qaRenderEditor({...props,draftPhotos:[]});
+
+  assert.equal(w.document.querySelectorAll('[data-draft-slot]').length,1);
+  assert.equal(w.document.querySelectorAll('.workplace-slot-empty').length,1);
+  assert.equal(w.document.querySelector('[data-guide="workplace-publish"]').tagName,'SUMMARY','guide points to visible disclosure header');
+  assert.equal(w.document.querySelector('[data-guide="workplace-publish"]').parentElement.open,false,'no draft starts collapsed');
+
   w.qaRenderEditor({...props,status:'loading',draftPhotos:[]});
   assert.equal(w.document.querySelector('[data-guide="workplace-select"]').disabled,true,'loading cannot start an upload');
+  assert.equal(w.document.querySelector('[aria-label="写真を追加"]').disabled,true);
+  assert.match(w.document.querySelector('#workplace-library-title').textContent,/未確認/);
+  assert.doesNotMatch([...w.document.querySelectorAll('summary')].find(s=>s.textContent.startsWith('公開中の写真')).textContent,/未公開/);
+
   w.qaRenderEditor(props);
+  assert.equal(w.document.querySelectorAll('.workplace-slot-empty').length,1);
+  assert.equal(w.document.querySelectorAll('img[alt^="下書きの写真"]').length,1,'draft image appears once');
+  assert.equal(w.document.querySelector('[data-guide="workplace-publish"]').parentElement.open,true,'valid draft opens explicit confirmation, never auto-publishes');
   const guide=w.qaWorkplaceGuide('#/profile/employer/profile/workplace');
   assert.equal(guide.key,'workplaceEdit');assert.equal(guide.rows.length,3);
   assert.notEqual(w.qaWorkplaceGuide('#/profile/employer/profile')?.key,'workplaceEdit');
   const selectButton=w.document.querySelector('[data-guide="workplace-select"]');
-  assert.ok(selectButton.compareDocumentPosition(w.document.querySelector('h2')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'select precedes draft instructions');
+  assert.ok(selectButton.compareDocumentPosition(w.document.querySelector('[aria-label="下書きの写真"]')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'select precedes draft slots');
   assert.equal(w.document.querySelector('details').open,false,'reference details start collapsed');
   assert.ok(w.document.querySelector('[data-guide="workplace-publish"]').compareDocumentPosition(w.document.querySelector('[aria-labelledby="workplace-library-title"]')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'optional library follows publication');
   const pub=()=>button(w,'この内容で公開する');assert.equal(pub().disabled,true);
@@ -40,12 +63,26 @@ test('independent editor separates local selection, draft and consent-gated publ
   pub().click();pub().click();await until(()=>typeof release==='function');assert.equal(calls.filter(c=>c[0]==='publish').length,1);assert.deepEqual(calls[0],['publish',{publicWeb:true,people:true}]);assert.equal(pub().disabled,true);release();await until(()=>checks().every(c=>!c.checked));
   checks().forEach(c=>c.click());await until(()=>!pub().disabled);w.qaRenderEditor({...props,draftPhotos:[photo(2)]});await until(()=>checks().every(c=>!c.checked));assert.equal(pub().disabled,true,'new draft resets consent');
   const input=w.document.querySelector('input[type="file"]');Object.defineProperty(input,'files',{configurable:true,value:[new w.File(['synthetic'],'photo.jpg',{type:'image/jpeg'})]});input.dispatchEvent(new w.Event('change',{bubbles:true}));await until(()=>w.document.querySelector('[aria-label="選んだ写真の確認"]'));
-  assert.ok(w.document.querySelector('[aria-label="選んだ写真の確認"]').compareDocumentPosition(w.document.querySelector('h2')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'selected preview precedes existing draft');
+  assert.ok(w.document.querySelector('[aria-label="選んだ写真の確認"]').compareDocumentPosition(w.document.querySelector('details')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'selected preview follows the draft context and precedes disclosures');
   assert.equal(calls.filter(c=>c[0]==='add').length,0,'file picker does not upload');button(w,'この写真を下書きに追加').click();await until(()=>calls.some(c=>c[0]==='add'));await until(()=>!w.document.querySelector('[aria-label="選んだ写真の確認"]'));assert.ok(revoked.length);
   w.qaRenderEditor({...props,draftPhotos:Array.from({length:6},(_,i)=>photo(i+1))});assert.equal(w.document.querySelector('input[type="file"]').disabled,true,'six photos maximum');
+  assert.equal(w.document.querySelectorAll('[data-draft-slot]').length,6);
+  assert.equal(w.document.querySelectorAll('.workplace-slot-empty').length,0);
+  assert.equal(w.document.querySelectorAll('img[alt^="下書きの写真"]').length,6);
+  w.document.querySelector('[aria-label="下書きから写真1を外す"]').click();await until(()=>calls.some(c=>c[0]==='remove'));
   // Saved-library reuse must not re-upload, and deletion is an explicit second step.
   const libraryProps={...props,draftPhotos:[photo(1)],publishedPhotos:[photo(2)],savedPhotos:[{...photo(1),size:1024},{...photo(2),size:2048},{...photo(3),size:4096}],onReuse:async id=>calls.push(['reuse',id]),onDeleteSaved:async id=>{calls.push(['delete',id]);await new Promise(resolve=>{release=resolve;});}};
   w.qaRenderEditor(libraryProps);
+  const libraryDisclosure=w.document.querySelector('[aria-labelledby="workplace-library-title"]');
+  const published=[...w.document.querySelectorAll('details')].find(d=>d.querySelector('summary')?.textContent.startsWith('公開中の写真'));
+  assert.equal(libraryDisclosure.open,false);assert.equal(published.open,false);
+  assert.equal(w.document.querySelector('img[alt^="保存済みの写真"]'),null,'closed library does not mount private image readers');
+  assert.equal(w.document.querySelector('img[alt^="公開中の写真"]'),null,'closed published section does not mount image readers');
+  published.querySelector('summary').click();await until(()=>w.document.querySelector('img[alt^="公開中の写真"]'));
+  published.querySelector('summary').click();await until(()=>!w.document.querySelector('img[alt^="公開中の写真"]'));
+
+  libraryDisclosure.querySelector('summary').click();await until(()=>button(w,'保存済み写真1を下書きに追加'));
+
   assert.equal(button(w,'保存済み写真1を下書きに追加').disabled,true);
   assert.equal(button(w,'保存済み写真1を削除').disabled,true,'draft reference cannot delete');
   assert.equal(button(w,'保存済み写真2を削除').disabled,true,'published reference cannot delete');
@@ -56,7 +93,8 @@ test('independent editor separates local selection, draft and consent-gated publ
   button(w,'保存済み写真3を削除').click();await until(()=>button(w,'完全に削除する'));
   // A newly appearing reference cancels an already-open deletion confirmation.
   w.qaRenderEditor({...libraryProps,draftPhotos:[photo(1),photo(3)]});await until(()=>!button(w,'完全に削除する'));assert.equal(button(w,'保存済み写真3を削除').disabled,true);
-  w.qaRenderEditor(libraryProps);button(w,'保存済み写真3を削除').click();await until(()=>button(w,'完全に削除する'));
+  w.qaRenderEditor(libraryProps);
+button(w,'保存済み写真3を削除').click();await until(()=>button(w,'完全に削除する'));
   release=null;button(w,'完全に削除する').click();button(w,'完全に削除する').click();await until(()=>typeof release==='function');assert.equal(calls.filter(c=>c[0]==='delete').length,1,'irreversible delete is single flight');release();await until(()=>!button(w,'完全に削除する'));
   w.qaRenderEditor({...libraryProps,libraryLimit:3});assert.equal(w.document.querySelector('input[type="file"]').disabled,false,'owner cap permits same pending file recovery; server enforces new-file quota');assert.equal(button(w,'保存済み写真3を下書きに追加').disabled,false,'full library can still reuse');
   w.qaRenderEditor({...libraryProps,libraryBytesLimit:7168});assert.equal(w.document.querySelector('input[type="file"]').disabled,false,'byte cap does not block pending file recovery');
@@ -66,6 +104,11 @@ test('independent editor separates local selection, draft and consent-gated publ
   assert.equal(w.document.querySelector('[data-saved-photo-id="2"] img'),null,'unconfirmed upload has no preview');
   assert.equal(w.document.querySelector('[data-saved-photo-id="3"] img'),null,'unfinished deletion has no preview');
   assert.equal(button(w,'保存済み写真3を削除').disabled,false,'unused deleting photo permits explicit recovery');
+  libraryDisclosure.querySelector('summary').click();await until(()=>!w.document.querySelector('[data-saved-photo-id]'));
+  assert.match(libraryDisclosure.querySelector('summary').textContent,/確認が必要/,'recovery remains discoverable while collapsed');
+  assert.ok([...w.document.querySelectorAll('[role="status"]')].some(node=>!node.closest('details')&&node.textContent.includes('保存状態の確認が必要')));
+  libraryDisclosure.querySelector('summary').click();await until(()=>w.document.querySelector('[data-saved-photo-id]'));
+
   w.qaRenderEditor({...libraryProps,savedPhotos:[photo(1),photo(2),photo(3)]});assert.equal(w.document.querySelector('[aria-labelledby="workplace-library-title"]').textContent.includes('MiB'),false,'unknown sizes are not zero-byte claims');
   w.qaRenderEditor({...props,canEdit:false});for(const control of w.document.querySelectorAll('input'))assert.equal(control.disabled,true);assert.equal(pub().disabled,true);
   w.qaRenderEditor({...props,status:'error',error:'synthetic load failure'});assert.ok(w.document.querySelector('[role="alert"]'));assert.equal(pub().disabled,true);assert.equal(w.document.querySelector('input[type="file"]').disabled,true);
