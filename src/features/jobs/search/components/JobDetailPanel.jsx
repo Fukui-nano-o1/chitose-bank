@@ -1,3 +1,4 @@
+import { JobHostPage, openJobHostPage } from "./JobHostPage.jsx";
 import { ListingPhoto } from "../../../../components/ListingPhoto.jsx";
 import "./jobWorkVideo.css";
 import "./jobWorkplaceIntro.css";
@@ -158,34 +159,27 @@ export function JobKeyFacts({ job }) {
 }
 
 // 募集主の小さな行（Airbnbの「Hosted by X」の型・タイトルブロックの直下）。
-// 募集主はページ内の人物紹介へ。職場の写真・働き方とは分ける。
-export function focusJobHostSection() {
-  const section = document.getElementById("sec-host");
-  if (!section) return;
-  const heading = section.querySelector("h3");
-  if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
-  section.scrollIntoView({ behavior: "auto", block: "start" });
-}
-
+// 募集主は人物紹介の専用画面へ。職場の写真・働き方とは分ける。
 export function JobHostRow({ job, employer, trust, onOpenIntro, onOpenWorkplace }) {
   // Legacy public callers provide this callback as a mode marker only.
   // Host actions never invoke it; the workplace block owns that navigation.
-  const onOpenHost = typeof onOpenWorkplace === "function" ? focusJobHostSection : null;
+  const onOpenHost = typeof onOpenWorkplace === "function" ? openJobHostPage : null;
   const name = employer?.nickname || job.employerName;
   if (!name) return null;
   return (
     <AirSection>
-      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:14, position:"relative" }}>
         <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={48} />
         <div style={{ minWidth:0 }}>
           <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>募集主：{name}さん</p>
           {trust?.ok && trust.member_since && (
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"3px 0 0" }}>chitose-bank利用 {trust.member_since}から</p>
           )}
-          {(onOpenHost || onOpenIntro) && <button type="button" aria-label="募集主を見る"
-            onClick={() => onOpenHost ? onOpenHost() : onOpenIntro(true)}
-            className="f-sans" style={{ minHeight:44, padding:"8px 0", border:0, background:"transparent", color:"#222", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>募集主を見る →</button>}
+          {(onOpenHost || onOpenIntro) && <span className="f-sans" style={{ display:"block", padding:"8px 0", fontSize:13, fontWeight:700, textDecoration:"underline" }}>募集主を見る →</span>}
         </div>
+        {(onOpenHost || onOpenIntro) && <button type="button" aria-label="募集主を見る"
+            onClick={event => onOpenHost ? onOpenHost(event) : onOpenIntro(true)}
+            className="job-host-row-target" style={{ position:"absolute", inset:0, width:"100%", minHeight:44, border:0, borderRadius:12, background:"transparent", cursor:"pointer" }} />}
       </div>
     </AirSection>
   );
@@ -505,35 +499,21 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro: previ
     wantAgain != null ? { v: String(wantAgain), l: "また働きたい" } : null,
     trust?.ok && trust.member_since ? { v: trust.member_since, l: "から利用" } : null,
   ].filter(Boolean);
-  return (<>
-    {/* ── 評価（Airbnbの「Reviews」の位置＝カレンダーの下）──
-        ReceivedReviews に委譲＝肯定的な選択項目と審査済みコメントだけ（規約第8条）。
-        求人ページのクライアントは求人者のUIDを知らないので jobNumber 経由で引く。
-        訪問者（未ログイン）はDB側が資格なしを返す＝「まだ評価はありません」と誤読させないため案内文に差し替える */}
-    <AirSection id="sec-reviews" title={reviews && reviews.ok && reviews.total > 0 ? `評価（${reviews.total}件）` : "評価"}>
-      {/* 見出しの件数＝Airbnbの「★4.9 · 12 reviews」の件数の位置（★の点数は出さない＝点数化の禁止）。
-          showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
-          ★総数が2件以上あるのに0の項目が並ぶと否定的な評価が読み取れる＝利用規約 第8条2との緊張。
-            戻すときはこのpropを外すだけ（1語）。他の画面（プロフィールの評価面）は従来どおり0を出さない */}
-      {me
-        ? <div className="job-review-horizontal"><ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems preloaded={reviews} horizontal /></div>
-        : <p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>ログインすると、この求人者への評価を見られます</p>}
-    </AirSection>
-
-    {/* ── 募集主について（Airbnbの「Meet your host」＝評価の直下）── */}
-    {name && (
-      <AirSection id="sec-host" title="募集主について" style={{ scrollMarginTop:128 }}>
+  const hostContent = (page = false) => {
+    const openIntro = page ? null : (typeof onOpenWorkplace === "function" ? openJobHostPage : onOpenIntro ? () => onOpenIntro(true) : null);
+    return name ? (
+      <AirSection id={page ? undefined : "sec-host"} title={page ? undefined : "募集主について"} style={{ scrollMarginTop:128 }}>
         {/* パスポート型カード（2026-08-25たきと指示「パクれ」）：白いカードに影・
             左＝大きなアイコン＋名前（縦中央）・右＝数字の縦積み（横線区切り）の2カラム。
             アイコン右下のバッジ＝連絡先確認済み（trust.id_checked・Airbnbの本人確認バッジに当たる位置）。
-            求人詳細では人物の情報をその場で読む。明示的な紹介プレビューだけは維持。 */}
-        <div onClick={onOpenIntro ? () => onOpenIntro(true) : undefined} role={onOpenIntro ? "button" : undefined}
-          tabIndex={onOpenIntro ? 0 : undefined}
-          aria-label={onOpenIntro ? "募集主を見る" : undefined}
-          onKeyDown={onOpenIntro ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenIntro(true); } } : undefined}
+            求人詳細から人物の専用画面へ。明示的な紹介プレビューは維持。 */}
+        <div onClick={openIntro || undefined} role={openIntro ? "button" : undefined}
+          tabIndex={openIntro ? 0 : undefined}
+          aria-label={openIntro ? "募集主を見る" : undefined}
+          onKeyDown={openIntro ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openIntro(e); } } : undefined}
           style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", borderRadius:24,
                    boxShadow:"0 6px 16px rgba(0,0,0,0.14)", padding:"22px 18px", margin:"4px 2px 6px",
-                   cursor: onOpenIntro ? "pointer" : "default" }}>
+                   cursor: openIntro ? "pointer" : "default" }}>
           <div style={{ flex:"1 1 0", minWidth:0, display:"flex", flexDirection:"column", alignItems:"center" }}>
             <div style={{ position:"relative" }}>
               <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={96} ring={ROLE_GREEN} />
@@ -544,7 +524,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro: previ
               )}
             </div>
             <p className="f-sans" style={{ fontSize:21, fontWeight:800, color:"#222", margin:"10px 0 0", textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word", lineHeight:1.3 }}>{name}さん</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{onOpenIntro ? "募集主を見る →" : "募集主"}</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{openIntro ? "募集主を見る →" : "募集主"}</p>
           </div>
           {stats.length > 0 && (
             <div style={{ flex:"0 0 41%", maxWidth:150, minWidth:0 }}>
@@ -571,7 +551,27 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro: previ
           </div>
         )}
       </AirSection>
-    )}
+  ) : null;
+  };
+  return (<>
+    {/* ── 評価（Airbnbの「Reviews」の位置＝カレンダーの下）──
+        ReceivedReviews に委譲＝肯定的な選択項目と審査済みコメントだけ（規約第8条）。
+        求人ページのクライアントは求人者のUIDを知らないので jobNumber 経由で引く。
+        訪問者（未ログイン）はDB側が資格なしを返す＝「まだ評価はありません」と誤読させないため案内文に差し替える */}
+    <AirSection id="sec-reviews" title={reviews && reviews.ok && reviews.total > 0 ? `評価（${reviews.total}件）` : "評価"}>
+      {/* 見出しの件数＝Airbnbの「★4.9 · 12 reviews」の件数の位置（★の点数は出さない＝点数化の禁止）。
+          showAllItems＝全ての評価を表示（2026-08-25たきと指示）：件数0の項目も並べる。
+          ★総数が2件以上あるのに0の項目が並ぶと否定的な評価が読み取れる＝利用規約 第8条2との緊張。
+            戻すときはこのpropを外すだけ（1語）。他の画面（プロフィールの評価面）は従来どおり0を出さない */}
+      {me
+        ? <div className="job-review-horizontal"><ReceivedReviews userId={null} direction="worker_to_farmer" jobNumber={job.id} showAllItems preloaded={reviews} horizontal /></div>
+        : <p className="f-sans" style={{ fontSize:13, color:"#999", margin:0 }}>ログインすると、この求人者への評価を見られます</p>}
+    </AirSection>
+
+    {hostContent()}
+    <JobHostPage key={job?.id || "preview"} enabled={typeof onOpenWorkplace === "function" && Boolean(name)}>
+      {hostContent(true)}
+    </JobHostPage>
   </>);
 }
 // 読み込めた写真からふわりと出す（Airbnbの画像の出方・2026-09-01）。

@@ -30,6 +30,31 @@ try {
  const fontDirectory=path.join(root,'public/fonts');
  const fontAssets=new Map(await Promise.all((await readdir(fontDirectory)).map(async name=>[name,await readFile(path.join(fontDirectory,name))])));
  browser=await chromium.launch({headless:true});
+ async function verifyHostPage(page,entry,key,historyDelta=1){
+  const dialog=page.getByRole('dialog',{name:'募集主について'});
+  const hash=new URL(page.url()).hash;
+  await entry.scrollIntoViewIfNeeded();
+  const source=await page.evaluate(()=>({y:scrollY,history:history.length}));
+  if(key)await entry.press(key);else await entry.click();
+  await dialog.waitFor();
+  assert.equal(new URL(page.url()).hash,hash);
+  assert.equal(await page.evaluate(()=>history.length),source.history+historyDelta);
+  assert.match(await dialog.innerText(),/合成農園/);
+  assert.doesNotMatch(await dialog.innerText(),/職場紹介|PRIVATE|PENDING COPY/);
+  assert.equal(await page.locator('.workplace-page').count(),0);
+  const box=await dialog.boundingBox();
+  assert.deepEqual(box,{x:0,y:0,...page.viewportSize()},'host dialog covers the viewport');
+  await page.waitForFunction(()=>document.activeElement?.id==='host-page-title');
+  await dialog.getByRole('button',{name:'求人詳細に戻る'}).click();
+  await dialog.waitFor({state:'detached'});
+  await page.waitForFunction(y=>Math.abs(scrollY-y)<=2,source.y);
+  assert.equal(new URL(page.url()).hash,hash);
+  assert.equal(await entry.evaluate(el=>el===document.activeElement),true);
+  await page.goForward();await dialog.waitFor();
+  await page.goBack();await dialog.waitFor({state:'detached'});
+  await page.waitForFunction(y=>Math.abs(scrollY-y)<=2,source.y);
+  assert.equal(new URL(page.url()).hash,hash);
+ }
  const cases=[{width:320,mode:'ready',count:4},{width:390,mode:'ready',count:4},{width:768,mode:'ready',count:4},{width:1280,mode:'ready',count:4},{width:390,mode:'one',count:1},{width:390,mode:'two',count:2},{width:390,mode:'photos-only',count:2},{width:390,mode:'text-only',count:0},{width:320,mode:'empty',count:0},{width:390,mode:'empty',count:0},{width:1280,mode:'empty',count:0},{width:390,mode:'error',count:0}];
  for(const scenario of cases){
   const {width,mode,count}=scenario;
@@ -75,10 +100,7 @@ try {
     await page.locator('.job-secnav').getByRole('button',{name:'職場紹介',exact:true}).waitFor({state:'detached'});
     assert.ok(metrics.scrollWidth<=width+1,`horizontal overflow at ${width}px`);
     await page.screenshot({path:path.join(evidence,`workplace-${width}-${mode}.png`)});
-    await host.press('Enter');
-    await page.waitForFunction(()=>document.activeElement?.textContent==='募集主について');
-    assert.equal(new URL(page.url()).hash,'#/work/job/101');
-    assert.equal(await page.locator('.workplace-page').count(),0);
+    await verifyHostPage(page,host,'Enter');
     await page.locator('#sec-workplace').waitFor({state:'detached'});
     assert.deepEqual(errors,[]);results.push({...scenario,metrics,result:'passed'});
     continue;
@@ -109,6 +131,10 @@ try {
     await page.waitForFunction(y=>Math.abs(scrollY-y)<=2,sourceY);
     await section.getByRole('button',{name:'職場の写真をすべて見る'}).click();await page.locator('.workplace-page').waitFor();
     await page.getByRole('button',{name:'求人詳細に戻る'}).click();await section.waitFor();
+
+    const hostCard=page.locator('#sec-host').getByRole('button',{name:'募集主を見る',exact:true});
+    await verifyHostPage(page,hostCard,null,0);
+    await verifyHostPage(page,hostCard,'Space',0);
    }
    assert.deepEqual(errors,[]);
    results.push({...scenario,metrics,result:'passed'});

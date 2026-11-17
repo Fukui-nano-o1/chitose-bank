@@ -25,7 +25,9 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
    w.IntersectionObserver=class{observe(){}unobserve(){}disconnect(){}};w.ResizeObserver=class{observe(){}unobserve(){}disconnect(){}};
    w.qaScroll=[];w.scrollTo=(...args)=>{w.qaScroll.push(args);w.scrollY=typeof args[0]==='object'?args[0].top:args[1];};
    w.HTMLElement.prototype.scrollTo=()=>{};w.HTMLElement.prototype.scrollBy=()=>{};
-   w.qaScrollIntoView=[];w.HTMLElement.prototype.scrollIntoView=function(options){w.qaScrollIntoView.push({element:this,options});};
+   w.HTMLElement.prototype.scrollIntoView=()=>{};
+   w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+   w.HTMLDialogElement.prototype.close=function(){this.open=false;};
    w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.fetch=()=>{throw Error('Unexpected real network');};
    const json=(value,status=200)=>Promise.resolve(new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}}));
    w.qaWorkplaceRequest=(url,body)=>{
@@ -45,33 +47,54 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
    w.localStorage.setItem('cb_viewCache_v2_anon',JSON.stringify({'search:jobs':[job(101),job(202),job(303),job(404)]}));
    w.eval(script);return w;
   }
-  function assertHostStaysOnDetail(w,id){
+  async function assertHostPage(w,id,trigger='top',key){
    const host=w.document.querySelector('#sec-host');
    assert.match(host.textContent,new RegExp(`合成募集主${id}`));
-   const entries=[...w.document.querySelectorAll('[aria-label="募集主を見る"]')];
-   assert.equal(entries.length,1,'only the top row has a host action');
-   const [entry]=entries;
-   assert.equal(entry.tagName,'BUTTON','native host button supports keyboard activation');
-   assert.match(entry.textContent,/募集主を見る/,'host action is visible');
-   assert.ok(!host.contains(entry));
-   assert.equal(host.querySelector('button,a[href],[role="button"],[tabindex="0"]'),null,'lower host card is static');
-   const name=[...host.querySelectorAll('p')].find(p=>p.textContent.includes(`合成募集主${id}`));
+   const top=w.document.querySelector('[aria-label="募集主を見る"]');
+   assert.equal(top?.tagName,'BUTTON','top host row is a native button');
+   assert.equal([...w.document.querySelectorAll('button')].some(button=>button.textContent.includes('募集主の紹介を見る')),false,'no duplicate standalone lower CTA');
+   const card=host.querySelector('[role="button"][aria-label="募集主を見る"]');
+   assert.equal(card?.tabIndex,0,'host card is keyboard reachable');
+   const dialog=()=>w.document.querySelector('dialog.job-host-page[open]');
+   const entry={top,card}[trigger];
+   const sourceY=trigger==='top'?160:640;
+   if(key)entry.focus();
+   else w.document.activeElement.blur(); // Click need not focus the trigger (e.g. Safari).
+   w.scrollY=sourceY;
    const length=w.history.length;
-   const beforeScroll=w.qaScrollIntoView.length;
-   name.click();
-   assert.equal(w.qaScrollIntoView.length,beforeScroll,'clicking the lower host card does not scroll');
-   entry.click();
-   assert.equal(w.document.activeElement,host.querySelector('h3'),'host action focuses the host heading');
-   assert.equal(w.qaScrollIntoView.length,beforeScroll+1);
-   assert.equal(w.qaScrollIntoView.at(-1).element,host,'host action scrolls to the host section');
-   assert.equal(w.location.hash,`#/work/job/${id}`);
-   assert.equal(w.history.length,length,'host actions do not add a history entry');
-   assert.equal(w.document.querySelector('.workplace-page,.cb-sheet-up'),null,'host actions do not open a workplace route or sheet');
+   const hash=w.location.hash;
+   const activate=()=>key ? assert.equal(entry.dispatchEvent(new w.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true})),false) : entry.click();
+   activate();activate();
+   await until(()=>dialog()?.textContent.includes(`合成募集主${id}`),'host dialog opens with the current job host');
+   assert.equal(w.document.activeElement,dialog().querySelector('h1'),'the new view receives focus');
+   assert.doesNotMatch(dialog().textContent,/FIRST JOB|SECOND JOB|職場紹介/);
+   assert.equal(dialog().querySelector('[aria-label="募集主を見る"]'),null,'the card inside the host page does not reopen itself');
+   assert.equal(w.location.hash,hash);
+   assert.equal(w.history.length,length+1,'repeat activation adds just one same-hash history entry');
+   assert.equal(w.document.querySelector('.workplace-page,.cb-sheet-up'),null);
+   w.scrollY=0;
+   dialog().querySelector('.job-host-page-back').click();
+   await until(()=>!dialog()&&w.scrollY===sourceY,'explicit return restores detail scroll');
+   assert.equal(w.location.hash,hash);
+   assert.equal(w.document.activeElement,entry,'return restores focus to the correct host CTA');
+   assert.equal(w.history.length,length+1,'explicit return does not append a new entry');
+   w.history.forward();
+   await until(()=>!!dialog(),'browser forward reopens host page');
+   w.scrollY=0;
+   w.history.back();
+   await until(()=>!dialog()&&w.scrollY===sourceY,'browser back restores detail and scroll');
+   assert.equal(w.location.hash,hash);
+   assert.equal(w.document.activeElement,entry);
   }
 
-  let w=mount('#/work/job/101');
-  await until(()=>w.document.querySelector('#sec-workplace')?.textContent.includes('FIRST JOB'),'workplace preview and job detail ready');
-  assertHostStaysOnDetail(w,101);
+  let w;
+  for(const [trigger,key] of [['top'],['card'],['card','Enter'],['card',' ']]){
+   w=mount('#/work/job/101');
+   await until(()=>w.document.querySelector('#sec-workplace')?.textContent.includes('FIRST JOB'),'workplace preview and job detail ready');
+   await assertHostPage(w,101,trigger,key);
+  }
+  w=mount('#/work/job/101');
+  await until(()=>w.document.querySelector('#sec-workplace')?.textContent.includes('FIRST JOB'),'workplace preview ready');
   const section=w.document.querySelector('#sec-workplace');
   const entry=section.querySelector('.job-workplace-more');
   assert.equal(entry.tagName,'BUTTON','workplace entry has native keyboard activation');
@@ -120,7 +143,7 @@ test('real job search owns dedicated workplace entry, direct routes, same-job re
   await until(()=>!w.document.querySelector('.job-secnav')?.textContent.includes('職場紹介'),'no stale desktop navigation link');
   const emptyHost=w.document.querySelector('[aria-label="募集主を見る"]');
   assert.match(emptyHost.closest('.cb-reveal').nextElementSibling.textContent,/経験者優遇/,'no empty divider remains');
-  assertHostStaysOnDetail(w,404);
+  await assertHostPage(w,404,'card');
   w.location.hash='/work/job/404/workplace';
   await until(()=>w.document.querySelector('.workplace-page')?.textContent.includes('職場紹介はまだ登録されていません'),'direct empty workplace route shows its empty state');
   [...w.document.querySelectorAll('button')].find(x=>x.textContent.includes('求人詳細に戻る')).click();
