@@ -64,7 +64,9 @@ test('independent editor separates local selection, draft and consent-gated publ
   checks().forEach(c=>c.click());await until(()=>!pub().disabled);w.qaRenderEditor({...props,draftPhotos:[photo(2)]});await until(()=>checks().every(c=>!c.checked));assert.equal(pub().disabled,true,'new draft resets consent');
   const input=w.document.querySelector('input[type="file"]');Object.defineProperty(input,'files',{configurable:true,value:[new w.File(['synthetic'],'photo.jpg',{type:'image/jpeg'})]});input.dispatchEvent(new w.Event('change',{bubbles:true}));await until(()=>w.document.querySelector('[aria-label="選んだ写真の確認"]'));
   assert.ok(w.document.querySelector('[aria-label="選んだ写真の確認"]').compareDocumentPosition(w.document.querySelector('details')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'selected preview follows the draft context and precedes disclosures');
-  assert.equal(calls.filter(c=>c[0]==='add').length,0,'file picker does not upload');button(w,'この写真を下書きに追加').click();await until(()=>calls.some(c=>c[0]==='add'));await until(()=>!w.document.querySelector('[aria-label="選んだ写真の確認"]'));assert.ok(revoked.length);
+  assert.equal(calls.filter(c=>c[0]==='add').length,0,'file picker does not upload');button(w,'この写真を下書きに追加').click();await until(()=>calls.some(c=>c[0]==='add'));await until(()=>!w.document.querySelector('[aria-label="選んだ写真の確認"]'));
+  // React commits the removed preview before running its passive cleanup.
+  await until(()=>revoked.includes('blob:https://ui.test/selection'));
   w.qaRenderEditor({...props,draftPhotos:Array.from({length:6},(_,i)=>photo(i+1))});assert.equal(w.document.querySelector('input[type="file"]').disabled,true,'six photos maximum');
   assert.equal(w.document.querySelectorAll('[data-draft-slot]').length,6);
   assert.equal(w.document.querySelectorAll('.workplace-slot-empty').length,0);
