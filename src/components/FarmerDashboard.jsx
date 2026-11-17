@@ -1,3 +1,4 @@
+import { ROSTER_PRESENTATION_ENABLED } from "../features/farmer/dashboard/rosterPresentation";
 import { FARMER_TRAIT_TAGS } from "../lib/reviewCatalog";
 import { reviewPeriod } from "../lib/reviewWindow";
 import { goAlongPath, readApplicantView, rememberApplicantView, clearApplicantView } from "../lib/routeTrail";
@@ -165,7 +166,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   // 自由記述は保存＝即公開になり、trg_ep_z_publish_texts が texts_pending / texts_submitted_at /
   // texts_revision_requested_at を書かれた瞬間に畳む（＝クリアする）。この3列を立てる関数は
   // DB全体で1本も無く、実データも0件＝「審査中の農家」という状態が構造的に存在しない。
-  const [rosterRows, setRosterRows] = useState(() => getCache("farm:roster") ?? []); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
+  const [rosterRows, setRosterRows] = useState(() => ROSTER_PRESENTATION_ENABLED ? (getCache("farm:roster") ?? []) : []); // また呼びたいリスト（repeat_roster＋worker_profiles結合済み）
   // ── 読み込みは「その面を開いた時だけ」（2026-07-29たきと指示 D＝必要になったときに読む）──
   // 以前は入口(home)を開いただけで、求人・応募・応募者プロフィール・信頼情報まで全部読んでいた。
   // 入口が要るのは 雇い手プロフィール／信頼情報／また呼びたいリスト の3つだけ。
@@ -182,14 +183,14 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         const [epRes, trustRes, rosterRes, emgRes] = await Promise.all([
           fetchMyEmployerProfileFull(uid),   // トップボックス裏面プレビュー用に全列（2026-07-16）
           fetchEmployerTrustInfo(uid),
-          fetchMyRoster(uid),
+          ROSTER_PRESENTATION_ENABLED ? fetchMyRoster(uid) : Promise.resolve({ data: [] }),
           fetchMyEmergencyContact(uid),      // 🆘の有無だけ（self-only RLS・バッジ用）
         ]);
         const epMini = epRes.data, tI = trustRes.data, rosterData = rosterRes.data;
         setEmpTrust(tI && tI.ok ? tI : null); setCache("farm:empTrust", tI && tI.ok ? tI : null);
         if (!emgRes.error) { const has = !!emgRes.data; setHasEmergency(has); setCache("farm:hasEmergency", has); }
         if (epMini) { setEmpMini(epMini); setCache("farm:empMini", epMini); snapSet("empMini", epMini); }
-        if (rosterData && rosterData.length > 0) {
+        if (ROSTER_PRESENTATION_ENABLED && rosterData && rosterData.length > 0) {
           const { data: rosterWp } = await fetchWorkerCards(rosterData.map(r => r.worker_id));
           const wpMap = {};
           (rosterWp || []).forEach(wp => { wpMap[wp.auth_id] = wp; });
@@ -305,7 +306,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         workOutcome: completeAnswers.work_outcome,
         wantAgainChoice: completeAnswers.want_again_choice,
         traits: completeTags,
-        favorite: completeAnswers.want_again_choice === "yes" && completeNotifyNext,
+        favorite: ROSTER_PRESENTATION_ENABLED && completeAnswers.want_again_choice === "yes" && completeNotifyNext,
       });
       if (error || !data?.ok) {
         fbError(); setCompleteSubmitting(false);
@@ -313,7 +314,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         if (String(reason).includes('review_window_')) return {reason};
         alert('送信に失敗しました（何も保存されていません）：' + reason); return;
       }
-      const favorited = !!data.favorited;
+      const favorited = ROSTER_PRESENTATION_ENABLED && !!data.favorited;
       if (favorited) {
         const wp = workerProfiles[completeModalApp.worker_id];
         setRosterRows(prev => prev.some(r => r.worker_id === completeModalApp.worker_id) ? prev
@@ -424,6 +425,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   );
   // 評価登録完了モーダル内のお気に入り登録チェック（ON=roster upsert／OFF=行削除）
   const toggleDoneFavorite = async (checked) => {
+    if (!ROSTER_PRESENTATION_ENABLED) return;
     if (!completeDone) return;
     try {
       if (checked) {
@@ -600,6 +602,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   // また呼びたいリストのアイコンタップ→働き手詳細モーダル（応募者カードと同じWorkerTrustCard表示）
   const [rosterDetail, setRosterDetail] = useState(null); // {worker_id, loading, profile, trust}
   const openRosterDetail = (workerId) => {
+    if (!ROSTER_PRESENTATION_ENABLED) return;
     setRosterDetail({ worker_id: workerId, loading: true, profile: null, trust: null });
     (async () => {
       try {
@@ -620,6 +623,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
   };
   // また呼びたいリストの行削除（通知を止める）
   const stopRosterNotify = async (workerId) => {
+    if (!ROSTER_PRESENTATION_ENABLED) return;
     if (!confirm('この方への新求人のお知らせを止めますか？（次回の評価で再登録できます）')) return;
     try {
       const { error } = await deleteRoster(me.id, workerId);
@@ -1041,7 +1045,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
               ★申告そのものは消えていない：求人ページの保険（掲載時に凍結）・応募者への表示・
               専用ページ #/insurance（URL直打ち）は従来どおり */}
           {/* お気に入り名簿は新しい求人の通知と登録解除に使用。応募の自動承認とは分離。 */}
-          <div style={{ marginTop:16 }}>
+          {ROSTER_PRESENTATION_ENABLED && <div style={{ marginTop:16 }}>
             <button type="button" onClick={()=>setRosterInfoOpen(v=>!v)} aria-label="説明を見る" aria-expanded={rosterInfoOpen}
               style={{ display:"flex", alignItems:"center", gap:8, width:"100%", margin:"0 0 8px", padding:0, background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
               <span className="f-sans" style={{ fontSize:18, fontWeight:800, color:"#222" }}>また呼びたいリスト</span>
@@ -1057,7 +1061,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                 ★通知書そのものは残っている：求人カードのボタンから1件ずつ開く
                 （応募IDごとの専用ページ・LaborConditionsNotice・表示と印刷）＝
                 雇用主が労働条件を明示・交付する手段はサイトから失われていない */}
-          </div>
+          </div>}
           {/* つぎの予定（7日以内）。やることの格子は2026-08-25たきと指示で撤去（働き手面と対）＝
               採用する・保険の報告・記録する・評価する・緊急連絡先はカレンダーページの求人カードの
               ボタン、求人の修正・質問は求人カードとお知らせ、プロフィール入力は名刺カードが担う */}
@@ -1399,8 +1403,8 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
           submitting={completeSubmitting}
           onSubmit={submitFarmerReview}
           onClose={()=>setCompleteModalApp(null)}
-          /* 名簿の登録・解除と新着求人のお知らせは継続する。 */
-          extra={wantAgain ? (
+          /* 名簿の画面のみ停止。既存の記録・サーバー通知は変更しない。 */
+          extra={ROSTER_PRESENTATION_ENABLED && wantAgain ? (
             <div style={{ marginBottom:16 }}>
               <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer" }}>
                 <input type="checkbox" checked={completeNotifyNext} onChange={e=>setCompleteNotifyNext(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
@@ -1412,7 +1416,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
             </div>
           ) : null}
           confirmNote="送信すると、あとから直すことはできません。肯定的な答えと良かった点のタグだけが働き手のページに表示されます（否定的な答えは公開されませんが、記録には残ります）。"
-          confirmExtra={wantAgain ? (
+          confirmExtra={ROSTER_PRESENTATION_ENABLED && wantAgain ? (
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, padding:"9px 0" }}>
               <span className="f-sans" style={{ fontSize:13, color:"#222" }}><NavIconInline name="heartFill" size={13} style={{ verticalAlign:"-2px", color:"#E24B4A" }} />お気に入り登録</span>
               <span className="f-sans" style={{ fontSize:13, fontWeight:800, flexShrink:0, color: completeNotifyNext ? "#00A86B" : "#B0B0B0" }}>{completeNotifyNext ? "する" : "しない"}</span>
@@ -1466,7 +1470,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
       )}
 
       {/* お気に入り登録しました！ボックス（2026-07-19）：働き手アイコンに❤️が付く動作・説明は1文×2・詳細は展開 */}
-      {favDone && (
+      {ROSTER_PRESENTATION_ENABLED && favDone && (
         <div onClick={()=>setFavDone(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9600, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"fadeIn .2s ease" }}>
           <div onClick={e=>e.stopPropagation()} className="cb-sheet-up" style={{ background:"#fff", borderRadius:20, padding:"28px 24px 24px", maxWidth:360, width:"100%", textAlign:"center", position:"relative", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }}>
             <p className="f-sans" style={{ fontSize:17, fontWeight:800, color:"#222", margin:"0 0 18px" }}>お気に入り登録しました！</p>
@@ -1490,7 +1494,7 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
         </div>
       )}
       {/* また呼びたいリスト：働き手詳細モーダル（アイコンタップで展開・応募者カードと同じ表示部品） */}
-      {rosterDetail && (
+      {ROSTER_PRESENTATION_ENABLED && rosterDetail && (
         <div onClick={()=>setRosterDetail(null)} className="cb-lock-scroll" style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:24, maxWidth:400, width:"100%", maxHeight:"85vh", overflowY:"auto", position:"relative", WebkitOverflowScrolling:"touch", overscrollBehavior:"contain" }}>
             <p className="f-sans" style={{ fontSize:15, fontWeight:800, color:"#222", margin:"0 0 16px" }}>働き手の詳細</p>
@@ -1542,10 +1546,10 @@ export function FarmerDashboard({ onNewJob, onResume, me, savedDraftJobNumber, o
                 <p style={{ margin:"0 0 4px", color:"#222" }}>特記事項：<strong>{FARMER_TRAIT_TAGS.options.filter(t => completeDone.tags.includes(t.v)).map(t => t.l).join("・")}</strong></p>
               )}
             </div>
-            <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
+            {ROSTER_PRESENTATION_ENABLED && <label className="f-sans" style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#222", cursor:"pointer", marginBottom:16 }}>
               <input type="checkbox" checked={completeDone.favorited} onChange={e=>toggleDoneFavorite(e.target.checked)} style={{ width:18, height:18, accentColor:"#00A86B", flexShrink:0 }} />
               お気に入り登録（また呼びたいリストに登録し、次の求人をお知らせする）
-            </label>
+            </label>}
             <button onClick={()=>setCompleteDone(null)} className="f-sans" style={{ width:"100%", padding:"12px", fontSize:14, fontWeight:700, background:"#00A86B", color:"#fff", border:"none", borderRadius:10, cursor:"pointer" }}>閉じる</button>
           </div>
         </div>

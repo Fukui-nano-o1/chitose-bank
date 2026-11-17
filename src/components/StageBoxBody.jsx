@@ -1,3 +1,4 @@
+import { ROSTER_PRESENTATION_ENABLED } from "../features/farmer/dashboard/rosterPresentation";
 // 段階お祝いボックスの中身（アイコン・見出し・本文・つぎに起きること・リンク）。
 // 本番（App.jsx の stageBox）と管理の見本帳（AdminBoxRegistryPage）が同じ部品で描く＝見た目を二重に持たない。
 // steps＝「つぎに起きること」の行（アイコン＋太字＋灰色の説明・この画面の説明 PageGuide と同じ言語）。
@@ -53,8 +54,11 @@ export const WORKED_STEPS = [
   { icon:"clipboard", t:"はたらいた記録に残ります",       d:"日数と時間が、あなたの実績に加わります" },
 ];
 // 作業が完了した時（f:worked・農家）＝評価する→また呼びたい→相手の評価
-export const F_WORKED_STEPS = [
+const PRESERVED_F_WORKED_STEPS = [
   { icon:"star",      t:"バイトの評価をします",           d:"仕事は完了したか・またこの人と働きたいか、などの3問です" },
   { icon:"heart",     t:"また呼びたい登録ができます",     d:"登録すると次の求人のお知らせが届きます" },
   { icon:"views",     t:"入力と公開の期限は72時間",   d:"入力は最終作業の終了から72時間以内。公開は72時間後で、片方だけの評価も保存します" },
 ];
+
+// Preserve the source instruction without advertising the disabled registration UI.
+export const F_WORKED_STEPS = PRESERVED_F_WORKED_STEPS.filter(step => ROSTER_PRESENTATION_ENABLED || step.icon !== "heart");
