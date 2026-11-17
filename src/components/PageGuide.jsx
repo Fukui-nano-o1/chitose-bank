@@ -553,6 +553,20 @@ const PAGE_GUIDES = [
     ],
     spots: [{ sel: '[data-guide="job-card"]', label: "応募した求人のカードです。タップすると返事の状況が見られます。" }],
   },
+  {
+    key: "workplaceEdit", title: "写真で職場を紹介", art: "profileEdit",
+    match: (h) => h === "profile/employer/profile/workplace",
+    lead: "写真を選び、確認してから公開します。途中で戻っても、公開中の写真は変わりません。",
+    rows: [
+      { icon: "camera", t: "1. 写真を選ぶ", d: "作業や休憩の様子など、最大6枚。選んだ写真を確認して、非公開の下書きに追加します" },
+      { icon: "views", t: "2. 公開前に確認", d: "下書きの写真と、写っている情報を確認します。分類や説明文の入力は必要ありません" },
+      { icon: "check", t: "3. この内容で公開する", d: "公開の範囲と掲載権限に同意して、公開ボタンを押します。選択・下書きへの追加だけでは公開されません" },
+    ],
+    spots: [
+      { sel: '[data-guide="workplace-select"]', label: "まずは写真を選びます。選んだあとで確認できます。" },
+      { sel: '[data-guide="workplace-publish"]', label: "下書きを確認して、同意してから公開します。" },
+    ],
+  },
   // ── プロフィール編集（2026-09-03）：どの項目が誰に見えるかを、入力の前に伝える。
   //    一覧の面（#/profile/worker/profile・#/profile/employer/profile）だけ＝項目ごとの編集ページ（/{項目}）では出さない
   {

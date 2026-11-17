@@ -21,11 +21,26 @@ test('independent editor separates local selection, draft and consent-gated publ
   const photo=n=>({id:String(n),state:'ready',path:`11111111-1111-4111-8111-111111111111/${String(n).repeat(64)}.jpg`});
   const props={onBack:()=>calls.push(['back']),canEdit:true,status:'ready',draftPhotos:[photo(1)],publishedPhotos:[],onAdd:async file=>calls.push(['add',file.name]),onRemove:async id=>calls.push(['remove',id]),onPublish:async consent=>{calls.push(['publish',JSON.parse(JSON.stringify(consent))]);await new Promise(resolve=>{release=resolve;});},onUnpublish:async()=>calls.push(['unpublish'])};
   w.qaEditorProps=props;w.eval(await readFile(path.join(output,'fixture.iife.js'),'utf8'));
+  w.qaRenderEditor({...props,draftPhotos:[]});
+  assert.equal(w.document.querySelector('[data-guide="workplace-select"]').disabled,false,'empty ready editor starts with photo selection');
+  assert.equal(button(w,'この内容で公開する').disabled,true,'empty editor cannot publish');
+  assert.equal(calls.length,0,'rendering the entry flow never saves or publishes');
+  w.qaRenderEditor({...props,status:'loading',draftPhotos:[]});
+  assert.equal(w.document.querySelector('[data-guide="workplace-select"]').disabled,true,'loading cannot start an upload');
+  w.qaRenderEditor(props);
+  const guide=w.qaWorkplaceGuide('#/profile/employer/profile/workplace');
+  assert.equal(guide.key,'workplaceEdit');assert.equal(guide.rows.length,3);
+  assert.notEqual(w.qaWorkplaceGuide('#/profile/employer/profile')?.key,'workplaceEdit');
+  const selectButton=w.document.querySelector('[data-guide="workplace-select"]');
+  assert.ok(selectButton.compareDocumentPosition(w.document.querySelector('h2')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'select precedes draft instructions');
+  assert.equal(w.document.querySelector('details').open,false,'reference details start collapsed');
+  assert.ok(w.document.querySelector('[data-guide="workplace-publish"]').compareDocumentPosition(w.document.querySelector('[aria-labelledby="workplace-library-title"]')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'optional library follows publication');
   const pub=()=>button(w,'この内容で公開する');assert.equal(pub().disabled,true);
   const checks=()=>[...w.document.querySelectorAll('input[type="checkbox"]')];checks()[0].click();assert.equal(pub().disabled,true);checks()[1].click();await until(()=>!pub().disabled);
   pub().click();pub().click();await until(()=>typeof release==='function');assert.equal(calls.filter(c=>c[0]==='publish').length,1);assert.deepEqual(calls[0],['publish',{publicWeb:true,people:true}]);assert.equal(pub().disabled,true);release();await until(()=>checks().every(c=>!c.checked));
   checks().forEach(c=>c.click());await until(()=>!pub().disabled);w.qaRenderEditor({...props,draftPhotos:[photo(2)]});await until(()=>checks().every(c=>!c.checked));assert.equal(pub().disabled,true,'new draft resets consent');
   const input=w.document.querySelector('input[type="file"]');Object.defineProperty(input,'files',{configurable:true,value:[new w.File(['synthetic'],'photo.jpg',{type:'image/jpeg'})]});input.dispatchEvent(new w.Event('change',{bubbles:true}));await until(()=>w.document.querySelector('[aria-label="選んだ写真の確認"]'));
+  assert.ok(w.document.querySelector('[aria-label="選んだ写真の確認"]').compareDocumentPosition(w.document.querySelector('h2')) & w.Node.DOCUMENT_POSITION_FOLLOWING,'selected preview precedes existing draft');
   assert.equal(calls.filter(c=>c[0]==='add').length,0,'file picker does not upload');button(w,'この写真を下書きに追加').click();await until(()=>calls.some(c=>c[0]==='add'));await until(()=>!w.document.querySelector('[aria-label="選んだ写真の確認"]'));assert.ok(revoked.length);
   w.qaRenderEditor({...props,draftPhotos:Array.from({length:6},(_,i)=>photo(i+1))});assert.equal(w.document.querySelector('input[type="file"]').disabled,true,'six photos maximum');
   // Saved-library reuse must not re-upload, and deletion is an explicit second step.
