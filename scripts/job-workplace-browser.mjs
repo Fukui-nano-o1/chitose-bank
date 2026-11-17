@@ -63,7 +63,7 @@ try {
   try {
    await page.goto(`${origin}/#/work/job/101`);
    if(mode==='empty'){
-    const host=page.locator('[aria-label="職場紹介を見る"]').first();await host.waitFor();
+    const host=page.getByRole('button',{name:'募集主を見る',exact:true}).first();await host.waitFor();
     await page.locator('#sec-workplace').waitFor({state:'detached'});
     await page.evaluate(()=>document.fonts.ready);
     await page.waitForTimeout(350);
@@ -75,8 +75,10 @@ try {
     await page.locator('.job-secnav').getByRole('button',{name:'職場紹介',exact:true}).waitFor({state:'detached'});
     assert.ok(metrics.scrollWidth<=width+1,`horizontal overflow at ${width}px`);
     await page.screenshot({path:path.join(evidence,`workplace-${width}-${mode}.png`)});
-    await host.press('Enter');await page.locator('.workplace-page').waitFor();
-    await page.getByRole('button',{name:'求人詳細に戻る'}).click();await host.waitFor();
+    await host.press('Enter');
+    await page.waitForFunction(()=>document.activeElement?.textContent==='募集主について');
+    assert.equal(new URL(page.url()).hash,'#/work/job/101');
+    assert.equal(await page.locator('.workplace-page').count(),0);
     await page.locator('#sec-workplace').waitFor({state:'detached'});
     assert.deepEqual(errors,[]);results.push({...scenario,metrics,result:'passed'});
     continue;

@@ -158,23 +158,33 @@ export function JobKeyFacts({ job }) {
 }
 
 // 募集主の小さな行（Airbnbの「Hosted by X」の型・タイトルブロックの直下）。
-// 求人詳細では下部の募集主カードと同じ職場紹介ページへ。プレビューは既存の紹介を維持。
+// 募集主はページ内の人物紹介へ。職場の写真・働き方とは分ける。
+export function focusJobHostSection() {
+  const section = document.getElementById("sec-host");
+  if (!section) return;
+  const heading = section.querySelector("h3");
+  if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+  section.scrollIntoView({ behavior: "auto", block: "start" });
+}
+
 export function JobHostRow({ job, employer, trust, onOpenIntro, onOpenWorkplace }) {
+  // Legacy public callers provide this callback as a mode marker only.
+  // Host actions never invoke it; the workplace block owns that navigation.
+  const onOpenHost = typeof onOpenWorkplace === "function" ? focusJobHostSection : null;
   const name = employer?.nickname || job.employerName;
   if (!name) return null;
   return (
     <AirSection>
-      <div onClick={() => onOpenWorkplace ? onOpenWorkplace() : onOpenIntro?.(true)} role="button"
-        tabIndex={onOpenWorkplace || onOpenIntro ? 0 : undefined}
-        aria-label={onOpenWorkplace ? "職場紹介を見る" : undefined}
-        onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && (onOpenWorkplace || onOpenIntro)) { e.preventDefault(); if (onOpenWorkplace) onOpenWorkplace(); else onOpenIntro(true); } }}
-        style={{ display:"flex", alignItems:"center", gap:14, cursor: onOpenWorkplace || onOpenIntro ? "pointer" : "default" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
         <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={48} />
         <div style={{ minWidth:0 }}>
           <p className="f-sans" style={{ fontSize:16, fontWeight:700, color:"#222", margin:0 }}>募集主：{name}さん</p>
           {trust?.ok && trust.member_since && (
             <p className="f-sans" style={{ fontSize:13, color:"#717171", margin:"3px 0 0" }}>chitose-bank利用 {trust.member_since}から</p>
           )}
+          {(onOpenHost || onOpenIntro) && <button type="button" aria-label="募集主を見る"
+            onClick={() => onOpenHost ? onOpenHost() : onOpenIntro(true)}
+            className="f-sans" style={{ minHeight:44, padding:"8px 0", border:0, background:"transparent", color:"#222", fontSize:13, fontWeight:700, textDecoration:"underline", textUnderlineOffset:3, cursor:"pointer" }}>募集主を見る →</button>}
         </div>
       </div>
     </AirSection>
@@ -465,7 +475,8 @@ export function JobThingsToKnow({ job, onPhoto }) {
 // ★募集主カードに出すのは アイコン／名称／数字／代表より だけ（2026-08-25たきと指示）。
 //   氏名・住所・連絡先は出さない（2026-08-03に募集者情報ボックスを削除した判断のまま＝
 //   それらは農園紹介の信頼カードが伏せ字つきで担う。ここで復活させない）
-export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro, onOpenWorkplace }) {
+export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro: previewIntro, onOpenWorkplace }) {
+  const onOpenIntro = typeof onOpenWorkplace === "function" ? undefined : previewIntro;
   const [reviews, setReviews] = useState(null);
   useEffect(() => {
     // 求人番号の無い下書き（掲載前の確認ページ）は引けない＝「読み込み中」に固めず空として描く（2026-09-19）
@@ -511,18 +522,18 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro, onOpe
 
     {/* ── 募集主について（Airbnbの「Meet your host」＝評価の直下）── */}
     {name && (
-      <AirSection id="sec-host" title="募集主について">
+      <AirSection id="sec-host" title="募集主について" style={{ scrollMarginTop:128 }}>
         {/* パスポート型カード（2026-08-25たきと指示「パクれ」）：白いカードに影・
             左＝大きなアイコン＋名前（縦中央）・右＝数字の縦積み（横線区切り）の2カラム。
             アイコン右下のバッジ＝連絡先確認済み（trust.id_checked・Airbnbの本人確認バッジに当たる位置）。
-            求人詳細では職場紹介の専用ページへ。確認画面などは従来の紹介プレビューを維持。 */}
-        <div onClick={() => onOpenWorkplace ? onOpenWorkplace() : onOpenIntro?.(true)} role="button"
-          tabIndex={onOpenWorkplace || onOpenIntro ? 0 : undefined}
-          aria-label={onOpenWorkplace ? "職場紹介を見る" : undefined}
-          onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && (onOpenWorkplace || onOpenIntro)) { e.preventDefault(); if (onOpenWorkplace) onOpenWorkplace(); else onOpenIntro(true); } }}
+            求人詳細では人物の情報をその場で読む。明示的な紹介プレビューだけは維持。 */}
+        <div onClick={onOpenIntro ? () => onOpenIntro(true) : undefined} role={onOpenIntro ? "button" : undefined}
+          tabIndex={onOpenIntro ? 0 : undefined}
+          aria-label={onOpenIntro ? "募集主を見る" : undefined}
+          onKeyDown={onOpenIntro ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenIntro(true); } } : undefined}
           style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", borderRadius:24,
                    boxShadow:"0 6px 16px rgba(0,0,0,0.14)", padding:"22px 18px", margin:"4px 2px 6px",
-                   cursor: onOpenWorkplace || onOpenIntro ? "pointer" : "default" }}>
+                   cursor: onOpenIntro ? "pointer" : "default" }}>
           <div style={{ flex:"1 1 0", minWidth:0, display:"flex", flexDirection:"column", alignItems:"center" }}>
             <div style={{ position:"relative" }}>
               <Avatar url={employer?.avatar_url || job.employerAvatar} name={name} size={96} ring={ROLE_GREEN} />
@@ -533,7 +544,7 @@ export function JobReviewsAndHost({ job, employer, trust, me, onOpenIntro, onOpe
               )}
             </div>
             <p className="f-sans" style={{ fontSize:21, fontWeight:800, color:"#222", margin:"10px 0 0", textAlign:"center", overflowWrap:"break-word", wordBreak:"break-word", lineHeight:1.3 }}>{name}さん</p>
-            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{onOpenWorkplace ? "職場紹介を見る →" : "募集主"}</p>
+            <p className="f-sans" style={{ fontSize:12, color:"#717171", margin:"3px 0 0" }}>{onOpenIntro ? "募集主を見る →" : "募集主"}</p>
           </div>
           {stats.length > 0 && (
             <div style={{ flex:"0 0 41%", maxWidth:150, minWidth:0 }}>
