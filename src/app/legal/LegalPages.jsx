@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { observePrivacySection } from "../../lib/privacySectionRoute";
 import { AnalyticsPreferences } from "../../components/AnalyticsPreferences";
 import { PRIVACY_SECTIONS, PrivacyDataTable } from "./PrivacyPolicy";
 import { TERMS_ARTICLES, renderRichText } from "../../Terms";
@@ -69,9 +71,11 @@ export function CharterPage() {
 }
 
 export function PrivacyPage() {
+  useEffect(() => observePrivacySection(), []);
+  const measurementRecord = PRIVACY_SECTIONS.find(s => s.id === "privacy-3")?.table?.rows.find(row => row[0].startsWith("任意の利用状況の計測"))?.[0];
   return (
 <div className="help-edge" style={{ maxWidth:760, margin:"0 auto", padding:"40px 4px 48px" }}>{/* 画面端から実質4px（使い方ガイドと同じ作法） */}
-            <h1 className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
+            <h1 data-privacy-title tabIndex={-1} className="f-sans" style={{ fontSize:32, fontWeight:800, color:"#222", marginBottom:8 }}>プライバシーポリシー</h1>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:4 }}>chitose-bank</p>
             <p className="f-sans" style={{ fontSize:14, color:"#999", marginBottom:36 }}>制定：2026年7月5日／全面改訂：2026年7月21日／改訂：2026年10月26日</p>
             <AnalyticsPreferences always />
@@ -91,7 +95,11 @@ export function PrivacyPage() {
             <div style={{ display:"grid", gap:20 }}>
               {PRIVACY_SECTIONS.map((s, i) => (
                 <div key={i} id={s.id} style={{ padding:"20px 24px", background:"#F7F7F7", borderRadius:16, border:"1px solid #EBEBEB", scrollMarginTop:88, minWidth:0 }}>
-                  <h3 className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
+                  <h3 tabIndex={-1} className="f-sans" style={{ fontSize:15, fontWeight:700, color:"#222", marginBottom:10, marginTop:0 }}>{s.title}</h3>
+                  {s.id === "privacy-10" && measurementRecord && <dl aria-label="計測の記録内容と送信先" style={{ margin: "12px 0 20px", lineHeight: 1.8, fontSize: 14 }}>
+                    <dt style={{ fontWeight: 700 }}>記録する内容（第3条）</dt><dd style={{ margin: "4px 0 12px" }}>{measurementRecord}</dd>
+                    <dt style={{ fontWeight: 700 }}>送信先（第10条）</dt><dd style={{ margin: "4px 0" }}>{s.body.find(text => text.startsWith("2. 計測データの送信先"))}</dd>
+                  </dl>}
                   {s.body.map((p, j) => (
                     <p key={j} className="f-sans" style={{ fontSize:14, color:"#444", lineHeight:1.9, margin: j < s.body.length-1 ? "0 0 8px" : 0, textAlign:"left" }}>{renderRichText(p)}</p>
                   ))}

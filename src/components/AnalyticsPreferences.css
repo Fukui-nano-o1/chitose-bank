@@ -6,3 +6,10 @@
 .analytics-buttons button { flex: 1 1 120px; min-height: 48px; border: 1px solid #222; border-radius: 12px; background: #fff; color: #222; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
 .analytics-buttons button[aria-pressed="true"] { background: #f0f8f5; border-color: #008558; box-shadow: inset 0 0 0 1px #008558; }
 .analytics-buttons button:focus-visible { outline: 3px solid #008558; outline-offset: 3px; }
+
+.analytics-preferences summary { cursor: pointer; min-height: 44px; padding: 8px 0; box-sizing: border-box; }
+.analytics-preferences .analytics-summary-title { font-size: 18px; font-weight: 700; }
+.analytics-preferences summary:focus-visible { outline: 3px solid #008558; outline-offset: 3px; border-radius: 4px; }
+.analytics-preferences details[open] summary { margin-bottom: 8px; }
+
+.analytics-preferences summary .analytics-choice { display: block; font-size: 13px; font-weight: 400; color: #717171; margin-top: 6px; }
