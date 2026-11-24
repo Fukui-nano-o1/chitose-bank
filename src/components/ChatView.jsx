@@ -21,6 +21,7 @@ import { ChatSheet } from "./ChatSheet";
 import { ChatDetails } from "./ChatDetails";
 import { schedulePath } from "../features/today/schedule";
 import { useChatViewport } from "../lib/useChatViewport";
+import { useChatHistoryScroll } from "../lib/useChatHistoryScroll";
 import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
 import { clearSentChatDraft, readChatDraft, saveChatDraft } from "../lib/chatDrafts";
 import { planDraftSpan, replacePlanDraft } from "../lib/chatPlanDraft";
@@ -39,20 +40,17 @@ export function ChatView({ applicationId, onBack }) {
   const [sendError, setSendError] = useState("");
   const [pending, setPending] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false), [quickOpen, setQuickOpen] = useState(false);
-  const [hasNewMessages, setHasNewMessages] = useState(false);
+
   const [msgs, setMsgs] = useState([]);
   const [msgsLoading, setMsgsLoading] = useState(true); // 初回・スレッド切替の読み込み中（仮配置の表示に使う）
   // 前回の会話の先出し（2026-08-26 Speed-4B）。暗号化した直近30件を端末から復号して即描画し、
   // 裏で走るサーバー取得が届いたら静かに置き換える（stale-while-revalidate）。
   // ★表示専用＝送信権限・採用・契約・既読の正はすべて従来どおりサーバー側が決める
   const cacheReqRef = useRef(0);            // スレッドを切り替えた後に古い復号結果が届いても捨てる
-  const restoredFromCacheRef = useRef(false); // いま画面に出ているのが控えか（サーバー結果で置き換える時の目印）
   // このスレッドに履歴があると一度でも確認できたか（控えから復元 or サーバーから1件以上取得）。
   // messages はDB側で削除できない（messages_history_lock・2026-07-19恒久ルール）ので、
   // 一度あった履歴が後から0件になることはない＝空応答・通信エラーで消さないための印（2026-08-26 Speed-4B.1）
   const knownHistoryRef = useRef(false);
-  const pinBottomRef = useRef(false);         // 控え→本物の置き換えで、最下部に貼り直す
-  const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
   const nearBottomRef = useRef(true); // 利用者が下端の近く(80px以内)にいるか。onScrollで更新・自動スクロールの条件（2026-08-07）
   const [text, setText] = useState("");
   const textRef = useRef("");
@@ -298,9 +296,6 @@ export function ChatView({ applicationId, onBack }) {
       });
       setMsgsLoading(false); // 取得できた時点で仮配置を畳む（0件なら「まだメッセージはありません」に切り替わる）
       // 中身が変わったか（変わっていない時は後始末の書き込みを省く＝5秒ごとの無駄な往復を減らす）
-      // 控えを出していた画面に本物が入った時は、次の描画で最下部へ貼り直す（Speed-4B）。
-      // 控えは直近30件なので、サーバーの一覧のほうが長いと上に行が増えて位置がずれるため
-      if (data && restoredFromCacheRef.current) { restoredFromCacheRef.current = false; pinBottomRef.current = true; }
       const sig = data ? data.length + ":" + (data.length ? data[data.length-1].id : "") : "";
       const changed = sig !== msgSigRef.current;
       msgSigRef.current = sig;
@@ -373,13 +368,12 @@ export function ChatView({ applicationId, onBack }) {
     nearBottomRef.current = true; // 開いた直後・スレッド切替は必ず最下部から（前のスレッドで遡った状態を引き継がない）
     // 前回の会話を端末から先出し（Speed-4B）。ネットワークを待たずにここで始める＝
     // 下のサーバー取得と並列。届くのが遅れてサーバーが先に入っていたら、控えでは上書きしない
-    restoredFromCacheRef.current = false;
     knownHistoryRef.current = false; // 別のスレッド＝まだ何も知らない状態から始める
     const _cacheReq = ++cacheReqRef.current;
     readChatBody(applicationId).then(list => {
       if (!aliveRef.current || cacheReqRef.current !== _cacheReq || !list || !list.length) return;
       knownHistoryRef.current = true; // 控えがある＝このスレッドには履歴がある
-      setMsgs(prev => { if (prev.length) return prev; restoredFromCacheRef.current = true; return list; });
+      setMsgs(prev => prev.length ? prev : list);
       setMsgsLoading(false);
     }).catch(() => { /* 読めなければ通常のネットワーク取得のまま */ });
     const localRow = threadApps.find(r => r.id === applicationId);
@@ -495,26 +489,12 @@ export function ChatView({ applicationId, onBack }) {
     const iv = setInterval(refresh, 5000);
     return () => { document.removeEventListener("visibilitychange", refresh); window.removeEventListener("focus", refresh); clearInterval(iv); };
   }, [appIds]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 最新メッセージへの自動スクロール（LINE式・2026-07-19／2026-08-07たきと指示
-  // 「更新はしてほしい。だけど、勝手に遷移させないで」で最終形）：
-  //   更新（新着の反映）は常に行う。スクロールで最下部へ動かすのは
-  //   ①自分が下端の近くにいる時（会話を追っている＝ついていく）
-  //   ②末尾の新着が自分の送信の時（自分の発言は必ず見せる）
-  //   の2つだけ。履歴を遡って読んでいる間は、新着が来ても位置を奪わない。
-  //   ポーリング・既読化由来の再描画では動かない（setMsgs同一判定と二重の壁）
-  const lastMsgIdRef = useRef(null);
-  useEffect(() => {
-    const last = msgs.length ? msgs[msgs.length - 1].id : null;
-    // 末尾が増えていない＝再描画のみ。ただし控え→本物の置き換え（pinBottom）の時だけは貼り直す
-    if (last === lastMsgIdRef.current && !pinBottomRef.current) return;
-    pinBottomRef.current = false;
-    lastMsgIdRef.current = last;
-    const el = msgScrollRef.current;
-    if (!el) return;
-    const mine = msgs.length > 0 && myId && msgs[msgs.length - 1].sender_id === myId;
-    if (nearBottomRef.current || mine) { el.scrollTop = el.scrollHeight; setHasNewMessages(false); }
-    else setHasNewMessages(true);
-  }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chatScroll = useChatHistoryScroll({
+    room: applicationId,
+    lastMessageId: msgs.at(-1)?.id,
+    nearBottom: nearBottomRef,
+    onReachLatest: () => load([applicationId]),
+  });
   // 働き手の内容確認専用（農家の採用実行は採用するページ #/calendar/todo/hire に一本化・2026-08-06
   // 「器と機能の役割は一つに絞れ」。二重予約の壁はDB側confirm_termsが農家の初回確定時のみ見るので、
   // 働き手の確認呼び出しには掛からない＝受諾フラグ不要）
@@ -576,7 +556,7 @@ export function ChatView({ applicationId, onBack }) {
         textRef.current = ""; setText("");
         planSelRef.current = null; setPlanSel(null); setPlanConfirm(null);
       }
-      nearBottomRef.current = true;
+      chatScroll.followToLatest();
       setMsgs(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message]);
     } catch (error) {
       if (!aliveRef.current) return;
@@ -791,9 +771,8 @@ export function ChatView({ applicationId, onBack }) {
       {/* 失効した求人のチャット（2026-07-25たきと指示）：メッセージ領域を薄暗くし中央に「失効中」ラベル。
           オーバーレイはpointerEvents:noneなので背後のチャットは従来どおりスクロール・閲覧できる（履歴保全と整合） */}
       <div className="chat-message-area">
-      <div ref={msgScrollRef}
-        onScroll={(e)=>{ const el = e.currentTarget; nearBottomRef.current = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80; if (nearBottomRef.current) { setHasNewMessages(false); load([applicationId]); } }}
-        className="chat-messages" aria-label="会話の履歴">
+      <div ref={chatScroll.scrollRef} onScroll={chatScroll.onScroll} className="chat-messages" aria-label="会話の履歴">
+      <div ref={chatScroll.contentRef} className="chat-history-content">
         {/* 採用するボタンは上部の求人No.帯（同列）へ移設（2026-07-22 LINE式）。凍結トリガーは confirm_terms のまま */}
         {/* 読み込み中は吹き出しの仮配置（2026-07-27たきと指示）。「まだメッセージはありません」を
             先に出すと、履歴があるのに一瞬「無い」と誤読させるため、読込中と空を分ける */}
@@ -874,7 +853,8 @@ export function ChatView({ applicationId, onBack }) {
           </Fragment>
         ))}
       </div>
-      {hasNewMessages && <button className="chat-latest" onClick={() => { const element = msgScrollRef.current; if (element) element.scrollTop = element.scrollHeight; nearBottomRef.current = true; setHasNewMessages(false); load([applicationId]); }}>新しいメッセージ ↓</button>}
+      </div>
+      {chatScroll.hasNewMessages && <button className="chat-latest" onClick={chatScroll.jumpToLatest}>新しいメッセージ ↓</button>}
       </div>
       {chatClosed && <div className="chat-notice">{CHAT_CLOSED_NOTE[activeStatus]}。履歴は引き続き確認できます。{text && <details><summary>未送信の下書き</summary><p style={{ whiteSpace: "pre-wrap" }}>{text}</p></details>}<br/><button className="chat-text-button" onClick={() => openSupport({ topic: "chat" })}>運営に相談する</button></div>}
       {sendError && <div className="chat-notice" role="alert">{sendError}<br/>{!chatClosed && <button className="chat-text-button" disabled={sending} onClick={send}>{pending ? "同じ内容で再送" : "もう一度送信"}</button>}<button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></div>}

@@ -20,6 +20,7 @@ import { useSwipeBack } from "../lib/swipeBack";
 import { LinkifiedText, Dots, Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD, CHAT_ROW_DIVIDER } from "./ui";
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { useChatViewport } from "../lib/useChatViewport";
+import { useChatHistoryScroll } from "../lib/useChatHistoryScroll";
 import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
 import { clearSentChatDraft, readChatDraft, saveChatDraft } from "../lib/chatDrafts";
 import { openSupport } from "../lib/supportDiagnostics";
@@ -169,7 +170,7 @@ export function AdminChatPage({ onBack, targetUserId }) {
   const [partnerName, setPartnerName] = useState(null), [text, setText] = useState("");
   const [sending, setSending] = useState(false), [error, setError] = useState(""), [loadError, setLoadError] = useState("");
   const [pending, setPending] = useState(null);
-  const uidRef = useRef(null), scrollRef = useRef(null), pageRef = useRef(null), alive = useRef(true), loadingRef = useRef(false), busyRef = useRef(false), pendingRef = useRef(null), nearBottom = useRef(true);
+  const uidRef = useRef(null), pageRef = useRef(null), alive = useRef(true), loadingRef = useRef(false), busyRef = useRef(false), pendingRef = useRef(null), nearBottom = useRef(true);
   const thread = "admin:" + (targetUserId || "self");
   useSwipeBack(pageRef, onBack);
   useChatViewport(pageRef);
@@ -189,6 +190,9 @@ export function AdminChatPage({ onBack, targetUserId }) {
       }
       uidRef.current = result.uid; setLoadError("");
       setMsgs(previous => result.msgs.length || !previous.length ? result.msgs : previous);
+      // A slow read acknowledgement must not leave a loaded conversation
+      // behind the loading placeholder.
+      setLoading(false);
       if (pendingRef.current && result.msgs.some(message => message.id === pendingRef.current.id)) {
         clearSentChatDraft(result.uid, thread, pendingRef.current.id);
         pendingRef.current = null; setPending(null); setText(""); setError("");
@@ -215,7 +219,12 @@ export function AdminChatPage({ onBack, targetUserId }) {
     // The route keys this component by account and thread, so async results cannot cross conversations.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => { if (nearBottom.current && scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [msgs.length]);
+  const chatScroll = useChatHistoryScroll({
+    room: thread,
+    lastMessageId: !loading && !denied ? msgs.at(-1)?.id : null,
+    nearBottom,
+    onReachLatest: load,
+  });
   const send = async () => {
     const uid = uidRef.current, body = text.trim();
     if (!body || busyRef.current || !uid || denied) return;
@@ -229,7 +238,7 @@ export function AdminChatPage({ onBack, targetUserId }) {
       if (pendingRef.current?.id === row.id) {
         pendingRef.current = null; setPending(null); setText("");
       }
-      nearBottom.current = true;
+      chatScroll.followToLatest();
       setMsgs(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message]);
     } catch { if (alive.current) setError("送信を確認できませんでした。入力は残っています。同じ内容で再送できます。"); }
     finally { busyRef.current = false; if (alive.current) setSending(false); }
@@ -239,11 +248,16 @@ export function AdminChatPage({ onBack, targetUserId }) {
   return <div ref={pageRef} className={"chat-full chat-room f-sans" + (iosStandaloneSupport ? " chat-room--ios-standalone-support" : "")}>
     <header className="chat-room-header"><button onClick={onBack} aria-label="メッセージ一覧に戻る" className="chat-icon-button">←</button><div className="chat-row-content"><strong>{title}</strong><p style={{ fontSize:12, margin:4 }}>{targetUserId ? "運営として返信" : "運営へのお問い合わせ"}</p></div><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></header>
     {loadError && <div role="alert" className="chat-notice">{loadError}<br/><button className="chat-text-button" onClick={load}>再読み込み</button></div>}
-    <div ref={scrollRef} className="chat-messages" aria-label="運営との会話" onScroll={event => { const element = event.currentTarget; nearBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80; }}>
+    <div className="chat-message-area">
+    <div ref={chatScroll.scrollRef} className="chat-messages" aria-label="運営との会話" onScroll={chatScroll.onScroll}>
+      <div ref={chatScroll.contentRef} className="chat-history-content">
       {loading ? <p className="chat-empty" aria-busy="true">読み込み中<Dots /></p> : denied ? <p className="chat-empty">このページは運営専用です。</p> : !msgs.length && !loadError ? <p className="chat-empty">困ったことや気づいたことを、運営にお知らせください。</p> : msgs.map((message, index) => <div key={message.id} style={{ display:"contents" }}>
         {(!index || chatDay(msgs[index - 1].created_at) !== chatDay(message.created_at)) && <p className="chat-day">{chatDay(message.created_at)}</p>}
         <div className={`chat-bubble${isMine(message) ? " is-mine" : ""}`}><LinkifiedText text={message.body}/></div><span className={`chat-message-time${isMine(message) ? " is-mine" : ""}`}>{chatTime(message.created_at)}</span>
       </div>)}
+    </div>
+    </div>
+    {chatScroll.hasNewMessages && <button className="chat-latest" onClick={chatScroll.jumpToLatest}>新しいメッセージ ↓</button>}
     </div>
     {error && <div className="chat-notice" role="alert">{error}<button className="chat-text-button" disabled={sending} onClick={send}>同じ内容で再送</button></div>}
     {!denied && <div className="chat-composer"><div className="chat-composer-row"><textarea aria-label="運営へのメッセージ" rows={2} value={text} disabled={!uidRef.current} readOnly={!!pending || sending} onChange={event => change(event.target.value)} placeholder={targetUserId ? "運営として返信" : "運営へのメッセージ"}/><button className="chat-send" onClick={send} disabled={sending || !text.trim() || !uidRef.current}>{sending ? "送信中" : pending ? "再送" : "送信"}</button></div>{text && <p className="chat-draft-hint">未送信の内容は、このアプリを開いている間だけ下書きに残ります。</p>}</div>}

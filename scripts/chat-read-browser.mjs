@@ -364,6 +364,64 @@ try {
       path: evidence + '/receipt.png'
     });
   });
+  await test('Opening unread job and support chats lands latest before slow acknowledgement',async()=>{
+    const cases=[
+      {route:app,table:'messages',owner:user,sender:partner},
+      {route:'admin',table:'admin_messages',owner:user,fromAdmin:true},
+      {route:'admin/'+partner,table:'admin_messages',owner:partner,fromAdmin:false,admin:true},
+    ];
+    for(const cfg of cases){
+      const d=records();
+      d[cfg.table]=Array.from({length:30},(_,i)=>({
+        id:'latest-replay-'+i,
+        application_id:app,sender_id:cfg.sender,
+        user_id:cfg.owner,from_admin:cfg.fromAdmin,
+        body:i===29?'開いた直後の一番新しい架空メッセージ':'以前の架空メッセージ'+i,
+        created_at:new Date(Date.UTC(2026,8,1,0,i)).toISOString(),
+        read_at:i===29?null:'2026-09-02T00:00:00Z',
+      }));
+      await mount({qaRoute:cfg.route,qaAdmin:cfg.admin,qaData:d,qaHoldReadWrite:cfg.table},{width:390,height:844});
+      await wait(()=>typeof window.qaReleaseReadWrite==='function');
+      const latest=page.getByText('開いた直後の一番新しい架空メッセージ',{exact:true});
+      await latest.waitFor();
+      const scroller=page.locator('.chat-messages');
+      const geometry=()=>scroller.evaluate(el=>{
+        const newest=Array.from(el.querySelectorAll('.chat-bubble')).at(-1);
+        const view=el.getBoundingClientRect(), bubble=newest.getBoundingClientRect();
+        return {gap:el.scrollHeight-el.clientHeight-el.scrollTop,scrollTop:el.scrollTop,
+          behavior:getComputedStyle(el).scrollBehavior,
+          newestVisible:bubble.top>=view.top-1&&bubble.bottom<=view.bottom+1};
+      });
+      const initial=await geometry();
+      assert.ok(initial.gap<3&&initial.scrollTop>100&&initial.newestVisible,JSON.stringify(initial));
+      assert.equal(initial.behavior,'auto');
+      await page.evaluate(()=>{window.qaHoldReadWrite=null;window.qaReleaseReadWrite();});
+      await wait(cfg.table==='messages'?
+        ()=>window.qaData.messages.find(m=>m.id==='latest-replay-29')?.read_at:
+        ()=>window.qaData.admin_messages.find(m=>m.id==='latest-replay-29')?.read_at);
+
+      await scroller.evaluate(el=>{el.scrollTop=120; el.dispatchEvent(new Event('scroll'));});
+      const anchor=(await geometry()).scrollTop;
+      // Model a narrower viewport/later settled history layout while reading.
+      await page.setViewportSize({width:390,height:390});
+      await page.waitForTimeout(100);
+      assert.equal((await geometry()).scrollTop,anchor,'layout/keyboard does not pull a history reader');
+
+      await page.evaluate(({table,owner,sender,fromAdmin})=>{
+        window.qaData[table].push({id:'latest-replay-new',application_id:window.qaData.messages[0].application_id,
+          user_id:owner,sender_id:sender,from_admin:fromAdmin,read_at:null,
+          body:'履歴を読んでいる間に届いた架空メッセージ',created_at:'2026-09-04T00:00:00Z'});
+        window.dispatchEvent(new Event('focus'));
+      },cfg);
+      const indicator=page.getByRole('button',{name:'新しいメッセージ ↓',exact:true});
+      await indicator.waitFor();
+      assert.equal((await geometry()).scrollTop,anchor,'incoming content does not pull a history reader');
+      assert.equal(await page.evaluate(table=>window.qaData[table].find(m=>m.id==='latest-replay-new').read_at,cfg.table),null);
+      await indicator.click();
+      const afterJump=await geometry();
+      assert.ok(afterJump.gap<3&&afterJump.newestVisible,JSON.stringify(afterJump));
+    }
+  });
   await test('Notched mobile header remains clear of the status area while only history scrolls', async () => {
     for (const route of [app, past, 'admin']) {
       const data = records();
