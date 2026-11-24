@@ -134,8 +134,8 @@
   "back = () => { if (applying) return; if (!returnAlongPath()) window.location.hash = step > 0 ? path(step - 1) : `/work/job/${selectedJob.id}`; }"  x1
 
 ## apply:page:button
-  "onClick={() => setSelection(s => ({ ...s, choice: s.choice === 'any' ? 'dates' : 'any' }))}"  x1
-  "onClick={() => setSelection(s => ({ choice: 'dates', dates: s.dates.includes(d) ? s.dates.filter(x => x !== d) : [...s.dates, d] }))}"  x1
+  "disabled={!periodDays.length}" | "onClick={() => setSelection(s => ({ ...s, choice: anySelected ? 'dates' : 'any', periodDays: [...periodDays] }))}"  x1
+  "onClick={() => setSelection(s => ({ choice: 'dates', dates: s.choice === 'any' ? [d] : s.dates.includes(d) ? s.dates.filter(x => x !== d) : [...s.dates, d], periodDays: [...periodDays] }))}"  x1
   "onClick={back}" | "disabled={applying}"  x2
   "onClick={next}" | "disabled={applying || unavailable || (step === 2 && !validDates)}"  x1
   "onClick={submit}" | "disabled={applying || unavailable || !validDates}"  x1
@@ -156,19 +156,19 @@
   "export function readApplicationStep() { const match = window.location.hash.match(/^#\\/?work\\/job\\/\\d+\\/apply\\/(intro|about|dates|confirm)$/); return match ? APPLICATION_STEPS.indexOf(match[1]) : null; }"  x1
 
 ## apply:page:selection
-  "[selection, setSelection] = useState(() => { try { const saved = JSON.parse(sessionStorage.getItem(draftKey)); return { choice: saved?.choice === 'any' ? 'any' : 'dates', dates: Array.isArray(saved?.dates) ? saved.dates : [] }; } catch { return { choice: 'dates', dates: [] }; } })"  x1
+  "[selection, setSelection] = useState(() => { try { const saved = JSON.parse(sessionStorage.getItem(draftKey)); return { choice: saved?.choice === 'any' ? 'any' : 'dates', dates: Array.isArray(saved?.dates) ? saved.dates : [], periodDays: Array.isArray(saved?.periodDays) ? saved.periodDays : null }; } catch { return { choice: 'dates', dates: [] }; } })"  x1
 
 ## apply:page:storage
   "useEffect(() => { try { sessionStorage.setItem(draftKey, JSON.stringify(selection)); } catch { } }, [draftKey, selection])"  x1
 
 ## apply:page:submit
-  "submit = () => { if (!validDates || applying || unavailable) return; applyAvailRef.current = isPeriodJob ? (selection.choice === 'any' ? 'any' : [...dates].sort()) : null; handleApply(); }"  x1
+  "submit = () => { if (!validDates || applying || unavailable) return; applyAvailRef.current = isPeriodJob ? (anySelected ? 'any' : [...dates].sort()) : null; handleApply(); }"  x1
 
 ## apply:page:unavailable
   "unavailable = blocked || checking"  x1
 
 ## apply:page:validDates
-  "validDates = !isPeriodJob || selection.choice === 'any' || dates.length > 0"  x1
+  "validDates = !isPeriodJob || (periodDays.length > 0 && !scheduleChanged && (anySelected || dates.length > 0))"  x1
 
 ## apply:panel:button
   "onClick={() => setOwnMenuOpen(true)}"  x1
