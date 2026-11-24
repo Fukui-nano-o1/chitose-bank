@@ -25,10 +25,35 @@ function records(){return {
 test('chat inbox, conversation, recovery and mobile viewport work together',async t=>{
  const output=await mkdtemp(path.join(tmpdir(),'cb-chat-'));let dom;const errors=[];
  try{
- await build({configFile:false,root,logLevel:'error',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'chat-fixture',enforce:'pre',resolveId(id){if(/(?:^|\/)supabase(?:\.js)?$/.test(id))return path.join(root,'scripts/fixtures/chat/client.js');},transform(code,id){if(id.endsWith('/src/lib/chatMessaging.js'))return code.replace('CHAT_TIMEOUT_MS = 15000','CHAT_TIMEOUT_MS = (window.qaChatTimeout || 120)');}},react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/chat/entry.jsx'),name:'ChatQA',formats:['iife'],fileName:'fixture',cssFileName:'fixture'},minify:false}});
+ await build({configFile:false,root,logLevel:'error',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'chat-fixture',enforce:'pre',resolveId(id){if(/(?:^|\/)supabase(?:\.js)?$/.test(id))return path.join(root,'scripts/fixtures/chat/client.js');},transform(code,id){if(id.endsWith('/src/lib/utils.js'))return code.replace(/^export const ADMIN_EMAIL = .*;$/m,'export const ADMIN_EMAIL = "admin-fixture@example.test";');if(id.endsWith('/src/lib/chatMessaging.js'))return code.replace('CHAT_TIMEOUT_MS = 15000','CHAT_TIMEOUT_MS = (window.qaChatTimeout || 120)');}},react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/chat/entry.jsx'),name:'ChatQA',formats:['iife'],fileName:'fixture',cssFileName:'fixture'},minify:false}});
  const script=await readFile(path.join(output,'fixture.iife.js'),'utf8'),css=await readFile(path.join(output,'fixture.css'),'utf8');
- function mount(settings={}){dom?.window.close();const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message))errors.push(e.message);});vc.on('error',(...args)=>errors.push(args.join(' ')));dom=new JSDOM('<div id="root"></div>',{url:'https://chat.test/#/chats',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc});const w=dom.window;Object.assign(w,{qaUser:user,qaData:records(),qaUnread:{[app]:1},qaChannels:[],qaRequests:[],...settings,TextEncoder,TextDecoder});w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.visualViewport=Object.assign(new w.EventTarget(),{width:390,height:844,offsetLeft:0,offsetTop:0,scale:1});w.alert=value=>errors.push('alert: '+value);const style=w.document.createElement('style');style.textContent=css;w.document.head.append(style);w.eval(script);return w;}
+ function mount(settings={}){dom?.window.close();const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message))errors.push(e.message);});vc.on('error',(...args)=>errors.push(args.join(' ')));dom=new JSDOM('<div id="root"></div>',{url:'https://chat.test/#/chats',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc});const w=dom.window;Object.assign(w,{qaUser:user,qaData:records(),qaUnread:{[app]:1},qaChannels:[],qaRequests:[],...settings,TextEncoder,TextDecoder});Object.defineProperty(w.navigator,'standalone',{value:settings.qaIosStandalone===true});w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.visualViewport=Object.assign(new w.EventTarget(),{width:390,height:844,offsetLeft:0,offsetTop:0,scale:1});w.alert=value=>errors.push('alert: '+value);const style=w.document.createElement('style');style.textContent=css;w.document.head.append(style);w.eval(script);return w;}
  const input=w=>w.document.querySelector('textarea[aria-label="メッセージ"]');
+ await t.test('synthetic operator-targeted chat resolves title and report control in the same header',async()=>{
+ const nickname='検証用のみどりさん';
+ const d=records(); d.worker_profiles.push({auth_id:partner,nickname});
+ d.admin_messages=[{id:'fixture-incoming',user_id:partner,from_admin:false,body:'架空の会話',created_at:'2026-09-23T09:00:00Z',read_at:'2026-09-24T09:00:00Z'}];
+ const w=mount({qaRoute:'admin/'+partner,qaAdmin:true,qaData:d});
+ await until(()=>w.document.querySelector('.chat-room-header strong')?.textContent===nickname,'operator-target nickname');
+ await until(()=>w.document.querySelector('.chat-bubble')?.textContent==='架空の会話','authorized synthetic thread');
+ assert.equal(w.document.querySelector('.chat-room-header .chat-text-button').textContent,'この画面を報告');
+ assert.match(w.document.querySelector('.chat-room-header').textContent,/運営として返信/);
+ assert.equal(w.document.querySelectorAll('.chat-room-header').length,1);
+ });
+ await t.test('only iOS Home Screen support chats enable the portrait headroom guard',async()=>{
+ const d=records(); d.worker_profiles.push({auth_id:partner,nickname:'検証用みどり'});
+ const open=async settings=>{
+  const w=mount({qaData:d,...settings});
+  await until(()=>w.document.querySelector('.chat-room-header'),'chat header');
+  return w.document.querySelector('.chat-room');
+ };
+ const hasGuard=room=>room.classList.contains('chat-room--ios-standalone-support');
+ assert.equal(hasGuard(await open({qaRoute:'admin/'+partner,qaAdmin:true,qaIosStandalone:true})),true);
+ assert.equal(hasGuard(await open({qaRoute:'admin/'+partner,qaAdmin:true})),false);
+ assert.equal(hasGuard(await open({qaRoute:'admin',qaIosStandalone:true})),true);
+ assert.equal(hasGuard(await open({qaRoute:'admin'})),false);
+ assert.equal(hasGuard(await open({qaRoute:app,qaIosStandalone:true})),false);
+ });
  await t.test('inbox shows recent previews and filters by job, unread and lifecycle',async()=>{const w=mount();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'rows');await until(()=>w.document.querySelector('.chat-row-preview')?.textContent.includes('明日は'),'preview');button(w,'終了').click();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===1,'past');assert.match(w.document.querySelector('.chat-inbox-row').textContent,/にんじん/);button(w,'すべて').click();await fill(w,'input[type=search]','1311');assert.equal(w.document.querySelectorAll('.chat-inbox-row').length,1);await fill(w,'input[type=search]','存在しない');assert.match(w.document.body.textContent,/該当する仕事の会話はありません/);button(w,'すべての会話を表示').click();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'reset');assert.ok(button(w,'この画面を報告'));});
  await t.test('legacy automatic approval history is neutral in inbox and bubbles without changing saved messages',async()=>{
   const data=records();const original='🌟リピート即決の設定により、応募を自動で承認しました（採用ではありません）。チャットで打ち合わせを進めましょう。';
