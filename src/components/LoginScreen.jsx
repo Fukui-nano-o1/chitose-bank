@@ -8,6 +8,19 @@ import { NavIcon } from "./NavIcons";
 import { openSupport, rememberSupportFailure } from "../lib/supportDiagnostics";
 import "./auth.css";
 
+const EMAIL_FORMAT_ERROR = "メールアドレスの形式を確認してください（例：name@example.com）";
+const CODE_PASTE_ERROR = "認証コードの6桁だけをコピーして貼り付けるか、手入力してください";
+const normalizeDigits = value => value.replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0));
+
+function readPastedCode(value) {
+  const text = normalizeDigits(value.trim());
+  // Accept a bare or grouped code. For a full message, accept only one isolated six-digit number.
+  const digits = text.replace(/[\s-]/g, "");
+  if (/^[0-9]{6}$/.test(digits)) return digits;
+  const matches = (text.match(/[0-9]+/g) || []).filter(run => run.length === 6);
+  return matches.length === 1 ? matches[0] : null;
+}
+
 // ── LoginScreen — メールOTP認証 ───────────────────────────────
 export function LoginScreen({ onLogin, embedded = false, onClose }) {
   // 認証の2経路（2026-07-16）：
@@ -160,6 +173,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   };
 
   const requestCode = async () => {
+    setResent(false); // A previous success must not be shown during or after a failed resend.
     let result;
     try {
       result = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: intent === "signup" && signupOpen } });
@@ -259,6 +273,17 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
   const emailId = `${fieldId}-email`;
   const pwId = `${fieldId}-password`;
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const emailFormatError = err === EMAIL_FORMAT_ERROR;
+  const submitEmail = (event, action) => {
+    event.preventDefault();
+    if (requestLock.current) return;
+    if (!validEmail || event.currentTarget.elements.email.validity.typeMismatch) {
+      setErr(EMAIL_FORMAT_ERROR);
+      event.currentTarget.elements.email.focus();
+      return;
+    }
+    runAction(action);
+  };
   const loginAlternative = (
     <section className="cb-auth-alternative" aria-labelledby={`${fieldId}-alternative`}>
       <h2 id={`${fieldId}-alternative`}>すでにアカウントをお持ちですか？</h2>
@@ -285,24 +310,25 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
           {view === "login" ? (
             <>
               <p className="cb-auth-description">登録済みの方はこちらからログインできます。</p>
-              <form onSubmit={e => { e.preventDefault(); if (validEmail && pw) runAction(passwordLogin); }} aria-busy={sending}>
+              <form noValidate onSubmit={e => { if (pw) submitEmail(e, passwordLogin); else e.preventDefault(); }} aria-busy={sending}>
                 <div className="cb-auth-field-group">
                   <div className="cb-auth-field">
                     <label htmlFor={emailId}>メールアドレス</label>
                     <input id={emailId} data-guide="login-email" type="email" name="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
                       placeholder="メールアドレスを入力" value={email} required readOnly={sending}
+                      aria-invalid={emailFormatError} aria-describedby={emailFormatError ? errorId : undefined}
                       onChange={e => { setEmail(e.target.value); setErr(""); }} />
                   </div>
                   <div className={`cb-auth-field cb-auth-password${shk ? " shake" : ""}`}>
                     <label htmlFor={pwId}>パスワード</label>
                     <input id={pwId} type={showPw ? "text" : "password"} name="password" autoComplete="current-password"
-                      placeholder="パスワードを入力" value={pw} required readOnly={sending} aria-describedby={err ? errorId : undefined}
+                      placeholder="パスワードを入力" value={pw} required readOnly={sending} aria-describedby={err && !emailFormatError ? errorId : undefined}
                       onChange={e => { setPw(e.target.value); setErr(""); }} />
                     {eyeBtn}
                   </div>
                 </div>
                 {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
-                <button className="cb-auth-primary" disabled={!validEmail || !pw || sending}>
+                <button className="cb-auth-primary" disabled={!email.trim() || !pw || sending}>
                   {sending ? <>確認中<Dots /></> : "ログイン"}
                 </button>
               </form>
@@ -318,7 +344,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
           ) : view === "otp" ? (
             <>
               <p className="cb-auth-description">{isReset ? "登録したメールアドレスに、確認コードをお送りします。" : signupOpen ? "確認コードをお送りします。" : "招待を受けたメールアドレスに、確認コードをお送りします。"}</p>
-              <form onSubmit={e => { e.preventDefault(); if (validEmail) runAction(requestCode); }} aria-busy={sending}>
+              <form noValidate onSubmit={e => submitEmail(e, requestCode)} aria-busy={sending}>
                 <div className="cb-auth-field">
                   <label htmlFor={emailId}>メールアドレス</label>
                   <input id={emailId} type="email" name="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
@@ -326,7 +352,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
                     onChange={e => { setEmail(e.target.value); setErr(""); }} />
                 </div>
                 {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
-                <button className="cb-auth-primary" disabled={!validEmail || sending}>{sending ? <>送信中<Dots /></> : "続ける"}</button>
+                <button className="cb-auth-primary" disabled={!email.trim() || sending}>{sending ? <>送信中<Dots /></> : "続ける"}</button>
               </form>
               {loginAlternative}
             </>
@@ -334,7 +360,7 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
             <>
               <p className="cb-auth-description cb-auth-recipient"><strong>{email.trim()}</strong> に送信した6桁のコードを入力してください。</p>
               <button type="button" className="cb-auth-link cb-auth-change-email" disabled={sending} onClick={goBack}>メールアドレスを変更</button>
-              <form onSubmit={e => { e.preventDefault(); if (code.length === 6) runAction(verifyCode); }} aria-busy={sending}>
+              <form onSubmit={e => { e.preventDefault(); if (code.length === 6 && err !== CODE_PASTE_ERROR) runAction(verifyCode); }} aria-busy={sending}>
                 <label className="cb-auth-code-label" htmlFor={`${fieldId}-code`}>認証コード</label>
                 <div className={`cb-auth-code${err ? " has-error" : ""}${shk ? " shake" : ""}`}>
                   <input id={`${fieldId}-code`} className="cb-auth-code-input" type="text" name="code" inputMode="numeric" autoComplete="one-time-code"
@@ -344,16 +370,18 @@ export function LoginScreen({ onLogin, embedded = false, onClose }) {
                     onPaste={e => {
                       e.preventDefault();
                       if (sending) return;
-                      setCode(e.clipboardData.getData("text").replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0)).replace(/\D/g, "").slice(0, 6));
+                      const pastedCode = readPastedCode(e.clipboardData.getData("text"));
+                      if (pastedCode === null) { setErr(CODE_PASTE_ERROR); return; }
+                      setCode(pastedCode);
                       setErr("");
                     }}
-                    onChange={e => { setCode(e.target.value.replace(/[０-９]/g, digit => String.fromCharCode(digit.charCodeAt(0) - 0xFEE0)).replace(/\D/g, "").slice(0, 6)); setErr(""); }} />
+                    onChange={e => { setCode(normalizeDigits(e.target.value).replace(/\D/g, "").slice(0, 6)); setErr(""); }} />
                   <div className="cb-auth-code-slots" aria-hidden="true">
                     {Array.from({ length: 6 }, (_, i) => <span key={i} className={codeFocused && i === Math.min(code.length, 5) ? "is-active" : ""}>{code[i] || ""}</span>)}
                   </div>
                 </div>
                 {err && <p id={errorId} className="cb-auth-error" role="alert">{err}</p>}
-                <button className="cb-auth-primary" disabled={code.length !== 6 || sending}>{sending ? <>確認中<Dots /></> : "確認して続ける"}</button>
+                <button className="cb-auth-primary" disabled={code.length !== 6 || err === CODE_PASTE_ERROR || sending}>{sending ? <>確認中<Dots /></> : "確認して続ける"}</button>
               </form>
               <div className="cb-auth-resend">
                 <span>コードが届きませんか？</span>

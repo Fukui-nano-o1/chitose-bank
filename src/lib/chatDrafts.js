@@ -8,4 +8,10 @@ export function saveChatDraft(uid, thread, draft) {
   if (draft.text || draft.pending) drafts.set(key, { ...draft });
   else drafts.delete(key);
 }
+// A response belongs to its message ID, not every draft in the thread.
+export function clearSentChatDraft(uid, thread, messageId) {
+  const key = `${uid}:${thread}`;
+  if (drafts.get(key)?.pending?.id !== messageId) return false;
+  return drafts.delete(key);
+}
 export const clearChatDrafts = () => drafts.clear();

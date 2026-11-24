@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { CalendarView } from "../../../../components/CalendarView";
 import { LFWizCard } from "../../../../components/ui";
 import { calendarDateToYmd } from "../../../../lib/calendarDate.js";
@@ -6,17 +7,31 @@ import { isMultiDaySchedule, validHeadcount, validSchedule } from "../listingNav
 import { lfStyles } from "../lfStyles.js";
 
 // 入力はすべて親で保持する。ページの切替・再マウントで別の値を作らない。
-export function StepSchedule({ start, end, setStart, setEnd, holidays }) {
+export function StepSchedule({ start, end, setStart, setEnd, holidays, setHolidays }) {
+  // Keep only a tentative selection while this calendar is mounted. A single-day
+  // save still has no holidays; choosing a second endpoint can retain in-range days.
+  const previousRange = useRef(null);
+  const selectDate = (date) => {
+    const day = calendarDateToYmd(date);
+    const currentStart = calendarDateToYmd(start);
+    if (!currentStart || end || day < currentStart) {
+      const previous = end ? holidays : previousRange.current?.start === currentStart ? previousRange.current.days : [];
+      previousRange.current = { start: day, days: previous };
+      setStart(date);
+      setEnd(null);
+      return;
+    }
+    const previous = previousRange.current;
+    previousRange.current = null;
+    setEnd(date);
+    if (previous?.start === currentStart) setHolidays(previous.days.filter(value => value > currentStart && value < day));
+  };
   return <>
     <h2 className="f-sans" style={lfStyles.stepTitle}>いつ来てほしいですか？</h2>
     <p className="f-sans" style={lfStyles.subtitle}>開始日と終了日を選びます。1日だけなら、開始日だけで次へ進めます。</p>
     <LFWizCard>
       <p className="f-sans" role="status" aria-live="polite">{dateLabel(start, end)}</p>
-      <CalendarView start={start} end={end} holidays={holidays} onSelect={date => {
-        if (!start || end) { setStart(date); setEnd(null); }
-        else if (date >= start) setEnd(date);
-        else { setStart(date); setEnd(null); }
-      }} />
+      <CalendarView start={start} end={end} holidays={holidays} onSelect={selectDate} />
       {!validSchedule(start, end) && <p className="listing-input-hint">カレンダーで開始日を選んでください。</p>}
     </LFWizCard>
   </>;

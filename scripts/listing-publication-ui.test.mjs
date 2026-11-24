@@ -173,6 +173,27 @@ test('stage 5 real listing: recruiter pages, review returns and explicit publica
       q(w,'#listing-publish-confirmed').click();await pause(20);
       w=await mount({url:w.location.href,storage:storage(w),offline:false});await page(w,'publish_consent');assert.equal(q(w,'#listing-publish-confirmed').checked,false);assert.equal(publications(w).length,0);
     });
+    await t.test('a quick double tap on final publish enters the async preflight once',async()=>{
+      const w=await mount({url:'https://ui.test/#/work/new/page/review',form:form(),offline:false});await ready(w);
+      button(w,'掲載する').click();await page(w,'publish_consent');
+      const count=()=>w.qaCalls.filter(c=>c.path==='employer_profiles' && c.method==='GET').length;
+      const before=count();q(w,'#listing-publish-confirmed').click();await pause(20);
+      const submit=button(w,'同意して掲載する');submit.click();submit.click();
+      await until(()=>/掲載完了/.test(w.document.body.textContent),'confirmed publication');
+      assert.equal(count()-before,1);assert.equal(publications(w).length,1);
+    });
+    await t.test('an invalid optional video can be deferred without opening an empty consent page',async()=>{
+      const w=await mount({url:'https://ui.test/#/work/new/page/work_video',form:form(),offline:false});await ready(w);await page(w,'work_video');
+      await input(w,'#work-video-url','https://example.test/not-a-youtube-video');
+      assert.equal(button(w,'次へ').disabled,true);
+      button(w,'あとで追加').click();await page(w,'danger_places');
+      assert.equal(record(w).form.workVideoUrl,'https://example.test/not-a-youtube-video','unfinished URL stays available in draft');
+      assert.equal(publications(w).length,0);
+      w.location.hash='/work/new/page/video_consent?return=review';await page(w,'video_consent');
+      assert.match(w.document.body.textContent,/保存したURLでは動画を確認できません/);
+      button(w,'動画URLを修正する').click();await page(w,'work_video');assert.match(w.location.hash,/return=review/);
+      assert.equal(q(w,'#work-video-url').value,'https://example.test/not-a-youtube-video');
+    });
     await t.test('publication errors remain on consent page; explicit retry keeps one receipt and successful completion only',async()=>{
       const w=await mount({url:'https://ui.test/#/work/new/page/review',form:form(),offline:false});await ready(w);button(w,'掲載する').click();await page(w,'publish_consent');
       w.qaCheckError=true;q(w,'#listing-publish-confirmed').click();await pause(20);button(w,'同意して掲載する').click();

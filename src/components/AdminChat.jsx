@@ -21,7 +21,7 @@ import { LinkifiedText, Dots, Avatar, CHAT_ROW_GAP, CHAT_ROW_PAD, CHAT_ROW_DIVID
 import { NavIcon, NavIconInline } from "./NavIcons";
 import { useChatViewport } from "../lib/useChatViewport";
 import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
-import { readChatDraft, saveChatDraft } from "../lib/chatDrafts";
+import { clearSentChatDraft, readChatDraft, saveChatDraft } from "../lib/chatDrafts";
 import { openSupport } from "../lib/supportDiagnostics";
 import "./Chat.css";
 
@@ -190,8 +190,8 @@ export function AdminChatPage({ onBack, targetUserId }) {
       uidRef.current = result.uid; setLoadError("");
       setMsgs(previous => result.msgs.length || !previous.length ? result.msgs : previous);
       if (pendingRef.current && result.msgs.some(message => message.id === pendingRef.current.id)) {
+        clearSentChatDraft(result.uid, thread, pendingRef.current.id);
         pendingRef.current = null; setPending(null); setText(""); setError("");
-        saveChatDraft(result.uid, thread, { text: "", pending: null });
       }
       const unread = result.msgs.filter(message => !isMine(message) && !message.read_at);
       if (document.visibilityState === "visible" && nearBottom.current && unread.length) {
@@ -224,9 +224,12 @@ export function AdminChatPage({ onBack, targetUserId }) {
     busyRef.current = true; setSending(true); setError("");
     try {
       const message = await sendChatMessage(supabase, "admin_messages", row);
-      saveChatDraft(uid, thread, { text: "", pending: null });
+      clearSentChatDraft(uid, thread, row.id);
       if (!alive.current) return;
-      pendingRef.current = null; setPending(null); setText(""); nearBottom.current = true;
+      if (pendingRef.current?.id === row.id) {
+        pendingRef.current = null; setPending(null); setText("");
+      }
+      nearBottom.current = true;
       setMsgs(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message]);
     } catch { if (alive.current) setError("送信を確認できませんでした。入力は残っています。同じ内容で再送できます。"); }
     finally { busyRef.current = false; if (alive.current) setSending(false); }

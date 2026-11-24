@@ -342,6 +342,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   const [jobPerks, setJobPerks] = useState(d.jobPerks ?? null); // この求人だけの待遇上書き → jobs.perks（NULL=プロフィールの待遇・2026-07-18）
   const [experiencedPreferred, setExperiencedPreferred] = useState(d.experiencedPreferred ?? false); // 💪経験者優遇 → jobs.experienced_preferred（2026-07-18・必要経験の選択式は撤回）
   const [jobSaving, setJobSaving] = useState(false);
+  const publishInFlight = useRef(false);
   // 掲載前の確認（2026-08-07たきと指示「チェックは1つにまとめる」）：4項目は本文として列挙し、
   // 「確認しました」1つのチェックで掲載ボタンを解錠する（旧：4つの個別チェックボックス）
   const [publishConfirmed, setPublishConfirmed] = useState(false);
@@ -570,11 +571,11 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     }, 400);
   };
   const goNext = () => animateStepChange(() => {
-    if (isFarmer) setPage(adjacentListingPage(pageId, 1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim(), missingRecruiter: recruiter.missing }));
+    if (isFarmer) setPage(adjacentListingPage(pageId, 1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: isValidYoutubeVideo(workVideoUrl), missingRecruiter: recruiter.missing }));
     else setStep(s => s + 1);
   }, "fwd");
   const goBack = () => animateStepChange(() => {
-    if (isFarmer) setPage(adjacentListingPage(pageId, -1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: !!workVideoUrl.trim(), missingRecruiter: recruiter.missing }) || "intro");
+    if (isFarmer) setPage(adjacentListingPage(pageId, -1, { start: jobDateStart, end: jobDateEnd, photoCount: jobPhotos.length, hasVideo: isValidYoutubeVideo(workVideoUrl), missingRecruiter: recruiter.missing }) || "intro");
     else if (step <= 1) setStep(0); else setStep(s => s - 1);
   }, "back");
   // 全stepスワイプ移動（2026-07-16）：左スワイプ=次へ（バリデーション尊重）／右スワイプ=戻る。
@@ -1089,7 +1090,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
     daily_wage: farmerPurpose !== "post" || (workHours > 0 && wageInputOk && (unknownWage || !dailyViolation) && breakTime !== ""),
     details_intro: true, photos: !photoUploading, photo_captions: true, description: true,
     work_video: !workVideoUrl.trim() || isValidYoutubeVideo(workVideoUrl),
-    video_consent: !workVideoUrl.trim() || workVideoJobConsent,
+    video_consent: !workVideoUrl.trim() || (isValidYoutubeVideo(workVideoUrl) && workVideoJobConsent),
     danger_places: !photoUploading, danger_tasks: !photoUploading,
     belongings: true, cautions: true, worker_preferences: recruiter.status !== "loading", review: true,
     publish_consent: publishConfirmed,
@@ -1194,7 +1195,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
   };
 
   const handleSaveJob = async () => {
-    if (jobSaving || !publishConfirmed || pageId !== "publish_consent") return;
+    if (publishInFlight.current || !publishConfirmed || pageId !== "publish_consent") return;
     setPublishIssue("");
     const classifyDraftSyncFailure = (saved, syncOutcome) => {
       const reason = String(saved?.reason || "").toLowerCase();
@@ -1262,6 +1263,8 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       goToMissingField(missing);
       return;
     }
+    // Acquire synchronously: two clicks can arrive before the disabled button renders.
+    publishInFlight.current = true;
     setJobSaving(true);
     const finishMeasurement = productAnalytics.begin("publish");
     let sessionUser = null; // catch 節でも参照する（try の中の const は catch から見えない）
@@ -1375,6 +1378,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
       setPublishIssue("掲載処理が失敗しました。入力は保持されています。もう一度お試しください。");
     } finally {
       finishMeasurement("failure");
+      publishInFlight.current = false;
       setJobSaving(false);
     }
   };
@@ -1683,7 +1687,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
 
                     {/* ── 農家 Step3: 詳細入力 ── */}
           {isFarmer && pageId === "schedule" && farmerPurpose === "post" && <StepSchedule
-            start={jobDateStart} end={jobDateEnd} setStart={setJobDateStart} setEnd={setJobDateEnd} holidays={jobHolidays} />}
+            start={jobDateStart} end={jobDateEnd} setStart={setJobDateStart} setEnd={setJobDateEnd} holidays={jobHolidays} setHolidays={setJobHolidays} />}
           {isFarmer && pageId === "holidays" && <StepHolidays start={jobDateStart} end={jobDateEnd}
             holidays={jobHolidays} setHolidays={setJobHolidays} onEditSchedule={() => setPage("schedule")} />}
           {isFarmer && pageId === "headcount" && <StepHeadcount count={jobCount} setCount={setJobCount} />}
@@ -1746,7 +1750,7 @@ export function LandingFlow({ ownerId, localOnly = false, onComplete, onDraftSav
             setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} mode="url" />}
           {isFarmer && pageId === "video_consent" && <StepWorkVideo url={workVideoUrl} setUrl={setWorkVideoUrl}
             jobConsent={workVideoJobConsent} setJobConsent={setWorkVideoJobConsent} relatedConsent={workVideoRelatedConsent} setRelatedConsent={setWorkVideoRelatedConsent}
-            setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} mode="consent" />}
+            setConsentAt={setWorkVideoConsentAt} setConsentVersion={setWorkVideoConsentVersion} mode="consent" onEditUrl={() => setPage("work_video")} />}
           {isFarmer && (pageId === "danger_places" || pageId === "danger_tasks") && <StepDanger
             mode={pageId === "danger_places" ? "places" : "tasks"} ownerId={ownerId} currentJobNumber={draftJobNumber}
             photoUploading={photoUploading} setPhotoUploading={setPhotoUploading} jobDangerPlaces={jobDangerPlaces} setJobDangerPlaces={setJobDangerPlaces}

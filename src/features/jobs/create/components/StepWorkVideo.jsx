@@ -17,7 +17,7 @@ export function youtubeVideoId(raw) {
 }
 export const isValidYoutubeVideo = raw => /^[A-Za-z0-9_-]{6,20}$/.test(youtubeVideoId(raw));
 
-export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedConsent, setRelatedConsent, setConsentAt, setConsentVersion, compact = false, mode = "all" }) {
+export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedConsent, setRelatedConsent, setConsentAt, setConsentVersion, compact = false, mode = "all", onEditUrl }) {
   const clean = url.trim();
   const valid = !clean || isValidYoutubeVideo(clean);
   const onUrl = value => {
@@ -45,6 +45,10 @@ export function StepWorkVideo({ url, setUrl, jobConsent, setJobConsent, relatedC
       {clean && valid && <div style={{ marginTop:14, aspectRatio:"16 / 9", borderRadius:14, overflow:"hidden", background:"#000" }}>
         <iframe title="作業動画の確認" src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(clean)}`} style={{ width:"100%", height:"100%", border:0 }} allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
       </div>}
+    </LFWizCard>}
+    {mode === "consent" && !valid && <LFWizCard>
+      <p role="alert" className="listing-input-hint">保存したURLでは動画を確認できません。正しいYouTubeのURLに直すか、動画を追加しない場合はURLを空欄にしてください。</p>
+      <button type="button" className="listing-back" onClick={onEditUrl}>動画URLを修正する</button>
     </LFWizCard>}
     {mode !== "url" && clean && valid && <>
       <LFWizCard>
