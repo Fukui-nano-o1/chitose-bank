@@ -27,7 +27,7 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  try{
  await build({configFile:false,root,logLevel:'error',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'chat-fixture',enforce:'pre',resolveId(id){if(/(?:^|\/)supabase(?:\.js)?$/.test(id))return path.join(root,'scripts/fixtures/chat/client.js');},transform(code,id){if(id.endsWith('/src/lib/utils.js'))return code.replace(/^export const ADMIN_EMAIL = .*;$/m,'export const ADMIN_EMAIL = "admin-fixture@example.test";');if(id.endsWith('/src/lib/chatMessaging.js'))return code.replace('CHAT_TIMEOUT_MS = 15000','CHAT_TIMEOUT_MS = (window.qaChatTimeout || 120)');}},react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/chat/entry.jsx'),name:'ChatQA',formats:['iife'],fileName:'fixture',cssFileName:'fixture'},minify:false}});
  const script=await readFile(path.join(output,'fixture.iife.js'),'utf8'),css=await readFile(path.join(output,'fixture.css'),'utf8');
- function mount(settings={}){dom?.window.close();const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message))errors.push(e.message);});vc.on('error',(...args)=>errors.push(args.join(' ')));dom=new JSDOM('<div id="root"></div>',{url:'https://chat.test/#/chats',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc});const w=dom.window;Object.assign(w,{qaUser:user,qaData:records(),qaUnread:{[app]:1},qaChannels:[],qaRequests:[],...settings,TextEncoder,TextDecoder});Object.defineProperty(w.navigator,'standalone',{value:settings.qaIosStandalone===true});w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.visualViewport=Object.assign(new w.EventTarget(),{width:390,height:844,offsetLeft:0,offsetTop:0,scale:1});w.alert=value=>errors.push('alert: '+value);const style=w.document.createElement('style');style.textContent=css;w.document.head.append(style);w.eval(script);return w;}
+ function mount(settings={}){dom?.window.close();const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message))errors.push(e.message);});vc.on('error',(...args)=>errors.push(args.join(' ')));dom=new JSDOM('<div id="root"></div>',{url:'https://chat.test/#/chats',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc});const w=dom.window;Object.assign(w,{qaUser:user,qaData:records(),qaUnread:{[app]:1},qaChannels:[],qaRequests:[],...settings,TextEncoder,TextDecoder});Object.defineProperty(w.navigator,'standalone',{value:settings.qaIosStandalone===true});w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.visualViewport=Object.assign(new w.EventTarget(),{width:390,height:844,offsetLeft:0,offsetTop:0,scale:1});w.alert=value=>errors.push('alert: '+value);settings.qaPrepareWindow?.(w);const style=w.document.createElement('style');style.textContent=css;w.document.head.append(style);w.eval(script);return w;}
  const input=w=>w.document.querySelector('textarea[aria-label="メッセージ"]');
  await t.test('synthetic operator-targeted chat resolves title and report control in the same header',async()=>{
  const nickname='検証用のみどりさん';
@@ -53,6 +53,84 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  assert.equal(hasGuard(await open({qaRoute:'admin',qaIosStandalone:true})),true);
  assert.equal(hasGuard(await open({qaRoute:'admin'})),false);
  assert.equal(hasGuard(await open({qaRoute:app,qaIosStandalone:true})),false);
+ });
+ const historyRows=(make)=>Array.from({length:18},(_,i)=>({
+  id:'fixture-history-'+i,body:'履歴のメッセージ '+i,created_at:new Date(Date.UTC(2026,8,1,0,i)).toISOString(),...make(i)
+ }));
+ const modelScroll=w=>{
+  const p=w.HTMLElement.prototype, top=new WeakMap();
+  const actual=key=>Object.getOwnPropertyDescriptor(w.Element.prototype,key);
+  const observe=new Set();
+  const modeled=el=>el.classList?.contains('chat-messages');
+  const metrics={extra:0,tick(){observe.forEach(fn=>fn([]));}};
+  w.ResizeObserver=class {constructor(fn){this.fn=fn;}observe(){observe.add(this.fn);}disconnect(){observe.delete(this.fn);}};
+  Object.defineProperties(p,{
+   clientHeight:{configurable:true,get(){return modeled(this)?180:actual('clientHeight').get.call(this);}},
+   scrollHeight:{configurable:true,get(){return modeled(this)?Math.max(180,this.querySelectorAll('.chat-bubble').length*76+metrics.extra):actual('scrollHeight').get.call(this);}},
+   scrollTop:{configurable:true,get(){return modeled(this)?(top.get(this)||0):actual('scrollTop').get.call(this);},
+    set(value){if(modeled(this))top.set(this,Math.max(0,Math.min(value,this.scrollHeight-this.clientHeight)));else actual('scrollTop').set.call(this,value);}}
+  });
+  w.qaScrollMetrics=metrics;
+ };
+ const historyScroller=w=>w.document.querySelector('.chat-messages');
+ const atLatest=el=>el.scrollHeight-el.clientHeight===el.scrollTop;
+ await t.test('first visible unread history opens at latest after a split support load',async()=>{
+  for(const [route,owner,isAdmin] of [['admin',user,false],['admin/'+partner,partner,true]]){
+   const d=records();
+   d.admin_messages=historyRows(i=>({user_id:owner,from_admin:!isAdmin,read_at:i===17?null:'2026-09-02T00:00:00Z'}));
+   const w=mount({qaRoute:route,qaAdmin:isAdmin,qaData:d,qaHoldReadWrite:'admin_messages',qaPrepareWindow:modelScroll});
+   await until(()=>w.qaReleaseReadWrite,'support acknowledgement in flight');
+   await until(()=>w.document.querySelectorAll('.chat-bubble').length===18,'visible before acknowledgement');
+   assert.ok(atLatest(historyScroller(w)),'the latest does not wait for read acknowledgement');
+   w.qaHoldReadWrite=null;w.qaReleaseReadWrite();
+   await until(()=>w.document.querySelectorAll('.chat-bubble').length===18,'support history visible');
+   assert.ok(atLatest(historyScroller(w)),'latest is visible when real unread history replaces loading shell');
+  }
+ });
+ await t.test('newest job chat remains pinned after delayed history geometry without yanking a reader',async()=>{
+  const d=records();d.messages=historyRows(()=>({application_id:app,sender_id:partner,read_at:'2026-09-02T00:00:00Z'}));
+  const w=mount({qaRoute:app,qaData:d,qaPrepareWindow:modelScroll});
+  await until(()=>w.document.querySelectorAll('.chat-bubble').length===18,'job history');
+  const scroll=historyScroller(w);
+  assert.ok(atLatest(scroll),'opens at latest');
+  const nextFrame=()=>new Promise(resolve=>w.requestAnimationFrame(resolve));
+  w.qaScrollMetrics.extra=140;
+  w.qaScrollMetrics.tick();
+  assert.equal(atLatest(scroll),false,'observer schedules scroll rather than writing during delivery');
+  await nextFrame();
+  assert.ok(atLatest(scroll),'late layout change without new message id stays at latest');
+  let hidden=true;
+  Object.defineProperty(w.document,'hidden',{get:()=>hidden});
+  w.qaScrollMetrics.extra+=100;
+  w.qaScrollMetrics.tick();
+  await nextFrame();
+  assert.equal(atLatest(scroll),false,'hidden page does not jump');
+  hidden=false;
+  w.document.dispatchEvent(new w.Event('visibilitychange'));
+  await nextFrame();
+  assert.ok(atLatest(scroll),'visible again and still following');
+  w.qaScrollMetrics.extra+=50;
+  w.qaScrollMetrics.tick();
+  scroll.scrollTop=120;scroll.dispatchEvent(new w.Event('scroll'));
+  await nextFrame();
+  assert.equal(scroll.scrollTop,120,'manual reader position is not repinned by a callback already queued');
+  d.messages.push({id:'fixture-arrived',body:'新着の架空メッセージ',created_at:'2026-09-02T00:00:00Z',application_id:app,sender_id:partner,read_at:null});
+  w.dispatchEvent(new w.Event('focus'));
+  await until(()=>button(w,'新しいメッセージ ↓'),'new message indicator');
+  assert.equal(scroll.scrollTop,120);
+  button(w,'新しいメッセージ ↓').click();
+  assert.ok(atLatest(scroll));
+
+  const queued=new Map();
+  let frameId=0;
+  w.requestAnimationFrame=fn=>{const id=++frameId;queued.set(id,fn);return id;};
+  w.cancelAnimationFrame=id=>queued.delete(id);
+  w.qaScrollMetrics.extra+=55;
+  w.qaScrollMetrics.tick();
+  assert.equal(queued.size,1,'old room has a queued layout follow');
+  w.qaNavigate(past);
+  await until(()=>!scroll.isConnected&&historyScroller(w)!==scroll,'different room');
+  assert.equal(queued.size,0,'room change cancels the old viewport write');
  });
  await t.test('inbox shows recent previews and filters by job, unread and lifecycle',async()=>{const w=mount();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'rows');await until(()=>w.document.querySelector('.chat-row-preview')?.textContent.includes('明日は'),'preview');button(w,'終了').click();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===1,'past');assert.match(w.document.querySelector('.chat-inbox-row').textContent,/にんじん/);button(w,'すべて').click();await fill(w,'input[type=search]','1311');assert.equal(w.document.querySelectorAll('.chat-inbox-row').length,1);await fill(w,'input[type=search]','存在しない');assert.match(w.document.body.textContent,/該当する仕事の会話はありません/);button(w,'すべての会話を表示').click();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'reset');assert.ok(button(w,'この画面を報告'));});
  await t.test('legacy automatic approval history is neutral in inbox and bubbles without changing saved messages',async()=>{
