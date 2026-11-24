@@ -235,7 +235,8 @@ export function AdminChatPage({ onBack, targetUserId }) {
     finally { busyRef.current = false; if (alive.current) setSending(false); }
   };
   const title = targetUserId ? (partnerName || "利用者") : "chitose-bank運営";
-  return <div ref={pageRef} className="chat-full chat-room f-sans">
+  const iosStandaloneOperator = Boolean(targetUserId && typeof window !== "undefined" && window.navigator.standalone === true);
+  return <div ref={pageRef} className={"chat-full chat-room f-sans" + (iosStandaloneOperator ? " chat-room--ios-standalone-operator" : "")}>
     <header className="chat-room-header"><button onClick={onBack} aria-label="メッセージ一覧に戻る" className="chat-icon-button">←</button><div className="chat-row-content"><strong>{title}</strong><p style={{ fontSize:12, margin:4 }}>{targetUserId ? "運営として返信" : "運営へのお問い合わせ"}</p></div><button className="chat-text-button" onClick={() => openSupport({ topic: "chat", view: "compose" })}>この画面を報告</button></header>
     {loadError && <div role="alert" className="chat-notice">{loadError}<br/><button className="chat-text-button" onClick={load}>再読み込み</button></div>}
     <div ref={scrollRef} className="chat-messages" aria-label="運営との会話" onScroll={event => { const element = event.currentTarget; nearBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80; }}>

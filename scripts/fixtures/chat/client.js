@@ -54,7 +54,7 @@ class Query {
   then(resolve, reject) { return this.run().then(resolve, reject); }
 }
 export const supabase = {
-  auth: { getSession: async () => ({ data: { session: { user: { id: uid(), email: 'fixture@example.test' } } } }) },
+  auth: { getSession: async () => ({ data: { session: { user: { id: uid(), email: window.qaAdmin ? 'admin-fixture@example.test' : 'fixture@example.test' } } } }) },
   from: table => new Query(table),
   rpc: async (name, args) => {
     if (name === 'confirm_my_worker_terms') {

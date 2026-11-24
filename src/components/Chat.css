@@ -25,6 +25,11 @@
 /* Keep fixed controls below a notched status bar. If the visual viewport has
    already panned below the inset (keyboard or zoom), do not reserve it twice. */
 .chat-room{--chat-device-safe-top:env(safe-area-inset-top,0px);--chat-safe-top:max(0px,calc(var(--chat-device-safe-top) - var(--chat-top,0px)));--chat-history-gutter:8px}
+/* Home Screen iOS draws beneath translucent system chrome. Keep an extra
+   minimum only for the reported operator conversation in a tall portrait
+   layout, even if WebKit reports no inset. Honor larger device insets and
+   subtract any existing visual viewport pan as in the normal chat. */
+@media (orientation:portrait) and (min-height:481px){.chat-room--ios-standalone-operator{--chat-safe-top:max(0px,calc(max(64px,var(--chat-device-safe-top)) - var(--chat-top,0px)))}}
 .chat-room>*{flex-shrink:0}.chat-room .chat-message-area{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
 .chat-room-header{position:relative;z-index:1;box-sizing:border-box;display:flex;align-items:center;gap:10px;min-height:calc(68px + var(--chat-safe-top));padding-top:var(--chat-safe-top);border-bottom:1px solid #ebebeb;background:#fff}
 .chat-icon-button{width:44px;height:44px;flex-shrink:0;border:0;border-radius:50%;background:#fff;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;color:#222}

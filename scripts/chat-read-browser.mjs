@@ -95,6 +95,9 @@ try {
       enforce: 'pre',
       resolveId(id) {
         if (/(?:^|\/)supabase(?:\.js)?$/.test(id)) return root + '/scripts/fixtures/chat/client.js';
+      },
+      transform(code,id) {
+        if(id.endsWith('/src/lib/utils.js')) return code.replace(/^export const ADMIN_EMAIL = .*;$/m,'export const ADMIN_EMAIL = "admin-fixture@example.test";');
       }
     }, react()],
     build: {
@@ -110,9 +113,15 @@ try {
     }
   });
   const origin = 'https://example.org'; // All requests are intercepted; no production network or credentials.
+  const prodHtml = await readFile(root + '/index.html', 'utf8');
+  const viewportMeta = ['viewport','color-scheme','theme-color','apple-mobile-web-app-capable','apple-mobile-web-app-status-bar-style','apple-mobile-web-app-title'].map(name => {
+    const meta = prodHtml.match(new RegExp('<meta name="' + name + '"[^>]*>'))?.[0];
+    assert.ok(meta, 'Missing production meta: ' + name);
+    return meta;
+  }).join('');
   const assets = new Map([['/', {
     mime: 'text/html; charset=utf-8',
-    data: '<!doctype html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"></head><body><div id="root"></div><script src="/fixture.iife.js"></script></body></html>'
+    data: '<!doctype html><html lang="ja"><head><meta charset="UTF-8">' + viewportMeta + '<link rel="stylesheet" href="/fixture.css"></head><body><div id="root"></div><script src="/fixture.iife.js"></script></body></html>'
   }], ['/fixture.css', {
     mime: 'text/css',
     data: await readFile(output + '/bundle/fixture.css')
@@ -133,7 +142,7 @@ try {
   }) {
     await context?.close();
     context = await browser.newContext({
-      viewport
+      viewport, serviceWorkers: 'block'
     });
     await context.route('**/*', route => {
       const url = new URL(route.request().url());
@@ -148,7 +157,10 @@ try {
     });
     page = await context.newPage();
     page.on('pageerror', e => errors.push(e.message));
-    await page.addInitScript(settings => Object.assign(window, settings), {
+    await page.addInitScript(settings => {
+      Object.assign(window, settings);
+      if (settings.qaIosStandalone) Object.defineProperty(window.navigator, 'standalone', { value:true });
+    }, {
       qaUser: user,
       qaData: records(),
       qaUnread: {
@@ -423,6 +435,57 @@ try {
       assert.ok(panned.back.top >= 83 && panned.back.top < 105, JSON.stringify(panned));
       assert.ok(panned.history.height > 0);
     }
+  });
+  await test('Admin target: compare actual title/report text against a modeled status mask',async()=>{
+    const d=records(), nickname='検証用のみどりさん';
+    d.worker_profiles.push({auth_id:partner,nickname});
+    d.admin_messages=[{id:'fixture-incoming',user_id:partner,from_admin:false,body:'架空の会話',created_at:'2026-09-23T09:00:00Z',read_at:'2026-09-24T09:00:00Z'}];
+    await mount({qaRoute:'admin/'+partner,qaAdmin:true,qaIosStandalone:true,qaData:d},{width:390,height:844});
+    await page.getByText(nickname,{exact:true}).waitFor();
+    await page.getByText('架空の会話',{exact:true}).waitFor();
+    await page.evaluate(()=>document.fonts.ready);
+    const geometry=async (inset,viewportOffset,maskBottom)=>page.evaluate(({inset,viewportOffset,maskBottom})=>{
+      const room=document.querySelector('.chat-room');
+      room.style.setProperty('--chat-device-safe-top',inset+'px');
+      room.style.setProperty('--chat-top',viewportOffset+'px');
+      const title=document.querySelector('.chat-room-header strong'),report=document.querySelector('.chat-room-header .chat-text-button');
+      const calculate=element=>{
+        const range=document.createRange();range.selectNodeContents(element);
+        const rect=range.getBoundingClientRect();
+        const sample=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
+        return {top:rect.top,bottom:rect.bottom,height:rect.height,underMask:Math.max(0,Math.min(rect.bottom,maskBottom)-rect.top),hit:sample===element||element.contains(sample)};
+      };
+      return {title:calculate(title),report:calculate(report)};
+    },{inset,viewportOffset,maskBottom});
+    const clearOf = (measurements,minTop) => {
+      for (const rect of Object.values(measurements)) {
+        assert.ok(rect.height>0&&rect.top>=minTop&&rect.underMask===0&&rect.hit,JSON.stringify(measurements));
+      }
+    };
+    const guarded=await geometry(59,0,62);
+    clearOf(guarded,64);
+    const largerInset=await geometry(82,0,82);
+    clearOf(largerInset,82);
+    const panned=await geometry(59,83,62);
+    clearOf(panned,83);
+    assert.ok(panned.title.top<106,'already panned view must not reserve another 64px');
+    const noReportedInset=await geometry(0,0,62);
+    clearOf(noReportedInset,64);
+    // Prevent the stand-alone fallback from taking vertical space in a compact
+    // viewport or landscape; regular positive device insets still apply.
+    await page.setViewportSize({width:390,height:380});
+    const shortViewport=await geometry(0,0,0);
+    assert.ok(shortViewport.title.top<48);
+    await page.setViewportSize({width:844,height:390});
+    const landscape=await geometry(0,0,0);
+    assert.ok(landscape.title.top<48);
+    await mount({qaRoute:'admin/'+partner,qaAdmin:true,qaData:d},{width:390,height:844});
+    await page.getByText(nickname,{exact:true}).waitFor();
+    const safariNoStandalone=await geometry(0,0,0);
+    assert.ok(safariNoStandalone.title.top<48);
+    await writeFile(path.join(evidence,'operator-status-mask-model.json'),JSON.stringify({
+      guarded,largerInset,panned,noReportedInset,shortViewport,landscape,safariNoStandalone,syntheticOnly:true
+    },null,2));
   });
   await test('Mobile portrait, short viewport, landscape keep composer and details usable', async () => {
     await mount({}, {

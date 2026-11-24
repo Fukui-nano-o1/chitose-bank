@@ -11,6 +11,6 @@ function Harness() {
  const [account,setAccount] = useState(window.qaUser);
  window.qaNavigate=setRoute;
  window.qaAccount = value => { window.qaUser=value; setAccount(value); clearChatDrafts(); };
- return route === 'list' ? <ChatList key={account}/> : route === 'admin' ? <AdminChatPage key={account+route} onBack={() => setRoute('list')}/> : <ChatView key={account+route} applicationId={route} onBack={() => setRoute('list')}/>;
+ return route === 'list' ? <ChatList key={account}/> : (route === 'admin' || route.startsWith('admin/')) ? <AdminChatPage key={account+route} targetUserId={route.startsWith('admin/') ? route.slice(6) : undefined} onBack={() => setRoute('list')}/> : <ChatView key={account+route} applicationId={route} onBack={() => setRoute('list')}/>;
 }
 createRoot(document.getElementById('root')).render(<Harness/>);
