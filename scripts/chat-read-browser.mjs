@@ -444,10 +444,11 @@ try {
     await page.getByText(nickname,{exact:true}).waitFor();
     await page.getByText('架空の会話',{exact:true}).waitFor();
     await page.evaluate(()=>document.fonts.ready);
-    const geometry=async (inset,viewportOffset,maskBottom)=>page.evaluate(({inset,viewportOffset,maskBottom})=>{
+    const geometry=async (inset,viewportOffset,maskBottom,visibleHeight=null)=>page.evaluate(({inset,viewportOffset,maskBottom,visibleHeight})=>{
       const room=document.querySelector('.chat-room');
       room.style.setProperty('--chat-device-safe-top',inset+'px');
       room.style.setProperty('--chat-top',viewportOffset+'px');
+      if (visibleHeight !== null) room.style.setProperty('--chat-height',visibleHeight+'px');
       const title=document.querySelector('.chat-room-header strong'),report=document.querySelector('.chat-room-header .chat-text-button');
       const calculate=element=>{
         const range=document.createRange();range.selectNodeContents(element);
@@ -456,7 +457,7 @@ try {
         return {top:rect.top,bottom:rect.bottom,height:rect.height,underMask:Math.max(0,Math.min(rect.bottom,maskBottom)-rect.top),hit:sample===element||element.contains(sample)};
       };
       return {title:calculate(title),report:calculate(report)};
-    },{inset,viewportOffset,maskBottom});
+    },{inset,viewportOffset,maskBottom,visibleHeight});
     const clearOf = (measurements,minTop) => {
       for (const rect of Object.values(measurements)) {
         assert.ok(rect.height>0&&rect.top>=minTop&&rect.underMask===0&&rect.hit,JSON.stringify(measurements));
@@ -471,6 +472,13 @@ try {
     assert.ok(panned.title.top<106,'already panned view must not reserve another 64px');
     const noReportedInset=await geometry(0,0,62);
     clearOf(noReportedInset,64);
+    // iOS may shrink/pan only the visual viewport while the CSS media
+    // query still describes a tall portrait. Never reserve the inset twice.
+    const keyboardOnTallPortrait=await geometry(0,100,62,330);
+    clearOf(keyboardOnTallPortrait,100);
+    assert.ok(keyboardOnTallPortrait.title.top<126);
+    const keyboardComposer=await page.getByRole('textbox',{name:'運営へのメッセージ'}).boundingBox();
+    assert.ok(keyboardComposer.y>=100&&keyboardComposer.y+keyboardComposer.height<=431);
     // Prevent the stand-alone fallback from taking vertical space in a compact
     // viewport or landscape; regular positive device insets still apply.
     await page.setViewportSize({width:390,height:380});
@@ -483,8 +491,18 @@ try {
     await page.getByText(nickname,{exact:true}).waitFor();
     const safariNoStandalone=await geometry(0,0,0);
     assert.ok(safariNoStandalone.title.top<48);
+    // The user-facing support thread has the same title + report header.
+    await mount({qaRoute:'admin',qaIosStandalone:true},{width:390,height:844});
+    await page.getByText('chitose-bank運営',{exact:true}).waitFor();
+    const supportNoReportedInset=await geometry(0,0,62);
+    clearOf(supportNoReportedInset,64);
+    await mount({qaRoute:'admin'},{width:390,height:844});
+    await page.getByText('chitose-bank運営',{exact:true}).waitFor();
+    const supportSafariNoStandalone=await geometry(0,0,0);
+    assert.ok(supportSafariNoStandalone.title.top<48);
     await writeFile(path.join(evidence,'operator-status-mask-model.json'),JSON.stringify({
-      guarded,largerInset,panned,noReportedInset,shortViewport,landscape,safariNoStandalone,syntheticOnly:true
+      guarded,largerInset,panned,noReportedInset,keyboardOnTallPortrait,shortViewport,landscape,safariNoStandalone,
+      supportNoReportedInset,supportSafariNoStandalone,syntheticOnly:true
     },null,2));
   });
   await test('Mobile portrait, short viewport, landscape keep composer and details usable', async () => {

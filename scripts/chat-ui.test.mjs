@@ -40,17 +40,18 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  assert.match(w.document.querySelector('.chat-room-header').textContent,/運営として返信/);
  assert.equal(w.document.querySelectorAll('.chat-room-header').length,1);
  });
- await t.test('only an operator-targeted iOS Home Screen chat enables the portrait headroom guard',async()=>{
+ await t.test('only iOS Home Screen support chats enable the portrait headroom guard',async()=>{
  const d=records(); d.worker_profiles.push({auth_id:partner,nickname:'検証用みどり'});
  const open=async settings=>{
   const w=mount({qaData:d,...settings});
   await until(()=>w.document.querySelector('.chat-room-header'),'chat header');
   return w.document.querySelector('.chat-room');
  };
- const hasGuard=room=>room.classList.contains('chat-room--ios-standalone-operator');
+ const hasGuard=room=>room.classList.contains('chat-room--ios-standalone-support');
  assert.equal(hasGuard(await open({qaRoute:'admin/'+partner,qaAdmin:true,qaIosStandalone:true})),true);
  assert.equal(hasGuard(await open({qaRoute:'admin/'+partner,qaAdmin:true})),false);
- assert.equal(hasGuard(await open({qaRoute:'admin',qaIosStandalone:true})),false);
+ assert.equal(hasGuard(await open({qaRoute:'admin',qaIosStandalone:true})),true);
+ assert.equal(hasGuard(await open({qaRoute:'admin'})),false);
  assert.equal(hasGuard(await open({qaRoute:app,qaIosStandalone:true})),false);
  });
  await t.test('inbox shows recent previews and filters by job, unread and lifecycle',async()=>{const w=mount();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'rows');await until(()=>w.document.querySelector('.chat-row-preview')?.textContent.includes('明日は'),'preview');button(w,'終了').click();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===1,'past');assert.match(w.document.querySelector('.chat-inbox-row').textContent,/にんじん/);button(w,'すべて').click();await fill(w,'input[type=search]','1311');assert.equal(w.document.querySelectorAll('.chat-inbox-row').length,1);await fill(w,'input[type=search]','存在しない');assert.match(w.document.body.textContent,/該当する仕事の会話はありません/);button(w,'すべての会話を表示').click();await until(()=>w.document.querySelectorAll('.chat-inbox-row').length===2,'reset');assert.ok(button(w,'この画面を報告'));});
