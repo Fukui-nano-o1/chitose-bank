@@ -45,7 +45,10 @@ export function profileFixture(options = {}) {
     if(args.p_expected===null)q.insert({auth_id:state.userId,...args.p_patch});
     else {q.update(args.p_patch).eq('auth_id',state.userId);for(const [k,v] of Object.entries(args.p_expected))q.eq(k,v&&typeof v==='object'?JSON.stringify(v):v);}
     const r=await q.execute();
-    return {error:r.error,data:r.data?{ok:true,row:r.data}:{ok:false,reason:'conflict'}};
+    // The real RPC catches a duplicate profile insert and returns a normal
+    // compare refusal. Keep raw 23505 injectable for unmapped failures.
+    const failure = args.p_expected===null && r.error?.code==='23505' && !options.rawDuplicate ? null : r.error;
+    return {error:failure,data:r.data?{ok:true,row:r.data}:{ok:false,reason:'conflict'}};
   }};
   return {client,state};
 }

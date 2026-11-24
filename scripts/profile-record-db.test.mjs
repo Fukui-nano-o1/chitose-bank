@@ -2,8 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
+import { rebaseRefusedPerks } from '../src/lib/employerPerksRecovery.js';
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 const sql=await readFile(new URL('../supabase/migrations/20261018141532_profile_section_compare_and_save.sql',import.meta.url),'utf8');
+
+test('a same-group stored change hidden by pending text is not eligible for auto-rebase',()=>{
+ const intent={transport_area:'架空の新しい希望'};
+ const before={has_transport:true,transport_area:'架空の公開前',texts_pending:{transport_area:'架空の反映待ち'}};
+ const latest={...before,transport_area:'架空の別画面の確定内容'};
+ assert.equal(rebaseRefusedPerks(before,latest,intent),null);
+ assert.ok(rebaseRefusedPerks(before,{...before,nickname:'架空の別項目'},intent));
+});
 
 test('actual profile RPC enforces atomic comparisons, RLS and publication triggers',async t=>{
  const db=new PGlite();
@@ -45,6 +54,25 @@ test('actual profile RPC enforces atomic comparisons, RLS and publication trigge
    assert.equal((await call('employer_profiles',null,{nickname:'農園',texts_pending:{owner_comment:'代表文'}})).ok,true);
    const r=await call('employer_profiles',{unique_point:null,texts_pending:{}},{texts_pending:{unique_point:'特徴'}});
    assert.equal(r.row.unique_point,'特徴');assert.equal(r.row.owner_comment,'代表文');assert.deepEqual(r.row.texts_pending,{});
+  });
+  await t.test('perks can safely rebase a refused first insert; new pending text blocks a structured update',async()=>{
+   const first=await call('employer_profiles',null,{accessory_ok:true});
+   assert.deepEqual(first,{ok:false,reason:'conflict'});
+   const baseline=(await db.query('select accessory_ok, texts_pending from employer_profiles')).rows[0];
+   const retry=await call('employer_profiles',baseline,{accessory_ok:true});
+   assert.equal(retry.ok,true);
+   assert.equal(retry.row.accessory_ok,true);
+   assert.equal(retry.row.owner_comment,'代表文');
+   // Create a dormant synthetic pending map without firing the fixture's
+   // publication trigger during setup. The actual check uses it enabled.
+   const pending={owner_comment:'架空の反映待ち'};
+   await db.exec('reset role; alter table employer_profiles disable trigger trg_ep_z_publish_texts');
+   try { await db.query('update employer_profiles set texts_pending=$1::jsonb where auth_id=$2',[JSON.stringify(pending),owner]); }
+   finally { await db.exec('alter table employer_profiles enable trigger trg_ep_z_publish_texts'); await login(owner); }
+   const stale=await call('employer_profiles',{accessory_ok:true,texts_pending:{}},{accessory_ok:false});
+   assert.deepEqual(stale,{ok:false,reason:'conflict'});
+   const unchanged=(await db.query('select accessory_ok, owner_comment, texts_pending from employer_profiles')).rows[0];
+   assert.deepEqual(unchanged,{accessory_ok:true,owner_comment:'代表文',texts_pending:pending});
   });
   await t.test('invalid tables, columns, missing comparison fields and oversized input are rejected',async()=>{
    assert.equal((await call('account_holders',null,{nickname:'bad'})).reason,'invalid_table');
