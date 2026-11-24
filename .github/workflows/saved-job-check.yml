@@ -30,8 +30,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   test-and-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     env:
       TZ: Asia/Tokyo
     steps:

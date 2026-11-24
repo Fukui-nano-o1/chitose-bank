@@ -74,6 +74,13 @@ test('stage 2 real listing: one topic per URL, retained input, browser history a
       await until(()=>record(w).form.jobDateEnd===null&&record(w).form.jobHolidays.length===0,'explicit range change');
       await next(w,'headcount');assert.equal(q(w,'#listing-headcount').value,'2');
     });
+    await t.test('adjusting both endpoints keeps already-selected holidays still strictly within the range',async()=> {
+      const w=await mount({form:{...initialForm(),jobDateEnd:'2026-11-08',jobHolidays:['2026-11-02','2026-11-04','2026-11-06']}});await page(w,'schedule');
+      q(w,'[aria-label="2026-11-02"]').click();await until(()=>record(w).form.jobDateEnd===null,'new start selected');
+      q(w,'[aria-label="2026-11-06"]').click();await until(()=>record(w).form.jobDateEnd==='2026-11-06','new end selected');
+      assert.deepEqual(Array.from(record(w).form.jobHolidays),['2026-11-04']);
+      await next(w,'holidays');assert.equal(q(w,'[aria-label="2026-11-04"]').getAttribute('aria-pressed'),'true');
+    });
     await t.test('page scroll and heading focus restore on back; unknown completion URLs cannot claim publication',async()=>{
       let w=await mount({form:{...initialForm(),jobDateEnd:'2026-11-05'}});await page(w,'schedule');
       q(w,'.listing-scroll').scrollTop=125;q(w,'.listing-scroll').dispatchEvent(new w.Event('scroll'));

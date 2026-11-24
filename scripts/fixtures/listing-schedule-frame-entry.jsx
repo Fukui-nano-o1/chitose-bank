@@ -17,7 +17,7 @@ function Fixture() {
     <ListingHeader step={page} onSave={()=>{}} onExit={()=>{}} />
     <div className="listing-scroll"><ListingPage step={4} pageId={page}>
       <p className="listing-stage-caption">ステップ1 / 3 · 基本情報</p>
-      {page==='schedule' && <StepSchedule {...{start,end,setStart,setEnd,holidays}} />}
+      {page==='schedule' && <StepSchedule {...{start,end,setStart,setEnd,holidays,setHolidays}} />}
       {page==='holidays' && <StepHolidays {...{start,end,holidays,setHolidays}} onEditSchedule={()=>setPage('schedule')} />}
       {page==='headcount' && <StepHeadcount {...{count,setCount}} />}
     </ListingPage></div>
