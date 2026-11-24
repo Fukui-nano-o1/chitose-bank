@@ -57,9 +57,30 @@ export function perkReview(row, intent) {
 }
 
 export function samePerkReview(previous, current, intent) {
-  const before = perkReview(previous, intent), after = perkReview(current, intent);
-  return before.groups.every(([, ...keys]) => keys.every(key => sameProfileValue(before.current[key],after.current[key])))
+  return samePerkGroups(previous, current, intent)
     && sameProfileValue(previous?.texts_pending ?? {},current?.texts_pending ?? {});
+}
+
+function samePerkGroups(previous, current, intent) {
+  const before = perkReview(previous, intent), after = perkReview(current, intent);
+  return before.groups.every(([, ...keys]) => keys.every(key => sameProfileValue(before.current[key],after.current[key])));
+}
+
+const otherPending = () => Object.assign(new Error('別のプロフィール項目の入力が処理待ちです。'), { code:'PERKS_TEXT_PENDING' });
+
+export function rebaseRefusedPerks(previous, current, intent, allowRetry = true) {
+  // Do not recreate a row that disappeared. A new row after a refused initial
+  // insert can be safe if all edited groups still equal the empty-row defaults.
+  if (!current) return null;
+  const review = perkReview(current, intent);
+  if (review.hasOtherPending) throw otherPending();
+  if (!allowRetry) return null;
+  if (!samePerkGroups(previous, current, intent)) return null;
+  // A pending value can mask a change in the saved/public value. Compare
+  // both when a row already existed; only a true first insert uses defaults.
+  if (previous ? !review.groups.every(([, ...keys]) => keys.every(key => sameProfileValue(previous[key], current[key])))
+    : !samePerkGroups(null, { ...current, texts_pending:{} }, intent)) return null;
+  return perkSaveChange(current, intent);
 }
 
 export function perkSaveChange(row, intent) {
@@ -85,10 +106,13 @@ export function perkSaveChange(row, intent) {
   if (Object.keys(patch).length) {
     // The trigger publishes the whole pending map on update. Do not publish
     // or drop other sections' pending text, including if it arrives in flight.
-    if (hasOtherPending) throw Object.assign(new Error('別のプロフィール項目の入力が処理待ちです。'), { code:'PROFILE_CONFLICT' });
+    if (hasOtherPending) throw otherPending();
     guard.push('texts_pending');
   }
-  return { patch, options: { guard, confirmed } };
+  // Confirm the detail is still meaningful, not only that its stored text
+  // matches. A later correction could have disabled the underlying setting.
+  const verify = actual => !!actual && !perkReview(actual, intent).needsEditing;
+  return { patch, options: { guard, confirmed, verify } };
 }
 
 export function overlayPerkIntent(row, intent) {

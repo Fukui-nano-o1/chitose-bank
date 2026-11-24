@@ -25,7 +25,7 @@ function records(){return {
 test('chat inbox, conversation, recovery and mobile viewport work together',async t=>{
  const output=await mkdtemp(path.join(tmpdir(),'cb-chat-'));let dom;const errors=[];
  try{
- await build({configFile:false,root,logLevel:'error',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'chat-fixture',enforce:'pre',resolveId(id){if(/(?:^|\/)supabase(?:\.js)?$/.test(id))return path.join(root,'scripts/fixtures/chat/client.js');},transform(code,id){if(id.endsWith('/src/lib/chatMessaging.js'))return code.replace('CHAT_TIMEOUT_MS = 15000','CHAT_TIMEOUT_MS = 120');}},react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/chat/entry.jsx'),name:'ChatQA',formats:['iife'],fileName:'fixture',cssFileName:'fixture'},minify:false}});
+ await build({configFile:false,root,logLevel:'error',define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'chat-fixture',enforce:'pre',resolveId(id){if(/(?:^|\/)supabase(?:\.js)?$/.test(id))return path.join(root,'scripts/fixtures/chat/client.js');},transform(code,id){if(id.endsWith('/src/lib/chatMessaging.js'))return code.replace('CHAT_TIMEOUT_MS = 15000','CHAT_TIMEOUT_MS = (window.qaChatTimeout || 120)');}},react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/chat/entry.jsx'),name:'ChatQA',formats:['iife'],fileName:'fixture',cssFileName:'fixture'},minify:false}});
  const script=await readFile(path.join(output,'fixture.iife.js'),'utf8'),css=await readFile(path.join(output,'fixture.css'),'utf8');
  function mount(settings={}){dom?.window.close();const vc=new VirtualConsole();vc.on('jsdomError',e=>{if(!/CSS|navigation/.test(e.message))errors.push(e.message);});vc.on('error',(...args)=>errors.push(args.join(' ')));dom=new JSDOM('<div id="root"></div>',{url:'https://chat.test/#/chats',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc});const w=dom.window;Object.assign(w,{qaUser:user,qaData:records(),qaUnread:{[app]:1},qaChannels:[],qaRequests:[],...settings,TextEncoder,TextDecoder});w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.visualViewport=Object.assign(new w.EventTarget(),{width:390,height:844,offsetLeft:0,offsetTop:0,scale:1});w.alert=value=>errors.push('alert: '+value);const style=w.document.createElement('style');style.textContent=css;w.document.head.append(style);w.eval(script);return w;}
  const input=w=>w.document.querySelector('textarea[aria-label="メッセージ"]');
@@ -67,6 +67,109 @@ test('chat inbox, conversation, recovery and mobile viewport work together',asyn
  await t.test('drafts survive navigation, templates append without sending, Enter only adds a newline',async()=>{const w=mount({qaRoute:app});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','先に入力した文');button(w,'定型文').click();await until(()=>button(w,'持ち物'),'templates');button(w,'持ち物').click();await until(()=>input(w).value.includes('持ち物'),'append');assert.ok(input(w).value.startsWith('先に入力した文'));input(w).dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.equal(w.qaRequests.filter(r=>r.op==='insert').length,0);w.qaNavigate(past);await until(()=>w.document.body.textContent.includes('この仕事は完了'),'past thread');w.qaNavigate(app);await until(()=>input(w)?.value.includes('持ち物'),'draft restored');assert.equal(w.qaData.messages.length,2);assert.equal(Object.keys(w.localStorage).some(k=>String(w.localStorage.getItem(k)).includes('先に入力した文')),false);});
  await t.test('lost send response and double clicks retry the same UUID exactly once',async()=>{const w=mount({qaRoute:app,qaSendMode:'lost'});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','受信済みでも二重送信しない');button(w,'送信').click();button(w,'送信')?.click();await until(()=>button(w,'同じ内容で再送'),'failed');assert.equal(input(w).value,'受信済みでも二重送信しない');assert.equal(input(w).readOnly,true);button(w,'同じ内容で再送').click();await until(()=>input(w).value==='','acknowledged');const sent=w.qaData.messages.filter(m=>m.body==='受信済みでも二重送信しない');assert.equal(sent.length,1);const requests=w.qaRequests.filter(r=>r.op==='insert');assert.equal(new Set(requests.map(r=>r.value.id)).size,1);assert.equal(w.document.querySelectorAll('.chat-bubble').length,2);});
  await t.test('send deadline unblocks controls and late results cannot contaminate another thread',async()=>{const w=mount({qaRoute:app,qaSendMode:'hold'});await until(()=>input(w)&&!input(w).disabled,'loaded');await fill(w,'textarea[aria-label="メッセージ"]','送信後に別の会話へ移動');button(w,'送信').click();await until(()=>button(w,'同じ内容で再送'),'bounded timeout');w.qaNavigate(past);await until(()=>w.document.body.textContent.includes('この仕事は完了'),'switched');w.qaResolveSend();await pause(30);assert.doesNotMatch(w.document.querySelector('.chat-messages').textContent,/送信後に別の会話へ移動/);w.qaNavigate(app);await until(()=>input(w)?.value==='','confirmed by fetch');assert.equal(w.qaData.messages.filter(m=>m.body==='送信後に別の会話へ移動').length,1);});
+ async function propose(w, n, days) {
+  const message={id:'plan-'+n,application_id:app,sender_id:partner,body:'【日程案】'+days.join('・')+' に来ていただきたいです。',created_at:'2026-09-24T09:0'+n+':00Z',read_at:null};
+  const listener=()=>w.qaChannels.find(channel=>channel.name==='chat-'+app)?.handlers.find(handler=>handler.config?.filter==='application_id=eq.'+app);
+  await until(listener,'live conversation subscription');
+  w.qaData.messages.push(message);
+  listener().callback({new:message});
+  await until(()=>days.every(day=>button(w,day)), 'latest plan chips');
+ }
+ await t.test('changing a proposed day preserves text added after the generated reply',async()=>{
+  const w=mount({qaRoute:app});
+  await until(()=>input(w)&&!input(w).disabled,'loaded');
+  await propose(w,1,['9/24','9/25']);
+  await fill(w,'textarea[aria-label="メッセージ"]','最初に書いた文');
+  button(w,'9/24').click();
+  await until(()=>input(w).value.includes('【日程の承認】9/24'),'chosen');
+  await fill(w,'textarea[aria-label="メッセージ"]',input(w).value+'\n後から足した荷物の質問');
+  button(w,'9/25').click();
+  await until(()=>input(w).value.includes('9/24・9/25'),'both days');
+  assert.match(input(w).value,/最初に書いた文/);
+  assert.match(input(w).value,/後から足した荷物の質問/);
+ });
+ await t.test('a new incoming proposal removes the old generated reply but not the user text',async()=>{
+  const w=mount({qaRoute:app});
+  await until(()=>input(w)&&!input(w).disabled,'loaded');
+  await propose(w,1,['9/24','9/25']);
+  await fill(w,'textarea[aria-label="メッセージ"]','前に書いた質問');
+  button(w,'9/24').click();
+  await until(()=>input(w).value.includes('【日程の承認】9/24'),'chosen');
+  await fill(w,'textarea[aria-label="メッセージ"]',input(w).value+'\n補足の質問');
+  await propose(w,2,['9/26','9/27']);
+  await until(()=>!button(w,'9/24')&&!input(w).value.includes('【日程の承認】'),'previous proposal inactive and removed');
+  assert.equal(input(w).value.trim(),'前に書いた質問\n補足の質問');
+  button(w,'送信').click();
+  await until(()=>w.qaRequests.some(r=>r.table==='messages'&&r.op==='insert'),'ordinary text sent');
+  assert.doesNotMatch(w.qaRequests.find(r=>r.table==='messages'&&r.op==='insert').value.body,/【日程の承認】/);
+ });
+ await t.test('returning to the conversation preserves the confirmation step for a selected date draft',async()=>{
+  const w=mount({qaRoute:app});
+  await until(()=>input(w)&&!input(w).disabled,'loaded');
+  await propose(w,1,['9/24','9/25']);
+  button(w,'9/24').click();
+  await until(()=>input(w).value.includes('【日程の承認】9/24'),'chosen');
+  w.qaNavigate('list');
+  await until(()=>w.document.querySelector('.chat-inbox'),'left');
+  w.qaNavigate(app);
+  await until(()=>input(w)?.value.includes('【日程の承認】9/24')&&button(w,'9/24'),'returned draft and date');
+  button(w,'送信').click();
+  await until(()=>w.document.querySelector('[role=dialog]')||w.qaRequests.some(r=>r.table==='messages'&&r.op==='insert'),'confirmation or write');
+  assert.equal(w.qaRequests.filter(r=>r.table==='messages'&&r.op==='insert').length,0);
+  assert.match(w.document.querySelector('[role=dialog]')?.textContent??'',/日程の返事を確認/);
+ });
+ await t.test('a successful response from an earlier visit must not erase a newer draft',async()=>{
+  for(const [route,table,label] of [[app,'messages','メッセージ'],['admin','admin_messages','運営へのメッセージ']]){
+   const selector='textarea[aria-label="'+label+'"]';
+   const inputFor=w=>w.document.querySelector(selector);
+   const w=mount({qaRoute:route,qaSendMode:'hold',qaChatTimeout:10000});
+   await until(()=>inputFor(w)&&!inputFor(w).disabled,'first visit');
+   await fill(w,selector,'応答を待っている文');
+   button(w,'送信').click();
+   await until(()=>w.qaResolveSend&&w.qaData[table].some(m=>m.body==='応答を待っている文'),'server stored, response pending');
+   w.qaNavigate('list');
+   await until(()=>w.document.querySelector('.chat-inbox'),'first visit left');
+   w.qaNavigate(route);
+   await until(()=>inputFor(w)&&!inputFor(w).disabled&&!inputFor(w).readOnly&&inputFor(w).value==='','later visit saw the existing message');
+   await fill(w,selector,'新しい下書き');
+   w.qaResolveSend();
+   await pause(30);
+   assert.equal(inputFor(w).value,'新しい下書き');
+   w.qaNavigate('list');
+   await until(()=>w.document.querySelector('.chat-inbox'),'later visit left');
+   w.qaNavigate(route);
+   await until(()=>inputFor(w)&&!inputFor(w).disabled&&inputFor(w).value==='新しい下書き','third visit restored '+table);
+   assert.equal(inputFor(w).value,'新しい下書き',table);
+  }
+ });
+ await t.test('a pending response for conversation A cannot contaminate active conversation B',async()=>{
+  const second='20000000-0000-4000-8000-000000000003', secondPartner='10000000-0000-4000-8000-000000000003';
+  const data=records();
+  data.applications.push({...data.applications[0],id:second,farmer_id:secondPartner,job_number:1312});
+  data.jobs_public.push({...data.jobs_public[0],job_number:1312,crop:'別の求人サンプル'});
+  data.employer_profiles_public.push({auth_id:secondPartner,nickname:'別の農園サンプル',avatar_url:''});
+  const w=mount({qaRoute:app,qaData:data,qaSendMode:'hold',qaChatTimeout:10000});
+  await until(()=>input(w)&&!input(w).disabled,'conversation A');
+  const selector='textarea[aria-label="メッセージ"]';
+  await fill(w,selector,'会話Aだけのメッセージ');
+  button(w,'送信').click();
+  await until(()=>w.qaResolveSend,'A response held');
+  w.qaNavigate(second);
+  await until(()=>input(w)&&!input(w).disabled&&w.document.querySelector('.chat-room-header').textContent.includes('別の農園サンプル'),'conversation B');
+  await fill(w,selector,'会話Bだけの下書き');
+  w.qaResolveSend();
+  await pause(30);
+  assert.equal(input(w).value,'会話Bだけの下書き');
+  assert.doesNotMatch(w.document.querySelector('.chat-messages').textContent,/会話Aだけ/);
+  w.qaNavigate(app);
+  await until(()=>w.document.querySelector('.chat-messages')?.textContent.includes('会話Aだけのメッセージ'),'A received its reply');
+  assert.notEqual(input(w).value,'会話Bだけの下書き');
+  w.qaNavigate(second);
+  await until(()=>input(w)?.value==='会話Bだけの下書き','B draft restores independently');
+  const writes=w.qaRequests.filter(r=>r.table==='messages'&&r.op==='insert');
+  assert.equal(writes.length,1);
+  assert.equal(writes[0].value.application_id,app);
+ });
  await t.test('opening clears message and newer status unread markers, including status-only chats',async()=>{
   for(const empty of [false,true]){
    const data=records(); data.applications[0].status_changed_at='2026-09-24T10:00:00.123456Z'; data.applications[0].status_changed_by=partner;

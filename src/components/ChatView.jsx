@@ -22,7 +22,8 @@ import { ChatDetails } from "./ChatDetails";
 import { schedulePath } from "../features/today/schedule";
 import { useChatViewport } from "../lib/useChatViewport";
 import { chatDeadline, sendChatMessage, chatDay, chatTime } from "../lib/chatMessaging";
-import { readChatDraft, saveChatDraft } from "../lib/chatDrafts";
+import { clearSentChatDraft, readChatDraft, saveChatDraft } from "../lib/chatDrafts";
+import { planDraftSpan, replacePlanDraft } from "../lib/chatPlanDraft";
 import { openSupport } from "../lib/supportDiagnostics";
 import "./Chat.css";
 export function ChatView({ applicationId, onBack }) {
@@ -54,6 +55,9 @@ export function ChatView({ applicationId, onBack }) {
   const msgScrollRef = useRef(null); // メッセージ欄のスクロール容器（最新へ自動スクロール・LINE式・2026-07-19）
   const nearBottomRef = useRef(true); // 利用者が下端の近く(80px以内)にいるか。onScrollで更新・自動スクロールの条件（2026-08-07）
   const [text, setText] = useState("");
+  const textRef = useRef("");
+  const [planSel, setPlanSel] = useState(null); // { msgId, labels, generated }
+  const planSelRef = useRef(null), latestPlanIdRef = useRef(null);
   const [sending, setSending] = useState(false);
   // 入力欄の自動伸縮（改行対応・2026-08-16たきと指示）：中身の行数に合わせて高さを変える。
   // 上限132px（≒6行）を超えたら内側スクロール＝入力欄が画面を埋め尽くさない。
@@ -72,12 +76,17 @@ export function ChatView({ applicationId, onBack }) {
     myIdRef.current = myId;
     if (!myId) return;
     const draft = readChatDraft(myId, applicationId);
-    setText(draft.text); setPending(draft.pending); pendingRef.current = draft.pending;
+    textRef.current = draft.text;
+    const plan = planDraftSpan(draft.text, draft.plan) >= 0 ? draft.plan : null;
+    planSelRef.current = plan;
+    setText(draft.text); setPlanSel(plan); setPending(draft.pending); pendingRef.current = draft.pending;
     if (draft.pending) setSendError("前の送信結果を確認しています。未送信の場合は同じ内容で再送できます。");
   }, [myId, applicationId]);
-  const changeText = value => {
-    setText(value);
-    saveChatDraft(myId, applicationId, { text: value, pending: pendingRef.current });
+  const changeText = (value, plan = planSelRef.current) => {
+    const currentPlan = planDraftSpan(value, plan) >= 0 ? plan : null;
+    planSelRef.current = currentPlan; setPlanSel(currentPlan);
+    textRef.current = value; setText(value);
+    saveChatDraft(myId, applicationId, { text:value, pending:pendingRef.current, plan:currentPlan });
   };
   // 段階表示の先出し（2026-08-07たきと指示「はじめは最低限の要素のみ表示。段階的に表示させていく」）：
   // 一覧キャッシュ（viewCache永続＝アプリ再起動後も残る骨・本文なし）に開いた応募の行があれば、
@@ -116,9 +125,8 @@ export function ChatView({ applicationId, onBack }) {
   // 働き手がタップすると、その日が入力欄の返事の文に積まれていく（もう一度タップで外れる）。
   // ★記録は増やさない＝ここで作るのは返事の文章だけ。働く日の確定は従来どおり
   //   農家の「働く日を決める」（set_agreed_dates）が唯一の記録（表示は記録から導出の原則）
-  const [planSel, setPlanSel] = useState(null); // { msgId, labels:[...] } タップ中の日
-  const planBaseRef = useRef("");               // 選び始めた時点の入力＝打ちかけの文を壊さない
   const [planConfirm, setPlanConfirm] = useState(null); // 送信前の最終確認 { body, labels }
+  const planBusyRef = useRef(false);
   const [planBusy, setPlanBusy] = useState(false);       // 承認の記録中（送信ボタンの二度押し防止）
   // 【日程案】の本文から日付のラベルだけを取り出す（送った時と同じ「・」区切り）
   const parsePlanLabels = (body) => {
@@ -132,20 +140,13 @@ export function ChatView({ applicationId, onBack }) {
     // 働き手は仕事をしに行くのであって、へりくだって訪問するのではない＝当事者どうし対等の言葉にする。
     // 「行けます」は available_dates（来られる日＝行ける日の申告）とも意味が揃う（確定は農家の採用）
     labels.length ? "【日程の承認】" + labels.join("・") + " に行けます。よろしくお願いします。" : "";
-  // 入力欄から、この仕組みが作った承認文だけを取り除く（打ちかけの本文は残す）
-  const stripPlanReply = (t) => String(t || "").split("【日程の承認】")[0].replace(/\s*$/, "");
-  // タブのタップ：選び直すたびに、打ちかけの文の後ろの返事だけを作り替える
   const togglePlanDay = (msgId, label) => {
-    const cur = (planSel && planSel.msgId === msgId) ? planSel.labels : [];
-    // このメッセージのタブを触り始めた時点の入力を土台にする（打ちかけの文を壊さない）
-    // 土台＝打ちかけの文。★前に作った承認文（【日程の承認】以降）は必ず落とす
-    //   （2026-08-19たきと報告：古い日程案→新しい日程案の順にタップすると承認文が二重に積まれた）
-    if (pendingRef.current || sendBusyRef.current) return;
-    if (!planSel || planSel.msgId !== msgId) planBaseRef.current = stripPlanReply(text);
-    const next = cur.includes(label) ? cur.filter(x => x !== label) : [...cur, label];
-    const base = planBaseRef.current;
-    setPlanSel(next.length ? { msgId, labels: next } : null);
-    changeText(next.length ? (base ? base + " " : "") + planReplyText(next) : base);
+    if (pendingRef.current || sendBusyRef.current || planBusyRef.current || msgId !== latestPlanIdRef.current) return;
+    const previous = planSelRef.current;
+    const current = previous?.msgId === msgId ? previous.labels : [];
+    const labels = current.includes(label) ? current.filter(x => x !== label) : [...current, label];
+    const replacement = replacePlanDraft(textRef.current, previous, planReplyText(labels));
+    changeText(replacement.text, labels.length ? { msgId, labels, generated:replacement.generated } : null);
   };
   // コメント報告（2026-07-19）：🚩報告する→問題のコメントをタップ→どう問題かを選んで送信（運営に届く・本文は凍結コピー保存）
   const [reportMode, setReportMode] = useState(false);
@@ -266,8 +267,12 @@ export function ChatView({ applicationId, onBack }) {
       setLoadError("");
       const draft = readChatDraft(uid, applicationId);
       if (draft.pending && data?.some(message => message.id === draft.pending.id)) {
-        saveChatDraft(uid, applicationId, { text: "", pending: null });
-        pendingRef.current = null; setPending(null); setText(""); setSendError("");
+        clearSentChatDraft(uid, applicationId, draft.pending.id);
+        if (pendingRef.current?.id === draft.pending.id) {
+          pendingRef.current = null; setPending(null);
+          planSelRef.current = null; setPlanSel(null); setPlanConfirm(null);
+          textRef.current = ""; setText(""); setSendError("");
+        }
       }
       if (data && data.length === 0 && knownHistoryRef.current) {
         // 履歴があると分かっているスレッドの空応答＝一時的なものとして捨てる。
@@ -556,24 +561,28 @@ export function ChatView({ applicationId, onBack }) {
   //   （.select().single()）③load は呼ばない（リアルタイム購読と保険ポーリングが受け持つ）。
   // ★失敗したら楽観表示を取り消し、本文を入力欄に返す＝送ったつもりで消える、を作らない
   const send = async () => {
-    const body = text.trim(), uid = myId;
+    const body = textRef.current.trim(), uid = myId;
     if (!body || sendBusyRef.current || chatClosed || !uid) return;
     const row = pendingRef.current || { id: crypto.randomUUID(), application_id: applicationId, sender_id: uid, body };
     pendingRef.current = row; setPending(row);
-    saveChatDraft(uid, applicationId, { text: body, pending: row });
+    saveChatDraft(uid, applicationId, { text:body, pending:row, plan:planSelRef.current });
     sendBusyRef.current = true; setSending(true); setSendError("");
     try {
       const message = await sendChatMessage(supabase, "messages", row);
-      saveChatDraft(uid, applicationId, { text: "", pending: null });
+      clearSentChatDraft(uid, applicationId, row.id);
       if (!aliveRef.current) return;
-      pendingRef.current = null; setPending(null); setText(""); setPlanSel(null); setPlanConfirm(null); planBaseRef.current = "";
+      if (pendingRef.current?.id === row.id) {
+        pendingRef.current = null; setPending(null);
+        textRef.current = ""; setText("");
+        planSelRef.current = null; setPlanSel(null); setPlanConfirm(null);
+      }
       nearBottomRef.current = true;
       setMsgs(previous => previous.some(item => item.id === message.id) ? previous : [...previous, message]);
     } catch (error) {
       if (!aliveRef.current) return;
       if (error.code === "42501") {
         pendingRef.current = null; setPending(null);
-        saveChatDraft(uid, applicationId, { text: body, pending: null });
+        saveChatDraft(uid, applicationId, { text:body, pending:null, plan:planSelRef.current });
         setSendError("送信が許可されませんでした。応募の状態を更新しています。入力は残しています。");
         load([applicationId]);
       } else setSendError("送信を確認できませんでした。入力は残っています。同じ内容で再送しても、重複して届くことはありません。");
@@ -585,9 +594,15 @@ export function ChatView({ applicationId, onBack }) {
   // 送信ボタン：日程の承認を積んでいる時だけ最終確認を挟む（2026-08-19たきと指示）。
   // ふつうのメッセージは従来どおり1タップで送る＝毎回の確認で会話を鈍らせない
   const onSendTap = () => {
-    if (!text.trim() || sending) return;
+    const draft = textRef.current.trim();
+    if (!draft || sending || planBusyRef.current || sendBusyRef.current) return;
     if (pendingRef.current) { send(); return; }
-    if (planSel && planSel.labels.length) { setPlanConfirm({ body: text.trim(), labels: planSel.labels }); return; }
+    const plan = planSelRef.current;
+    if (plan?.labels.length) {
+      if (plan.msgId !== latestPlanIdRef.current) return;
+      setPlanConfirm({ body:draft, labels:plan.labels, msgId:plan.msgId, generated:plan.generated });
+      return;
+    }
     send();
   };
   // 最終確認の「送信する」（2026-08-19たきと承認）：承認した日を先に記録してからメッセージを送る。
@@ -596,8 +611,10 @@ export function ChatView({ applicationId, onBack }) {
   // ★記録に失敗してもメッセージは送る＝相手への連絡（本来の目的）を人手のミスで止めない。
   //   ただし黙って落とさず、記録できなかったことは画面で伝える
   const sendPlanApproval = async () => {
-    if (!planConfirm || planBusy || sending) return;
-    setPlanBusy(true);
+    if (!planConfirm || planBusyRef.current || sendBusyRef.current || sending ||
+        planConfirm.msgId !== latestPlanIdRef.current || planConfirm.generated !== planSelRef.current?.generated ||
+        planConfirm.body !== textRef.current.trim()) return;
+    planBusyRef.current = true; setPlanBusy(true);
     const ymds = planYmds(planConfirm.labels);
     let saved = ymds.length === planConfirm.labels.length;
     let why = saved ? "" : "日付を求人の期間に照らし合わせられませんでした";
@@ -608,7 +625,11 @@ export function ChatView({ applicationId, onBack }) {
         if (!saved) why = data?.message || data?.reason || error?.message || "不明";
       } catch (e) { saved = false; why = e?.message || "不明"; }
     }
+    planBusyRef.current = false;
+    if (!aliveRef.current) return;
     setPlanBusy(false);
+    if (planConfirm.msgId !== latestPlanIdRef.current || planConfirm.generated !== planSelRef.current?.generated ||
+        planConfirm.body !== textRef.current.trim()) return;
     if (!saved) alert("カレンダーへの記録ができませんでした（" + why + "）。メッセージはこのまま送ります。");
     await send();
   };
@@ -620,10 +641,15 @@ export function ChatView({ applicationId, onBack }) {
     for (const m of msgs) if (m.sender_id !== myId && parsePlanLabels(m.body)) id = m.id;
     return id;
   })();
-  // 新しい日程案が届いたら、古い方で選んでいた分は捨てる（古い日付のまま送らない）
+  latestPlanIdRef.current = latestPlanMsgId;
+  // A new proposal invalidates only the text we generated for the old one.
+  // A pending network retry already belongs to an explicitly approved send.
   useEffect(() => {
-    if (planSel && planSel.msgId !== latestPlanMsgId) { setPlanSel(null); setPlanConfirm(null); }
-  }, [latestPlanMsgId]); // eslint-disable-line react-hooks/exhaustive-deps
+    const previous = planSelRef.current;
+    if (!previous || !latestPlanMsgId || previous.msgId === latestPlanMsgId || !myId || pendingRef.current) return;
+    setPlanConfirm(null);
+    changeText(replacePlanDraft(textRef.current, previous, "").text, null);
+  }, [latestPlanMsgId, myId, planSel]); // eslint-disable-line react-hooks/exhaustive-deps
   // 既読マーカー（2026-07-22・第8弾）：LINE式に、相手が読んだ自分の最新メッセージ1件にだけ「既読」を出す。
   // 状態変更の既読時刻ではなく、実際に確認されたメッセージのread_atだけを見る。
   const readMarkMsgId = (() => {
@@ -809,7 +835,7 @@ export function ChatView({ applicationId, onBack }) {
                     );
                     const on = sel.includes(l);
                     return (
-                      <button key={l} onClick={()=>togglePlanDay(m.id, l)} className="f-sans"
+                      <button key={l} aria-pressed={on} onClick={()=>togglePlanDay(m.id, l)} className="f-sans"
                         style={{ padding:"7px 11px", fontSize:12, fontWeight:700, borderRadius:20, cursor:"pointer",
                           background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{l}</button>
                     );

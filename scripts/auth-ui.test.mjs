@@ -152,6 +152,67 @@ test('real authentication UI handles failures and guides returning accounts with
       assert.equal(otpCalls(w).length, 2);
       assert.equal(button(w, '再送信（あと60秒）').disabled, true);
     }
+    await t.test('a mistyped email gets an actionable message in login and signup', async () => {
+      for (const signup of [false, true]) {
+        const w = mount('success');
+        await until(() => button(w, '新規登録'), 'login ready');
+        if (signup) {
+          button(w, '新規登録').click();
+          await until(() => button(w, '続ける'), 'email form');
+        } else {
+          await fill(w, 'input[name="password"]', 'fixture-password');
+        }
+        await fill(w, 'input[type="email"]', 'person@fixture');
+        button(w, signup ? '続ける' : 'ログイン').click();
+        await pause(10);
+        assert.match(w.document.querySelector('[role="alert"]')?.textContent ?? '', /メールアドレスの形式/);
+        assert.equal(w.document.querySelector('input[name="email"]').getAttribute('aria-invalid'), 'true');
+        assert.equal(otpCalls(w).length, 0);
+        assert.equal(w.qaRequests.filter(r => r.path === '/auth/v1/token').length, 0);
+        await fill(w, 'input[type="email"]', 'person@fixture.test');
+        assert.equal(w.document.querySelector('[role="alert"]'), null);
+      }
+    });
+    await t.test('copying a code-containing message selects its one code, never arbitrary digits', async () => {
+      const w = mount('success');
+      await openCode(w);
+      const input = w.document.querySelector('input[name="code"]');
+      async function paste(value) {
+        const event = new w.Event('paste', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'clipboardData', { value: { getData: () => value } });
+        input.dispatchEvent(event);
+        await pause(10);
+      }
+      await paste('送信日 2026/11/24。認証コード：１２３４５６');
+      assert.equal(input.value, '123456');
+      await paste('前のコード 111111、新しいコード 222222');
+      assert.equal(input.value, '123456', 'an ambiguous paste must not overwrite the current code');
+      assert.match(w.document.querySelector('[role="alert"]')?.textContent ?? '', /6桁/);
+      assert.equal(button(w, '確認して続ける').disabled, true);
+      await paste(' １２３-４５６ ');
+      assert.equal(input.value, '123456');
+      assert.equal(w.document.querySelector('[role="alert"]'), null);
+      assert.equal(w.qaRequests.filter(r => r.path === '/auth/v1/verify').length, 0);
+    });
+    await t.test('a failed resend does not show a previous send success or erase the entered code', async () => {
+      const w = mount('success');
+      await openCode(w);
+      const now = w.Date.now;
+      let advance = 61000;
+      w.Date.now = () => now() + advance;
+      await until(() => button(w, 'コードを再送信'), 'first resend available');
+      button(w, 'コードを再送信').click();
+      await until(() => w.document.querySelector('.cb-auth-note[role="status"]'), 'first resend succeeds');
+      await fill(w, 'input[name="code"]', '321');
+      advance += 61000;
+      await until(() => button(w, 'コードを再送信'), 'second resend available');
+      w.qaMode = 'smtp';
+      button(w, 'コードを再送信').click();
+      await until(() => w.document.querySelector('[role="alert"]'), 'second resend fails');
+      assert.equal(Boolean(w.document.querySelector('.cb-auth-note[role="status"]')), false, 'stale send success is hidden');
+      assert.equal(w.document.querySelector('input[name="code"]').value, '321');
+      assert.equal(otpCalls(w).length, 3);
+    });
     await t.test('password login is available before sending mail and from the code screen, with email retained', async () => {
       for (const fromCode of [false, true]) {
         const w = mount('success');
