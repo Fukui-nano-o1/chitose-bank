@@ -352,6 +352,78 @@ try {
       path: evidence + '/receipt.png'
     });
   });
+  await test('Notched mobile header remains clear of the status area while only history scrolls', async () => {
+    for (const route of [app, past, 'admin']) {
+      const data = records();
+      const inbox = route === 'admin';
+      const messages = Array.from({ length: 45 }, (_, i) => ({
+        id: `40000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+        application_id: route, sender_id: i % 2 ? user : partner,
+        body: `合成会話 ${i + 1}：画面の上下に固定された領域を確認するためのメッセージ`,
+        created_at: new Date(Date.UTC(2026, 8, 1, 0, i)).toISOString(),
+        read_at: '2026-09-02T00:00:00Z',
+      }));
+      if (inbox) data.admin_messages = messages.map(message => ({
+        ...message, user_id: user, is_admin: false, read_by_user: true, read_by_admin: true,
+      }));
+      else data.messages = messages;
+      await mount({ qaRoute: route, qaData: data }, { width: 390, height: 844 });
+      const room = page.locator('.chat-room');
+      const scroller = page.locator('.chat-messages');
+      await page.locator('.chat-bubble').first().waitFor();
+      await wait(() => {
+        const history=document.querySelector('.chat-messages');
+        return history.scrollHeight - history.clientHeight > 100 &&
+          Math.abs(history.scrollHeight - history.clientHeight - history.scrollTop) < 3;
+      });
+      // Desktop browser emulation reports env(safe-area-inset-top) as zero.
+      await room.evaluate(element => element.style.setProperty('--chat-device-safe-top', '59px'));
+      await scroller.evaluate(element => { element.scrollTop = element.scrollHeight; });
+      const geometry = () => page.evaluate(() => {
+        const box = selector => {
+          const element = document.querySelector(selector);
+          if (!element || getComputedStyle(element).display === 'none') return null;
+          const r = element.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, height: r.height };
+        };
+        const header = document.querySelector('.chat-room-header');
+        const history = document.querySelector('.chat-messages');
+        return { room: box('.chat-room'), header: box('.chat-room-header'),
+          back: box('.chat-icon-button'), details: box('.chat-details-button, .chat-room-header .chat-text-button'),
+          context: box('.chat-context'), history: box('.chat-messages'), historyTop: history.scrollTop,
+          maxScroll: history.scrollHeight - history.clientHeight,
+          background: getComputedStyle(header).backgroundColor,
+          filter: getComputedStyle(header).filter,
+          hitBack: (() => { const r = header.querySelector('button').getBoundingClientRect();
+            return header.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })(),
+        };
+      });
+      const bottom = await geometry();
+      assert.ok(bottom.back.top >= 59 && bottom.details.top >= 59, JSON.stringify(bottom));
+      assert.ok(bottom.back.bottom <= bottom.header.bottom && bottom.details.bottom <= bottom.header.bottom);
+      assert.equal(bottom.background, 'rgb(255, 255, 255)');
+      assert.equal(bottom.filter, 'none');
+      assert.equal(bottom.hitBack, true);
+      assert.equal(Boolean(bottom.context), !inbox);
+      assert.ok(bottom.history.top - (bottom.context || bottom.header).bottom >= 7);
+      assert.ok(bottom.maxScroll > 100 && Math.abs(bottom.historyTop - bottom.maxScroll) < 3, JSON.stringify(bottom));
+      await scroller.evaluate(element => { element.scrollTop = 0; });
+      const top = await geometry();
+      assert.equal(top.historyTop, 0);
+      for (const key of ['header', 'back', 'details', 'context', 'history']) assert.deepEqual(top[key], bottom[key]);
+      await scroller.evaluate(element => { element.scrollTop = element.scrollHeight; });
+      assert.ok(Math.abs((await geometry()).historyTop - bottom.maxScroll) < 3);
+      await room.evaluate(element => {
+        // Model a visual viewport already panned beyond the notch.
+        element.style.setProperty('--chat-top', '83px');
+        element.style.setProperty('--chat-height', '350px');
+      });
+      const panned = await geometry();
+      assert.equal(panned.room.top, 83);
+      assert.ok(panned.back.top >= 83 && panned.back.top < 105, JSON.stringify(panned));
+      assert.ok(panned.history.height > 0);
+    }
+  });
   await test('Mobile portrait, short viewport, landscape keep composer and details usable', async () => {
     await mount({}, {
       width: 390,
