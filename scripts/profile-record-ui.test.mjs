@@ -24,7 +24,7 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
   },react()],build:{outDir:output,lib:{entry:path.join(root,'scripts/fixtures/profile-ui-entry.jsx'),name:'ProfileQA',formats:['iife'],fileName:'fixture'},minify:false}});
   const script=await readFile(path.join(output,'fixture.iife.js'),'utf8');
   async function mount(surface,options={}) {
-   dom?.window.close();const route=surface==='worker'?'worker/profile/residence':'employer/profile/nickname';
+   dom?.window.close();const route=surface==='worker'?'worker/profile/residence':surface.startsWith('employerPerks')?'employer/profile/perks':'employer/profile/nickname';
    const errors=[];const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
    dom=new JSDOM('<div id="root"></div>',{url:'https://ui.test/#/profile/'+route,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc});
    const w=dom.window;Object.assign(w,{TextEncoder,TextDecoder,Response,Request,Headers,qaSurface:surface,qaOptions:options,qaAlerts:[],qaSaved:[],qaErrors:errors});
@@ -42,7 +42,7 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
    }
    await pause(20);
   }
-  async function save(w){button(w,'保存する').click();await pause(30);await until(()=>!button(w,'保存中'),'save settles');}
+  async function save(w){button(w,'保存する').click();await pause(30);await until(()=>!w.document.querySelector('fieldset').disabled,'save settles');}
   for(const surface of ['worker','employer','experience','insurance','insurancePage','emergency']) {
    await t.test(surface+': failed initial read cannot save or seed empty values',async()=>{
     const w=await mount(surface,{readError:true});
@@ -94,5 +94,190 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
     assert.equal(w.document.querySelector('input:not([type="file"])').value,'変更後の値');
    });
   }
+ if(!baseline) await t.test('employer perks: protected comparison and deliberate retry', async t => {
+   const editPark = async (w, value) => {
+     const field = w.document.querySelector('input[type="number"]');
+     Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(field, value);
+     field.dispatchEvent(new w.Event('input', { bubbles:true }));
+     await pause(20);
+   };
+   const read = async w => {
+     await until(()=>button(w,'保存済みの内容と比べる'),'recovery visible');
+     button(w,'保存済みの内容と比べる').click();
+     await until(() => button(w,'入力を見直す'), 'comparison loaded');
+   };
+   const row = w => w.qaProfile.state.rows.employer_profiles;
+   const writes = w => w.qaProfile.state.events.filter(e=>e.table==='employer_profiles'&&e.kind!=='read');
+   await t.test('unchanged empty profile exits without creating a row or reporting a save',async () => {
+     const empty=await mount('employerPerks',{emptyEmployer:true});
+     await save(empty);
+     assert.equal(writes(empty).length,0);
+     assert.equal(row(empty),null);
+     assert.doesNotMatch(empty.document.body.textContent,/保存しました|保存内容を確認/);
+   });
+   await t.test('Back after conflict returns to the editor, then re-entry retains the draft',async () => {
+     const w = await mount('employerPerks');
+     row(w).parking_capacity=4;
+     await editPark(w,'5');
+     await save(w);
+     await until(()=>button(w,'保存済みの内容と比べる'),'recovery visible');
+     w.document.querySelector('button[aria-label="戻る"]').click();
+     await until(()=>!w.location.hash.endsWith('/perks'),'returned without saving');
+     await until(()=>[...w.document.querySelectorAll('button')].some(b=>b.textContent.trim().startsWith('待遇')),'profile list restored');
+     [...w.document.querySelectorAll('button')].find(b=>b.textContent.trim().startsWith('待遇')).click();
+     await until(()=>button(w,'保存済みの内容と比べる'),'reopened perks with recovery');
+     assert.equal(w.document.querySelector('input[type="number"]').value,'5');
+     await read(w);
+     assert.match(w.document.body.textContent,/今回の入力：あり ／ 5/);
+     assert.equal(writes(w).length,1);
+   });
+   await t.test('posting editor without an owner prop uses only the authenticated loaded owner',async () => {
+     const w = await mount('employerPerksNoOwner');
+     await editPark(w,'5');
+     row(w).parking_capacity = 4;
+     await save(w);
+     await read(w);
+     assert.match(w.document.body.textContent,/現在：あり ／ 4/);
+     button(w,'今回の変更だけ適用').click();
+     await until(()=>row(w).parking_capacity===5,'authenticated owner can finish');
+     assert.equal(writes(w).length,2);
+   });
+   await t.test('different perks are not overwritten; dependent detail is guarded',async () => {
+     const w = await mount('employerPerks');
+     row(w).has_bonus = true;
+     row(w).bonus_detail = '合成賞与';
+     await editPark(w,'5');
+     await save(w);
+     assert.equal(row(w).parking_capacity,5);
+     assert.equal(row(w).has_bonus,true);
+     assert.equal(row(w).bonus_detail,'合成賞与');
+     assert.deepEqual(JSON.parse(JSON.stringify(writes(w)[0].patch)),{parking_capacity:5});
+     assert.ok(writes(w)[0].filters.some(([k]) => k==='has_parking'));
+   });
+   await t.test('comparison keeps draft; another edit after comparison still cannot be overwritten',async () => {
+     const w = await mount('employerPerks');
+     row(w).parking_capacity = 4;
+     await editPark(w,'5');
+     await save(w);
+     assert.equal(row(w).parking_capacity,4);
+     assert.equal(button(w,'保存する'),undefined);
+     assert.equal(w.document.querySelector('input[type="number"]').value,'5');
+     assert.equal(w.document.querySelector('button[aria-label="戻る"]').disabled,false);
+     assert.equal(writes(w).length,1);
+     await read(w);
+     assert.match(w.document.body.textContent,/現在：あり ／ 4/);
+     assert.match(w.document.body.textContent,/今回の入力：あり ／ 5/);
+     assert.equal(writes(w).length,1);
+     row(w).parking_capacity = 6;
+     button(w,'今回の変更だけ適用').click();
+     await until(() => button(w,'保存済みの内容と比べる'),'stale comparison rejected');
+     assert.equal(row(w).parking_capacity,6);
+     await read(w);
+     row(w).has_bonus = true;
+     row(w).bonus_detail = '別の項目';
+     button(w,'今回の変更だけ適用').click();
+     await until(() => row(w).parking_capacity===5,'deliberate update');
+     assert.equal(row(w).bonus_detail,'別の項目');
+     assert.deepEqual(Array.from(writes(w), e=>Object.keys(e.patch)),[['parking_capacity'],['parking_capacity'],['parking_capacity']]);
+     const event = w.qaProfile.state.events.find(e => e.table==='app_errors');
+     assert.equal(event.patch.error_code,'PROFILE_CONFLICT');
+     assert.equal(event.patch.message,'PROFILE_CONFLICT');
+     assert.ok(!('user_agent' in event.patch));
+   });
+   await t.test('boolean and helper text are atomic and shared pending text cannot be published',async () => {
+     const w = await mount('employerPerks');
+     const toggle=[...w.document.querySelectorAll('[role="switch"]')].find(el=>el.getAttribute('aria-label')==='送迎');
+     toggle.click();
+     await until(()=>w.document.querySelector('input[placeholder="例：吉野川市内"]'),'detail visible');
+     const field=w.document.querySelector('input[placeholder="例：吉野川市内"]');
+     Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype,'value').set.call(field,'合成条件');
+     field.dispatchEvent(new w.Event('input',{bubbles:true}));
+     await pause(20);
+     row(w).texts_pending={owner_comment:'他の項目'};
+     await save(w);
+     assert.equal(row(w).has_transport,false);
+     assert.equal(row(w).texts_pending.owner_comment,'他の項目');
+     assert.equal(writes(w).length,1);
+     await read(w);
+     assert.equal(button(w,'今回の変更だけ適用'),undefined);
+     row(w).texts_pending={};
+     button(w,'入力を見直す').click();
+     await until(()=>w.document.body.textContent.includes('もう一度比べてください'),'latest pending map changed');
+     button(w,'入力を見直す').click();
+     await until(()=>button(w,'保存する'),'editable after reading latest');
+     assert.equal(w.document.querySelector('input[placeholder="例：吉野川市内"]').value,'合成条件');
+     await save(w);
+     assert.equal(row(w).has_transport,true);
+     assert.equal(row(w).transport_area,'合成条件');
+     assert.deepEqual(JSON.parse(JSON.stringify(writes(w)[1].patch)),{has_transport:true,texts_pending:{transport_area:'合成条件'}});
+   });
+   await t.test('already-applied change is verified without another write',async () => {
+     const w = await mount('employerPerks');
+     row(w).parking_capacity = 4;
+     await editPark(w,'5');
+     await save(w);
+     row(w).parking_capacity = 5;
+     await read(w);
+     button(w,'今回の変更だけ適用').click();
+     await until(() => w.document.body.textContent.includes('保存しました'),'verified same value');
+     assert.equal(writes(w).length,1);
+   });
+   await t.test('lost response plus unavailable read can recover; a switched owner is never read',async () => {
+     const w = await mount('employerPerks',{lostResponse:true,readErrorAfterWrite:true});
+     await editPark(w,'5');
+     await save(w);
+     assert.equal(row(w).parking_capacity,5);
+     assert.ok(button(w,'保存済みの内容と比べる'));
+     assert.doesNotMatch(w.document.body.textContent,/保存しました/);
+     const state=w.qaProfile.state;
+     const readCount=state.events.filter(e=>e.table==='employer_profiles'&&e.kind==='read').length;
+     const owner=state.userId;state.userId='other-account';state.options.readErrorAfterWrite=false;
+     await until(()=>button(w,'保存済みの内容と比べる'),'recovery visible');
+     button(w,'保存済みの内容と比べる').click();
+     await until(()=>w.document.body.textContent.includes('入力を始めたアカウントに戻って'),'owner mismatch');
+     assert.equal(state.events.filter(e=>e.table==='employer_profiles'&&e.kind==='read').length,readCount);
+     state.userId=owner;
+     await read(w);
+     button(w,'今回の変更だけ適用').click();
+     await until(()=>w.document.body.textContent.includes('保存しました'),'verified after unavailable read');
+     assert.equal(writes(w).length,1);
+   });
+   await t.test('a mounted editor cannot display the prior account’s comparison or draft',async () => {
+     const w=await mount('employerPerks');
+     await editPark(w,'93');
+     row(w).parking_capacity=4;
+     await save(w);
+     await read(w);
+     assert.match(w.document.body.textContent,/今回の入力：あり ／ 93/);
+     const newOwner='22222222-2222-4222-8222-222222222222';
+     const state=w.qaProfile.state;
+     state.userId=newOwner;
+     state.rows.employer_profiles={...row(w),auth_id:newOwner,parking_capacity:8};
+     w.qaRenderOwner(newOwner);
+     await until(()=>w.document.querySelector('input[type="number"]')?.value==='8','new owner’s form');
+     assert.doesNotMatch(w.document.body.textContent,/今回の入力：あり ／ 93/);
+     assert.equal(button(w,'今回の変更だけ適用'),undefined);
+     assert.equal(writes(w).length,1);
+   });
+   await t.test('disabled setting cannot silently reactivate; returning to form preserves the intended detail',async () => {
+     const w=await mount('employerPerks');
+     const old=w.document.querySelector('input[type="number"]');
+     assert.equal(old.value,'2');
+     await editPark(w,'5');
+     row(w).has_parking=false;
+     row(w).parking_capacity=null;
+     await save(w);
+     await read(w);
+     assert.equal(button(w,'今回の変更だけ適用'),undefined);
+     button(w,'入力を見直す').click();
+     await until(()=>button(w,'保存する'),'editable again');
+     const toggle=[...w.document.querySelectorAll('[role="switch"]')].find(el=>el.getAttribute('aria-label')==='駐車場');
+     assert.equal(toggle.getAttribute('aria-checked'),'false');
+     toggle.click();
+     await until(()=>w.document.querySelector('input[type="number"]'),'input revealed');
+     assert.equal(w.document.querySelector('input[type="number"]').value,'5');
+     assert.equal(writes(w).length,1);
+   });
+ });
  } finally {dom?.window.close();await rm(output,{recursive:true,force:true});}
 });
