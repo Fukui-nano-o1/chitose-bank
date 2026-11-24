@@ -5,7 +5,7 @@ export function profileFixture(options = {}) {
   const common = { auth_id: uid, nickname:'Fixture', avatar_url:'', updated_at:'2026-10-01T00:00:00Z' };
   const state = { userId:uid, options, events:[], writes:0, rows: {
     worker_profiles: { ...common, residence_city:'吉野川市', transport:'自転車', farm_experience:'経験あり', pr:'元の自己紹介', pr_pending:null, pr_qa:[{q:'質問',a:'元の回答'}], pr_qa_pending:null, interests:['読書'], self_declared:['普通免許'], experience_entries:[{crop:'米',task:'収穫',duration:'1年'}], experienced_tasks:['収穫'] },
-    employer_profiles: { ...common, recruiter_name:'元の農園', recruiter_name_kana:'モト', recruiter_contact:'000-0000-0000', recruiter_address:'元の所在地', recruiter_address_detail:'元の所在地', has_parking:true, parking_capacity:2, has_transport:false, insurance_items:['rosai'], insurance_notes:{rosai:'元のメモ'}, owner_comment:'元の代表文', unique_point:'元の特徴', texts_pending:{} },
+    employer_profiles: options.emptyEmployer ? null : { ...common, recruiter_name:'元の農園', recruiter_name_kana:'モト', recruiter_contact:'000-0000-0000', recruiter_address:'元の所在地', recruiter_address_detail:'元の所在地', has_parking:true, parking_capacity:2, has_transport:false, insurance_items:['rosai'], insurance_notes:{rosai:'元のメモ'}, owner_comment:'元の代表文', unique_point:'元の特徴', texts_pending:{} },
     emergency_contacts:{auth_id:uid,name:'元の連絡先',phone:'000-0000-0000',relation:'家族',confirmed_at:null},
   }};
   const rejected = {code:'42501',message:'Injected rejection'};

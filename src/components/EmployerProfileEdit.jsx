@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
 import { employerProfileChange } from "../lib/profileInput";
+import { perkIntent, perkReview, perkSaveChange, readPerkValues, overlayPerkIntent, samePerkReview } from "../lib/employerPerksRecovery";
 import { ProfileReadError } from "./ProfileReadError";
 import { saveProfileAvatar } from "../lib/profileAvatar";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
@@ -178,33 +179,60 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   const avatarBusyRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const recordRef = useRef(null);
+  const perkRecordRef = useRef(null);
   const saveBusyRef = useRef(false);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [perkRecovery, setPerkRecovery] = useState(null);
+  const perkRecoveryRef = useRef(null);
+  const startedWithoutOwnerProp = useRef(!me?.id);
+  const currentOwnerRef = useRef(me?.id);
+  if (me?.id) startedWithoutOwnerProp.current = false;
+  currentOwnerRef.current = me?.id ?? (startedWithoutOwnerProp.current ? recordRef.current?.userId : undefined);
+  useEffect(() => {
+    perkRecoveryRef.current = null;
+    setPerkRecovery(null);
+  }, [me?.id]);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   // 項目ページを一度でも開いたら真（＝入力が始まりうる）。ネット取得の完了時、キャッシュで
   // 即時復元済みならもう上書きしない＝書きかけを消さない（2026-08-28）。リセットしない片道の旗
   const editBoxOpenedRef = useRef(false);
   // ── 行→state の写し（唯一の適用関数・2026-08-28たきと指示「一瞬で復元しろ。体感0.5秒で」）──
   // 即時復元（キャッシュ）とネット取得の両方がこれを通る＝写し方を2箇所に持たない。
   // 新規登録からのプリフィル（account_holders＝ネット越し）はここに入れない＝ネット取得側だけの仕事
-  const applyRow = (data, seeded = false) => {
-      setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
-      setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
-      setPlaceTown(data.place_town || ""); setPlaceAddr(data.place_address || "");
+  const applyPerkRow = (data) => {
+    const tp = data.texts_pending || {};
       setHasTransport(data.has_transport ?? false);
       setHasParking(data.has_parking ?? false);
       setHasCommuteAllowance(data.has_commute_allowance ?? false);
       setHasBonus(data.has_bonus ?? false);
       setHasRaise(data.has_raise ?? false);
       setHasSeverancePay(data.has_severance_pay ?? false);
-      setConsultationContact(data.consultation_contact || "");
-      setLaborInsuranceStatus(data.labor_insurance_status || "");
-      setInsSummary(insuranceSummary(data.insurance_items));
       setEmployerPaysSupplies(data.employer_pays_supplies ?? false);
       setAccessoryOk(data.accessory_ok ?? false);
       setParkingCapacity(data.parking_capacity != null ? String(data.parking_capacity) : "");
+      setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
+      setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
+      setTransportArea(tp.transport_area ?? (data.transport_area || ""));
+      setRaiseDetail(tp.raise_detail ?? (data.raise_detail || ""));
+      setBonusDetail(tp.bonus_detail ?? (data.bonus_detail || ""));
+      setSeveranceDetail(tp.severance_detail ?? (data.severance_detail || ""));
+      setSmokingPolicy(data.smoking_policy || ""); setSmokingArea(data.smoking_area || "");
+  };
+  const applyRow = (data, seeded = false) => {
+      applyPerkRow(data);
+      setNickname(data.nickname || ""); setPr(data.pr || ""); setAvatarUrl(data.avatar_url || "");
+      setPlaceZip(data.place_zip || ""); setPlacePref(data.place_prefecture || ""); setPlaceCity(data.place_city || "");
+      setPlaceTown(data.place_town || ""); setPlaceAddr(data.place_address || "");
+      setConsultationContact(data.consultation_contact || "");
+      setLaborInsuranceStatus(data.labor_insurance_status || "");
+      setInsSummary(insuranceSummary(data.insurance_items));
       // 自由記述は texts_pending 優先で編集欄へ＝自分が書いた最新が見える（2026-07-16）。
       // 承認プロセス削除後は保存の瞬間に畳まれるので実際は常に空だが、読み込み側は残しておく
       // ＝万一トリガーを外した時（審査を戻す時）に、書きかけが編集欄から消えない
@@ -217,12 +245,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         raise_detail: data.raise_detail ?? "", bonus_detail: data.bonus_detail ?? "", severance_detail: data.severance_detail ?? "",
       };
       if (seeded) approvedTextsRef.current = {};
-      setCommuteAllowanceDetail(tp.commute_allowance_detail ?? (data.commute_allowance_detail || ""));
-      setSuppliesCap(tp.supplies_cap ?? (data.supplies_cap || ""));
-      setTransportArea(tp.transport_area ?? (data.transport_area || ""));
-      setRaiseDetail(tp.raise_detail ?? (data.raise_detail || ""));
-      setBonusDetail(tp.bonus_detail ?? (data.bonus_detail || ""));
-      setSeveranceDetail(tp.severance_detail ?? (data.severance_detail || ""));
       setIntroPath(tp.intro_path ?? data.intro_path ?? "");
       setIntroJoy(tp.intro_joy ?? data.intro_joy ?? "");
       setIntroCrops(tp.intro_crops ?? data.intro_crops ?? "");
@@ -231,7 +253,6 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       setOwnerComment(tp.owner_comment ?? data.owner_comment ?? "");
       setRecruiterName(data.recruiter_name || "");
       setRecruiterNameKana(data.recruiter_name_kana || "");
-      setSmokingPolicy(data.smoking_policy || ""); setSmokingArea(data.smoking_area || "");
       setRecruiterAddress(data.recruiter_address || "");
       setRecruiterContact(data.recruiter_contact || "");
       setRecruiterZip(data.recruiter_zip || ""); setRecruiterPref(data.recruiter_prefecture || "");
@@ -270,14 +291,16 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
   };
   useEffect(() => {
     let live = true;
-    setLoading(true); setLoadError(false); recordRef.current = null;
+    setLoading(true); setLoadError(false); recordRef.current = null; perkRecordRef.current = null;
     (async () => {
       try {
-        const record = await readProfileRecord(supabase, table);
+        const record = await readProfileRecord(supabase, table, me?.id);
         let data = record.row, seeded = false;
         if (!data && seedFrom) { const seed = await readProfileRecord(supabase, seedFrom); data = seed.row; seeded = !!data; }
         if (!live) return;
         recordRef.current = record;
+        if (startedWithoutOwnerProp.current) currentOwnerRef.current = record.userId;
+        perkRecordRef.current = record;
         applyRow(data || {}, seeded);
         await prefillFromAccount(data, { user: { id: record.userId } });
         try { if (table === "employer_profiles" && record.row) { setCache("farm:empMini", record.row); snapSet("empMini", record.row); } } catch {}
@@ -285,7 +308,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       finally { if (live) setLoading(false); }
     })();
     return () => { live = false; };
-  }, [loadAttempt, table, seedFrom]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadAttempt, table, seedFrom, me?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // 任意形式の画像をCanvasでjpegに統一変換（heic以外の全形式に対応・バケット制限も回避）
   const convertToJpeg = (file) => new Promise((resolve, reject) => {
     const img = new Image();
@@ -398,6 +421,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     if (!editBox) listScrollRef.current = window.scrollY || window.pageYOffset || 0;
     if (black) { setEditBox(k); return; }                 // 委託レーンはURLを持たない（状態だけ）
     if (k === "workplace") { goAlongPath("/" + EDIT_BASE + "/workplace", "プロフィール編集に戻る"); return; }
+    if (k === "perks") { goAlongPath("/" + EDIT_BASE + "/perks", "プロフィール編集に戻る"); return; }
     window.location.hash = "/" + EDIT_BASE + "/" + k;     // 履歴を1つ進める＝戻るで一覧に帰る
   };
   const replaceEditBox = (k) => {                          // 保存の連鎖＝履歴を積まずに次の項目へ
@@ -416,7 +440,12 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
       return;
     }
-    if (!black && boxFromHash()) window.history.back(); else setEditBox(null);
+    if (!black && editBox === "perks") {
+      if (!returnAlongPath()) {
+        window.location.replace(window.location.pathname + window.location.search + "#/" + EDIT_BASE);
+        setEditBox(null);
+      }
+    } else if (!black && boxFromHash()) window.history.back(); else setEditBox(null);
     requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, y)));
   };
   // 保存→次の未入力ボックスを自動展開（全て入力されるまでループ・2026-07-16・働き手側と同構造）
@@ -470,9 +499,53 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       }).then(() => {}, () => {});
     } catch {}
   };
-  const save = async (stay = false) => {
+  const reportPerkSave = (error) => {
+    const allowed = ["PROFILE_CONFLICT", "PROFILE_UNCONFIRMED", "PROFILE_SESSION", "PROFILE_SAVE", "PROFILE_NOT_LOADED", "PROFILE_FIELDS"];
+    const code = allowed.includes(error?.code) ? error.code : "PROFILE_SAVE";
+    supabase.from("app_errors").insert({
+      level:"error", source:"client", component:"EmployerProfileEdit", action:"profile_save",
+      error_code:code, message:code, page:"#/profile/employer/profile/perks",
+    }).then(() => {}, () => {});
+  };
+  useEffect(() => {
+    if (editBox === "perks" && perkRecoveryRef.current?.userId === currentOwnerRef.current) {
+      setPerkRecovery(perkRecoveryRef.current);
+    }
+  }, [editBox]);
+  const isCurrentPerkOwner = (id) => mountedRef.current && currentOwnerRef.current === id;
+  const perkScreenActive = (id) => isCurrentPerkOwner(id) && boxFromHash() === "perks";
+  const comparePerks = async (keepEditing = false) => {
+    if (saveBusyRef.current || !perkRecovery) return;
+    saveBusyRef.current = true; setSaving(true);
+    try {
+      const record = await readProfileRecord(supabase, table, perkRecovery.userId);
+      if (!perkScreenActive(perkRecovery.userId)) return;
+      if (keepEditing && samePerkReview(perkRecovery.latest.row, record.row, perkRecovery.intent)) {
+        perkRecordRef.current = record;
+        applyPerkRow(overlayPerkIntent(record.row, perkRecovery.intent));
+        perkRecoveryRef.current = null;
+        setPerkRecovery(null);
+      } else {
+        const next = { ...perkRecovery, latest:record, notice:keepEditing ? "別の画面で内容が変わりました。最新の内容をもう一度比べてください。" : null };
+        perkRecoveryRef.current = next;
+        setPerkRecovery(next);
+      }
+    } catch (error) {
+      if (perkScreenActive(perkRecovery.userId)) {
+        const next = { ...perkRecovery, latest:null, notice:error?.code === "PROFILE_SESSION"
+          ? "入力を始めたアカウントに戻ってから、もう一度ご確認ください。"
+          : "最新の内容を読み込めませんでした。入力は画面に残っています。" };
+        perkRecoveryRef.current = next;
+        setPerkRecovery(next);
+      }
+    } finally { saveBusyRef.current = false; if (mountedRef.current) setSaving(false); }
+  };
+  const save = async (stay = false, applyReviewed = false) => {
     if (saveBusyRef.current || avatarBusyRef.current || loading || loadError) return;
     if (editBox === "avatar") { closeEditBox(); return; }
+    const isEmployerPerks = editBox === "perks" && table === "employer_profiles" && !black;
+    if (isEmployerPerks && (applyReviewed ? !perkRecovery?.latest : !!perkRecovery)) return;
+    let attempt = null;
     saveBusyRef.current = true; setSaving(true); setSaved(false);
     try {
       const desiredTexts = {
@@ -509,10 +582,32 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         interaction_style: interactionStyle || null,
         teaching_style: teachingStyle || null, chat_style: chatStyle || null, question_style: questionStyle || null,
       };
-      const change = employerProfileChange(editBox, values, desiredTexts, table, recordRef.current?.row);
-      const record = await saveProfileRecord(supabase, recordRef.current, change.patch, change.options);
-      recordRef.current = record;
-      applyRow(record.row || {});
+      const original = applyReviewed ? perkRecovery.latest : isEmployerPerks ? perkRecordRef.current : recordRef.current;
+      let change;
+      if (isEmployerPerks) {
+        const draft = applyReviewed ? perkRecovery.draft : readPerkValues({ ...values, ...desiredTexts });
+        const intent = applyReviewed ? perkRecovery.intent : perkIntent(original?.row, draft);
+        if (!Object.keys(intent).length) { closeEditBox(); return; }
+        attempt = { draft, intent, userId:original?.userId, latest:null, notice:null };
+        change = perkSaveChange(original?.row, intent);
+      } else {
+        change = employerProfileChange(editBox, values, desiredTexts, table, original?.row);
+      }
+      const record = await saveProfileRecord(supabase, original, change.patch, change.options);
+      if (isEmployerPerks) {
+        if (!isCurrentPerkOwner(attempt.userId)) return;
+        perkRecoveryRef.current = null;
+        if (!perkScreenActive(attempt.userId)) return;
+        setPerkRecovery(null);
+      }
+      perkRecordRef.current = record;
+      if (isEmployerPerks) {
+        applyPerkRow(record.row || {});
+        if (!recordRef.current?.row) recordRef.current = record;
+      } else {
+        recordRef.current = record;
+        applyRow(record.row || {});
+      }
       if (table === "employer_profiles") {
         try { setCache("farm:empMini", record.row); snapSet("empMini", record.row); } catch {}
       }
@@ -522,12 +617,27 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         if (nxt) replaceEditBox(nxt); else closeEditBox();
         setTimeout(() => setSaved(false), 2200);
       } else setTimeout(() => { setSaved(false); onDone?.(); }, 2200);
-    } catch (e) { logSaveError(e?.message || e); alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
-    finally { saveBusyRef.current = false; setSaving(false); }
+    } catch (e) {
+      if (isEmployerPerks) {
+        try { reportPerkSave(e); } catch { /* Logging never blocks recovery. */ }
+        if (!isCurrentPerkOwner(attempt?.userId)) return;
+        if (attempt && ["PROFILE_CONFLICT", "PROFILE_UNCONFIRMED", "PROFILE_SESSION"].includes(e?.code)) {
+          const next = { ...attempt, notice:e?.code === "PROFILE_UNCONFIRMED"
+            ? "保存済みかどうかを確認できませんでした。入力を残したまま、通信が戻ってから最新の内容を確認してください。"
+            : e?.code === "PROFILE_SESSION" ? "入力を始めたアカウントでログインしてから、最新の内容を確認してください。" : null };
+          perkRecoveryRef.current = next;
+          if (perkScreenActive(attempt.userId)) setPerkRecovery(next);
+        } else if (perkScreenActive(attempt?.userId)) {
+          alert("待遇を保存できませんでした。入力は残っています。入力内容を見直すか、戻って後で続けてください。");
+        }
+      } else { logSaveError(e?.message || e); alert(e?.message || "保存を確認できませんでした。入力は残しています。"); }
+    }
+    finally { saveBusyRef.current = false; if (mountedRef.current) setSaving(false); }
   };
+  const perkComparison = perkRecovery?.latest ? perkReview(perkRecovery.latest.row, perkRecovery.intent) : null;
   if (loadError) return <ProfileReadError onRetry={() => setLoadAttempt(n => n + 1)} />;
   // 読み込み中は編集ボックスの仮配置（2026-07-27たきと指示）。骨は固定（編集ページは常に同じ並び）
-  if (loading) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
+  if (loading || (recordRef.current?.userId && recordRef.current.userId !== currentOwnerRef.current)) return <div style={{ gridColumn:"1/-1" }}><AutoSkeleton fallbackHeight={92} fallbackCount={5} /></div>;
   if (!black && table === "employer_profiles" && editBox === "workplace") {
     return <WorkplaceEditor me={me} onBack={closeEditBox} />;
   }
@@ -689,6 +799,32 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       </>)}
 
       {editBox==="perks" && (<>
+      {perkRecovery && (
+        <section aria-label="保存内容の確認" style={{ border:"1px solid #DCDCDC", padding:16, marginBottom:16, borderRadius:12 }}>
+          <strong>待遇の保存内容を確認</strong>
+          <p role="status">{perkRecovery.notice || (perkRecovery.latest ? "現在の保存内容と入力を比べてください。" : "変更を確認できませんでした。入力はこの画面に残っています。")}</p>
+          {perkComparison && perkComparison.groups.length > 0 && (
+            <ul style={{ paddingLeft:20, overflowWrap:"anywhere" }}>
+              {perkComparison.groups.map(([label, ...keys]) => {
+                const describe = value => value === true ? "あり" : value === false ? "なし" : value == null || value === "" ? "未設定" : String(value);
+                return <li key={label} style={{ marginBottom:8 }}>
+                  <strong>{label}</strong><br />現在：{keys.map(key => describe(perkComparison.current[key])).join(" ／ ")}
+                  <br />今回の入力：{keys.map(key => describe(perkComparison.drafts[key])).join(" ／ ")}
+                </li>;
+              })}
+            </ul>
+          )}
+          {perkComparison?.hasOtherPending && <p>別のプロフィール項目に未反映の内容があります。先にそちらを確認してください。</p>}
+          {perkComparison?.needsEditing && <p>他の画面でこの待遇が無効になりました。「入力を見直す」で有無と補足を確認してください。</p>}
+          {perkComparison ? <>
+            {perkComparison.groups.length > 0 && !perkComparison.needsEditing && !perkComparison.hasOtherPending &&
+              <button type="button" onClick={()=>save(true, true)}>今回の変更だけ適用</button>}
+            <button type="button" onClick={()=>comparePerks(true)}>入力を見直す</button>
+          </> : <button type="button" onClick={()=>comparePerks()}>保存済みの内容と比べる</button>}
+          <p style={{ fontSize:13 }}>上の「戻る」でプロフィール編集に戻れます。この編集画面を開いている間は入力を残します。ページを閉じる前には必要な入力を控えてください。</p>
+        </section>
+      )}
+      <fieldset disabled={!!perkRecovery} style={{ border:0, padding:0, margin:0, minWidth:0 }}>
       <FieldHelp label="求人に共通する条件" accent={AC}>ここで設定した内容は、あなたが出す全ての求人に共通して表示されます。</FieldHelp>
       <div style={{ marginBottom:16, borderTop:"1px solid #EBEBEB" }}>
         <div style={{ borderBottom:"1px solid #EBEBEB" }}>
@@ -786,6 +922,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
         </div>
       </div>
       <div style={{ marginBottom:16 }} />
+      </fieldset>
       </>)}
 
       {/* 旧「📝農園の紹介を書く」アコーディオンは廃止（2026-07-14）：中身を農園紹介/問いかけ/関わり方の各ボックスに分割 */}
@@ -828,7 +965,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
                 （昇給の有無・退職手当の有無・賞与の有無・相談窓口）の残り1つ。
                 採用が決まると労働条件通知書に出る。連絡先を書く項目なのでNG検査には載せない */}
             <label className="f-sans" style={{ fontSize:12, fontWeight:600, color:"#222", display:"block", marginBottom:6 }}>相談窓口</label>
-            <input value={consultationContact} onChange={e=>setConsultationContact(e.target.value)} placeholder="例：千歳農園 福井（088-000-0000）" maxLength={200}
+            <input value={consultationContact} onChange={e=>setConsultationContact(e.target.value)} placeholder="例：農園の相談窓口（088-000-0000）" maxLength={200}
               className="field f-sans" style={{ fontSize:16, width:"100%", boxSizing:"border-box", marginBottom:8 }} />
             <p className="f-sans" style={{ fontSize:11, color:"#B0B0B0", marginBottom:16, lineHeight:1.7 }}>
               働き方の相談を受ける担当者と連絡先です（部署名・担当者名・連絡先）。
@@ -947,7 +1084,7 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
             緊急連絡先＝別テーブル emergency_contacts
             保険の準備＝employer_profiles の insurance_items / insurance_notes だけを自分で条件付き保存
               （委託レーンにこの2列が無いので共通payloadに載せられない） */}
-      {!["emergency", "insurance"].includes(editBox) && (
+      {!["emergency", "insurance"].includes(editBox) && !(editBox === "perks" && perkRecovery) && (
         <button onClick={()=>save(true)} disabled={saving || uploading} className="btn-primary f-sans" style={{ width:"100%", padding:"14px", fontSize:14, fontWeight:700, borderRadius:12, marginTop:4 }}>{saving ? <>保存中<Dots /></> : editBox === "avatar" ? "完了" : "保存する"}</button>
       )}
       </div>

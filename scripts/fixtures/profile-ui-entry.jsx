@@ -6,5 +6,7 @@ import { WorkerExperiencePage } from '../../src/components/WorkerExperiencePage'
 import { InsurancePrepBox } from '../../src/components/InsurancePrepBox';
 import { InsurancePrepPage } from '../../src/components/VisitAndInsurance';
 import { EmergencyContactBox } from '../../src/components/EmergencyContactBox';
-const Component = {worker:WorkerProfileEdit,employer:EmployerProfileEdit,experience:WorkerExperiencePage,insurance:InsurancePrepBox,insurancePage:InsurancePrepPage,emergency:EmergencyContactBox}[window.qaSurface];
-createRoot(document.getElementById('root')).render(<Component me={{id:'11111111-1111-4111-8111-111111111111'}} onSaved={value=>window.qaSaved.push(value)} />);
+const Component = {worker:WorkerProfileEdit,employer:EmployerProfileEdit,employerPerks:EmployerProfileEdit,employerPerksNoOwner:EmployerProfileEdit,experience:WorkerExperiencePage,insurance:InsurancePrepBox,insurancePage:InsurancePrepPage,emergency:EmergencyContactBox}[window.qaSurface];
+const root = createRoot(document.getElementById('root'));
+window.qaRenderOwner = id => root.render(<Component me={{id}} onSaved={value=>window.qaSaved.push(value)} />);
+window.qaRenderOwner(window.qaSurface==='employerPerksNoOwner' ? undefined : '11111111-1111-4111-8111-111111111111');

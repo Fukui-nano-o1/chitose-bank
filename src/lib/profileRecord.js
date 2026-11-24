@@ -15,9 +15,9 @@ async function sessionOwner(client, expected) {
   if (failed || !id || (expected && id !== expected)) throw error('PROFILE_SESSION', 'ログインが確認できません。ページを開き直してください。');
   return id;
 }
-export async function readProfileRecord(client, table) {
+export async function readProfileRecord(client, table, expectedUserId) {
   if (!TABLES.has(table)) throw error('PROFILE_TARGET', '保存先を確認できません。');
-  const userId = await sessionOwner(client);
+  const userId = await sessionOwner(client, expectedUserId);
   const { data, error: failed } = await client.from(table).select('*').eq('auth_id', userId).maybeSingle();
   if (failed) throw error('PROFILE_READ', '保存済みの情報を読み込めませんでした。通信を確認して、もう一度読み込んでください。');
   await sessionOwner(client, userId);
@@ -34,7 +34,7 @@ export async function saveProfileRecord(client, record, patch, { guard = Object.
   }
   await sessionOwner(client, record.userId);
   if (!keys.length) {
-    const current = await readProfileRecord(client, record.table);
+    const current = await readProfileRecord(client, record.table, record.userId);
     if (current.userId !== record.userId || !Object.entries(confirmed).every(([k, v]) => sameField(k, current.row?.[k] ?? (typeof v === 'string' ? '' : Array.isArray(v) ? [] : null), v))) {
       throw error('PROFILE_CONFLICT', '別の画面でこの項目が変更されています。最新の内容を確認してください。');
     }
@@ -58,7 +58,7 @@ export async function saveProfileRecord(client, record, patch, { guard = Object.
   }
   let current;
   try {
-    current = await readProfileRecord(client, record.table);
+    current = await readProfileRecord(client, record.table, record.userId);
     if (current.userId !== record.userId) throw error('PROFILE_SESSION', 'ログイン中のアカウントが変わりました。');
   } catch {
     throw error('PROFILE_UNCONFIRMED', '保存結果を確認できませんでした。入力は残しています。通信が戻ってから保存済みの内容を確認してください。');
