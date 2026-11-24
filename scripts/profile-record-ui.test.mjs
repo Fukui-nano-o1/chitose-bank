@@ -142,6 +142,93 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
      await until(()=>row(w).parking_capacity===5,'authenticated owner can finish');
      assert.equal(writes(w).length,2);
    });
+   await t.test('refused first insert rebases only disjoint changes, with one guarded update',async () => {
+     let calls=0;
+     const w=await mount('employerPerks',{emptyEmployer:true,beforeRPC:(state,args) => {
+       if (++calls === 1) state.rows.employer_profiles={auth_id:args.p_owner,nickname:'架空の別セクション',texts_pending:{}};
+     }});
+     [...w.document.querySelectorAll('[role="switch"]')].find(el=>el.getAttribute('aria-label')==='アクセサリーOK').click();
+     await pause(20);
+     await save(w);
+     await until(()=>w.document.body.textContent.includes('保存しました'),'verified retry');
+     assert.equal(calls,2);
+     assert.equal(row(w).accessory_ok,true);
+     assert.equal(row(w).nickname,'架空の別セクション');
+     assert.deepEqual(Array.from(writes(w),e=>e.kind),['insert','update']);
+     assert.ok(writes(w)[1].filters.some(([k])=>k==='texts_pending'));
+   });
+   await t.test('another same-group edit during the one rebase is not overwritten or retried again',async () => {
+     let calls=0;
+     const w=await mount('employerPerks',{emptyEmployer:true,beforeRPC:(state,args) => {
+       if (++calls === 1) state.rows.employer_profiles={auth_id:args.p_owner,nickname:'架空の別セクション',texts_pending:{}};
+       if (calls === 2) Object.assign(state.rows.employer_profiles,{has_parking:true,parking_capacity:4});
+     }});
+     [...w.document.querySelectorAll('[role="switch"]')].find(el=>el.getAttribute('aria-label')==='駐車場').click();
+     await until(()=>w.document.querySelector('input[type="number"]'),'parking opened');
+     await editPark(w,'5');
+     await save(w);
+     assert.equal(calls,2);
+     assert.equal(row(w).parking_capacity,4);
+     assert.equal(w.document.querySelector('input[type="number"]').value,'5');
+     assert.ok(button(w,'保存済みの内容と比べる'));
+     assert.doesNotMatch(w.document.body.textContent,/保存しました/);
+   });
+   await t.test('pending text appearing during the bounded retry still gets specific guidance',async () => {
+     let calls=0;
+     const w=await mount('employerPerks',{emptyEmployer:true,beforeRPC:(state,args) => {
+       if (++calls === 1) state.rows.employer_profiles={auth_id:args.p_owner,nickname:'架空の別セクション',texts_pending:{}};
+       if (calls === 2) state.rows.employer_profiles.texts_pending={owner_comment:'架空の反映待ち'};
+     }});
+     [...w.document.querySelectorAll('[role="switch"]')].find(el=>el.getAttribute('aria-label')==='アクセサリーOK').click();
+     await pause(20);
+     await save(w);
+     assert.equal(calls,2);
+     assert.equal(row(w).accessory_ok,undefined);
+     assert.equal(row(w).texts_pending.owner_comment,'架空の反映待ち');
+     assert.match(w.document.body.textContent,/別のプロフィール項目に反映待ち/);
+     assert.doesNotMatch(w.document.body.textContent,/保存しました/);
+   });
+   await t.test('raw 23505 is never assumed to be a safe compare refusal',async () => {
+     let calls=0;
+     const w=await mount('employerPerks',{emptyEmployer:true,rawDuplicate:true,beforeRPC:(state,args) => {
+       if (++calls === 1) state.rows.employer_profiles={auth_id:args.p_owner,nickname:'架空の別セクション',texts_pending:{}};
+     }});
+     [...w.document.querySelectorAll('[role="switch"]')].find(el=>el.getAttribute('aria-label')==='アクセサリーOK').click();
+     await pause(20);
+     await save(w);
+     assert.equal(calls,1);
+     assert.equal(row(w).accessory_ok,undefined);
+     assert.match(w.document.body.textContent,/再送する前に/);
+     const error=w.qaProfile.state.events.find(e=>e.table==='app_errors').patch;
+     assert.equal(error.error_code,'PROFILE_CONFLICT');
+     assert.equal(error.message,error.error_code);
+   });
+   await t.test('acknowledged mismatching result and failed network get distinct guidance and no second write',async () => {
+     for (const lost of [false,true]) {
+       const w=await mount('employerPerks');
+       const savedRPC=w.qaProfile.client.rpc;
+       let calls=0;
+       w.qaProfile.client.rpc=async (name,args)=>{
+         calls++;
+         if (lost) throw new Error('SYNTHETIC RAW DATA MUST NOT APPEAR');
+         const r=await savedRPC(name,args);
+         // Model a rule/normalization changing the confirmed value despite an acknowledgement.
+         row(w).parking_capacity=7;
+         return {data:{...r.data,row:{...r.data.row,parking_capacity:7}},error:null};
+       };
+       await editPark(w,'5');
+       await save(w);
+       assert.equal(calls,1);
+       assert.equal(row(w).parking_capacity,lost?2:7);
+       assert.equal(w.document.querySelector('input[type="number"]').value,'5');
+       assert.doesNotMatch(w.document.body.textContent,/保存しました|SYNTHETIC RAW DATA/);
+       assert.match(w.document.body.textContent,lost?/通信が戻ってから/:/保存の応答はありましたが/);
+       const error=w.qaProfile.state.events.find(e=>e.table==='app_errors').patch;
+       assert.equal(error.error_code,lost?'PROFILE_UNCONFIRMED':'PROFILE_CONFLICT');
+       assert.equal(error.message,error.error_code);
+       assert.ok(!('user_agent' in error));
+     }
+   });
    await t.test('different perks are not overwritten; dependent detail is guarded',async () => {
      const w = await mount('employerPerks');
      row(w).has_bonus = true;
@@ -198,6 +285,10 @@ test('profile screens protect loaded values, concurrent edits and failed saves',
      assert.equal(row(w).has_transport,false);
      assert.equal(row(w).texts_pending.owner_comment,'他の項目');
      assert.equal(writes(w).length,1);
+     assert.match(w.document.body.textContent,/別のプロフィール項目に反映待ち/);
+     const event=w.qaProfile.state.events.find(e=>e.table==='app_errors').patch;
+     assert.equal(event.error_code,'PROFILE_CONFLICT');
+     assert.equal(event.message,event.error_code);
      await read(w);
      assert.equal(button(w,'今回の変更だけ適用'),undefined);
      row(w).texts_pending={};

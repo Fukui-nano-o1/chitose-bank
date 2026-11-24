@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 import { zipLookup } from "../lib/zipLookup";
 import { readProfileRecord, saveProfileRecord } from "../lib/profileRecord";
 import { employerProfileChange } from "../lib/profileInput";
-import { perkIntent, perkReview, perkSaveChange, readPerkValues, overlayPerkIntent, samePerkReview } from "../lib/employerPerksRecovery";
+import { perkIntent, perkReview, perkSaveChange, readPerkValues, overlayPerkIntent, samePerkReview, rebaseRefusedPerks } from "../lib/employerPerksRecovery";
 import { ProfileReadError } from "./ProfileReadError";
 import { saveProfileAvatar } from "../lib/profileAvatar";
 import { INTERACTION_STYLE_OPTIONS, HOST_STYLE_QUESTIONS, hostStyleValues, farmIntroTopics, perkBadges, LABOR_INSURANCE_OPTIONS } from "../lib/utils";
@@ -500,8 +500,9 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
     } catch {}
   };
   const reportPerkSave = (error) => {
+    // Keep existing coarse reporting. Recovery subtypes are UI-only.
     const allowed = ["PROFILE_CONFLICT", "PROFILE_UNCONFIRMED", "PROFILE_SESSION", "PROFILE_SAVE", "PROFILE_NOT_LOADED", "PROFILE_FIELDS"];
-    const code = allowed.includes(error?.code) ? error.code : "PROFILE_SAVE";
+    const code = error?.code === "PERKS_TEXT_PENDING" ? "PROFILE_CONFLICT" : allowed.includes(error?.code) ? error.code : "PROFILE_SAVE";
     supabase.from("app_errors").insert({
       level:"error", source:"client", component:"EmployerProfileEdit", action:"profile_save",
       error_code:code, message:code, page:"#/profile/employer/profile/perks",
@@ -593,7 +594,10 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       } else {
         change = employerProfileChange(editBox, values, desiredTexts, table, original?.row);
       }
-      const record = await saveProfileRecord(supabase, original, change.patch, change.options);
+      const onCompareRefused = isEmployerPerks
+        ? (current, allowRetry) => perkScreenActive(attempt.userId) ? rebaseRefusedPerks(original.row, current.row, attempt.intent, allowRetry && !applyReviewed) : null
+        : undefined;
+      const record = await saveProfileRecord(supabase, original, change.patch, isEmployerPerks ? { ...change.options, onCompareRefused } : change.options);
       if (isEmployerPerks) {
         if (!isCurrentPerkOwner(attempt.userId)) return;
         perkRecoveryRef.current = null;
@@ -621,10 +625,15 @@ export function EmployerProfileEdit({ me, onDone, onCancel, table = "employer_pr
       if (isEmployerPerks) {
         try { reportPerkSave(e); } catch { /* Logging never blocks recovery. */ }
         if (!isCurrentPerkOwner(attempt?.userId)) return;
-        if (attempt && ["PROFILE_CONFLICT", "PROFILE_UNCONFIRMED", "PROFILE_SESSION"].includes(e?.code)) {
-          const next = { ...attempt, notice:e?.code === "PROFILE_UNCONFIRMED"
-            ? "保存済みかどうかを確認できませんでした。入力を残したまま、通信が戻ってから最新の内容を確認してください。"
-            : e?.code === "PROFILE_SESSION" ? "入力を始めたアカウントでログインしてから、最新の内容を確認してください。" : null };
+        if (attempt && ["PROFILE_CONFLICT", "PROFILE_UNCONFIRMED", "PROFILE_SESSION", "PROFILE_READ", "PERKS_TEXT_PENDING"].includes(e?.code)) {
+          let notice;
+          if (e.code === "PERKS_TEXT_PENDING") notice = "別のプロフィール項目に反映待ちの内容があります。待遇は保存せずに、先にそちらを確認してください。";
+          else if (e.code === "PROFILE_UNCONFIRMED" || e.code === "PROFILE_READ") notice = "保存済みかどうかを確認できませんでした。入力を残したまま、通信が戻ってから最新の内容を確認してください。";
+          else if (e.code === "PROFILE_SESSION") notice = "入力を始めたアカウントでログインしてから、最新の内容を確認してください。";
+          else if (e.saveReason === "ACK_MISMATCH") notice = "保存の応答はありましたが、入力どおりに反映されたことを確認できません。最新の保存内容を比べてください。";
+          else if (e.saveReason === "DUPLICATE_UNVERIFIED" || e.saveReason === "OUTCOME_MISMATCH") notice = "入力どおりに保存されたか確かめられません。再送する前に、最新の保存内容を確認してください。";
+          else notice = "保存済みの内容が入力時と異なります。現在の内容と今回の入力を比べてください。";
+          const next = { ...attempt, notice };
           perkRecoveryRef.current = next;
           if (perkScreenActive(attempt.userId)) setPerkRecovery(next);
         } else if (perkScreenActive(attempt?.userId)) {

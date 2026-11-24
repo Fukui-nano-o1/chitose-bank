@@ -26,7 +26,11 @@ export async function readProfileRecord(client, table, expectedUserId) {
 
 // Expected values travel in the POST body. The invoker RPC compares and writes
 // atomically under the existing RLS, including exact JSON/array equality.
-export async function saveProfileRecord(client, record, patch, { guard = Object.keys(patch), confirmed = patch } = {}) {
+const outcome = (code, message, saveReason) => Object.assign(error(code, message), { saveReason });
+const conflictMessage = '別の画面でこの項目が変更されています。入力は残しています。最新の内容を確認してから変更してください。';
+const unconfirmedMessage = '保存結果を確認できませんでした。入力は残しています。通信が戻ってから保存済みの内容を確認してください。';
+
+export async function saveProfileRecord(client, record, patch, { guard = Object.keys(patch), confirmed = patch, verify, onCompareRefused } = {}) {
   if (record?.status !== 'ready' || !TABLES.has(record.table)) throw error('PROFILE_NOT_LOADED', '保存済みの情報を読み込んでから保存してください。');
   const keys = Object.keys(patch);
   if ((keys.length && !guard.length) || !Object.keys(confirmed).length || guard.some(k => !/^[a-z][a-z0-9_]*$/.test(k)) || keys.some(k => !/^[a-z][a-z0-9_]*$/.test(k) || ['auth_id', 'id', 'created_at', 'updated_at'].includes(k))) {
@@ -35,12 +39,12 @@ export async function saveProfileRecord(client, record, patch, { guard = Object.
   await sessionOwner(client, record.userId);
   if (!keys.length) {
     const current = await readProfileRecord(client, record.table, record.userId);
-    if (current.userId !== record.userId || !Object.entries(confirmed).every(([k, v]) => sameField(k, current.row?.[k] ?? (typeof v === 'string' ? '' : Array.isArray(v) ? [] : null), v))) {
-      throw error('PROFILE_CONFLICT', '別の画面でこの項目が変更されています。最新の内容を確認してください。');
+    if (current.userId !== record.userId || (verify && !verify(current.row)) || !Object.entries(confirmed).every(([k, v]) => sameField(k, current.row?.[k] ?? (typeof v === 'string' ? '' : Array.isArray(v) ? [] : null), v))) {
+      throw outcome('PROFILE_CONFLICT', '別の画面でこの項目が変更されています。最新の内容を確認してください。', 'READ_MISMATCH');
     }
     return current;
   }
-  let data, failed;
+  let data, failed, acknowledged = false, compareRefused = false, transportUncertain = false;
   try {
     const result = await client.rpc('save_my_profile_fields', {
       p_owner: record.userId,
@@ -49,9 +53,12 @@ export async function saveProfileRecord(client, record, patch, { guard = Object.
       p_patch: patch,
     });
     data = result.data?.ok ? result.data.row : null;
+    acknowledged = !result.error && result.data?.ok === true;
+    compareRefused = !result.error && result.data?.ok === false && result.data.reason === 'conflict';
+    transportUncertain = [0,502,503,504].includes(result.status);
     failed = result.error || (result.data?.reason && result.data.reason !== 'conflict' ? { message: result.data.reason } : null);
-  } catch (e) { failed = e; }
-  const matches = row => row && Object.entries(confirmed).every(([k, v]) => sameField(k, row[k], v));
+  } catch (e) { failed = e; transportUncertain = true; }
+  const matches = row => row && (!verify || verify(row)) && Object.entries(confirmed).every(([k, v]) => sameField(k, row[k], v));
   if (!failed && matches(data)) {
     await sessionOwner(client, record.userId);
     return { ...record, row: data };
@@ -61,11 +68,23 @@ export async function saveProfileRecord(client, record, patch, { guard = Object.
     current = await readProfileRecord(client, record.table, record.userId);
     if (current.userId !== record.userId) throw error('PROFILE_SESSION', 'ログイン中のアカウントが変わりました。');
   } catch {
-    throw error('PROFILE_UNCONFIRMED', '保存結果を確認できませんでした。入力は残しています。通信が戻ってから保存済みの内容を確認してください。');
+    throw error('PROFILE_UNCONFIRMED', unconfirmedMessage);
   }
   if (matches(current.row)) return current;
+  if (verify && transportUncertain) throw outcome('PROFILE_UNCONFIRMED', unconfirmedMessage, 'TRANSPORT_UNCERTAIN');
+  if (compareRefused && onCompareRefused) {
+    const retry = onCompareRefused(current, true);
+    if (retry) {
+      // Only this explicit server refusal is known not to have written. The
+      // second request is independently guarded and cannot retry itself.
+      return saveProfileRecord(client, current, retry.patch, {
+        ...retry.options, onCompareRefused: latest => { onCompareRefused(latest, false); return null; },
+      });
+    }
+  }
   if (!failed || failed.code === '23505' || guard.some(k => !sameProfileValue(current.row?.[k], record.row?.[k]))) {
-    throw error('PROFILE_CONFLICT', '別の画面でこの項目が変更されています。入力は残しています。最新の内容を確認してから変更してください。');
+    throw outcome('PROFILE_CONFLICT', conflictMessage,
+      compareRefused ? 'COMPARE_REFUSED' : acknowledged ? 'ACK_MISMATCH' : failed?.code === '23505' ? 'DUPLICATE_UNVERIFIED' : 'OUTCOME_MISMATCH');
   }
   throw error('PROFILE_SAVE', '保存に失敗しました。入力は残しています。' + (failed?.message ? '\n' + failed.message : ''));
 }
