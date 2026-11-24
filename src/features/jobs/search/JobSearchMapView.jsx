@@ -97,6 +97,7 @@ export function JobSearchMapView({ onRegister, me }) {
     }
   }, [workplaceJob, storedSelectedJob?.id]);
   const [applicationStep, setApplicationStep] = useState(readApplicationStep);
+  const routeVisit = useRef({ hash: window.location.hash, version: 0 });
   useEffect(() => {
     const onRoute = () => { setApplicationStep(readApplicationStep()); setWorkplaceJob(readWorkplaceRoute(window.location.hash)); };
     window.addEventListener("hashchange", onRoute);
@@ -276,16 +277,26 @@ export function JobSearchMapView({ onRegister, me }) {
   const bootSettledRef = useRef(false);
   const [bootSettled, setBootSettled] = useState(false); // 一覧の初回取得が終わったか
   const jobsRefreshTick = useRefreshTick(REFRESH_JOBS);
+  const [jobsRetryTick, setJobsRetryTick] = useState(0);
+  const [jobsLoadState, setJobsLoadState] = useState("loading");
+  const jobsRetryPending = useRef(false);
+  const retryJobs = () => {
+    if (jobsRetryPending.current) return;
+    jobsRetryPending.current = true;
+    setJobsLoadState("loading");
+    setJobsRetryTick(tick => tick + 1);
+  };
   const appsRefreshTick = useRefreshTick(REFRESH_APPLICATIONS);
   useEffect(() => {
     let cancelled = false;
     const version = getConfirmedRefreshVersion(REFRESH_JOBS);
     const isCurrent = () => !cancelled && version === getConfirmedRefreshVersion(REFRESH_JOBS);
+    setJobsLoadState("loading");
     // 訪問者モード（2026-07-24）：jobs_publicはanon許可ので未ログインでも公開面を読める。
     // 取得・並び規則（新着上位＋ランダム・既読記録）は lib/searchJobs に一本化（玄関の先読みと共有・2026-08-02）
     (async () => {
       try {
-        const mapped = await fetchPublicJobs({ scope: me?.id || "anon", fresh: jobsRefreshTick > 0 });
+        const mapped = await fetchPublicJobs({ scope: me?.id || "anon", fresh: jobsRefreshTick > 0 || jobsRetryTick > 0 });
         if (!isCurrent()) return;
         if (mapped) {
           let newIds = [];
@@ -298,8 +309,10 @@ export function JobSearchMapView({ onRegister, me }) {
             return list;
           });
           if (newIds.length) recordSeenNewIds(newIds);
-        }
-      } catch {}
+          setJobsLoadState("ready");
+        } else setJobsLoadState("error");
+      } catch { if (isCurrent()) setJobsLoadState("error"); }
+      if (isCurrent()) jobsRetryPending.current = false;
       // 起動バーストの削減（2026-08-18 Speed-1C-1）：一覧の初回取得が終わった時点を
       // 「検索画面が成立した」合図にし、初期表示に要らない問い合わせをここから後ろへ送る。
       // 成否は問わない（失敗しても後続を永久に止めない）。合図は初回だけ＝復帰の再取得では立てない
@@ -315,7 +328,7 @@ export function JobSearchMapView({ onRegister, me }) {
     // 1起動につき全件取得が2回走っていた。
     // refreshTick＝画面の復帰の合図（2026-08-18 Speed-1B）。jobsにRealtimeは無いので合図はこれだけ。
     // 並びは orderSearchJobs が前回の並びを保つので、取り直してもカードが飛び跳ねない
-  }, [me?.id, jobsRefreshTick]);
+  }, [me?.id, jobsRefreshTick, jobsRetryTick]);
   const jobList = useMemo(() => visibleSearchJobs(dbJobs, expiryNow), [dbJobs, expiryNow]);
 
   // ── 「まもなく公開」カード（2026-08-12たきと指示）──────────────────────────
@@ -466,8 +479,8 @@ export function JobSearchMapView({ onRegister, me }) {
     if (selRange && !jobInDateRange(j, selRange)) return false;
     return true;
   });
-  const searchWhatOpts = [...new Set(jobList.flatMap(j => [j.crop, j.task]).filter(Boolean))];
-  const searchRegionOpts = [...new Set(jobList.map(j => j.region).filter(Boolean))];
+  const searchWhatOpts = [...new Set([...jobList.flatMap(j => [j.crop, j.task]).filter(Boolean), ...selWhats])];
+  const searchRegionOpts = [...new Set([...jobList.map(j => j.region).filter(Boolean), ...selRegions])];
   const searchSummary = [noQuery ? "No." + noQuery : "", selWhats.join("・"), selRegions.join("・"), dateRangeLabel(selRange)].filter(Boolean).join("｜");
   const togSel = (setter) => (v) => setter(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const clearSearch = () => { setSelWhats([]); setSelRegions([]); setSelRange(null); setSelNo(""); };
@@ -556,7 +569,9 @@ export function JobSearchMapView({ onRegister, me }) {
   // 農家の求人カードの❓バッジ（未回答の質問）から、その求人の質問タブへ直接入るための入口
   const JOB_HASH_RE = JOB_DETAIL_HASH_RE; // 正体はモジュール直下（最初の描画の前にも読むため）
   useEffect(() => {
-    const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
+    const routeHash = window.location.hash;
+    const routeVersion = routeVisit.current.version;
+    const m = routeHash.replace(/^#\/?/,"").match(JOB_HASH_RE);
     if (!m) return;
     const jn = parseInt(m[1],10);
     const found = (dbJobs || []).find(j => j.id === jn);
@@ -569,40 +584,51 @@ export function JobSearchMapView({ onRegister, me }) {
     //   無いが、その求人の当事者なら fetchPublicJobByNumber（当事者用の窓口つき）で開ける。
     //   従来はここで諦めてさがす一覧に落ちていた
     let cancelled = false;
+    const isCurrent = () => !cancelled && window.location.hash === routeHash && routeVisit.current.version === routeVersion;
     (async () => {
       try {
         const { data } = await fetchPublicJobByNumber(jn);
-        if (!cancelled && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
+        if (isCurrent() && data) { setSelectedJob(prev => prev || mapJobPublicRow(data)); setDetailTab(m[2] || "content"); clearApplyReturn(); }
       } catch {}
       // 見つからなくても解除する＝行き止まり（読み込み中のまま）にしない。さがす一覧に落ちる
-      if (!cancelled) setDeepLinkJn(null);
+      if (isCurrent()) setDeepLinkJn(null);
     })();
     return () => { cancelled = true; };
   }, [dbJobs]);
   useEffect(() => {
+    let generation = 0;
+    let handledHash = window.location.hash;
     const onHash = () => {
-      const m = window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE);
+      const routeHash = window.location.hash;
+      if (routeHash === handledHash) return; // pushRoute, hashchange, popstate can report the same transition
+      handledHash = routeHash;
+      if (routeHash !== routeVisit.current.hash) routeVisit.current = { hash: routeHash, version: routeVisit.current.version + 1 };
+      const requestGeneration = ++generation;
+      const m = routeHash.replace(/^#\/?/,"").match(JOB_HASH_RE);
       if (!m) { setSelectedJob(null); setDeepLinkJn(null); setBackTo(null); try { sessionStorage.removeItem("cb_jobBackTo"); } catch {} return; }
       const jn = parseInt(m[1],10);
       const found = (dbJobs || []).find(j => j.id === jn);
       if (found) { setSelectedJob(found); setDetailTab(m[2] || "content"); setDeepLinkJn(null); return; }
+      setSelectedJob(previous => previous?.id === jn ? previous : null);
       setDeepLinkJn(jn); // 取得の間もさがす一覧を出さない
+      const isCurrent = () => requestGeneration === generation && window.location.hash === routeHash;
       // 一覧に無い求人（掲載が終わった・一時非公開）でも、当事者なら開ける（2026-08-24）。
       // カードの「求人を見る」・日程のタップ・チャットや今日ページのリンクがここを通る
       (async () => {
         try {
           const { data } = await fetchPublicJobByNumber(jn);
-          if (window.location.hash.replace(/^#\/?/,"").match(JOB_HASH_RE)?.[1] !== String(jn)) return; // 待つ間に別の画面へ移っていたら置き換えない
+          if (!isCurrent()) return; // 番号・タブ・履歴のいずれが変わっても古い結果は無効
           setDeepLinkJn(null); // 見つからなくても解除（行き止まりにしない）
           if (!data) return;
           setSelectedJob(mapJobPublicRow(data)); setDetailTab(m[2] || "content");
-        } catch { setDeepLinkJn(null); }
+        } catch { if (isCurrent()) setDeepLinkJn(null); }
       })();
     };
     window.addEventListener("hashchange", onHash);
     window.addEventListener("popstate", onHash);
     window.addEventListener(ROUTE_CHANGED, onHash);
     return () => {
+      generation += 1;
       window.removeEventListener("hashchange", onHash);
       window.removeEventListener("popstate", onHash);
       window.removeEventListener(ROUTE_CHANGED, onHash);
@@ -1131,14 +1157,20 @@ export function JobSearchMapView({ onRegister, me }) {
         <div ref={skelRef}>
           {/* 読み込み中（dbJobs未取得）は「ありません」でなく仮の箱を並べる（2026-07-27たきと指示）。
               空だと確定してから初めて空状態を出す＝一瞬「求人ゼロ」に見える誤解を防ぐ */}
-          {dbJobs === null && <AutoSkeleton shapeKey="search" />}
-          {dbJobs !== null && jobList.length === 0 && (
+          {(dbJobs === null || jobList.length === 0) && jobsLoadState === "loading" && <AutoSkeleton shapeKey="search" />}
+          {jobsLoadState === "error" && (
+            <div role="status" className="f-sans" style={{ textAlign:"center", padding:"20px" }}>
+              <p>{dbJobs === null ? "求人を読み込めませんでした" : "最新の求人を確認できませんでした"}</p>
+              <button type="button" onClick={retryJobs}>求人を再読み込み</button>
+            </div>
+          )}
+          {dbJobs !== null && jobList.length === 0 && jobsLoadState === "ready" && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}><NavIcon name="image" size={40} /></div>
               <p style={{ fontSize:16, margin:0, lineHeight:1.6 }}>現在、募集中の求人はありません</p>
             </div>
           )}
-          {jobList.length > 0 && filteredList.length === 0 && (
+          {jobsLoadState !== "error" && jobList.length > 0 && filteredList.length === 0 && (
             <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"64px 20px", color:"#999" }} className="f-sans">
               <div style={{ display:"flex", justifyContent:"center", marginBottom:12 }}><NavIcon name="search" size={40} /></div>
               <p style={{ fontSize:16, margin:"0 0 16px", lineHeight:1.6 }}>

@@ -17,8 +17,9 @@ import { ymdLocal } from "../../../../lib/utils";
 import { dateRangeLabel } from "../model";
 
 export function SearchFab({ active, summary, count, onOpen, onClear }) {
-  return (<>
-    <button onClick={onOpen} className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", gap:10, background:"#fff", border:"1px solid #DDD", borderRadius:32, padding:"11px 18px", boxShadow:"0 4px 16px rgba(0,0,0,0.18)", cursor:"pointer", textAlign:"left", boxSizing:"border-box" }}>
+  return (
+    <div className="cb-search-fab f-sans" style={{ display:"flex", alignItems:"center", background:"#fff", border:"1px solid #DDD", borderRadius:32, boxShadow:"0 4px 16px rgba(0,0,0,0.18)", boxSizing:"border-box" }}>
+    <button type="button" onClick={onOpen} className="f-sans" style={{ minWidth:0, flex:1, display:"flex", alignItems:"center", gap:10, background:"transparent", border:0, borderRadius:32, padding:"11px 18px", cursor:"pointer", textAlign:"left" }}>
       <span style={{ flexShrink:0, display:"flex", color:"#717171" }}><NavIcon name="search" size={17} /></span>
       <span style={{ minWidth:0, flex:1 }}>
         <span style={{ display:"block", fontSize:14, fontWeight:700, color:"#222", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
@@ -28,11 +29,12 @@ export function SearchFab({ active, summary, count, onOpen, onClear }) {
           {active ? `${count}件の仕事` : "作物・地域・時期でしぼり込み"}
         </span>
       </span>
-      {active && (
-        <span role="button" aria-label="条件をクリア" onClick={(e)=>{ e.stopPropagation(); onClear(); }} style={{ flexShrink:0, width:28, height:28, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#555" }}><NavIcon name="close" size={13} /></span>
-      )}
     </button>
-  </>);
+    {active && (
+      <button type="button" aria-label="条件をクリア" onClick={onClear} style={{ flexShrink:0, width:28, height:28, marginRight:18, border:0, borderRadius:"50%", background:"#F0F0F0", display:"flex", alignItems:"center", justifyContent:"center", color:"#555", cursor:"pointer" }}><NavIcon name="close" size={13} /></button>
+    )}
+    </div>
+  );
 }
 
 // 検索パネル（半透明の暗幕・1つだけ開くアコーディオン・チップはタップの瞬間に一覧へ反映）
@@ -100,7 +102,7 @@ export function SearchFilterPanel({ open, onClose, sections, section, onSection,
             ) : (
               <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                 {sec.opts.map(v => { const on = sec.sel.includes(v); return (
-                  <button key={v} onClick={()=>sec.tog(v)} className="f-sans" style={{ padding:"9px 16px", borderRadius:24, fontSize:13, fontWeight:700, cursor:"pointer", background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{sec.label(v)}</button>
+                  <button key={v} type="button" aria-pressed={on} onClick={()=>sec.tog(v)} className="f-sans" style={{ padding:"9px 16px", borderRadius:24, fontSize:13, fontWeight:700, cursor:"pointer", background: on ? "#00A86B" : "#fff", color: on ? "#fff" : "#444", border:"1px solid " + (on ? "#00A86B" : "#DDD") }}>{sec.label(v)}</button>
                 ); })}
               </div>
             )}
